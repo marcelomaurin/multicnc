@@ -2,6 +2,7 @@ unit multiphysics_materials;
 {$mode objfpc}{$H+}
 interface
 uses multiphysics_types;
+procedure CompleteMaterial(var M:TMaterial);
 function Steel:TMaterial;function Aluminum:TMaterial;function ABSPlastic:TMaterial;
 function Iron:TMaterial;function PLAPlastic:TMaterial;function Acrylic:TMaterial;function Glass:TMaterial;
 function Gold:TMaterial;function Silver:TMaterial;function Copper:TMaterial;function Lead:TMaterial;
@@ -35,4 +36,17 @@ function FR4:TMaterial;begin Result:=ABSPlastic;Result.Name:='FR-4 PCB';Result.D
 function Silicon:TMaterial;begin Result:=Glass;Result.Name:='Silicio';Result.Density:=2330;Result.YoungModulus:=130e9;Result.Poisson:=0.28;Result.ThermalConductivity:=148;Result.SpecificHeat:=700;Result.ThermalExpansion:=2.6e-6;Result.YieldStrength:=7000e6;Result.ElectricalResistivity:=2300;end;
 function AluminaCeramic:TMaterial;begin Result:=Glass;Result.Name:='Ceramica alumina';Result.Density:=3900;Result.YoungModulus:=370e9;Result.Poisson:=0.22;Result.ThermalConductivity:=30;Result.SpecificHeat:=880;Result.ThermalExpansion:=8e-6;Result.YieldStrength:=300e6;Result.ElectricalResistivity:=1e12;end;
 function WoodGeneric:TMaterial;begin Result:=ABSPlastic;Result.Name:='Madeira generica';Result.Density:=650;Result.YoungModulus:=10e9;Result.Poisson:=0.35;Result.ThermalConductivity:=0.12;Result.SpecificHeat:=1700;Result.ThermalExpansion:=5e-6;Result.YieldStrength:=40e6;Result.ElectricalResistivity:=1e10;end;
+procedure CompleteMaterial(var M:TMaterial);
+begin
+ if Pos('ABS',M.Name)>0 then begin M.MaterialClass:=mcPolymer;M.Emissivity:=0.95;M.MaxServiceTemperature:=80;M.MeltingTemperature:=220;end
+ else if Pos('PLA',M.Name)>0 then begin M.MaterialClass:=mcPolymer;M.Emissivity:=0.95;M.MaxServiceTemperature:=55;M.MeltingTemperature:=170;end
+ else if Pos('PETG',M.Name)>0 then begin M.MaterialClass:=mcPolymer;M.Emissivity:=0.95;M.MaxServiceTemperature:=70;M.MeltingTemperature:=240;end
+ else if(Pos('Borracha',M.Name)>0)then begin M.MaterialClass:=mcElastomer;M.Emissivity:=0.95;M.MaxServiceTemperature:=100;end
+ else if(Pos('Vidro',M.Name)>0)then begin M.MaterialClass:=mcGlass;M.Emissivity:=0.9;M.MaxServiceTemperature:=500;M.MeltingTemperature:=1400;end
+ else if(Pos('FR-4',M.Name)>0)then begin M.MaterialClass:=mcComposite;M.Emissivity:=0.9;M.MaxServiceTemperature:=130;end
+ else if(Pos('Silicio',M.Name)>0)then begin M.MaterialClass:=mcSemiconductor;M.Emissivity:=0.7;M.MaxServiceTemperature:=150;M.MeltingTemperature:=1414;end
+ else if(Pos('Ceramica',M.Name)>0)then begin M.MaterialClass:=mcCeramic;M.Emissivity:=0.9;M.MaxServiceTemperature:=1000;M.MeltingTemperature:=2072;end
+ else if(Pos('Madeira',M.Name)>0)then begin M.MaterialClass:=mcWood;M.Emissivity:=0.9;M.MaxServiceTemperature:=100;end
+ else begin M.MaterialClass:=mcMetal;M.Emissivity:=0.3;end;
+end;
 end.
