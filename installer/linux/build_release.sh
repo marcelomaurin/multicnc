@@ -1,14 +1,35 @@
 #!/usr/bin/env bash
-# Gera o pacote Linux do MultiSuite: dist/linux/multisuite_<versao>_amd64.deb
-# e dist/linux/MultiSuite-<versao>-linux-x86_64.tar.xz
+# Gera o pacote Linux do MultiSuite para a arquitetura escolhida:
+#   dist/linux-<arch>/multisuite_<versao>_<arch>.deb
+#   dist/linux-<arch>/MultiSuite-<versao>-linux-<cpu>.tar.xz
+#
+# Uso: installer/linux/build_release.sh [amd64|arm64|armhf]   (padrao: amd64)
 #
 # Requisitos (Debian/Ubuntu): sudo apt install lazarus lcl-gtk2 dpkg-dev
+# Para arm64/armhf em maquina x86_64 e preciso um Free Pascal cruzado para o
+# alvo e binutils do alvo (veja installer/linux/README.md). Em uma maquina ARM
+# (ex.: Raspberry Pi) basta rodar sem argumento de cruzamento: o script detecta.
 set -euo pipefail
 
 VERSION="${VERSION:-0.1.0}"
-ARCH=amd64
+HOSTARCH="$(dpkg --print-architecture 2>/dev/null || echo amd64)"
+ARCH="${1:-$HOSTARCH}"
+case "$ARCH" in
+  amd64) CPU=x86_64;  TRIPLE=x86_64-linux-gnu ;;
+  arm64) CPU=aarch64; TRIPLE=aarch64-linux-gnu ;;
+  armhf) CPU=arm;     TRIPLE=arm-linux-gnueabihf ;;
+  *) echo "ERRO: arquitetura nao suportada: $ARCH (use amd64, arm64 ou armhf)" >&2; exit 1 ;;
+esac
+TARNAME="$CPU"; [ "$ARCH" = armhf ] && TARNAME=armhf
+LAZOPTS=(--build-mode=Default --ws=gtk2)
+STRIP=strip
+if [ "$ARCH" != "$HOSTARCH" ]; then
+  LAZOPTS+=(--os=linux --cpu="$CPU")
+  STRIP="$TRIPLE-strip"
+  command -v "$STRIP" >/dev/null || { echo "ERRO: $STRIP nao encontrado (instale binutils-$TRIPLE)." >&2; exit 1; }
+fi
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-OUT="$ROOT/dist/linux"
+OUT="$ROOT/dist/linux-$ARCH"
 STAGE="$OUT/stage"
 APPDIR=/opt/multisuite
 
@@ -37,10 +58,10 @@ for entry in "${APPS[@]}"; do
   IFS='|' read -r id lpi exe name desc <<<"$entry"
   echo "=== Compilando $lpi ==="
   rm -f "$exe"
-  lazbuild --build-mode=Default --ws=gtk2 "$lpi"
+  lazbuild "${LAZOPTS[@]}" "$lpi"
   [ -x "$exe" ] || { echo "ERRO: executavel nao encontrado: $exe" >&2; exit 1; }
   install -m 0755 "$exe" "$STAGE$APPDIR/$id"
-  strip -s "$STAGE$APPDIR/$id"
+  "$STRIP" -s "$STAGE$APPDIR/$id"
 
   # Wrapper em /usr/bin: o launcher procura as ferramentas ao lado do executavel real.
   printf '#!/bin/sh\nexec %s/%s "$@"\n' "$APPDIR" "$id" > "$STAGE/usr/bin/$id"
@@ -98,10 +119,10 @@ chmod 0755 "$STAGE/DEBIAN/postinst" "$STAGE/DEBIAN/postrm"
 
 dpkg-deb --root-owner-group --build "$STAGE" "$OUT/multisuite_${VERSION}_${ARCH}.deb"
 
-TARDIR="$OUT/MultiSuite-$VERSION-linux-x86_64"
+TARDIR="$OUT/MultiSuite-$VERSION-linux-$TARNAME"
 mkdir -p "$TARDIR"
 cp -r "$STAGE$APPDIR/." "$TARDIR/"
-tar -C "$OUT" -cJf "$OUT/MultiSuite-$VERSION-linux-x86_64.tar.xz" "$(basename "$TARDIR")"
+tar -C "$OUT" -cJf "$OUT/MultiSuite-$VERSION-linux-$TARNAME.tar.xz" "$(basename "$TARDIR")"
 rm -rf "$TARDIR" "$STAGE"
 
 echo
