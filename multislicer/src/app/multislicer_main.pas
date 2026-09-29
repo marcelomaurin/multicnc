@@ -5,7 +5,7 @@ uses Classes,SysUtils,Forms,Controls,StdCtrls,Dialogs,multislicer_mesh,multislic
 type TMultiSlicerForm=class(TForm)
  private M:TMesh;Layers:TList;Profile:TPrinterProfile;Log:TMemo;LayerEdit:TEdit;OpenBtn,SliceBtn,ExportBtn:TButton;
   procedure OpenClick(Sender:TObject);procedure SliceClick(Sender:TObject);procedure ExportClick(Sender:TObject);procedure ClearLayers;
- public constructor Create(AOwner:TComponent);override;destructor Destroy;override;
+ public constructor Create(AOwner:TComponent);override;destructor Destroy;override;procedure OpenFile(const FN:string);
  end;
 implementation
 constructor TMultiSlicerForm.Create(AOwner:TComponent);
@@ -17,7 +17,8 @@ begin inherited Create(AOwner);Caption:='MultiSlicer - 3D Printer';Width:=900;He
  Log:=TMemo.Create(Self);Log.Parent:=Self;Log.Align:=alClient;Log.Lines.Add('Abra um STL ASCII para iniciar.');end;
 procedure TMultiSlicerForm.ClearLayers;var I:Integer;begin for I:=0 to Layers.Count-1 do TObject(Layers[I]).Free;Layers.Clear;end;
 destructor TMultiSlicerForm.Destroy;begin ClearLayers;Layers.Free;M.Free;inherited;end;
-procedure TMultiSlicerForm.OpenClick(Sender:TObject);var D:TOpenDialog;begin D:=TOpenDialog.Create(Self);try D.Filter:='STL|*.stl';if D.Execute then if TSTLImporter.LoadASCII(D.FileName,M)then Log.Lines.Add(Format('Malha: %d triangulos; Z %.3f..%.3f',[M.Count,M.MinZ,M.MaxZ]))else Log.Lines.Add('Falha/arquivo nao ASCII');finally D.Free;end;end;
+procedure TMultiSlicerForm.OpenFile(const FN:string);begin if(FN='')or(not FileExists(FN))then Exit;if TSTLImporter.LoadASCII(FN,M)then Log.Lines.Add(Format('Aberto pelo MultiSuite: %s | %d triangulos',[FN,M.Count]))else Log.Lines.Add('Arquivo recebido pelo MultiSuite nao e STL ASCII valido: '+FN);end;
+procedure TMultiSlicerForm.OpenClick(Sender:TObject);var D:TOpenDialog;begin D:=TOpenDialog.Create(Self);try D.Filter:='STL|*.stl';if D.Execute then OpenFile(D.FileName);finally D.Free;end;end;
 procedure TMultiSlicerForm.SliceClick(Sender:TObject);var S:TSlicer;H:Double;begin if M.Count=0 then Exit;H:=StrToFloatDef(LayerEdit.Text,0.2);ClearLayers;S:=TSlicer.Create;try S.Slice(M,H,Layers);finally S.Free;end;Profile.LayerHeight:=H;Log.Lines.Add(Format('Fatiado: %d camadas',[Layers.Count]));end;
 procedure TMultiSlicerForm.ExportClick(Sender:TObject);var D:TSaveDialog;begin if Layers.Count=0 then Exit;D:=TSaveDialog.Create(Self);try D.Filter:='G-code|*.gcode';if D.Execute then begin TSlicerGCode.ExportLayers(Layers,Profile,D.FileName);Log.Lines.Add('Gerado: '+D.FileName);end;finally D.Free;end;end;
 end.
