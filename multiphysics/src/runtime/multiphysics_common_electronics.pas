@@ -10,6 +10,7 @@ type
  TLDOModel=record OutputVoltage,DropoutVoltage,MaxCurrent:Double;end;
  TOpAmpModel=record Gain,SupplyMin,SupplyMax:Double;end;
  TFuseModel=record RatedCurrent,I2t,AccumulatedI2t:Double;Blown:Boolean;end;
+function SchottkyCurrent(Voltage,Vf,Resistance:Double):Double;function BridgeDCVoltage(ACRMS,DiodeDrop:Double):Double;function ComparatorOutput(VPlus,VMinus,LowLevel,HighLevel:Double):Double;
 function LEDCurrent(const M:TLEDModel;Voltage:Double):Double;
 function ZenerCurrent(const M:TZenerModel;Voltage:Double):Double;
 function BJTCollectorCurrent(const M:TBJTModel;VbeApplied,BaseCurrent:Double):Double;
@@ -18,6 +19,9 @@ function LDOOutput(const M:TLDOModel;InputVoltage,LoadCurrent:Double):Double;
 function OpAmpOutput(const M:TOpAmpModel;VPlus,VMinus:Double):Double;
 procedure FuseStep(var M:TFuseModel;Current,Dt:Double);
 implementation
+function SchottkyCurrent(Voltage,Vf,Resistance:Double):Double;begin if(Voltage>Vf)and(Resistance>0)then Result:=(Voltage-Vf)/Resistance else Result:=0;end;
+function BridgeDCVoltage(ACRMS,DiodeDrop:Double):Double;begin Result:=Max(0,ACRMS*Sqrt(2)-2*DiodeDrop);end;
+function ComparatorOutput(VPlus,VMinus,LowLevel,HighLevel:Double):Double;begin if VPlus>=VMinus then Result:=HighLevel else Result:=LowLevel;end;
 function LEDCurrent(const M:TLEDModel;Voltage:Double):Double;begin Result:=0;if(Voltage>M.ForwardVoltage)and(M.SeriesResistance>0)then Result:=Min(M.MaxCurrent,(Voltage-M.ForwardVoltage)/M.SeriesResistance);end;
 function ZenerCurrent(const M:TZenerModel;Voltage:Double):Double;begin Result:=0;if(Voltage>M.ForwardVoltage)and(M.DynamicResistance>0)then Result:=(Voltage-M.ForwardVoltage)/M.DynamicResistance else if(Voltage< -M.ZenerVoltage)and(M.DynamicResistance>0)then Result:=(Voltage+M.ZenerVoltage)/M.DynamicResistance;end;
 function BJTCollectorCurrent(const M:TBJTModel;VbeApplied,BaseCurrent:Double):Double;begin Result:=0;if((not M.PNP)and(VbeApplied>=M.Vbe))or(M.PNP and(VbeApplied<=-M.Vbe))then Result:=Min(M.MaxCurrent,Abs(BaseCurrent)*M.Beta);if M.PNP then Result:=-Result;end;
