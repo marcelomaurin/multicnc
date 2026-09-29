@@ -4,11 +4,11 @@ interface
 uses Classes,SysUtils,Forms,Controls,StdCtrls,Dialogs,multicam_types,multicam_job,multicam_profile,multicam_engine,multicam_validator,multicam_gcode;
 type TMultiCAMForm=class(TForm)
  private J:TCamJob;Log:TMemo;W,H,Depth,Diameter,StepDown,SafeZ,Feed,Plunge,RPM:TEdit;BuildBtn,ExportBtn:TButton;
-  procedure BuildClick(Sender:TObject);procedure ExportClick(Sender:TObject);function E(const Caption,Value:string):TEdit;
+  procedure BuildClick(Sender:TObject);procedure ExportClick(Sender:TObject);function E(const ACaption,Value:string):TEdit;
  public constructor Create(AOwner:TComponent);override;destructor Destroy;override;
  end;
 implementation
-function TMultiCAMForm.E(const Caption,Value:string):TEdit;begin Result:=TEdit.Create(Self);Result.Parent:=Self;Result.Align:=alTop;Result.Text:=Value;Result.TextHint:=Caption;end;
+function TMultiCAMForm.E(const ACaption,Value:string):TEdit;begin Result:=TEdit.Create(Self);Result.Parent:=Self;Result.Align:=alTop;Result.Text:=Value;Result.TextHint:=ACaption;end;
 constructor TMultiCAMForm.Create(AOwner:TComponent);
 begin inherited Create(AOwner);Caption:='MultiCAM - CNC Router';Width:=900;Height:=650;J:=TCamJob.Create;J.Tool:=DefaultRouterTool;J.Settings:=DefaultCamSettings;
  W:=E('Largura (mm)','50');H:=E('Altura (mm)','30');Depth:=E('Profundidade final negativa','-2');Diameter:=E('Diametro ferramenta','3.175');StepDown:=E('Step-down','0.5');SafeZ:=E('Safe Z','5');Feed:=E('Feed - configurar','0');Plunge:=E('Plunge - configurar','0');RPM:=E('Spindle RPM - configurar','0');

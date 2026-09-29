@@ -17,5 +17,5 @@ procedure TPrintBedCanvas.MouseUp(B:TMouseButton;S:TShiftState;X,Y:Integer);begi
 procedure TPrintBedCanvas.RotateZ90;begin if FSelected<0 then Exit;FLayout.Item(FSelected).RotZ:=FLayout.Item(FSelected).RotZ+90;Invalidate;end;
 procedure TPrintBedCanvas.CenterSelected;begin if FSelected<0 then Exit;FLayout.Center(FSelected);Invalidate;end;
 procedure TPrintBedCanvas.ZoomIn;begin FZoom:=Min(8,FZoom*1.25);Invalidate;end;
-procedure TPrintBedCanvas.ZoomOut;begin FZoom:=Max(.25,FZoom/1.25);Invalidate;end;
+procedure TPrintBedCanvas.ZoomOut;begin FZoom:=Max(0.25,FZoom/1.25);Invalidate;end;
 end.

@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+# Gera o pacote Linux do MultiSuite: dist/linux/multisuite_<versao>_amd64.deb
+# e dist/linux/MultiSuite-<versao>-linux-x86_64.tar.xz
+#
+# Requisitos (Debian/Ubuntu): sudo apt install lazarus lcl-gtk2 dpkg-dev
+set -euo pipefail
+
+VERSION="${VERSION:-0.1.0}"
+ARCH=amd64
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+OUT="$ROOT/dist/linux"
+STAGE="$OUT/stage"
+APPDIR=/opt/multisuite
+
+cd "$ROOT"
+command -v lazbuild >/dev/null || { echo "ERRO: lazbuild nao encontrado no PATH." >&2; exit 1; }
+
+# id | projeto | executavel gerado | nome exibido | descricao
+APPS=(
+  "multisuite|multisuite/src/app/multisuite.lpi|multisuite/src/app/multisuite|MultiSuite|Central de engenharia MultiSuite"
+  "multicad|multicad/src/app/multicad.lpi|multicad/src/app/multicad|MultiCAD|Modelagem CAD mecanica"
+  "multipcb|multipcb/src/app/multipcb.lpi|multipcb/src/app/multipcb|MultiPCB|Esquematico e PCB"
+  "multiassembly|multiassembly/src/app/multiassembly.lpi|multiassembly/src/app/multiassembly|MultiAssembly|Montagem eletromecanica"
+  "multiphysics|multiphysics/src/app/multiphysics.lpi|multiphysics/src/app/multiphysics|MultiPhysics|Simulacao estrutural, termica e dinamica"
+  "multicam|multicam/src/app/multicam.lpi|multicam/src/app/multicam|MultiCAM|CAM e simulacao CNC Router"
+  "multislicer|multislicer/src/app/multislicer.lpi|multislicer/src/app/multislicer|MultiSlicer|Fatiamento para impressao 3D"
+  "laserpcb|laserpcb/src/app/laserpcb.lpi|laserpcb/src/app/laserpcb|LaserPCB|Preparacao de PCB para laser"
+  "laserart|laserpcb/src/app/laserart.lpi|laserpcb/src/app/laserart|LaserArt|Imagem, vetor e arte para laser"
+  "multicnc|src/app/multicnc.lpi|src/app/multicnc|MultiCNC|Controle e execucao da maquina"
+  "multisuite_test_center|multisuite/src/testing/multisuite_test_center.lpi|multisuite/src/testing/multisuite_test_center|MultiSuite Central de Testes|Central de testes do MultiSuite"
+)
+
+rm -rf "$OUT"
+mkdir -p "$STAGE$APPDIR" "$STAGE/usr/bin" "$STAGE/usr/share/applications" "$STAGE/usr/share/mime/packages" "$STAGE/DEBIAN"
+
+for entry in "${APPS[@]}"; do
+  IFS='|' read -r id lpi exe name desc <<<"$entry"
+  echo "=== Compilando $lpi ==="
+  rm -f "$exe"
+  lazbuild --build-mode=Default --ws=gtk2 "$lpi"
+  [ -x "$exe" ] || { echo "ERRO: executavel nao encontrado: $exe" >&2; exit 1; }
+  install -m 0755 "$exe" "$STAGE$APPDIR/$id"
+  strip -s "$STAGE$APPDIR/$id"
+
+  # Wrapper em /usr/bin: o launcher procura as ferramentas ao lado do executavel real.
+  printf '#!/bin/sh\nexec %s/%s "$@"\n' "$APPDIR" "$id" > "$STAGE/usr/bin/$id"
+  chmod 0755 "$STAGE/usr/bin/$id"
+
+  mime=""; [ "$id" = multisuite ] && mime="MimeType=application/x-multisuite-project;"
+  cat > "$STAGE/usr/share/applications/$id.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=$name
+Comment=$desc
+Exec=$APPDIR/$id %f
+Terminal=false
+Categories=Engineering;Development;
+$mime
+EOF
+done
+
+cp -r docs "$STAGE$APPDIR/docs"
+
+cat > "$STAGE/usr/share/mime/packages/multisuite.xml" <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-multisuite-project">
+    <comment>Projeto MultiSuite</comment>
+    <glob pattern="*.msuite"/>
+  </mime-type>
+</mime-info>
+EOF
+
+SIZE=$(du -sk "$STAGE" | cut -f1)
+cat > "$STAGE/DEBIAN/control" <<EOF
+Package: multisuite
+Version: $VERSION
+Section: science
+Priority: optional
+Architecture: $ARCH
+Depends: libgtk2.0-0 | libgtk2.0-0t64, libc6
+Installed-Size: $SIZE
+Maintainer: Maurinsoft <marcelomaurinmartins@gmail.com>
+Homepage: https://github.com/marcelomaurin/multicnc
+Description: MultiSuite - CAD, PCB, CAM, fatiamento, laser e controle CNC
+ Inclui MultiSuite, MultiCAD, MultiPCB, MultiAssembly, MultiPhysics, MultiCAM,
+ MultiSlicer, LaserPCB, LaserArt, MultiCNC e Central de Testes.
+EOF
+
+cat > "$STAGE/DEBIAN/postinst" <<'EOF'
+#!/bin/sh
+set -e
+command -v update-mime-database >/dev/null && update-mime-database /usr/share/mime || true
+command -v update-desktop-database >/dev/null && update-desktop-database -q /usr/share/applications || true
+EOF
+cp "$STAGE/DEBIAN/postinst" "$STAGE/DEBIAN/postrm"
+chmod 0755 "$STAGE/DEBIAN/postinst" "$STAGE/DEBIAN/postrm"
+
+dpkg-deb --root-owner-group --build "$STAGE" "$OUT/multisuite_${VERSION}_${ARCH}.deb"
+
+TARDIR="$OUT/MultiSuite-$VERSION-linux-x86_64"
+mkdir -p "$TARDIR"
+cp -r "$STAGE$APPDIR/." "$TARDIR/"
+tar -C "$OUT" -cJf "$OUT/MultiSuite-$VERSION-linux-x86_64.tar.xz" "$(basename "$TARDIR")"
+rm -rf "$TARDIR" "$STAGE"
+
+echo
+echo "Pacotes gerados em $OUT:"
+ls -la "$OUT"

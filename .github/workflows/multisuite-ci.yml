@@ -22,5 +22,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y lazarus
-      - run: lazbuild multisuite/src/app/multisuite.lpi
+      - run: |
+          lazbuild multisuite/src/app/multisuite.lpi
           lazbuild multisuite/src/testing/multisuite_test_center.lpi

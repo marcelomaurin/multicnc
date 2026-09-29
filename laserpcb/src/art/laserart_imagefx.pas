@@ -6,7 +6,7 @@ type TLaserImageFX=class
  public class procedure Grayscale(B:TBitmap);class procedure Threshold(B:TBitmap;Level:Byte;Invert:Boolean);class procedure FloydSteinberg(B:TBitmap;Invert:Boolean);
  end;
 implementation
-function Gray(C:TColor):Integer;begin C:=ColorToRGB(C);Result:=Round(.299*(C and $FF)+.587*((C shr 8)and $FF)+.114*((C shr 16)and $FF));end;
+function Gray(C:TColor):Integer;begin C:=ColorToRGB(C);Result:=Round(0.299*(C and $FF)+0.587*((C shr 8)and $FF)+0.114*((C shr 16)and $FF));end;
 function Clamp(V:Integer):Integer;begin Result:=Max(0,Min(255,V));end;
 class procedure TLaserImageFX.Grayscale(B:TBitmap);var X,Y,G:Integer;begin for Y:=0 to B.Height-1 do for X:=0 to B.Width-1 do begin G:=Gray(B.Canvas.Pixels[X,Y]);B.Canvas.Pixels[X,Y]:=RGBToColor(G,G,G);end;end;
 class procedure TLaserImageFX.Threshold(B:TBitmap;Level:Byte;Invert:Boolean);var X,Y,G,V:Integer;begin for Y:=0 to B.Height-1 do for X:=0 to B.Width-1 do begin G:=Gray(B.Canvas.Pixels[X,Y]);if G<Level then V:=0 else V:=255;if Invert then V:=255-V;B.Canvas.Pixels[X,Y]:=RGBToColor(V,V,V);end;end;

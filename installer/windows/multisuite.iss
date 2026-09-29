@@ -30,6 +30,7 @@ Source: "..\..\dist\app\multisuite.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\dist\app\multicad.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\dist\app\multipcb.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\dist\app\multiassembly.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\dist\app\multiphysics.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\dist\app\multicam.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\dist\app\multislicer.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\dist\app\laserpcb.exe"; DestDir: "{app}"; Flags: ignoreversion

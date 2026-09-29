@@ -1,7 +1,7 @@
 unit multicam_machine_canvas;
 {$mode objfpc}{$H+}
 interface
-uses Classes,Controls,Graphics,Math,multicam_types,multicam_job,multicam_setup,multicam_machine_model,multicam_machine_kinematics;
+uses Classes,SysUtils,Controls,Graphics,Math,multicam_types,multicam_job,multicam_setup,multicam_machine_model,multicam_machine_kinematics;
 type TMachineCanvas=class(TCustomControl)
  private FSetup:TMechanicalSetup;FMachine:TMachineModel;FPose:TMachinePose;
  protected procedure Paint;override;
