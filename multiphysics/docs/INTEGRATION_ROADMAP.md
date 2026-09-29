@@ -45,3 +45,11 @@ As relacoes mecanicas sao exportadas como links rotacionais ou lineares. O proxi
 - malha FEM e CFD reais.
 
 Nenhum desses itens deve ser marcado como fisicamente validado sem benchmark ou ensaio.
+
+## Biblioteca fisica
+- atuadores: solenoide, atuador linear, eletroima, ventilador, bomba e aquecedor;
+- motores: DC, stepper, servo, BLDC e AC;
+- sensores: velocidade, posicao, fim de curso, corrente, tensao, temperatura, pressao, forca, celula de carga, Hall, proximidade, foto, ultrassom, encoder, acelerometro, giroscopio e umidade;
+- emissores: LED, laser, lampada e buzzer;
+- resistivos: resistor, potenciometro, NTC, PTC, LDR, strain gauge e resistencia aquecedora.
+Modelos sao reduzidos e destinados a simulacao de sistema; nao substituem modelos SPICE/FEM calibrados.
