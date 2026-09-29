@@ -25,6 +25,9 @@ function NewSwitch(const ID:string):TSimComponent;
 function NewPotentiometer(const ID:string;Ohms:Double):TSimComponent;
 function NewFuse(const ID:string;Amps:Double):TSimComponent;
 function NewBattery(const ID:string;Volts,Ah:Double):TSimComponent;
+function NewSolarPanel(const ID:string;Watts:Double):TSimComponent;
+function NewFuelTank(const ID:string;Liters:Double):TSimComponent;
+function NewChemicalTank(const ID:string;Liters:Double):TSimComponent;
 function NewACSource(const ID:string;Vrms,Hz:Double):TSimComponent;
 function NewTransformer(const ID:string;Ratio:Double):TSimComponent;
 function NewLDO(const ID:string;Vout:Double):TSimComponent;
@@ -127,4 +130,7 @@ function NewEncoder(const ID:string;PPR:Integer):TSimComponent;begin Result:=New
 function NewLoadCell(const ID:string;MaxForce:Double):TSimComponent;begin Result:=NewSensor(ID,'Celula de carga',ckLoadCell);Result.Parameters.Values['max_force_n']:=FloatToStr(MaxForce);Result.Parameters.Values['sensitivity_mv_v']:='2';end;
 function NewBuzzer(const ID:string):TSimComponent;begin Result:=NewPhysicalDevice(ID,'Buzzer',ckBuzzer,cdElectronic);Result.AddPort('PWR',ptElectrical);Result.Parameters.Values['frequency_hz']:='2000';end;
 function NewLamp(const ID:string):TSimComponent;begin Result:=NewPhysicalDevice(ID,'Lampada',ckLamp,cdElectrical);Result.AddPort('A',ptElectrical);Result.AddPort('B',ptElectrical);Result.Parameters.Values['power_w']:='10';end;
+function NewSolarPanel(const ID:string;Watts:Double):TSimComponent;begin Result:=TSimComponent.Create(ID,'Painel solar',ckSolarPanel,cdElectrical);Result.AddPort('V+',ptElectrical);Result.AddPort('V-',ptElectrical);Result.Parameters.Values['rated_power_w']:=FloatToStr(Watts);Result.Parameters.Values['irradiance_w_m2']:='1000';end;
+function NewFuelTank(const ID:string;Liters:Double):TSimComponent;begin Result:=TSimComponent.Create(ID,'Tanque de combustivel',ckFuelTank,cdThermal);Result.Parameters.Values['volume_l']:=FloatToStr(Liters);Result.Parameters.Values['fuel']:='gasoline';end;
+function NewChemicalTank(const ID:string;Liters:Double):TSimComponent;begin Result:=TSimComponent.Create(ID,'Reservatorio quimico',ckChemicalTank,cdThermal);Result.Parameters.Values['volume_l']:=FloatToStr(Liters);Result.Parameters.Values['chemical']:='water';end;
 end.
