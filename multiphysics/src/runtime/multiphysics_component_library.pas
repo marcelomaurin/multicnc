@@ -29,6 +29,15 @@ function NewACSource(const ID:string;Vrms,Hz:Double):TSimComponent;
 function NewTransformer(const ID:string;Ratio:Double):TSimComponent;
 function NewLDO(const ID:string;Vout:Double):TSimComponent;
 function NewOpAmp(const ID:string):TSimComponent;
+function NewLogic(const ID:string;Kind:TComponentKind):TSimComponent;
+function NewTimer555(const ID:string):TSimComponent;
+function NewADC(const ID:string;Bits:Integer):TSimComponent;
+function NewDAC(const ID:string;Bits:Integer):TSimComponent;
+function NewOptocoupler(const ID:string):TSimComponent;
+function NewBuck(const ID:string):TSimComponent;
+function NewBoost(const ID:string):TSimComponent;
+function NewHBridge(const ID:string):TSimComponent;
+function NewStepperDriver(const ID:string):TSimComponent;
 implementation
 function NewPowerSupply(const ID:string;Voltage,MaxCurrent:Double):TSimComponent;begin Result:=TSimComponent.Create(ID,'Fonte',ckPowerSupply,cdElectrical);Result.AddPort('V+',ptElectrical);Result.AddPort('GND',ptElectrical);Result.Parameters.Values['voltage']:=FloatToStr(Voltage);Result.Parameters.Values['max_current']:=FloatToStr(MaxCurrent);end;
 function NewPWMDriver(const ID:string):TSimComponent;begin Result:=TSimComponent.Create(ID,'Driver PWM',ckPWMDriver,cdElectronic);Result.AddPort('VIN',ptElectrical);Result.AddPort('VOUT',ptElectrical);Result.AddPort('CMD',ptSignal);end;
@@ -57,4 +66,13 @@ function NewACSource(const ID:string;Vrms,Hz:Double):TSimComponent;begin Result:
 function NewTransformer(const ID:string;Ratio:Double):TSimComponent;begin Result:=TSimComponent.Create(ID,'Transformador',ckTransformer,cdElectrical);Result.AddPort('P1',ptElectrical);Result.AddPort('P2',ptElectrical);Result.AddPort('S1',ptElectrical);Result.AddPort('S2',ptElectrical);Result.Parameters.Values['ratio']:=FloatToStr(Ratio);end;
 function NewLDO(const ID:string;Vout:Double):TSimComponent;begin Result:=TSimComponent.Create(ID,'Regulador LDO',ckLDO,cdElectronic);Result.AddPort('IN',ptElectrical);Result.AddPort('GND',ptElectrical);Result.AddPort('OUT',ptElectrical);Result.Parameters.Values['vout']:=FloatToStr(Vout);end;
 function NewOpAmp(const ID:string):TSimComponent;begin Result:=TSimComponent.Create(ID,'Amplificador operacional',ckOpAmp,cdElectronic);Result.AddPort('V+',ptElectrical);Result.AddPort('V-',ptElectrical);Result.AddPort('IN+',ptElectrical);Result.AddPort('IN-',ptElectrical);Result.AddPort('OUT',ptElectrical);Result.Parameters.Values['gain']:='100000';end;
+function NewLogic(const ID:string;Kind:TComponentKind):TSimComponent;begin Result:=TSimComponent.Create(ID,'Porta logica',Kind,cdElectronic);Result.AddPort('A',ptSignal);Result.AddPort('B',ptSignal);Result.AddPort('Y',ptSignal);end;
+function NewTimer555(const ID:string):TSimComponent;begin Result:=TSimComponent.Create(ID,'Timer 555',ckTimer555,cdElectronic);Result.AddPort('VCC',ptElectrical);Result.AddPort('GND',ptElectrical);Result.AddPort('TRIG',ptSignal);Result.AddPort('OUT',ptSignal);end;
+function NewADC(const ID:string;Bits:Integer):TSimComponent;begin Result:=TSimComponent.Create(ID,'ADC',ckADC,cdElectronic);Result.AddPort('AIN',ptElectrical);Result.AddPort('DOUT',ptSignal);Result.Parameters.Values['bits']:=IntToStr(Bits);end;
+function NewDAC(const ID:string;Bits:Integer):TSimComponent;begin Result:=TSimComponent.Create(ID,'DAC',ckDAC,cdElectronic);Result.AddPort('DIN',ptSignal);Result.AddPort('AOUT',ptElectrical);Result.Parameters.Values['bits']:=IntToStr(Bits);end;
+function NewOptocoupler(const ID:string):TSimComponent;begin Result:=TSimComponent.Create(ID,'Optoacoplador',ckOptocoupler,cdElectronic);Result.AddPort('IN+',ptElectrical);Result.AddPort('IN-',ptElectrical);Result.AddPort('C',ptElectrical);Result.AddPort('E',ptElectrical);Result.Parameters.Values['ctr']:='1';end;
+function NewBuck(const ID:string):TSimComponent;begin Result:=TSimComponent.Create(ID,'Buck',ckBuck,cdElectronic);Result.AddPort('VIN',ptElectrical);Result.AddPort('GND',ptElectrical);Result.AddPort('VOUT',ptElectrical);Result.AddPort('PWM',ptSignal);Result.Parameters.Values['efficiency']:='0.9';end;
+function NewBoost(const ID:string):TSimComponent;begin Result:=TSimComponent.Create(ID,'Boost',ckBoost,cdElectronic);Result.AddPort('VIN',ptElectrical);Result.AddPort('GND',ptElectrical);Result.AddPort('VOUT',ptElectrical);Result.AddPort('PWM',ptSignal);Result.Parameters.Values['efficiency']:='0.9';end;
+function NewHBridge(const ID:string):TSimComponent;begin Result:=TSimComponent.Create(ID,'Ponte H',ckHBridge,cdElectronic);Result.AddPort('VIN',ptElectrical);Result.AddPort('OUTA',ptElectrical);Result.AddPort('OUTB',ptElectrical);Result.AddPort('PWM',ptSignal);Result.AddPort('DIR',ptSignal);end;
+function NewStepperDriver(const ID:string):TSimComponent;begin Result:=TSimComponent.Create(ID,'Driver STEP/DIR',ckStepperDriver,cdElectronic);Result.AddPort('VMOT',ptElectrical);Result.AddPort('GND',ptElectrical);Result.AddPort('STEP',ptSignal);Result.AddPort('DIR',ptSignal);Result.AddPort('ENABLE',ptSignal);Result.AddPort('A+',ptElectrical);Result.AddPort('A-',ptElectrical);Result.AddPort('B+',ptElectrical);Result.AddPort('B-',ptElectrical);Result.Parameters.Values['current_limit']:='2';end;
 end.
