@@ -27,3 +27,12 @@ Resultados permanecem de fidelidade ESTIMATIVA ate validacao.
 - falhas: circuito aberto, curto, motor travado, sobrecorrente, sobretemperatura;
 - co-simulacao SPICE;
 - cargas FEM/CFD devolvidas ao runtime.
+
+
+## Grafo executavel
+A maquina passa a ser descrita por componentes, portas e conexoes tipadas.
+Dominios de porta atuais: eletrico, mecanico rotacional, termico e sinal.
+Biblioteca inicial: fonte, driver PWM, motor DC, carga/eixo, sensor de velocidade e controlador.
+A demonstracao fecha o ciclo PSU -> driver -> motor -> carga e motor -> sensor -> controlador -> driver.
+
+O grafo e a base para importar no futuro a conectividade do MultiPCB e os vinculos fisicos do MultiAssembly.
