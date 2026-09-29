@@ -38,6 +38,9 @@ function NewBuck(const ID:string):TSimComponent;
 function NewBoost(const ID:string):TSimComponent;
 function NewHBridge(const ID:string):TSimComponent;
 function NewStepperDriver(const ID:string):TSimComponent;
+function NewSCR(const ID:string):TSimComponent;
+function NewTRIAC(const ID:string):TSimComponent;
+function NewIGBT(const ID:string):TSimComponent;
 implementation
 function NewPowerSupply(const ID:string;Voltage,MaxCurrent:Double):TSimComponent;begin Result:=TSimComponent.Create(ID,'Fonte',ckPowerSupply,cdElectrical);Result.AddPort('V+',ptElectrical);Result.AddPort('GND',ptElectrical);Result.Parameters.Values['voltage']:=FloatToStr(Voltage);Result.Parameters.Values['max_current']:=FloatToStr(MaxCurrent);end;
 function NewPWMDriver(const ID:string):TSimComponent;begin Result:=TSimComponent.Create(ID,'Driver PWM',ckPWMDriver,cdElectronic);Result.AddPort('VIN',ptElectrical);Result.AddPort('VOUT',ptElectrical);Result.AddPort('CMD',ptSignal);end;
@@ -75,4 +78,7 @@ function NewBuck(const ID:string):TSimComponent;begin Result:=TSimComponent.Crea
 function NewBoost(const ID:string):TSimComponent;begin Result:=TSimComponent.Create(ID,'Boost',ckBoost,cdElectronic);Result.AddPort('VIN',ptElectrical);Result.AddPort('GND',ptElectrical);Result.AddPort('VOUT',ptElectrical);Result.AddPort('PWM',ptSignal);Result.Parameters.Values['efficiency']:='0.9';end;
 function NewHBridge(const ID:string):TSimComponent;begin Result:=TSimComponent.Create(ID,'Ponte H',ckHBridge,cdElectronic);Result.AddPort('VIN',ptElectrical);Result.AddPort('OUTA',ptElectrical);Result.AddPort('OUTB',ptElectrical);Result.AddPort('PWM',ptSignal);Result.AddPort('DIR',ptSignal);end;
 function NewStepperDriver(const ID:string):TSimComponent;begin Result:=TSimComponent.Create(ID,'Driver STEP/DIR',ckStepperDriver,cdElectronic);Result.AddPort('VMOT',ptElectrical);Result.AddPort('GND',ptElectrical);Result.AddPort('STEP',ptSignal);Result.AddPort('DIR',ptSignal);Result.AddPort('ENABLE',ptSignal);Result.AddPort('A+',ptElectrical);Result.AddPort('A-',ptElectrical);Result.AddPort('B+',ptElectrical);Result.AddPort('B-',ptElectrical);Result.Parameters.Values['current_limit']:='2';end;
+function NewSCR(const ID:string):TSimComponent;begin Result:=TSimComponent.Create(ID,'SCR',ckSCR,cdElectronic);Result.AddPort('A',ptElectrical);Result.AddPort('K',ptElectrical);Result.AddPort('G',ptSignal);end;
+function NewTRIAC(const ID:string):TSimComponent;begin Result:=TSimComponent.Create(ID,'TRIAC',ckTRIAC,cdElectronic);Result.AddPort('MT1',ptElectrical);Result.AddPort('MT2',ptElectrical);Result.AddPort('G',ptSignal);end;
+function NewIGBT(const ID:string):TSimComponent;begin Result:=TSimComponent.Create(ID,'IGBT',ckIGBT,cdElectronic);Result.AddPort('C',ptElectrical);Result.AddPort('E',ptElectrical);Result.AddPort('G',ptSignal);Result.Parameters.Values['threshold']:='5';Result.Parameters.Values['on_resistance']:='0.05';end;
 end.
