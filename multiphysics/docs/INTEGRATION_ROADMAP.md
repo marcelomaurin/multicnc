@@ -8,6 +8,10 @@
 - fonte, driver PWM, motor DC, carga/eixo, sensor e controlador;
 - runtime eletrico -> mecanico -> termico -> sensor -> controle;
 - falhas basicas;
+- modelos reduzidos R/C/L, diodo, MOSFET e rele;
+- stepper, servo e BLDC;
+- engrenagem, fuso e mola/amortecedor;
+- CNC stepper de referencia;
 - instrumentos e gravador CSV;
 - interface de cargas runtime -> solver FEM/CFD;
 - CNC virtual de referencia.
@@ -22,9 +26,8 @@ A integracao deve exportar a netlist real do modelo do MultiPCB para o contrato 
 As relacoes mecanicas sao exportadas como links rotacionais ou lineares. O proximo refinamento e mapear ratio/pitch e propriedades de inercia para os links.
 
 ## Modelos ainda necessarios
-- resistor/capacitor/indutor/diodo/MOSFET/rele com solver de circuito;
-- stepper/servo/BLDC/spindle;
-- engrenagem/correia/polia/fuso/mola/amortecedor/juntas;
+- solver nodal de circuito e co-simulacao SPICE;
+- spindle parametrizado, correia/polia e juntas multi-corpo;
 - fim de curso discreto por posicao;
 - curto e circuito aberto por net;
 - sobrecorrente/sobretemperatura com protecoes;
