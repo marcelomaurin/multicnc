@@ -1,0 +1,5 @@
+program test_integrated_simulator;
+{$mode objfpc}{$H+}
+uses multicam_types,multicam_job,multicam_machine_model,multicam_machine_kinematics,multicam_electronics_types,multicam_electronics_model;
+var J:TCamJob;K:TMachineKinematics;E:TElectronicsModel;M:TMachineModel;C:TElectronicsConfig;I:Integer;P:TCamPoint;
+begin J:=TCamJob.Create;K:=TMachineKinematics.Create;E:=TElectronicsModel.Create;try M.MinX:=0;M.MaxX:=300;M.MinY:=0;M.MaxY:=200;M.MinZ:=-50;M.MaxZ:=50;K.Configure(M);C.StepsPerMMX:=80;C.StepsPerMMY:=80;C.StepsPerMMZ:=400;C.MotorSupplyV:=24;C.LogicSupplyV:=5;C.MaxMotorCurrentA:=3;E.Configure(C);J.Tool.SpindleRPM:=12000;J.AddMove(0,0,5,True);J.AddMove(10,0,0,False);J.AddMove(10,10,-1,False);for I:=0 to J.Count-1 do begin P:=J.Move(I).P;if not K.MoveTo(P)then Halt(1);E.ApplyMove(P,J.Move(I).SpindleOn,J.Tool.SpindleRPM);end;if E.State.X.PulseCount<>800 then Halt(2);if E.State.Y.PulseCount<>800 then Halt(3);if E.State.Z.PulseCount<>2400 then Halt(4);if not E.State.Spindle.Enable then Halt(5);E.SetEStop(True);if not E.HasFault then Halt(6);Writeln('Integrated physical/electronic simulator: OK');finally E.Free;K.Free;J.Free;end;end.
