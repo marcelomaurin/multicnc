@@ -41,6 +41,13 @@ function NewStepperDriver(const ID:string):TSimComponent;
 function NewSCR(const ID:string):TSimComponent;
 function NewTRIAC(const ID:string):TSimComponent;
 function NewIGBT(const ID:string):TSimComponent;
+function NewMCU(const ID:string;Kind:TComponentKind;GPIO,ADC,PWM:Integer):TSimComponent;
+function NewATmega328P(const ID:string):TSimComponent;
+function NewESP32(const ID:string):TSimComponent;
+function NewRP2040(const ID:string):TSimComponent;
+function NewSTM32(const ID:string):TSimComponent;
+function NewMemory(const ID:string;Kind:TComponentKind;Bytes:Integer):TSimComponent;
+function NewClock(const ID:string;Hz:Double):TSimComponent;
 implementation
 function NewPowerSupply(const ID:string;Voltage,MaxCurrent:Double):TSimComponent;begin Result:=TSimComponent.Create(ID,'Fonte',ckPowerSupply,cdElectrical);Result.AddPort('V+',ptElectrical);Result.AddPort('GND',ptElectrical);Result.Parameters.Values['voltage']:=FloatToStr(Voltage);Result.Parameters.Values['max_current']:=FloatToStr(MaxCurrent);end;
 function NewPWMDriver(const ID:string):TSimComponent;begin Result:=TSimComponent.Create(ID,'Driver PWM',ckPWMDriver,cdElectronic);Result.AddPort('VIN',ptElectrical);Result.AddPort('VOUT',ptElectrical);Result.AddPort('CMD',ptSignal);end;
@@ -81,4 +88,11 @@ function NewStepperDriver(const ID:string):TSimComponent;begin Result:=TSimCompo
 function NewSCR(const ID:string):TSimComponent;begin Result:=TSimComponent.Create(ID,'SCR',ckSCR,cdElectronic);Result.AddPort('A',ptElectrical);Result.AddPort('K',ptElectrical);Result.AddPort('G',ptSignal);end;
 function NewTRIAC(const ID:string):TSimComponent;begin Result:=TSimComponent.Create(ID,'TRIAC',ckTRIAC,cdElectronic);Result.AddPort('MT1',ptElectrical);Result.AddPort('MT2',ptElectrical);Result.AddPort('G',ptSignal);end;
 function NewIGBT(const ID:string):TSimComponent;begin Result:=TSimComponent.Create(ID,'IGBT',ckIGBT,cdElectronic);Result.AddPort('C',ptElectrical);Result.AddPort('E',ptElectrical);Result.AddPort('G',ptSignal);Result.Parameters.Values['threshold']:='5';Result.Parameters.Values['on_resistance']:='0.05';end;
+function NewMCU(const ID:string;Kind:TComponentKind;GPIO,ADC,PWM:Integer):TSimComponent;var I:Integer;begin Result:=TSimComponent.Create(ID,'Microcontrolador',Kind,cdController);Result.AddPort('VCC',ptElectrical);Result.AddPort('GND',ptElectrical);Result.AddPort('RESET',ptSignal);for I:=0 to GPIO-1 do Result.AddPort('GPIO'+IntToStr(I),ptSignal);Result.Parameters.Values['gpio']:=IntToStr(GPIO);Result.Parameters.Values['adc']:=IntToStr(ADC);Result.Parameters.Values['pwm']:=IntToStr(PWM);end;
+function NewATmega328P(const ID:string):TSimComponent;begin Result:=NewMCU(ID,ckATmega328P,20,6,6);Result.Name:='ATmega328P / Arduino Uno';Result.Parameters.Values['clock_hz']:='16000000';end;
+function NewESP32(const ID:string):TSimComponent;begin Result:=NewMCU(ID,ckESP32,40,18,16);Result.Name:='ESP32';Result.Parameters.Values['clock_hz']:='240000000';end;
+function NewRP2040(const ID:string):TSimComponent;begin Result:=NewMCU(ID,ckRP2040,30,4,16);Result.Name:='RP2040';Result.Parameters.Values['clock_hz']:='133000000';end;
+function NewSTM32(const ID:string):TSimComponent;begin Result:=NewMCU(ID,ckSTM32,37,16,12);Result.Name:='STM32';Result.Parameters.Values['clock_hz']:='72000000';end;
+function NewMemory(const ID:string;Kind:TComponentKind;Bytes:Integer):TSimComponent;begin Result:=TSimComponent.Create(ID,'Memoria',Kind,cdElectronic);Result.AddPort('BUS',ptSignal);Result.Parameters.Values['bytes']:=IntToStr(Bytes);end;
+function NewClock(const ID:string;Hz:Double):TSimComponent;begin Result:=TSimComponent.Create(ID,'Clock',ckClock,cdElectronic);Result.AddPort('OUT',ptSignal);Result.Parameters.Values['frequency_hz']:=FloatToStr(Hz);end;
 end.
