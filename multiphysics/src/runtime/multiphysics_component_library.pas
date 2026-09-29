@@ -56,6 +56,14 @@ function NewSensor(const ID,Name:string;Kind:TComponentKind):TSimComponent;
 function NewThermistor(const ID:string;NTC:Boolean;Ohms:Double):TSimComponent;
 function NewLDR(const ID:string):TSimComponent;
 function NewHeater(const ID:string;Ohms:Double):TSimComponent;
+function NewACMotor(const ID:string):TSimComponent;
+function NewFan(const ID:string):TSimComponent;
+function NewPump(const ID:string):TSimComponent;
+function NewElectromagnet(const ID:string):TSimComponent;
+function NewEncoder(const ID:string;PPR:Integer):TSimComponent;
+function NewLoadCell(const ID:string;MaxForce:Double):TSimComponent;
+function NewBuzzer(const ID:string):TSimComponent;
+function NewLamp(const ID:string):TSimComponent;
 implementation
 function NewPowerSupply(const ID:string;Voltage,MaxCurrent:Double):TSimComponent;begin Result:=TSimComponent.Create(ID,'Fonte',ckPowerSupply,cdElectrical);Result.AddPort('V+',ptElectrical);Result.AddPort('GND',ptElectrical);Result.Parameters.Values['voltage']:=FloatToStr(Voltage);Result.Parameters.Values['max_current']:=FloatToStr(MaxCurrent);end;
 function NewPWMDriver(const ID:string):TSimComponent;begin Result:=TSimComponent.Create(ID,'Driver PWM',ckPWMDriver,cdElectronic);Result.AddPort('VIN',ptElectrical);Result.AddPort('VOUT',ptElectrical);Result.AddPort('CMD',ptSignal);end;
@@ -111,4 +119,12 @@ function NewSensor(const ID,Name:string;Kind:TComponentKind):TSimComponent;begin
 function NewThermistor(const ID:string;NTC:Boolean;Ohms:Double):TSimComponent;begin if NTC then Result:=NewPhysicalDevice(ID,'NTC',ckThermistorNTC,cdSensor)else Result:=NewPhysicalDevice(ID,'PTC',ckThermistorPTC,cdSensor);Result.AddPort('A',ptElectrical);Result.AddPort('B',ptElectrical);Result.Parameters.Values['r25']:=FloatToStr(Ohms);end;
 function NewLDR(const ID:string):TSimComponent;begin Result:=NewPhysicalDevice(ID,'LDR',ckLDR,cdSensor);Result.AddPort('A',ptElectrical);Result.AddPort('B',ptElectrical);Result.Parameters.Values['dark_ohms']:='1000000';Result.Parameters.Values['light_ohms']:='1000';end;
 function NewHeater(const ID:string;Ohms:Double):TSimComponent;begin Result:=NewPhysicalDevice(ID,'Resistencia aquecedora',ckHeater,cdThermal);Result.AddPort('A',ptElectrical);Result.AddPort('B',ptElectrical);Result.AddPort('HEAT',ptThermal);Result.Parameters.Values['resistance']:=FloatToStr(Ohms);end;
+function NewACMotor(const ID:string):TSimComponent;begin Result:=NewPhysicalDevice(ID,'Motor AC',ckACMotor,cdMechanical);Result.AddPort('PWR',ptElectrical);Result.AddPort('SHAFT',ptMechanicalRotary);Result.Parameters.Values['nominal_rpm']:='1750';end;
+function NewFan(const ID:string):TSimComponent;begin Result:=NewPhysicalDevice(ID,'Ventilador',ckFan,cdMechanical);Result.AddPort('PWR',ptElectrical);Result.AddPort('SHAFT',ptMechanicalRotary);Result.Parameters.Values['max_rpm']:='3000';end;
+function NewPump(const ID:string):TSimComponent;begin Result:=NewPhysicalDevice(ID,'Bomba',ckPump,cdMechanical);Result.AddPort('PWR',ptElectrical);Result.AddPort('SHAFT',ptMechanicalRotary);Result.Parameters.Values['max_pressure_pa']:='100000';end;
+function NewElectromagnet(const ID:string):TSimComponent;begin Result:=NewPhysicalDevice(ID,'Eletroima',ckElectromagnet,cdMechanical);Result.AddPort('PWR',ptElectrical);Result.Parameters.Values['max_force_n']:='50';end;
+function NewEncoder(const ID:string;PPR:Integer):TSimComponent;begin Result:=NewSensor(ID,'Encoder',ckEncoder);Result.AddPort('SHAFT',ptMechanicalRotary);Result.Parameters.Values['ppr']:=IntToStr(PPR);end;
+function NewLoadCell(const ID:string;MaxForce:Double):TSimComponent;begin Result:=NewSensor(ID,'Celula de carga',ckLoadCell);Result.Parameters.Values['max_force_n']:=FloatToStr(MaxForce);Result.Parameters.Values['sensitivity_mv_v']:='2';end;
+function NewBuzzer(const ID:string):TSimComponent;begin Result:=NewPhysicalDevice(ID,'Buzzer',ckBuzzer,cdElectronic);Result.AddPort('PWR',ptElectrical);Result.Parameters.Values['frequency_hz']:='2000';end;
+function NewLamp(const ID:string):TSimComponent;begin Result:=NewPhysicalDevice(ID,'Lampada',ckLamp,cdElectrical);Result.AddPort('A',ptElectrical);Result.AddPort('B',ptElectrical);Result.Parameters.Values['power_w']:='10';end;
 end.
