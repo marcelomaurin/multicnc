@@ -69,3 +69,7 @@ Comandos físicos passam pelo núcleo de segurança. O sistema deve bloquear com
 ## Evolução
 
 Após o controle direto estar estável, poderão ser adicionados importação/conversão, integração com CAM/slicer, macros, descoberta automática de capacidades, FluidNC/grblHAL e assistência por IA.
+
+
+## Instalador Windows
+A suite possui empacotamento Inno Setup em `installer/windows`. O script `build_release.bat` compila todas as ferramentas antes de gerar o instalador. O workflow `Windows Installer` permite gerar o pacote no GitHub Actions e publica o EXE como artefato somente se todo o build for concluido com sucesso.
