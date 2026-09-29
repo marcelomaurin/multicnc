@@ -15,9 +15,15 @@ type
  end;
 implementation
 constructor TModelPlacement.Create;begin ScaleX:=1;ScaleY:=1;ScaleZ:=1;end;
-function TModelPlacement.BoundX:Double;var A:Double;begin A:=DegToRad(RotZ);Result:=Abs(SizeX*ScaleX*Cos(A))+Abs(SizeY*ScaleY*Sin(A));end;
-function TModelPlacement.BoundY:Double;var A:Double;begin A:=DegToRad(RotZ);Result:=Abs(SizeX*ScaleX*Sin(A))+Abs(SizeY*ScaleY*Cos(A));end;
-function TModelPlacement.BoundZ:Double;begin Result:=Abs(SizeZ*ScaleZ);end;
+function TModelPlacement.BoundX:Double;
+var AX,AY,AZ,CX,SX,CY,SY,CZ,SZ,LX,LY,LZ:Double;
+begin AX:=DegToRad(RotX);AY:=DegToRad(RotY);AZ:=DegToRad(RotZ);CX:=Cos(AX);SX:=Sin(AX);CY:=Cos(AY);SY:=Sin(AY);CZ:=Cos(AZ);SZ:=Sin(AZ);LX:=Abs(SizeX*ScaleX);LY:=Abs(SizeY*ScaleY);LZ:=Abs(SizeZ*ScaleZ);Result:=Abs(CZ*CY)*LX+Abs(CZ*SY*SX-SZ*CX)*LY+Abs(CZ*SY*CX+SZ*SX)*LZ;end;
+function TModelPlacement.BoundY:Double;
+var AX,AY,AZ,CX,SX,CY,SY,CZ,SZ,LX,LY,LZ:Double;
+begin AX:=DegToRad(RotX);AY:=DegToRad(RotY);AZ:=DegToRad(RotZ);CX:=Cos(AX);SX:=Sin(AX);CY:=Cos(AY);SY:=Sin(AY);CZ:=Cos(AZ);SZ:=Sin(AZ);LX:=Abs(SizeX*ScaleX);LY:=Abs(SizeY*ScaleY);LZ:=Abs(SizeZ*ScaleZ);Result:=Abs(SZ*CY)*LX+Abs(SZ*SY*SX+CZ*CX)*LY+Abs(SZ*SY*CX-CZ*SX)*LZ;end;
+function TModelPlacement.BoundZ:Double;
+var AX,AY,CX,SX,CY,SY,LX,LY,LZ:Double;
+begin AX:=DegToRad(RotX);AY:=DegToRad(RotY);CX:=Cos(AX);SX:=Sin(AX);CY:=Cos(AY);SY:=Sin(AY);LX:=Abs(SizeX*ScaleX);LY:=Abs(SizeY*ScaleY);LZ:=Abs(SizeZ*ScaleZ);Result:=Abs(-SY)*LX+Abs(CY*SX)*LY+Abs(CY*CX)*LZ;end;
 constructor TPrintBedLayout.Create;begin BedX:=220;BedY:=220;BedZ:=250;Margin:=5;Spacing:=3;end;
 destructor TPrintBedLayout.Destroy;var I:Integer;begin for I:=0 to High(FItems)do FItems[I].Free;inherited;end;
 function TPrintBedLayout.AddModel(const N,FileName:string;SX,SY,SZ:Double):TModelPlacement;var K:Integer;begin Result:=TModelPlacement.Create;Result.Name:=N;Result.SourceFile:=FileName;Result.SizeX:=SX;Result.SizeY:=SY;Result.SizeZ:=SZ;K:=Length(FItems);SetLength(FItems,K+1);FItems[K]:=Result;end;
