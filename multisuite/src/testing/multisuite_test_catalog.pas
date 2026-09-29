@@ -28,6 +28,8 @@ function DefaultTestCatalog:TTestDefinitions;begin SetLength(Result,0);
  Add(Result,'MultiPhysics','Falhas da maquina virtual','multiphysics/tests/test_machine_faults.lpr','multiphysics/tests/test_machine_faults');
  Add(Result,'MultiPhysics','Eletronicos comuns','multiphysics/tests/test_common_electronics.lpr','multiphysics/tests/test_common_electronics');
  Add(Result,'MultiPhysics','Digital e potencia','multiphysics/tests/test_digital_power.lpr','multiphysics/tests/test_digital_power');
+ Add(Result,'MultiPhysics','Microcontroladores e perifericos','multiphysics/tests/test_mcu.lpr','multiphysics/tests/test_mcu');
+ Add(Result,'MultiPhysics','ESP32 para STEP DIR','multiphysics/tests/test_mcu_stepper.lpr','multiphysics/tests/test_mcu_stepper');
  Add(Result,'MultiAssembly','Modelo eletromecanico','multiassembly/tests/test_multiassembly.lpr','multiassembly/tests/test_multiassembly');
  Add(Result,'MultiCAM','CAM mecanico','multicam/tests/test_mechanical_cam.lpr','multicam/tests/test_mechanical_cam');Add(Result,'MultiCAM','Setup mecanico','multicam/tests/test_mechanical_setup.lpr','multicam/tests/test_mechanical_setup');Add(Result,'MultiCAM','Simulacao','multicam/tests/test_simulation.lpr','multicam/tests/test_simulation');Add(Result,'MultiCAM','Eletronica virtual','multicam/tests/test_electronics_simulation.lpr','multicam/tests/test_electronics_simulation');Add(Result,'MultiCAM','Pipeline demo','multicam/tests/test_demo_pipeline.lpr','multicam/tests/test_demo_pipeline');
  Add(Result,'MultiSlicer','Layout 3D','multislicer/tests/test_layout3d.lpr','multislicer/tests/test_layout3d');
