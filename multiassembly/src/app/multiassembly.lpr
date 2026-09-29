@@ -1,5 +1,5 @@
 program multiassembly;
 {$mode objfpc}{$H+}
-uses Interfaces,Forms,multiassembly_main;
-var F:TMultiAssemblyForm;
-begin RequireDerivedFormResource:=False;Application.Initialize;F:=TMultiAssemblyForm.Create(Application);F.Show;Application.Run;end.
+uses Interfaces,Forms,multiassembly_main,multisuite_context;
+var F:TMultiAssemblyForm;C:TSuiteContext;
+begin Application.Initialize;C:=ReadSuiteContext;F:=TMultiAssemblyForm.Create(Application);F.Caption:=ContextCaption(F.Caption,C);F.Hint:='Projeto: '+C.ProjectRoot+' | Arquivo: '+C.FileName;F.ShowHint:=True;F.Show;Application.Run;end.
