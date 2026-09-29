@@ -62,3 +62,12 @@ Modelos sao reduzidos e destinados a simulacao de sistema; nao substituem modelo
 - classificacao basica de perigo para uso na simulacao e interface;
 - reservatorios de combustivel e substancias no grafo.
 Os modelos sao de engenharia de sistema e nao modelam sintese ou cinetica de reacoes perigosas.
+
+## Degradacao e falhas dependentes do tempo
+- corrosao ambiental: temperatura, umidade, oxigenio, cloretos e acidez como fatores de aceleracao;
+- perda de espessura e integridade com aumento da resistividade efetiva;
+- oxidacao: crescimento simplificado de camada de oxido dependente de temperatura e oxigenio;
+- curto-circuito persistente: resistencia de falha, corrente, I2R, energia e temperatura;
+- protecao: limite de corrente, atraso de disparo e acumulacao I2t de fusivel;
+- estado de dano quando a temperatura de falha excede o limite simplificado.
+Modelos sao reduzidos para simulacao de sistema e precisam de calibracao experimental para previsao quantitativa.
