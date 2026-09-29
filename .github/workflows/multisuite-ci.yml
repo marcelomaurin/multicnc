@@ -13,6 +13,8 @@ jobs:
       - run: |
           fpc -Fu$GITHUB_WORKSPACE/multisuite/src/core multisuite/tests/test_registry.lpr
           ./test_registry
+          fpc -Fu$GITHUB_WORKSPACE/multisuite/src/core multisuite/tests/test_workspace.lpr
+          ./test_workspace
   build-gui:
     runs-on: ubuntu-latest
     steps:
