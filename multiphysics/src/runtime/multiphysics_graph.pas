@@ -4,7 +4,7 @@ interface
 uses Classes,SysUtils;
 type
  TComponentDomain=(cdElectrical,cdElectronic,cdMechanical,cdThermal,cdSensor,cdController);
- TComponentKind=(ckPowerSupply,ckGround,ckResistor,ckPWMDriver,ckDCMotor,ckAxisLoad,ckSpeedSensor,ckTemperatureSensor,ckController,ckUnknown);
+ TComponentKind=(ckPowerSupply,ckGround,ckResistor,ckCapacitor,ckInductor,ckDiode,ckMOSFET,ckRelay,ckPWMDriver,ckDCMotor,ckStepperMotor,ckServoMotor,ckBLDCMotor,ckAxisLoad,ckGear,ckPulley,ckBelt,ckLeadScrew,ckSpringDamper,ckSpeedSensor,ckPositionSensor,ckEndStop,ckCurrentSensor,ckTemperatureSensor,ckController,ckUnknown);
  TPortKind=(ptElectrical,ptMechanicalRotary,ptThermal,ptSignal);
  TSimPort=class public Name:string;Kind:TPortKind;constructor Create(const AName:string;AKind:TPortKind);end;
  TSimComponent=class
