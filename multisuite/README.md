@@ -20,3 +20,6 @@ O registro central descreve ferramentas. O gerenciador representa o projeto glob
 
 ## Regra
 MultiSuite orquestra. A logica de CAD, EDA, CAM, slicing, laser, assembly e controle permanece em seus respectivos modulos.
+
+## Workspace unificado
+A interface principal possui arvore de artefatos, lista de ferramentas e acompanhamento do fluxo Projeto -> Eletronica -> Montagem -> Fabricacao -> Simulacao -> Execucao. O formato `.msuite` persiste contexto, artefatos e estado do workflow sem substituir os formatos especializados de cada ferramenta.
