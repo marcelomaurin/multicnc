@@ -20,7 +20,7 @@
 - fim de curso por posicao;
 - perda de passo quando torque de carga excede torque disponivel;
 - protecao por sobrecorrente e sobretemperatura;
-- teste CNC X=100 mm.
+- teste CNC X=100 mm.\n- runtime CNC independente para X/Y/Z e spindle;\n- instrumentacao por eixo;\n- injecao de circuito aberto, curto, eixo travado, sensor e fim de curso;\n- integracao inicial na interface MultiPhysics.
 - scheduler por fases eletrica, controle, atuadores, mecanica, termica, sensores e protecao;
 - instrumentos e gravador CSV;
 - interface de cargas runtime -> solver FEM/CFD;
