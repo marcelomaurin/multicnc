@@ -55,3 +55,21 @@ controles ao conectar e desconectar.
 Verificado no Windows com Lazarus e FPC 3.2.2: build GUI, teste da sessão com
 heap tracing (zero blocos pendentes), teste do simulador e teste de criação GUI.
 Inspeção visual interativa e validação em Linux não foram realizadas.
+
+## Inspeção e diagnóstico
+
+- `Ctrl+O`: abre um programa quando a simulação está parada.
+- `Ctrl+F`: leva o foco à busca na aba Programa.
+- `F3` ou Enter no campo de busca: encontra a próxima ocorrência e retorna ao
+  início ao atingir o fim. A busca de comandos ignora caixa ASCII (G1/g1).
+- O resultado identifica o comando na lista carregada, não a linha do arquivo
+  original: comentários e linhas vazias são removidos no carregamento.
+- Arraste um único arquivo para a janela para abri-lo. Abertura por arrastar
+  respeita os mesmos bloqueios durante execução/pausa que o botão Abrir.
+- Na aba Console, use Salvar registro para exportar as linhas disponíveis em
+  texto ou Limpar console para esvaziar a visualização. Salvar solicita
+  confirmação antes de substituir um arquivo existente. O limite permanece
+  em 1.000 linhas; a exportação não recupera linhas removidas anteriormente.
+
+O teste GUI também verifica busca, retorno ao início, seleção após texto UTF-8,
+atalho F3, abertura por arrastar e bloqueio durante execução e pausa.

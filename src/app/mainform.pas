@@ -5,7 +5,7 @@ unit mainform;
 interface
 
 uses Classes, SysUtils, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls,
-  Dialogs, Graphics, Spin, multicnc_types, multicnc_session;
+  Dialogs, Graphics, Spin, StrUtils, LazUTF8, LCLType, multicnc_types, multicnc_session;
 
 type
   TMainForm = class(TForm)
@@ -17,7 +17,10 @@ type
     StepSize: TFloatSpinEdit;
     FeedRate: TSpinEdit;
     ProgramMemo, MemoLog: TMemo;
-    EditCommand: TEdit;
+    EditCommand, SearchEdit: TEdit;
+    Pages: TPageControl;
+    ProgramTab: TTabSheet;
+    SearchResult: TLabel;
     StateLabel, FileLabel, ProgressLabel: TLabel;
     Progress: TProgressBar;
     Timer: TTimer;
@@ -26,6 +29,13 @@ type
     function LabelAt(ParentControl: TWinControl; const AText: string; X, Y: Integer): TLabel;
     function ButtonAt(ParentControl: TWinControl; const AText: string;
       X, Y, W: Integer; Handler: TNotifyEvent): TButton;
+    procedure SearchClick(Sender: TObject);
+    procedure SearchChanged(Sender: TObject);
+    procedure SaveLogClick(Sender: TObject);
+    procedure ClearLogClick(Sender: TObject);
+    procedure Shortcut(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure DropFiles(Sender: TObject; const FileNames: array of string);
+    procedure LoadProgram(const AFileName: string);
     procedure ConnectClick(Sender: TObject);
     procedure OpenClick(Sender: TObject);
     procedure CommandClick(Sender: TObject);
@@ -69,8 +79,8 @@ begin
 end;
 
 constructor TMainForm.Create(AOwner: TComponent);
-var Header, Connection, Body, Side, Workspace, Actions, Footer, ConsoleBar: TPanel;
-  Pages: TPageControl; ProgramTab, ConsoleTab: TTabSheet; L: TLabel; I: Integer;
+var Header, Connection, Body, Side, Workspace, Actions, Footer, ConsoleBar, SearchBar, LogBar: TPanel;
+  ConsoleTab: TTabSheet; L: TLabel; I: Integer;
 const JogNames: array[0..5] of string = ('X -', 'X +', 'Y -', 'Y +', 'Z -', 'Z +');
 begin
   inherited CreateNew(AOwner);
@@ -83,6 +93,10 @@ begin
   Font.Size := 10;
   Color := clBtnFace;
   OnCloseQuery := @Closing;
+  KeyPreview := True;
+  OnKeyDown := @Shortcut;
+  AllowDropFiles := True;
+  OnDropFiles := @DropFiles;
   Session := TSimulationSession.Create;
   Session.OnLog := @Log;
 
@@ -180,7 +194,19 @@ begin
   ProgramTab := TTabSheet.Create(Self);
   ProgramTab.PageControl := Pages;
   ProgramTab.Caption := 'Programa';
+  SearchBar := Panel(ProgramTab, alTop, 80);
+  LabelAt(SearchBar, 'Buscar no programa (Ctrl+F)', 10, 4);
+  SearchEdit := TEdit.Create(Self);
+  SearchEdit.Name := 'ProgramSearch';
+  SearchEdit.Parent := SearchBar;
+  SearchEdit.SetBounds(10, 25, 300, 28);
+  SearchEdit.TextHint := 'Ex.: G1, X10 ou M3';
+  SearchEdit.OnChange := @SearchChanged;
+  ButtonAt(SearchBar, 'Proximo (F3)', 324, 22, 132, @SearchClick).Name := 'FindNext';
+  SearchResult := LabelAt(SearchBar, 'Busca sem diferenciar maiusculas e minusculas.', 10, 58);
+  SearchResult.Name := 'SearchResult';
   ProgramMemo := TMemo.Create(Self);
+  ProgramMemo.Name := 'ProgramText';
   ProgramMemo.Parent := ProgramTab;
   ProgramMemo.Align := alClient;
   ProgramMemo.ReadOnly := True;
@@ -191,6 +217,9 @@ begin
   ConsoleTab := TTabSheet.Create(Self);
   ConsoleTab.PageControl := Pages;
   ConsoleTab.Caption := 'Console';
+  LogBar := Panel(ConsoleTab, alTop, 50);
+  ButtonAt(LogBar, 'Salvar registro...', 10, 8, 150, @SaveLogClick);
+  ButtonAt(LogBar, 'Limpar console', 172, 8, 150, @ClearLogClick).Name := 'ClearConsole';
   ConsoleBar := Panel(ConsoleTab, alBottom, 50);
   BtnSend := ButtonAt(ConsoleBar, 'Enviar', 0, 8, 100, @CommandClick);
   BtnSend.Align := alRight;
@@ -199,6 +228,7 @@ begin
   EditCommand.Align := alClient;
   EditCommand.TextHint := 'Comando G-code manual';
   MemoLog := TMemo.Create(Self);
+  MemoLog.Name := 'ConsoleLog';
   MemoLog.Parent := ConsoleTab;
   MemoLog.Align := alClient;
   MemoLog.ReadOnly := True;
@@ -226,7 +256,7 @@ begin
   try
     MemoLog.Lines.Add(FormatDateTime('hh:nn:ss', Now) + '  ' + Trim(AText));
     while MemoLog.Lines.Count > 1000 do MemoLog.Lines.Delete(0);
-    MemoLog.SelStart := Length(MemoLog.Text);
+    MemoLog.SelStart := UTF8Length(MemoLog.Text);
   finally
     MemoLog.Lines.EndUpdate;
   end;
@@ -279,19 +309,115 @@ begin
     D.Filter := 'G-code|*.nc;*.gcode;*.tap;*.ngc|Todos os arquivos|*.*';
     D.Options := [ofFileMustExist, ofEnableSizing];
     if not D.Execute then Exit;
-    try
-      Session.LoadFile(D.FileName);
-      ProgramMemo.Text := Session.ProgramText;
-      FileLabel.Caption := ExtractFileName(Session.FileName);
-      FileLabel.Hint := Session.FileName;
-      Log('Programa carregado: ' + Session.FileName);
-    except
-      on E: Exception do MessageDlg('Nao foi possivel abrir', E.Message, mtError, [mbOK], 0);
-    end;
+    LoadProgram(D.FileName);
   finally
     D.Free;
     UpdateControls;
   end;
+end;
+
+procedure TMainForm.LoadProgram(const AFileName: string);
+begin
+  try
+    Session.LoadFile(AFileName);
+    ProgramMemo.Text := Session.ProgramText;
+    ProgramMemo.SelStart := 0;
+    SearchEdit.Clear;
+    FileLabel.Caption := ExtractFileName(Session.FileName);
+    FileLabel.Hint := Session.FileName;
+    Pages.ActivePage := ProgramTab;
+    Log('Programa carregado: ' + Session.FileName);
+  except
+    on E: Exception do MessageDlg('Nao foi possivel abrir', E.Message, mtError, [mbOK], 0);
+  end;
+  UpdateControls;
+end;
+
+procedure TMainForm.DropFiles(Sender: TObject; const FileNames: array of string);
+begin
+  if Length(FileNames) <> 1 then begin
+    Status.SimpleText := 'Arraste apenas um arquivo de G-code por vez.';
+    Exit;
+  end;
+  if Session.State in [ssRunning, ssPaused] then begin
+    Status.SimpleText := 'Pare a simulacao antes de abrir outro arquivo.';
+    Exit;
+  end;
+  LoadProgram(FileNames[0]);
+end;
+
+procedure TMainForm.SearchChanged(Sender: TObject);
+begin
+  ProgramMemo.SelStart := 0;
+  ProgramMemo.SelLength := 0;
+  SearchResult.Caption := 'Enter ou F3 para buscar. A busca retorna ao inicio.';
+end;
+
+procedure TMainForm.SearchClick(Sender: TObject);
+var Source, Query: string; Offset, FoundAt, LineNo, I: Integer; Wrapped: Boolean;
+begin
+  Query := UpperCase(SearchEdit.Text);
+  if Query = '' then begin SearchResult.Caption := 'Digite um texto para buscar.'; Exit; end;
+  Source := UpperCase(ProgramMemo.Text);
+  // Memo selection counts characters; PosEx counts UTF-8 bytes.
+  Offset := Length(UTF8Copy(Source, 1, ProgramMemo.SelStart + ProgramMemo.SelLength)) + 1;
+  FoundAt := PosEx(Query, Source, Offset);
+  Wrapped := (FoundAt = 0) and (Offset > 1);
+  if Wrapped then FoundAt := PosEx(Query, Source, 1);
+  if FoundAt = 0 then begin SearchResult.Caption := 'Texto nao encontrado.'; Exit; end;
+  Pages.ActivePage := ProgramTab;
+  ProgramMemo.SelStart := UTF8Length(Copy(Source, 1, FoundAt - 1));
+  ProgramMemo.SelLength := UTF8Length(Query);
+  LineNo := 1;
+  for I := 1 to FoundAt - 1 do if Source[I] = #10 then Inc(LineNo);
+  SearchResult.Caption := Format('Comando %d da lista carregada', [LineNo]);
+  if Wrapped then SearchResult.Caption := SearchResult.Caption + ' (voltou ao inicio)';
+  ProgramMemo.HideSelection := False;
+end;
+
+procedure TMainForm.Shortcut(Sender: TObject; var Key: Word; Shift: TShiftState);
+begin
+  if (Shift = [ssCtrl]) and (Key = Ord('O')) then begin
+    if BtnOpen.Enabled then OpenClick(Sender);
+    Key := 0;
+  end else if (Shift = [ssCtrl]) and (Key = Ord('F')) then begin
+    Pages.ActivePage := ProgramTab;
+    SearchEdit.SetFocus;
+    SearchEdit.SelectAll;
+    Key := 0;
+  end else if ((Shift = []) and (Key = VK_F3)) or
+    ((Shift = []) and (Key = VK_RETURN) and (ActiveControl = SearchEdit)) then begin
+    SearchClick(Sender);
+    Key := 0;
+  end;
+end;
+
+procedure TMainForm.SaveLogClick(Sender: TObject);
+var D: TSaveDialog;
+begin
+  D := TSaveDialog.Create(Self);
+  try
+    D.Title := 'Salvar registro do simulador';
+    D.Filter := 'Arquivo de texto|*.txt';
+    D.DefaultExt := 'txt';
+    D.FileName := 'multicnc-' + FormatDateTime('yyyymmdd-hhnnss', Now) + '.txt';
+    D.Options := [ofOverwritePrompt, ofPathMustExist, ofEnableSizing];
+    if D.Execute then
+      try
+        MemoLog.Lines.SaveToFile(D.FileName);
+        Status.SimpleText := 'Registro salvo: ' + D.FileName;
+      except
+        on E: Exception do MessageDlg('Falha ao salvar registro', E.Message, mtError, [mbOK], 0);
+      end;
+  finally
+    D.Free;
+  end;
+end;
+
+procedure TMainForm.ClearLogClick(Sender: TObject);
+begin
+  MemoLog.Clear;
+  Status.SimpleText := 'Console limpo. A simulacao permanece no estado atual.';
 end;
 
 procedure TMainForm.CommandClick(Sender: TObject);
