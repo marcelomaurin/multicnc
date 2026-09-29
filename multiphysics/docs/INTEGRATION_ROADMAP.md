@@ -13,6 +13,9 @@
 - engrenagem, fuso e mola/amortecedor;
 - CNC stepper de referencia;
 - solver MNA linear para redes DC;
+- modelos companheiros transitorios para capacitor e indutor;
+- modelos reduzidos nao lineares de diodo e MOSFET;
+- scheduler executando stepper, servo, BLDC, engrenagem e fuso;
 - scheduler por fases eletrica, controle, atuadores, mecanica, termica, sensores e protecao;
 - instrumentos e gravador CSV;
 - interface de cargas runtime -> solver FEM/CFD;
@@ -28,7 +31,7 @@ A integracao deve exportar a netlist real do modelo do MultiPCB para o contrato 
 As relacoes mecanicas sao exportadas como links rotacionais ou lineares. O proximo refinamento e mapear ratio/pitch e propriedades de inercia para os links.
 
 ## Modelos ainda necessarios
-- ampliar MNA para C/L no sistema global e iteracao de dispositivos nao lineares; co-simulacao SPICE;
+- integrar diodo/MOSFET diretamente na iteracao global MNA; co-simulacao SPICE;
 - spindle parametrizado, correia/polia e juntas multi-corpo;
 - fim de curso discreto por posicao;
 - curto e circuito aberto por net;
