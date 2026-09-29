@@ -3,6 +3,8 @@ unit multiphysics_project;
 interface
 uses Classes,SysUtils,multiphysics_types;
 type
+ PBoundaryCondition=^TBoundaryCondition;
+ PContact=^TContact;
  TPhysicsPart=class public ID,Name,GeometryFile:string;Material:TMaterial;end;
  TPhysicsProject=class
  private FParts,FBCs,FContacts:TList;
