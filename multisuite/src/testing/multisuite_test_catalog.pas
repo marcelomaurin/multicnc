@@ -19,6 +19,8 @@ function DefaultTestCatalog:TTestDefinitions;begin SetLength(Result,0);
  Add(Result,'MultiPCB','Exportacao fisica de netlist','multipcb/tests/test_physics_export.lpr','multipcb/tests/test_physics_export');
  Add(Result,'MultiPhysics','Merge PCB + Assembly','multiphysics/tests/test_unified_merge.lpr','multiphysics/tests/test_unified_merge');
  Add(Result,'MultiPhysics','Modelos eletricos e mecanicos','multiphysics/tests/test_extended_models.lpr','multiphysics/tests/test_extended_models');
+ Add(Result,'MultiPhysics','Solver eletrico MNA','multiphysics/tests/test_mna.lpr','multiphysics/tests/test_mna');
+ Add(Result,'MultiPhysics','Scheduler multifisico','multiphysics/tests/test_scheduler.lpr','multiphysics/tests/test_scheduler');
  Add(Result,'MultiAssembly','Modelo eletromecanico','multiassembly/tests/test_multiassembly.lpr','multiassembly/tests/test_multiassembly');
  Add(Result,'MultiCAM','CAM mecanico','multicam/tests/test_mechanical_cam.lpr','multicam/tests/test_mechanical_cam');Add(Result,'MultiCAM','Setup mecanico','multicam/tests/test_mechanical_setup.lpr','multicam/tests/test_mechanical_setup');Add(Result,'MultiCAM','Simulacao','multicam/tests/test_simulation.lpr','multicam/tests/test_simulation');Add(Result,'MultiCAM','Eletronica virtual','multicam/tests/test_electronics_simulation.lpr','multicam/tests/test_electronics_simulation');Add(Result,'MultiCAM','Pipeline demo','multicam/tests/test_demo_pipeline.lpr','multicam/tests/test_demo_pipeline');
  Add(Result,'MultiSlicer','Layout 3D','multislicer/tests/test_layout3d.lpr','multislicer/tests/test_layout3d');
