@@ -12,6 +12,8 @@
 - stepper, servo e BLDC;
 - engrenagem, fuso e mola/amortecedor;
 - CNC stepper de referencia;
+- solver MNA linear para redes DC;
+- scheduler por fases eletrica, controle, atuadores, mecanica, termica, sensores e protecao;
 - instrumentos e gravador CSV;
 - interface de cargas runtime -> solver FEM/CFD;
 - CNC virtual de referencia.
@@ -26,7 +28,7 @@ A integracao deve exportar a netlist real do modelo do MultiPCB para o contrato 
 As relacoes mecanicas sao exportadas como links rotacionais ou lineares. O proximo refinamento e mapear ratio/pitch e propriedades de inercia para os links.
 
 ## Modelos ainda necessarios
-- solver nodal de circuito e co-simulacao SPICE;
+- ampliar MNA para C/L no sistema global e iteracao de dispositivos nao lineares; co-simulacao SPICE;
 - spindle parametrizado, correia/polia e juntas multi-corpo;
 - fim de curso discreto por posicao;
 - curto e circuito aberto por net;
