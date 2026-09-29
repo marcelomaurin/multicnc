@@ -1,0 +1,5 @@
+program test_unified_merge;
+{$mode objfpc}{$H+}
+uses Classes,multipcb_model,multipcb_physics_export,multiassembly_types,multiassembly_project,multiassembly_physics_export,multisuite_component_contract,multiphysics_graph,multiphysics_unified_import;
+var P:TPCBProject;A:TAssemblyProject;U:TUnifiedMachine;G:TSimulationGraph;C:TAssemblyComponent;N:TNet;L:TStringList;
+begin P:=TPCBProject.Create;A:=TAssemblyProject.Create;U:=TUnifiedMachine.Create;L:=TStringList.Create;try FillChar(C,SizeOf(C),0);C.ID:='MOTOR_X';C.Name:='Motor X';C.Kind:=ackMotor;A.AddComponent(C);ExportAssemblyToUnified(A,U);P.AddComponent('MOTOR_X','DC Motor','motor.dc','motor');P.AddComponent('PSU1','24V Supply','power','psu');N:=P.AddNet('24V');N.Nodes.Add('PSU1.V+');N.Nodes.Add('MOTOR_X.PWR');ExportPCBToUnified(P,U,True);if U.Count<>2 then Halt(1);if not(udMechanical in U.Find('MOTOR_X').Domains)then Halt(2);if not(udElectrical in U.Find('MOTOR_X').Domains)then Halt(3);G:=UnifiedToSimulation(U,L);try if G.Find('MOTOR_X')=nil then Halt(4);if G.ConnectionCount<>1 then Halt(5);finally G.Free;end;Writeln('PASS PCB+Assembly unified merge');finally L.Free;U.Free;A.Free;P.Free;end;end.
