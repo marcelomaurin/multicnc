@@ -53,3 +53,12 @@ Nenhum desses itens deve ser marcado como fisicamente validado sem benchmark ou 
 - emissores: LED, laser, lampada e buzzer;
 - resistivos: resistor, potenciometro, NTC, PTC, LDR, strain gauge e resistencia aquecedora.
 Modelos sao reduzidos e destinados a simulacao de sistema; nao substituem modelos SPICE/FEM calibrados.
+
+## Energia, combustiveis e substancias
+- combustiveis: gasolina, diesel, etanol, GLP e hidrogenio com densidade e poder calorifico;
+- baterias: chumbo-acido, Li-ion, LiFePO4 e NiMH com SOC, capacidade, resistencia interna e limites de corrente;
+- solar: painel fotovoltaico com potencia nominal, irradiancia e coeficiente de temperatura;
+- quimicos de referencia: agua, etanol, alcool isopropilico, acetona, NaCl e HCl aquoso;
+- classificacao basica de perigo para uso na simulacao e interface;
+- reservatorios de combustivel e substancias no grafo.
+Os modelos sao de engenharia de sistema e nao modelam sintese ou cinetica de reacoes perigosas.
