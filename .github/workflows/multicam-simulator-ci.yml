@@ -1,0 +1,39 @@
+name: MultiCAM Simulator CI
+on:
+  push:
+    paths:
+      - 'multicam/**'
+      - '.github/workflows/multicam-simulator-ci.yml'
+  pull_request:
+    paths:
+      - 'multicam/**'
+jobs:
+  test-core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Free Pascal
+        run: sudo apt-get update && sudo apt-get install -y fp-compiler fp-units-base fp-units-fcl
+      - name: Compile and run simulator tests
+        shell: bash
+        run: |
+          set -e
+          U="-Fu$GITHUB_WORKSPACE/multicam/src/core -Fu$GITHUB_WORKSPACE/multicam/src/mechanical -Fu$GITHUB_WORKSPACE/multicam/src/simulation"
+          mkdir -p /tmp/multicam-tests
+          for t in multicam/tests/test_mechanical_cam.lpr multicam/tests/test_mechanical_setup.lpr multicam/tests/test_advanced_mechanical.lpr multicam/tests/test_simulation.lpr multicam/tests/test_electronics_simulation.lpr multicam/tests/test_integrated_simulator.lpr multicam/tests/test_real_physics.lpr multicam/tests/test_simulation_session.lpr; do
+            echo "=== $t ==="
+            fpc $U -FU/tmp/multicam-tests "$t"
+            exe="./$(basename "$t" .lpr)"
+            if [ -x "$exe" ]; then "$exe"; rm -f "$exe"; else
+              exe="multicam/tests/$(basename "$t" .lpr)"
+              "$exe"; rm -f "$exe"
+            fi
+          done
+  build-gui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Lazarus
+        run: sudo apt-get update && sudo apt-get install -y lazarus
+      - name: Build simulator
+        run: lazbuild --build-mode=Default multicam/src/app/multicam_simulator.lpi
