@@ -12,7 +12,7 @@ where lazbuild >nul 2>nul || (echo ERRO: lazbuild nao encontrado no PATH.& exit 
 call :build multisuite\src\app\multisuite.lpi multisuite\src\app\multisuite.exe multisuite.exe || exit /b 1
 call :build multicad\src\app\multicad.lpi multicad\src\app\multicad.exe multicad.exe || exit /b 1
 call :build multipcb\src\app\multipcb.lpi multipcb\src\app\multipcb.exe multipcb.exe || exit /b 1
-call :build multiassembly\src\app\multiassembly.lpi multiassembly\src\app\multiassembly.exe multiassembly.exe || exit /b 1
+call :build multiassembly\src\app\multiassembly.lpi multiassembly\src\app\multiassembly.exe multiassembly.exe || exit /b 1\ncall :build multiphysics\src\app\multiphysics.lpi multiphysics\src\app\multiphysics.exe multiphysics.exe || exit /b 1
 call :build multicam\src\app\multicam.lpi multicam\src\app\multicam.exe multicam.exe || exit /b 1
 call :build multislicer\src\app\multislicer.lpi multislicer\src\app\multislicer.exe multislicer.exe || exit /b 1
 call :build laserpcb\src\app\laserpcb.lpi laserpcb\src\app\laserpcb.exe laserpcb.exe || exit /b 1
