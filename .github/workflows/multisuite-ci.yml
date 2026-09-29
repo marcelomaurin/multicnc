@@ -1,0 +1,21 @@
+name: MultiSuite CI
+on:
+  push:
+    paths: ['multisuite/**','.github/workflows/multisuite-ci.yml']
+  pull_request:
+    paths: ['multisuite/**']
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y fp-compiler fp-units-base fp-units-fcl
+      - run: |
+          fpc -Fu$GITHUB_WORKSPACE/multisuite/src/core multisuite/tests/test_registry.lpr
+          ./test_registry
+  build-gui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y lazarus
+      - run: lazbuild multisuite/src/app/multisuite.lpi
