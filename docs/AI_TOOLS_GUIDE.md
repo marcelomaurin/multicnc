@@ -2,11 +2,15 @@
 
 Este documento e o ponto de entrada para qualquer IA que altere este repositorio.
 
+## Gestor principal
+MultiSuite e a porta de entrada do usuario e o orquestrador das ferramentas. Ele cria/abre o contexto global e chama as aplicacoes especializadas; nao absorve a logica delas.
+
 ## Regra principal
 Antes de escrever codigo, identifique qual ferramenta e dona da responsabilidade. Nao duplique funcionalidades entre modulos.
 
 | Ferramenta | Responsabilidade |
 |---|---|
+| MultiSuite | Gestor unificado, projetos e launcher das ferramentas |
 | MultiCAD | Criacao e edicao de geometria/pecas CAD |
 | MultiPCB | Esquematico, PCB, netlist, roteamento e arquivos de fabricacao de placas |
 | MultiAssembly | Montagem eletromecanica: une pecas, motores, placas, drivers, fontes, sensores e conexoes |
@@ -35,6 +39,7 @@ Imagem/Vetor -> LaserArt -> MultiCNC
 10. Consulte o AI_GUIDE.md da ferramenta antes de editar seus fontes.
 
 ## Documentacao por ferramenta
+- multisuite/docs/AI_GUIDE.md
 - multicad/docs/AI_GUIDE.md
 - multipcb/docs/AI_GUIDE.md
 - multiassembly/docs/AI_GUIDE.md
