@@ -3,6 +3,7 @@ unit multicnc_visualizer;
 interface
 uses Classes,SysUtils;
 type TToolPoint=record X,Y,Z:Double;Rapid:Boolean;end;
+ PToolPoint=^TToolPoint;
  TToolPath=class
  private F:TToolPoint;FP:TList;
  public constructor Create;destructor Destroy;override;procedure Clear;procedure ParseLine(const S:string);function Count:Integer;function Point(I:Integer):TToolPoint;
