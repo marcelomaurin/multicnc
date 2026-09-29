@@ -1,0 +1,5 @@
+program test_simulation_session;
+{$mode objfpc}{$H+}
+uses multicam_types,multicam_job,multicam_electronics_types,multicam_electronics_model,multicam_simulation_session;
+var J:TCamJob;E:TElectronicsModel;S:TSimulationSession;EC:TElectronicsConfig;ST:TStock;I:Integer;
+begin J:=TCamJob.Create;E:=TElectronicsModel.Create;S:=TSimulationSession.Create;try EC.StepsPerMMX:=80;EC.StepsPerMMY:=80;EC.StepsPerMMZ:=400;EC.MotorSupplyV:=24;EC.LogicSupplyV:=5;EC.MaxMotorCurrentA:=3;E.Configure(EC);ST.Width:=100;ST.Height:=80;ST.Thickness:=10;ST.TopZ:=0;J.Tool.Diameter:=6;J.Tool.Feed:=600;J.Tool.Plunge:=200;J.Tool.SpindleRPM:=12000;J.Tool.ToolType:=ttFlatEndMill;J.AddMove(10,10,5,True);J.AddMove(10,10,-2,False);J.AddMove(50,10,-2,False);S.Configure(J,ST,E);for I:=0 to J.Count-1 do begin E.ApplyMove(J.Move(I).P,J.Move(I).SpindleOn,J.Tool.SpindleRPM);S.ApplyMove(I,0.05);end;if S.Trace.Count<>J.Count then Halt(1);if S.HeightMap.RemovedVolumeMM3<=0 then Halt(2);if E.State.Spindle.FeedbackRPM<=0 then Halt(3);Writeln('Simulation session: OK');finally S.Free;E.Free;J.Free;end;end.
