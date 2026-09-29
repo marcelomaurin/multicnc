@@ -8,7 +8,7 @@
  </ProjectOptions>
  <CompilerOptions>
   <Version Value="11"/>
-  <SearchPaths><OtherUnitFiles Value="../core;../layout;../pcb;../export;../../../multipcb/src/core;../../../multipcb/src/positioning"/><UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/></SearchPaths>
+  <SearchPaths><OtherUnitFiles Value="../core;../layout;../pcb;../export;../mechanical;../../../multipcb/src/core;../../../multipcb/src/positioning"/><UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/></SearchPaths>
   <Parsing><SyntaxOptions><SyntaxMode Value="ObjFPC"/></SyntaxOptions></Parsing>
   <Linking><Debugging><GenerateDebugInfo Value="True"/></Debugging></Linking>
  </CompilerOptions>
