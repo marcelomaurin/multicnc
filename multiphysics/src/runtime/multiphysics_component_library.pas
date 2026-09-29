@@ -18,6 +18,17 @@ function NewBLDC(const ID:string):TSimComponent;
 function NewGear(const ID:string;Ratio:Double):TSimComponent;
 function NewLeadScrew(const ID:string;PitchMM:Double):TSimComponent;
 function NewEndStop(const ID:string):TSimComponent;
+function NewLED(const ID:string;Vf:Double):TSimComponent;
+function NewZener(const ID:string;Vz:Double):TSimComponent;
+function NewBJT(const ID:string;PNP:Boolean):TSimComponent;
+function NewSwitch(const ID:string):TSimComponent;
+function NewPotentiometer(const ID:string;Ohms:Double):TSimComponent;
+function NewFuse(const ID:string;Amps:Double):TSimComponent;
+function NewBattery(const ID:string;Volts,Ah:Double):TSimComponent;
+function NewACSource(const ID:string;Vrms,Hz:Double):TSimComponent;
+function NewTransformer(const ID:string;Ratio:Double):TSimComponent;
+function NewLDO(const ID:string;Vout:Double):TSimComponent;
+function NewOpAmp(const ID:string):TSimComponent;
 implementation
 function NewPowerSupply(const ID:string;Voltage,MaxCurrent:Double):TSimComponent;begin Result:=TSimComponent.Create(ID,'Fonte',ckPowerSupply,cdElectrical);Result.AddPort('V+',ptElectrical);Result.AddPort('GND',ptElectrical);Result.Parameters.Values['voltage']:=FloatToStr(Voltage);Result.Parameters.Values['max_current']:=FloatToStr(MaxCurrent);end;
 function NewPWMDriver(const ID:string):TSimComponent;begin Result:=TSimComponent.Create(ID,'Driver PWM',ckPWMDriver,cdElectronic);Result.AddPort('VIN',ptElectrical);Result.AddPort('VOUT',ptElectrical);Result.AddPort('CMD',ptSignal);end;
@@ -35,4 +46,15 @@ function NewBLDC(const ID:string):TSimComponent;begin Result:=TSimComponent.Crea
 function NewGear(const ID:string;Ratio:Double):TSimComponent;begin Result:=TSimComponent.Create(ID,'Engrenagem',ckGear,cdMechanical);Result.AddPort('IN',ptMechanicalRotary);Result.AddPort('OUT',ptMechanicalRotary);Result.Parameters.Values['ratio']:=FloatToStr(Ratio);end;
 function NewLeadScrew(const ID:string;PitchMM:Double):TSimComponent;begin Result:=TSimComponent.Create(ID,'Fuso',ckLeadScrew,cdMechanical);Result.AddPort('SHAFT',ptMechanicalRotary);Result.AddPort('LINEAR',ptMechanicalRotary);Result.Parameters.Values['pitch_mm']:=FloatToStr(PitchMM);end;
 function NewEndStop(const ID:string):TSimComponent;begin Result:=TSimComponent.Create(ID,'Fim de curso',ckEndStop,cdSensor);Result.AddPort('OUT',ptSignal);Result.Parameters.Values['position']:=FloatToStr(0);end;
+function NewLED(const ID:string;Vf:Double):TSimComponent;begin Result:=TSimComponent.Create(ID,'LED',ckLED,cdElectronic);Result.AddPort('A',ptElectrical);Result.AddPort('K',ptElectrical);Result.Parameters.Values['vf']:=FloatToStr(Vf);end;
+function NewZener(const ID:string;Vz:Double):TSimComponent;begin Result:=TSimComponent.Create(ID,'Zener',ckZener,cdElectronic);Result.AddPort('A',ptElectrical);Result.AddPort('K',ptElectrical);Result.Parameters.Values['vz']:=FloatToStr(Vz);end;
+function NewBJT(const ID:string;PNP:Boolean):TSimComponent;begin if PNP then Result:=TSimComponent.Create(ID,'BJT PNP',ckBJT_PNP,cdElectronic)else Result:=TSimComponent.Create(ID,'BJT NPN',ckBJT_NPN,cdElectronic);Result.AddPort('B',ptElectrical);Result.AddPort('C',ptElectrical);Result.AddPort('E',ptElectrical);Result.Parameters.Values['beta']:='100';Result.Parameters.Values['vbe']:='0.7';end;
+function NewSwitch(const ID:string):TSimComponent;begin Result:=TSimComponent.Create(ID,'Chave',ckSwitch,cdElectrical);Result.AddPort('A',ptElectrical);Result.AddPort('B',ptElectrical);Result.Parameters.Values['closed']:='0';end;
+function NewPotentiometer(const ID:string;Ohms:Double):TSimComponent;begin Result:=TSimComponent.Create(ID,'Potenciometro',ckPotentiometer,cdElectrical);Result.AddPort('A',ptElectrical);Result.AddPort('W',ptElectrical);Result.AddPort('B',ptElectrical);Result.Parameters.Values['resistance']:=FloatToStr(Ohms);Result.Parameters.Values['position']:='0.5';end;
+function NewFuse(const ID:string;Amps:Double):TSimComponent;begin Result:=TSimComponent.Create(ID,'Fusivel',ckFuse,cdElectrical);Result.AddPort('A',ptElectrical);Result.AddPort('B',ptElectrical);Result.Parameters.Values['rated_current']:=FloatToStr(Amps);end;
+function NewBattery(const ID:string;Volts,Ah:Double):TSimComponent;begin Result:=TSimComponent.Create(ID,'Bateria',ckBattery,cdElectrical);Result.AddPort('V+',ptElectrical);Result.AddPort('GND',ptElectrical);Result.Parameters.Values['voltage']:=FloatToStr(Volts);Result.Parameters.Values['capacity_ah']:=FloatToStr(Ah);end;
+function NewACSource(const ID:string;Vrms,Hz:Double):TSimComponent;begin Result:=TSimComponent.Create(ID,'Fonte AC',ckACSource,cdElectrical);Result.AddPort('L',ptElectrical);Result.AddPort('N',ptElectrical);Result.Parameters.Values['vrms']:=FloatToStr(Vrms);Result.Parameters.Values['frequency']:=FloatToStr(Hz);end;
+function NewTransformer(const ID:string;Ratio:Double):TSimComponent;begin Result:=TSimComponent.Create(ID,'Transformador',ckTransformer,cdElectrical);Result.AddPort('P1',ptElectrical);Result.AddPort('P2',ptElectrical);Result.AddPort('S1',ptElectrical);Result.AddPort('S2',ptElectrical);Result.Parameters.Values['ratio']:=FloatToStr(Ratio);end;
+function NewLDO(const ID:string;Vout:Double):TSimComponent;begin Result:=TSimComponent.Create(ID,'Regulador LDO',ckLDO,cdElectronic);Result.AddPort('IN',ptElectrical);Result.AddPort('GND',ptElectrical);Result.AddPort('OUT',ptElectrical);Result.Parameters.Values['vout']:=FloatToStr(Vout);end;
+function NewOpAmp(const ID:string):TSimComponent;begin Result:=TSimComponent.Create(ID,'Amplificador operacional',ckOpAmp,cdElectronic);Result.AddPort('V+',ptElectrical);Result.AddPort('V-',ptElectrical);Result.AddPort('IN+',ptElectrical);Result.AddPort('IN-',ptElectrical);Result.AddPort('OUT',ptElectrical);Result.Parameters.Values['gain']:='100000';end;
 end.
