@@ -9,5 +9,5 @@
 Inclui MultiSuite, MultiCAD, MultiPCB, MultiAssembly, MultiPhysics, MultiCAM,
 MultiSlicer, LaserPCB, LaserArt, MultiCNC e Central de Testes.
 
-Gerado a partir do commit 5a908dc. Conferir integridade com `sha256sum -c SHA256SUMS`.
+Gerado a partir do commit 45f69dd. Conferir integridade com `sha256sum -c SHA256SUMS`.
 Os executaveis Windows nao sao assinados digitalmente; o SmartScreen pode exibir aviso na primeira execucao.
