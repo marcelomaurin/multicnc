@@ -25,3 +25,6 @@ lib/
 /multislicer/src/app/multislicer_position
 /multislicer/tests/test_layout3d
 /tests/test_simulator
+
+# instaladores publicados
+!/releases/**
