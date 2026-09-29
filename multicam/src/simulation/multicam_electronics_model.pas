@@ -5,7 +5,7 @@ uses SysUtils,Math,multicam_types,multicam_electronics_types;
 type TElectronicsConfig=record StepsPerMMX,StepsPerMMY,StepsPerMMZ:Double;MotorSupplyV,LogicSupplyV,MaxMotorCurrentA:Double;end;
  TElectronicsModel=class
  private FConfig:TElectronicsConfig;FState:TElectronicsState;FLast:TCamPoint;FHasLast:Boolean;procedure AxisMove(var A:TAxisElectricalState;Delta,StepsPerMM:Double);
- public procedure Configure(const C:TElectronicsConfig);procedure Reset;procedure ApplyMove(const P:TCamPoint;SpindleOn:Boolean;RPM:Integer);procedure SetLimits(X,Y,Z:Boolean);procedure SetEStop(Value:Boolean);function HasFault:Boolean;property State:TElectronicsState read FState;
+ public procedure Configure(const C:TElectronicsConfig);procedure Reset;procedure ApplyMove(const P:TCamPoint;SpindleOn:Boolean;RPM:Integer);procedure SetLimits(X,Y,Z:Boolean);procedure SetEStop(Value:Boolean);procedure SetDynamicState(const S:TElectronicsState);function HasFault:Boolean;property State:TElectronicsState read FState;
  end;
 implementation
 procedure TElectronicsModel.Configure(const C:TElectronicsConfig);begin FConfig:=C;Reset;end;
@@ -14,5 +14,6 @@ procedure TElectronicsModel.AxisMove(var A:TAxisElectricalState;Delta,StepsPerMM
 procedure TElectronicsModel.ApplyMove(const P:TCamPoint;SpindleOn:Boolean;RPM:Integer);begin if FState.EStop then Exit;if FHasLast then begin AxisMove(FState.X,P.X-FLast.X,FConfig.StepsPerMMX);AxisMove(FState.Y,P.Y-FLast.Y,FConfig.StepsPerMMY);AxisMove(FState.Z,P.Z-FLast.Z,FConfig.StepsPerMMZ);end;FLast:=P;FHasLast:=True;FState.Spindle.Enable:=SpindleOn;FState.Spindle.CommandRPM:=RPM;if SpindleOn then FState.Spindle.PWM:=100 else FState.Spindle.PWM:=0;end;
 procedure TElectronicsModel.SetLimits(X,Y,Z:Boolean);begin FState.LimitX:=X;FState.LimitY:=Y;FState.LimitZ:=Z;end;
 procedure TElectronicsModel.SetEStop(Value:Boolean);begin FState.EStop:=Value;if Value then begin FState.X.Enable:=elLow;FState.Y.Enable:=elLow;FState.Z.Enable:=elLow;FState.Spindle.Enable:=False;FState.Spindle.PWM:=0;end;end;
+procedure TElectronicsModel.SetDynamicState(const S:TElectronicsState);begin FState:=S;end;
 function TElectronicsModel.HasFault:Boolean;begin Result:=FState.EStop or FState.X.DriverFault or FState.Y.DriverFault or FState.Z.DriverFault or FState.Spindle.Fault;end;
 end.
