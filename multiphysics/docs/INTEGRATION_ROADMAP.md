@@ -16,6 +16,11 @@
 - modelos companheiros transitorios para capacitor e indutor;
 - modelos reduzidos nao lineares de diodo e MOSFET;
 - scheduler executando stepper, servo, BLDC, engrenagem e fuso;
+- comando de eixo por posicao em mm;
+- fim de curso por posicao;
+- perda de passo quando torque de carga excede torque disponivel;
+- protecao por sobrecorrente e sobretemperatura;
+- teste CNC X=100 mm.
 - scheduler por fases eletrica, controle, atuadores, mecanica, termica, sensores e protecao;
 - instrumentos e gravador CSV;
 - interface de cargas runtime -> solver FEM/CFD;
