@@ -8,7 +8,7 @@
  </ProjectOptions>
  <CompilerOptions>
   <Version Value="11"/>
-  <SearchPaths><OtherUnitFiles Value="../core;../protocols;../transports"/><UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/></SearchPaths>
+  <SearchPaths><OtherUnitFiles Value="../core;../protocols;../transports;../shared"/><UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/></SearchPaths>
   <Parsing><SyntaxOptions><SyntaxMode Value="ObjFPC"/></SyntaxOptions></Parsing>
   <Linking><Debugging><GenerateDebugInfo Value="True"/></Debugging></Linking>
  </CompilerOptions>
