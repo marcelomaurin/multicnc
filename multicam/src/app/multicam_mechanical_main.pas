@@ -1,7 +1,7 @@
 unit multicam_mechanical_main;
 {$mode objfpc}{$H+}
 interface
-uses Classes,SysUtils,Forms,Controls,StdCtrls,ExtCtrls,Dialogs,multicam_types,multicam_job,multicam_profile,multicam_mechanical,multicam_validator,multicam_gcode;
+uses Classes,SysUtils,Forms,Controls,StdCtrls,ExtCtrls,Dialogs,multicam_types,multicam_job,multicam_profile,multicam_mechanical,multicam_engine,multicam_validator,multicam_gcode;
 type TMechanicalCAMForm=class(TForm)
  private J:TCamJob;Log:TMemo;W,H,Depth,Diameter,StepDown,StepOver,SafeZ,Feed,Plunge,RPM:TEdit;function E(const Hint,Value:string):TEdit;function B(const S:string;Hnd:TNotifyEvent):TButton;procedure LoadParams;procedure FaceClick(Sender:TObject);procedure PocketClick(Sender:TObject);procedure DrillClick(Sender:TObject);procedure ProfileClick(Sender:TObject);procedure ExportClick(Sender:TObject);
  public constructor Create(AOwner:TComponent);override;destructor Destroy;override;
