@@ -59,6 +59,9 @@ function NewSensor(const ID,Name:string;Kind:TComponentKind):TSimComponent;
 function NewThermistor(const ID:string;NTC:Boolean;Ohms:Double):TSimComponent;
 function NewLDR(const ID:string):TSimComponent;
 function NewHeater(const ID:string;Ohms:Double):TSimComponent;
+function NewCoil(const ID:string;Turns:Integer):TSimComponent;
+function NewMagneticCore(const ID:string;MuR:Double):TSimComponent;
+function NewPermanentMagnet(const ID:string;Tesla:Double):TSimComponent;
 function NewACMotor(const ID:string):TSimComponent;
 function NewFan(const ID:string):TSimComponent;
 function NewPump(const ID:string):TSimComponent;
@@ -133,4 +136,7 @@ function NewLamp(const ID:string):TSimComponent;begin Result:=NewPhysicalDevice(
 function NewSolarPanel(const ID:string;Watts:Double):TSimComponent;begin Result:=TSimComponent.Create(ID,'Painel solar',ckSolarPanel,cdElectrical);Result.AddPort('V+',ptElectrical);Result.AddPort('V-',ptElectrical);Result.Parameters.Values['rated_power_w']:=FloatToStr(Watts);Result.Parameters.Values['irradiance_w_m2']:='1000';end;
 function NewFuelTank(const ID:string;Liters:Double):TSimComponent;begin Result:=TSimComponent.Create(ID,'Tanque de combustivel',ckFuelTank,cdThermal);Result.Parameters.Values['volume_l']:=FloatToStr(Liters);Result.Parameters.Values['fuel']:='gasoline';end;
 function NewChemicalTank(const ID:string;Liters:Double):TSimComponent;begin Result:=TSimComponent.Create(ID,'Reservatorio quimico',ckChemicalTank,cdThermal);Result.Parameters.Values['volume_l']:=FloatToStr(Liters);Result.Parameters.Values['chemical']:='water';end;
+function NewCoil(const ID:string;Turns:Integer):TSimComponent;begin Result:=NewPhysicalDevice(ID,'Bobina',ckCoil,cdMagnetic);Result.AddPort('A',ptElectrical);Result.AddPort('B',ptElectrical);Result.AddPort('FLUX',ptMagnetic);Result.Parameters.Values['turns']:=IntToStr(Turns);Result.Parameters.Values['mu_r']:='1';end;
+function NewMagneticCore(const ID:string;MuR:Double):TSimComponent;begin Result:=NewPhysicalDevice(ID,'Nucleo magnetico',ckMagneticCore,cdMagnetic);Result.AddPort('FLUX_IN',ptMagnetic);Result.AddPort('FLUX_OUT',ptMagnetic);Result.Parameters.Values['mu_r']:=FloatToStr(MuR);Result.Parameters.Values['saturation_t']:='1.5';end;
+function NewPermanentMagnet(const ID:string;Tesla:Double):TSimComponent;begin Result:=NewPhysicalDevice(ID,'Ima permanente',ckPermanentMagnet,cdMagnetic);Result.AddPort('FIELD',ptMagnetic);Result.Parameters.Values['flux_density_t']:=FloatToStr(Tesla);end;
 end.
