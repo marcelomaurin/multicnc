@@ -2,11 +2,11 @@ unit multiphysics_types;
 {$mode objfpc}{$H+}
 interface
 type
- TPhysicsKind=(pkStructural,pkThermal,pkModal,pkDynamic,pkFriction,pkFluidDrag);
+ TPhysicsKind=(pkStructural,pkThermal,pkModal,pkDynamic,pkFriction,pkFluidDrag,pkMagnetic,pkElectromagnetic);
  TMaterialClass=(mcMetal,mcPolymer,mcElastomer,mcCeramic,mcGlass,mcComposite,mcSemiconductor,mcWood,mcLiquid,mcGas,mcFuel,mcChemical,mcOther);
  TEnergySourceKind=(eskBattery,eskSolarPanel,eskFuel,eskExternal);
  TChemicalHazard=(chNone,chFlammable,chCorrosive,chToxic,chOxidizing,chCompressedGas);
- TMaterial=record Name:string;MaterialClass:TMaterialClass;Density,YoungModulus,Poisson,ThermalConductivity,SpecificHeat,ThermalExpansion,YieldStrength,ElectricalResistivity,Emissivity,MaxServiceTemperature,MeltingTemperature:Double;end;
+ TMaterial=record Name:string;MaterialClass:TMaterialClass;Density,YoungModulus,Poisson,ThermalConductivity,SpecificHeat,ThermalExpansion,YieldStrength,ElectricalResistivity,RelativePermeability,Emissivity,MaxServiceTemperature,MeltingTemperature:Double;end;
  TBoundaryKind=(bkFixed,bkForce,bkPressure,bkTemperature,bkHeatFlux,bkConvection,bkGravity,bkAcceleration,bkVelocity);
  TBoundaryCondition=record Name,TargetID:string;Kind:TBoundaryKind;X,Y,Z,Value:Double;end;
  TContact=record Name,PartA,PartB:string;FrictionCoefficient,ThermalConductance:Double;end;
