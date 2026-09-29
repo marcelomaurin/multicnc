@@ -1,7 +1,7 @@
 unit multiphysics_component_library;
 {$mode objfpc}{$H+}
 interface
-uses multiphysics_graph;
+uses SysUtils,multiphysics_graph;
 function NewPowerSupply(const ID:string;Voltage,MaxCurrent:Double):TSimComponent;
 function NewPWMDriver(const ID:string):TSimComponent;
 function NewDCMotor(const ID:string):TSimComponent;

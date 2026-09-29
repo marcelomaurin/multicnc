@@ -1,7 +1,7 @@
 unit multiassembly_mechanical_canvas;
 {$mode objfpc}{$H+}
 interface
-uses Classes,Controls,Graphics,Math,multiassembly_types,multiassembly_project;
+uses Classes,SysUtils,Controls,Graphics,Math,multiassembly_types,multiassembly_project;
 type TMechanicalAssemblyCanvas=class(TCustomControl)
  private FProject:TAssemblyProject;FSelected:string;
  protected procedure Paint;override;

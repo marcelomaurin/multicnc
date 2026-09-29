@@ -1,7 +1,7 @@
 unit multicam_pcb_segmenter;
 {$mode objfpc}{$H+}
 interface
-uses Classes,SysUtils,Math,multicam_job,multipcb_heightmap,multipcb_heightmap_bounds,multipcb_zcompensation;
+uses Classes,SysUtils,Math,multicam_types,multicam_job,multipcb_heightmap,multipcb_heightmap_bounds,multipcb_zcompensation;
 type TPCBHeightMapSegmenter=class
  public class function Compensate(Source,Dest:TCamJob;Map:THeightMap;ReferenceZ,MaxCorrection,CutThresholdZ,MaxSegmentMM:Double;Errors:TStrings):Boolean;
  end;
