@@ -1,0 +1,10 @@
+unit multisuite_test_runner;
+{$mode objfpc}{$H+}
+interface
+uses Classes,SysUtils,Process,multisuite_test_types,multisuite_test_catalog;
+type TSuiteTestRunner=class public class function RunOne(const Root:string;const D:TTestDefinition):TTestResult;static;class function RunAll(const Root:string):TTestResultArray;static;class procedure SaveReport(const FN:string;const R:TTestResultArray);static;end;
+implementation
+class function TSuiteTestRunner.RunOne(const Root:string;const D:TTestDefinition):TTestResult;var P:TProcess;S:TStringList;Exe:string;Start:QWord;begin Result.Name:=D.Name;Result.Tool:=D.Tool;Result.Executable:=D.Executable;Result.ExitCode:=-1;Exe:=ExpandFileName(IncludeTrailingPathDelimiter(Root)+D.Executable);{$IFDEF Windows}Exe:=Exe+'.exe';{$ENDIF}if not FileExists(Exe)then begin Result.Status:=tsMissing;Result.Output:='Teste ainda nao compilado: '+Exe;Exit;end;P:=TProcess.Create(nil);S:=TStringList.Create;try P.Executable:=Exe;P.Options:=[poUsePipes,poWaitOnExit];Start:=GetTickCount64;try P.Execute;S.LoadFromStream(P.Output);Result.ExitCode:=P.ExitStatus;Result.DurationMS:=GetTickCount64-Start;Result.Output:=S.Text;if Result.ExitCode=0 then Result.Status:=tsPassed else Result.Status:=tsFailed;except on E:Exception do begin Result.Status:=tsError;Result.Output:=E.Message;end;end;finally S.Free;P.Free;end;end;
+class function TSuiteTestRunner.RunAll(const Root:string):TTestResultArray;var C:TTestDefinitions;I:Integer;begin C:=DefaultTestCatalog;SetLength(Result,Length(C));for I:=0 to High(C)do Result[I]:=RunOne(Root,C[I]);end;
+class procedure TSuiteTestRunner.SaveReport(const FN:string;const R:TTestResultArray);var S:TStringList;I:Integer;begin S:=TStringList.Create;try S.Add('MultiSuite Test Report');S.Add('======================');for I:=0 to High(R)do begin S.Add(Format('[%s] %s / %s | exit=%d | %d ms',[TestStatusName(R[I].Status),R[I].Tool,R[I].Name,R[I].ExitCode,R[I].DurationMS]));if R[I].Output<>''then S.Add(Trim(R[I].Output));end;S.SaveToFile(FN);finally S.Free;end;end;
+end.
