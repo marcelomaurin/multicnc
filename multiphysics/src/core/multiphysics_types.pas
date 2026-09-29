@@ -3,7 +3,7 @@ unit multiphysics_types;
 interface
 type
  TPhysicsKind=(pkStructural,pkThermal,pkModal,pkDynamic,pkFriction,pkFluidDrag);
- TMaterial=record Name:string;Density,YoungModulus,Poisson,ThermalConductivity,SpecificHeat,ThermalExpansion,YieldStrength:Double;end;
+ TMaterial=record Name:string;Density,YoungModulus,Poisson,ThermalConductivity,SpecificHeat,ThermalExpansion,YieldStrength,ElectricalResistivity:Double;end;
  TBoundaryKind=(bkFixed,bkForce,bkPressure,bkTemperature,bkHeatFlux,bkConvection,bkGravity,bkAcceleration,bkVelocity);
  TBoundaryCondition=record Name,TargetID:string;Kind:TBoundaryKind;X,Y,Z,Value:Double;end;
  TContact=record Name,PartA,PartB:string;FrictionCoefficient,ThermalConductance:Double;end;
