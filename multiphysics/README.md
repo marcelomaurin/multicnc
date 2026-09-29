@@ -24,3 +24,18 @@ O primeiro backend preparado e CalculiX. O programa nao inventa resultado se nao
 8. animacao de deformacao e modos de vibracao;
 9. backend CFD/FSI para arrasto;
 10. validacao contra casos analiticos.
+
+
+## Ambientes fisicos
+O projeto possui presets Ar, Agua e Vacuo, alem da arquitetura para ambiente personalizado. Cada ambiente carrega temperatura, pressao, densidade, viscosidade dinamica, gravidade e vetor de escoamento.
+
+## Barcos
+A camada preliminar calcula velocidade relativa, pressao dinamica, arrasto aproximado e empuxo hidrostatico. Estes valores sao ESTIMATIVAS, nao substituem CFD. Evolucoes: centro de empuxo, estabilidade, superficie livre, ondas, casco, heave/pitch/roll e FSI.
+
+## Aeroespacial
+O preset Ar permite cargas preliminares de escoamento. Para foguetes, resultados de alta velocidade nao devem usar a aproximacao incompressivel como resultado final. Evolucoes: atmosfera por altitude, Mach, compressibilidade, choque, aquecimento aerodinamico, massa variavel, propulsao, 6-DOF e acoplamento estrutural/termico.
+
+## Fidelidade
+ESTIMATIVA = formulas reduzidas/pre-dimensionamento.
+ENGENHARIA = solver numerico com malha, convergencia e condicoes documentadas.
+VALIDADO = modelo comparado com referencia analitica, experimental ou benchmark aceito.
