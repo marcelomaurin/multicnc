@@ -1,0 +1,5 @@
+program test_demo_pipeline;
+{$mode objfpc}{$H+}
+uses SysUtils,multicam_types,multicam_job,multicam_demo_job,multicam_gcode,multicam_electronics_types,multicam_electronics_model,multicam_simulation_session;
+var J:TCamJob;E:TElectronicsModel;S:TSimulationSession;EC:TElectronicsConfig;I:Integer;FN:string;
+begin J:=TCamJob.Create;E:=TElectronicsModel.Create;S:=TSimulationSession.Create;try TDemoJobBuilder.Build(J);if J.Count<20 then Halt(1);EC.StepsPerMMX:=80;EC.StepsPerMMY:=80;EC.StepsPerMMZ:=400;EC.MotorSupplyV:=24;EC.LogicSupplyV:=5;EC.MaxMotorCurrentA:=3;E.Configure(EC);S.Configure(J,J.Stock,E);for I:=0 to J.Count-1 do begin E.ApplyMove(J.Move(I).P,J.Move(I).SpindleOn,J.Tool.SpindleRPM);S.ApplyMove(I,0.05);end;if S.Trace.Count<>J.Count then Halt(2);if S.HeightMap.RemovedVolumeMM3<=0 then Halt(3);FN:='multicam_demo_test.nc';TCamGCode.ExportJob(J,FN);if not FileExists(FN)then Halt(4);DeleteFile(FN);Writeln('Demo pipeline: OK, moves=',J.Count,' removed=',S.HeightMap.RemovedVolumeMM3:0:2);finally S.Free;E.Free;J.Free;end;end.
