@@ -48,6 +48,14 @@ function NewRP2040(const ID:string):TSimComponent;
 function NewSTM32(const ID:string):TSimComponent;
 function NewMemory(const ID:string;Kind:TComponentKind;Bytes:Integer):TSimComponent;
 function NewClock(const ID:string;Hz:Double):TSimComponent;
+function NewPhysicalDevice(const ID,Name:string;Kind:TComponentKind;Domain:TComponentDomain):TSimComponent;
+function NewSolenoid(const ID:string):TSimComponent;
+function NewLinearActuator(const ID:string):TSimComponent;
+function NewLaser(const ID:string;Watts:Double):TSimComponent;
+function NewSensor(const ID,Name:string;Kind:TComponentKind):TSimComponent;
+function NewThermistor(const ID:string;NTC:Boolean;Ohms:Double):TSimComponent;
+function NewLDR(const ID:string):TSimComponent;
+function NewHeater(const ID:string;Ohms:Double):TSimComponent;
 implementation
 function NewPowerSupply(const ID:string;Voltage,MaxCurrent:Double):TSimComponent;begin Result:=TSimComponent.Create(ID,'Fonte',ckPowerSupply,cdElectrical);Result.AddPort('V+',ptElectrical);Result.AddPort('GND',ptElectrical);Result.Parameters.Values['voltage']:=FloatToStr(Voltage);Result.Parameters.Values['max_current']:=FloatToStr(MaxCurrent);end;
 function NewPWMDriver(const ID:string):TSimComponent;begin Result:=TSimComponent.Create(ID,'Driver PWM',ckPWMDriver,cdElectronic);Result.AddPort('VIN',ptElectrical);Result.AddPort('VOUT',ptElectrical);Result.AddPort('CMD',ptSignal);end;
@@ -95,4 +103,12 @@ function NewRP2040(const ID:string):TSimComponent;begin Result:=NewMCU(ID,ckRP20
 function NewSTM32(const ID:string):TSimComponent;begin Result:=NewMCU(ID,ckSTM32,37,16,12);Result.Name:='STM32';Result.Parameters.Values['clock_hz']:='72000000';end;
 function NewMemory(const ID:string;Kind:TComponentKind;Bytes:Integer):TSimComponent;begin Result:=TSimComponent.Create(ID,'Memoria',Kind,cdElectronic);Result.AddPort('BUS',ptSignal);Result.Parameters.Values['bytes']:=IntToStr(Bytes);end;
 function NewClock(const ID:string;Hz:Double):TSimComponent;begin Result:=TSimComponent.Create(ID,'Clock',ckClock,cdElectronic);Result.AddPort('OUT',ptSignal);Result.Parameters.Values['frequency_hz']:=FloatToStr(Hz);end;
+function NewPhysicalDevice(const ID,Name:string;Kind:TComponentKind;Domain:TComponentDomain):TSimComponent;begin Result:=TSimComponent.Create(ID,Name,Kind,Domain);end;
+function NewSolenoid(const ID:string):TSimComponent;begin Result:=NewPhysicalDevice(ID,'Solenoide',ckSolenoid,cdMechanical);Result.AddPort('PWR',ptElectrical);Result.AddPort('SHAFT',ptMechanicalRotary);Result.Parameters.Values['force_n']:='20';end;
+function NewLinearActuator(const ID:string):TSimComponent;begin Result:=NewPhysicalDevice(ID,'Atuador linear',ckLinearActuator,cdMechanical);Result.AddPort('PWR',ptElectrical);Result.AddPort('MECH',ptMechanicalRotary);Result.Parameters.Values['max_force_n']:='100';Result.Parameters.Values['stroke_mm']:='100';end;
+function NewLaser(const ID:string;Watts:Double):TSimComponent;begin Result:=NewPhysicalDevice(ID,'Laser',ckLaserDiode,cdElectronic);Result.AddPort('PWR',ptElectrical);Result.AddPort('ENABLE',ptSignal);Result.Parameters.Values['optical_power_w']:=FloatToStr(Watts);Result.Parameters.Values['efficiency']:='0.3';end;
+function NewSensor(const ID,Name:string;Kind:TComponentKind):TSimComponent;begin Result:=NewPhysicalDevice(ID,Name,Kind,cdSensor);Result.AddPort('VCC',ptElectrical);Result.AddPort('GND',ptElectrical);Result.AddPort('OUT',ptSignal);end;
+function NewThermistor(const ID:string;NTC:Boolean;Ohms:Double):TSimComponent;begin if NTC then Result:=NewPhysicalDevice(ID,'NTC',ckThermistorNTC,cdSensor)else Result:=NewPhysicalDevice(ID,'PTC',ckThermistorPTC,cdSensor);Result.AddPort('A',ptElectrical);Result.AddPort('B',ptElectrical);Result.Parameters.Values['r25']:=FloatToStr(Ohms);end;
+function NewLDR(const ID:string):TSimComponent;begin Result:=NewPhysicalDevice(ID,'LDR',ckLDR,cdSensor);Result.AddPort('A',ptElectrical);Result.AddPort('B',ptElectrical);Result.Parameters.Values['dark_ohms']:='1000000';Result.Parameters.Values['light_ohms']:='1000';end;
+function NewHeater(const ID:string;Ohms:Double):TSimComponent;begin Result:=NewPhysicalDevice(ID,'Resistencia aquecedora',ckHeater,cdThermal);Result.AddPort('A',ptElectrical);Result.AddPort('B',ptElectrical);Result.AddPort('HEAT',ptThermal);Result.Parameters.Values['resistance']:=FloatToStr(Ohms);end;
 end.
