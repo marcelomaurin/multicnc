@@ -34,6 +34,7 @@ function DefaultTestCatalog:TTestDefinitions;begin SetLength(Result,0);
  Add(Result,'MultiPhysics','Biblioteca de materiais','multiphysics/tests/test_materials.lpr','multiphysics/tests/test_materials');
  Add(Result,'MultiPhysics','Energia e quimica','multiphysics/tests/test_energy_chemistry.lpr','multiphysics/tests/test_energy_chemistry');
  Add(Result,'MultiPhysics','Degradacao e falhas','multiphysics/tests/test_degradation_faults.lpr','multiphysics/tests/test_degradation_faults');
+ Add(Result,'MultiPhysics','Eletromagnetismo','multiphysics/tests/test_electromagnetics.lpr','multiphysics/tests/test_electromagnetics');
  Add(Result,'MultiAssembly','Modelo eletromecanico','multiassembly/tests/test_multiassembly.lpr','multiassembly/tests/test_multiassembly');
  Add(Result,'MultiCAM','CAM mecanico','multicam/tests/test_mechanical_cam.lpr','multicam/tests/test_mechanical_cam');Add(Result,'MultiCAM','Setup mecanico','multicam/tests/test_mechanical_setup.lpr','multicam/tests/test_mechanical_setup');Add(Result,'MultiCAM','Simulacao','multicam/tests/test_simulation.lpr','multicam/tests/test_simulation');Add(Result,'MultiCAM','Eletronica virtual','multicam/tests/test_electronics_simulation.lpr','multicam/tests/test_electronics_simulation');Add(Result,'MultiCAM','Pipeline demo','multicam/tests/test_demo_pipeline.lpr','multicam/tests/test_demo_pipeline');
  Add(Result,'MultiSlicer','Layout 3D','multislicer/tests/test_layout3d.lpr','multislicer/tests/test_layout3d');
