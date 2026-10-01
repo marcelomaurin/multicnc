@@ -20,6 +20,33 @@ O repositório reúne várias aplicações. **Elas não são o mesmo programa.**
 
 > **Resumo rápido:** MultiCNC controla a máquina; MultiPhysics simula o comportamento físico; as ferramentas de projeto criam/preparam o projeto; MultiSuite reúne e chama as aplicações.
 
+## Novidades (modernização de 2026)
+
+Cada ferramenta recebeu recursos que hoje são padrão nos softwares de referência da área, mantendo a função original de cada uma e o Object Pascal (FPC/Lazarus), sem dependências externas novas.
+
+| Ferramenta | O que entrou |
+|---|---|
+| **MultiCNC** | Telemetria Grbl/grblHAL/FluidNC (status `<...>`, `ALARM`/`error` com texto), overrides em tempo real, envio por *character-counting* (Grbl) e linhas numeradas com checksum/`Resend` (Marlin), drivers **grblHAL** e **FluidNC**, transporte **TCP/telnet**, análise prévia de G-code com estimativa de tempo pelo modelo de *junction deviation* do Grbl e verificação do envelope da máquina (`multicnc_cli --check arquivo.nc`). |
+| **MultiCAM** | Fresamento **trocoidal**, pocket por **offsets** com entrada helicoidal, perfil com **compensação de raio**, rampa e tabs, calculadora de avanços e rotações com **afinamento de cavaco**, pós-processador modal com **arc fitting G2/G3** (perfil típico cai de 516 para 190 linhas). |
+| **LaserArt / LaserPCB** | Rasterização em **escala de cinza** (potência variável), dithering Floyd-Steinberg, Jarvis, Stucki, Atkinson, Sierra, Burkes e Bayer com varredura serpentina, **overscan**, varredura bidirecional, salto de áreas brancas, modo laser dinâmico `M4` e G-code modal. |
+| **MultiSlicer** | Contornos com furos, **perímetros**, topo/fundo sólidos, infill **gyroid**, **altura de camada adaptativa**, extrusão volumétrica, sabores **Marlin** e **Klipper** (`M73`, `M486`/`EXCLUDE_OBJECT`, pressure advance), retração só ao cruzar perímetros, arcos nos perímetros, STL binário e **3MF**. |
+| **MultiPCB** | **Gerber X2** com netlist embutida e funções de abertura, **Gerber Job** (`.gbrjob`), Excellon com tabela de ferramentas, **DRC de clearance** e **autorouter A\*** de duas camadas com vias. |
+| **MultiPhysics** | Solver de circuitos **Newton-Raphson global** (diodo e MOSFET dentro da MNA, *gmin/source stepping*, regra trapezoidal) e integradores **RK4**, **Dormand-Prince 45** adaptativo e **Velocity Verlet**. |
+| **MultiCAD** | **Solver de restrições** (Levenberg-Marquardt) com análise de **graus de liberdade** e detecção de conflitos, extrusão para malha fechada com furos, exportação **STL** e **3MF** (lida diretamente pelo MultiSlicer). |
+| **MultiAssembly** | **ERC eletromecânico** (drivers sem STEP/DIR, tensões incompatíveis, E-stop...), **BOM** CSV/JSON e geração dos parâmetros **Grbl `$100`–`$132`** e do YAML do **FluidNC** a partir da cinemática. |
+| **Geometria compartilhada** | `src/shared/multisuite_geometry` (offset, recorte, contornos) e `multisuite_arcfit` (G2/G3), usadas por CAM, Slicer e CAD. |
+
+Correções incluídas: compensação Z do PCB passou a usar interpolação **bilinear** em grade (o IDW anterior subestimava a inclinação: 0,04 mm de erro num desnível de 0,2 mm), leitura de STL ASCII em sistemas com vírgula decimal (pt-BR), workspace do MultiSuite salvo sem diretório, remoção de material com espessura de stock não informada e relação mecânica não inicializada na demonstração do MultiAssembly.
+
+### Testes
+
+```bash
+bash tests/run_all.sh            # todos os módulos
+bash tests/run_all.sh multicam   # um módulo
+```
+
+O script compila com `fpc` e executa os 66 testes de console; os executáveis ficam ao lado de cada `.lpr`, onde a Central de Testes os encontra. O workflow **Suite CI** roda os testes e compila todos os projetos `.lpi` com `lazbuild` a cada push.
+
 ---
 
 ## 1. MultiCNC — controle da máquina
@@ -48,14 +75,15 @@ CNC Core
  |-- Job Manager
  |-- G-code Engine
  |
-Protocol Drivers
- |-- GRBL
+Protocol Drivers            Streaming
+ |-- GRBL                    |-- character-counting (Grbl/grblHAL/FluidNC)
+ |-- grblHAL                 |-- send-response
+ |-- FluidNC                 |-- Marlin: checksum + Resend
  |-- Marlin
- |-- futuros: FluidNC / grblHAL
  |
 Transport
- |-- Serial
- |-- TCP/IP
+ |-- Serial (CHATGPT/TAISerialModem)
+ |-- TCP/IP (FluidNC/grblHAL via telnet)
  |-- Simulator
 ```
 

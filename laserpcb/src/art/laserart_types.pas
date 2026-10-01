@@ -3,7 +3,8 @@ unit laserart_types;
 interface
 type TLaserArtKind=(lakText,lakVector,lakImage,lakRectangle,lakEllipse);
  TLaserArtMode=(lamEngrave,lamCut,lamScore);
- TLaserDither=(ldNone,ldThreshold,ldFloydSteinberg);
+ { ldNone = sem dithering: tons de cinza viram potencia variavel. }
+ TLaserDither=(ldNone,ldThreshold,ldFloydSteinberg,ldJarvis,ldStucki,ldAtkinson,ldSierra,ldBurkes,ldBayer);
  TLaserArtItem=class
  public Name,SourceFile,Text,FontName:string;Kind:TLaserArtKind;Mode:TLaserArtMode;X,Y,Width,Height,Rotation,Scale:Double;Power,Feed:Double;Passes:Integer;Threshold:Byte;Dither:TLaserDither;Visible,Locked:Boolean;
  constructor Create;

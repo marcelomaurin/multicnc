@@ -10,6 +10,11 @@
 - Excellon inicial
 - G-code de contorno
 - Aplicação Lazarus inicial
+- Gerber X2 por camada (cobre, máscara, perfil) com netlist embutida e funções de abertura
+- Gerber Job (.gbrjob) e Excellon 2 com tabela de ferramentas
+- DRC geométrico de clearance (trilha, pad, via, borda)
+- Autorouter A* de duas camadas com vias
+- Compensação Z bilinear para height-map em grade
 
 ## Próximas camadas de engenharia
 - Canvas gráfico de esquemático
@@ -17,10 +22,8 @@
 - símbolos/footprints geométricos completos
 - ratsnest e roteamento interativo
 - zonas de cobre
-- DRC geométrico real
 - importação KiCad
-- Gerber RS-274X completo
-- Excellon completo
+- zonas de cobre em Gerber (regiões com alívio térmico)
 - isolamento/trilhas para CNC
 - integração direta com MultiCNC
 - testes automatizados e validação de fabricação

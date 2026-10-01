@@ -40,6 +40,16 @@ function DefaultTestCatalog:TTestDefinitions;begin SetLength(Result,0);
  Add(Result,'MultiCAM','CAM mecanico','multicam/tests/test_mechanical_cam.lpr','multicam/tests/test_mechanical_cam');Add(Result,'MultiCAM','Setup mecanico','multicam/tests/test_mechanical_setup.lpr','multicam/tests/test_mechanical_setup');Add(Result,'MultiCAM','Simulacao','multicam/tests/test_simulation.lpr','multicam/tests/test_simulation');Add(Result,'MultiCAM','Eletronica virtual','multicam/tests/test_electronics_simulation.lpr','multicam/tests/test_electronics_simulation');Add(Result,'MultiCAM','Pipeline demo','multicam/tests/test_demo_pipeline.lpr','multicam/tests/test_demo_pipeline');
  Add(Result,'MultiSlicer','Layout 3D','multislicer/tests/test_layout3d.lpr','multislicer/tests/test_layout3d');
  Add(Result,'LaserPCB','Job laser','laserpcb/tests/test_job.lpr','laserpcb/tests/test_job');Add(Result,'LaserPCB','Layout','laserpcb/tests/test_layout.lpr','laserpcb/tests/test_layout');Add(Result,'LaserPCB','Alinhamento','laserpcb/tests/test_alignment.lpr','laserpcb/tests/test_alignment');Add(Result,'LaserArt','Calibracao','laserpcb/tests/test_calibration_matrix.lpr','laserpcb/tests/test_calibration_matrix');
+ Add(Result,'MultiCNC','Controlador: status, streaming, preflight, TCP','tests/test_controller.lpr','tests/test_controller');
+ Add(Result,'MultiCNC','Geometria compartilhada e arc fitting','tests/test_shared_geometry.lpr','tests/test_shared_geometry');
+ Add(Result,'MultiCAM','HSM, feeds & speeds e pos-processador G2/G3','multicam/tests/test_hsm.lpr','multicam/tests/test_hsm');
+ Add(Result,'LaserArt','Raster: dithering, potencia variavel, overscan','laserpcb/tests/test_raster.lpr','laserpcb/tests/test_raster');
+ Add(Result,'MultiSlicer','Fatiador moderno: gyroid, adaptativo, Klipper','multislicer/tests/test_modern_slicer.lpr','multislicer/tests/test_modern_slicer');
+ Add(Result,'MultiPCB','Gerber X2, Excellon, DRC e autorouter','multipcb/tests/test_fabrication.lpr','multipcb/tests/test_fabrication');
+ Add(Result,'MultiPCB','Compensacao Z bilinear','multipcb/tests/test_zcompensation.lpr','multipcb/tests/test_zcompensation');
+ Add(Result,'MultiPhysics','MNA Newton-Raphson e integradores','multiphysics/tests/test_newton_ode.lpr','multiphysics/tests/test_newton_ode');
+ Add(Result,'MultiCAD','Restricoes, DOF, extrusao, STL/3MF','multicad/tests/test_parametric.lpr','multicad/tests/test_parametric');
+ Add(Result,'MultiAssembly','ERC, BOM e configuracao de firmware','multiassembly/tests/test_engineering.lpr','multiassembly/tests/test_engineering');
  Add(Result,'MultiSuite','Registro','multisuite/tests/test_registry.lpr','multisuite/tests/test_registry');Add(Result,'MultiSuite','Workspace','multisuite/tests/test_workspace.lpr','multisuite/tests/test_workspace');
 end;
 end.

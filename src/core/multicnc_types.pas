@@ -10,6 +10,8 @@ type
     msPaused, msAlarm, msError);
   TAxis = (axX, axY, axZ, axA, axE);
   TAxisSet = set of TAxis;
+  { Estrategia de envio de programas (ver multicnc_streamer). }
+  TStreamMode = (smCharacterCounting, smSendResponse, smMarlinChecksum);
 
   TMachinePosition = record
     X, Y, Z, A, E: Double;

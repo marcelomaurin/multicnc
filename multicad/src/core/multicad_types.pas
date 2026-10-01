@@ -6,6 +6,8 @@ type
  TCadVec3=record X,Y,Z:Double;end;
  TCadFeatureKind=(cfSketch,cfExtrude,cfCut,cfHole,cfFillet,cfChamfer,cfPattern,cfBody);
  TSketchEntityKind=(seLine,seCircle,seArc,seRectangle);
- TConstraintKind=(ckHorizontal,ckVertical,ckCoincident,ckParallel,ckPerpendicular,ckEqual,ckDistance,ckRadius,ckAngle);
+ { ckFixed: fixa o ponto P1 (ou centro) da entidade na posicao atual -
+   ancora o sketch no plano (remove translacao). }
+ TConstraintKind=(ckHorizontal,ckVertical,ckCoincident,ckParallel,ckPerpendicular,ckEqual,ckDistance,ckRadius,ckAngle,ckFixed);
 implementation
 end.
