@@ -89,9 +89,7 @@ if [ "$ARCH" = "$HOSTARCH" ]; then
 else
   MULTICNC_TEST_FLAGS="-P$CPU -Tlinux" python3 tools/verify_suite.py console --build-only --stage "$STAGE$APPDIR"
 fi
-for exe in "$STAGE$APPDIR"/tests/test_* "$STAGE$APPDIR"/*/tests/test_*; do
-  "$STRIP" -s "$exe"
-done
+find "$STAGE$APPDIR/tests" -type f -name 'test_*' -exec "$STRIP" -s {} \;
 
 # A dependência minima vem dos simbolos dos executaveis efetivamente gerados.
 GLIBC_MIN=$(find "$STAGE$APPDIR" -type f -exec readelf --version-info {} \; 2>/dev/null | sed -n 's/.*Name: GLIBC_\([0-9.]*\).*/\1/p' | sort -Vu | tail -1)

@@ -11,13 +11,26 @@ end;
 implementation
 
 class function TSuiteTestRunner.RunOne(const Root: string; const D: TTestDefinition): TTestResult;
-var P: TProcess; Exe, Work: string; Start: QWord; N: Integer;
+var P: TProcess; Exe, Work, ModuleName: string; Start: QWord; N: Integer;
   Buffer: array[0..8191] of Char; Chunk: string; TimedOut: Boolean;
 begin
   Result.Name := D.Name; Result.Tool := D.Tool; Result.Executable := D.Executable;
   Result.ExitCode := -1; Result.DurationMS := 0; Result.Output := '';
   Exe := ExpandFileName(IncludeTrailingPathDelimiter(Root) + D.Executable);
   {$IFDEF Windows}Exe := Exe + '.exe';{$ENDIF}
+  if not FileExists(Exe) then begin
+    // Installed apps are flat files named after their modules. Their tests
+    // live below tests/<module>/ rather than <module>/tests/.
+    if Pos('tests/', D.Executable) = 1 then ModuleName := 'multicnc'
+    else if Pos('/', D.Executable) > 0 then
+      ModuleName := Copy(D.Executable, 1, Pos('/', D.Executable) - 1)
+    else ModuleName := '';
+    if ModuleName <> '' then begin
+      Exe := IncludeTrailingPathDelimiter(Root) + 'tests' + DirectorySeparator +
+        ModuleName + DirectorySeparator + ExtractFileName(D.Executable);
+      {$IFDEF Windows}Exe := Exe + '.exe';{$ENDIF}
+    end;
+  end;
   if not FileExists(Exe) then begin
     Result.Status := tsMissing; Result.Output := 'Teste nao incluido/compilado: ' + Exe; Exit;
   end;

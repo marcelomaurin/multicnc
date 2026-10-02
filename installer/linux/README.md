@@ -15,7 +15,7 @@ sha256sum -c SHA256SUMS
 sudo apt install ./multisuite_0.1.1-dev_amd64.deb
 ```
 
-O tar pode ser extraído e executado por `./multisuite`. Preserve a estrutura completa: os aplicativos ficam lado a lado e os testes ficam em `tests/` e `<módulo>/tests/`. GTK2 e as bibliotecas do sistema são necessárias.
+O tar pode ser extraído e executado por `./multisuite`. Preserve a estrutura completa: os aplicativos ficam lado a lado e os testes ficam em `tests/<módulo>/`. GTK2 e as bibliotecas do sistema são necessárias.
 
 `build-manifest.json` registra versão, commit, árvore Git, compiladores, alvo e SHA256 de cada arquivo incluído. `qa-tests.json` registra os testes executados; `not-run` indica compilação sem execução. A Central executa os testes em pastas temporárias e salva relatórios na configuração do usuário.
 

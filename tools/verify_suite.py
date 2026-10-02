@@ -70,7 +70,9 @@ def console(args):
                     record["status"] = "not-run"
                     print("BUILD", tag + "/" + source.stem, "(cross build: not run)")
                 if args.stage and record["status"] in ("passed", "not-run"):
-                    dest = args.stage / binary.relative_to(ROOT)
+                    # Flat Linux app names occupy <stage>/<module>; keep test
+                    # directories below tests/ so they cannot collide with apps.
+                    dest = args.stage / "tests" / tag / binary.name
                     dest.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(binary, dest)
             except (OSError, subprocess.TimeoutExpired) as error:
