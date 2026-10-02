@@ -84,7 +84,7 @@ begin
   BedX := FloatField('Mesa X (mm)', 'BedX', 220, 1, 2000);
   BedY := FloatField('Mesa Y (mm)', 'BedY', 220, 1, 2000);
   BedZ := FloatField('Altura maxima Z (mm)', 'BedZ', 250, 1, 2000);
-  Speed := FloatField('Velocidade de impressao (mm/s)', 'PrintSpeed', 50, 1, 500);
+  Speed := FloatField('Impressao (mm/s)', 'PrintSpeed', 50, 1, 500);
   Hotend := IntField('Temperatura do bico (C)', 'HotendTemperature', 200, 0, 400);
   BedTemp := IntField('Temperatura da mesa (C)', 'BedTemperature', 60, 0, 150);
   Adaptive := TCheckBox.Create(Self); Adaptive.Parent := Options; Adaptive.SetBounds(12, Row, 218, 30);

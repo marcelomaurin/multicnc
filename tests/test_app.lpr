@@ -85,6 +85,8 @@ begin
     Lines.SaveToFile(FN); F.OpenFile(FN);
     Check((F.AnalysisReport.Arcs = 1) and (F.ProgramTrace.Count > 20), 'Launcher entry uses arc analysis');
     F.Show; Application.ProcessMessages; // exercises drawing, including the discretized arc
+    Check(TControl(F.FindComponent('TrajectoryPreview')).Height >= 200,
+      'Trajectory has usable vertical space at the default window size');
     Check(Console.Lines.Count > 0, 'Console records operations');
     TButton(F.FindComponent('ClearConsole')).Click;
     Check(Console.Text = '', 'Clear console');

@@ -247,14 +247,15 @@ begin
   BtnReport := ButtonAt(PreviewBar, 'Exportar relatorio...', 334, 6, 190, @ExportAnalysisClick);
   AnalysisLabel := TLabel.Create(Self); AnalysisLabel.Name := 'AnalysisSummary';
   AnalysisLabel.Parent := PreviewTab; AnalysisLabel.Align := alTop;
-  AnalysisLabel.AutoSize := False; AnalysisLabel.Height := 116;
+  AnalysisLabel.AutoSize := True;
   AnalysisLabel.WordWrap := True; AnalysisLabel.BorderSpacing.Around := 8;
   AnalysisLabel.Caption := 'Analise a partir da origem de trabalho X0 Y0 Z0. Configure os limites antes de simular.';
   AnalysisWarnings := TMemo.Create(Self); AnalysisWarnings.Name := 'AnalysisWarnings';
   AnalysisWarnings.Parent := PreviewTab; AnalysisWarnings.Align := alBottom;
-  AnalysisWarnings.Height := 105; AnalysisWarnings.ReadOnly := True;
+  AnalysisWarnings.Height := 65; AnalysisWarnings.ReadOnly := True;
+  AnalysisWarnings.Visible := False;
   AnalysisWarnings.ScrollBars := ssAutoVertical;
-  Preview := TGCodePreview.Create(Self); Preview.Parent := PreviewTab;
+  Preview := TGCodePreview.Create(Self); Preview.Name := 'TrajectoryPreview'; Preview.Parent := PreviewTab;
   Preview.Align := alClient; Preview.SetProgram(Trace, Envelope);
   ConsoleTab := TTabSheet.Create(Self);
   ConsoleTab.PageControl := Pages;
@@ -413,6 +414,7 @@ begin
     if Report.Incomplete and not Report.LimitReached then AnalysisWarnings.Lines.Insert(0,
       'Analise parcial: coordenadas de maquina, homing ou probe dependem do controlador.');
     if Trace.Truncated then AnalysisWarnings.Lines.Add('Previa limitada aos primeiros 200000 segmentos. Consulte os avisos para limites da analise.');
+    AnalysisWarnings.Visible := AnalysisWarnings.Lines.Count > 0;
     Preview.SetProgram(Trace, Envelope);
     if Report.Errors > 0 then
       Status.SimpleText := 'Erros na analise: confira a aba Trajetoria e analise antes de simular.'

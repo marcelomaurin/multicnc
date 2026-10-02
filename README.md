@@ -18,7 +18,7 @@ O repositório reúne várias aplicações. **Elas não são o mesmo programa.**
 | **Montagem eletromecânica** | Visualização conjunta de mecânica e eletrônica | Ver componentes mecânicos, placas, sensores, motores e conexões no mesmo projeto |
 | **Central de Testes** | Executa os testes de console incluídos no pacote | Verificar os núcleos instalados e salvar um relatório por usuário |
 
-> **Resumo rápido:** MultiCNC controla a máquina; MultiPhysics simula o comportamento físico; as ferramentas de projeto criam/preparam o projeto; MultiSuite reúne e chama as aplicações.
+MultiCNC analisa G-code e simula o envio; MultiPhysics simula o comportamento físico; as ferramentas de projeto criam e preparam o projeto; MultiSuite organiza os arquivos e abre as aplicações.
 
 ## Funcionalidades disponíveis nas interfaces
 
