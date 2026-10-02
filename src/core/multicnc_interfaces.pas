@@ -37,6 +37,21 @@ type
     function BuildJogCommand(AAxis: TAxis; ADistance, AFeed: Double): string;
   end;
 
+  { Recursos de protocolos com envio confiavel e telemetria (Grbl, grblHAL,
+    FluidNC, Marlin). Implementada por TGRBLProtocol e descendentes e por
+    TMarlinProtocol. }
+  IMultiCNCStreamingProtocol = interface
+    ['{A1B70C38-899D-45D6-9054-19F35A1AB104}']
+    function RecommendedStreamMode: TStreamMode;
+    function RxBufferSize: Integer;
+    function BuildStatusQuery: string;
+    function BuildUnlockCommand: string;
+    function BuildFeedOverride(APercent: Integer): string;
+    function BuildSpindleOverride(APercent: Integer): string;
+    function CurrentState: TMachineState;
+    function CurrentPosition: TMachinePosition;
+  end;
+
   IMultiCNCMachine = interface
     ['{A1B70C38-899D-45D6-9054-19F35A1AB103}']
     function GetMachineType: TMachineType;

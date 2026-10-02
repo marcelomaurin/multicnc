@@ -1,0 +1,66 @@
+name: Linux Packages
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Versao de desenvolvimento/release
+        default: 0.1.1-dev
+        required: true
+  push:
+    paths: ['installer/linux/**', '**/*.pas', '**/*.lpr', '**/*.lpi', 'tools/**', '.github/workflows/linux-packages.yml']
+  pull_request:
+    paths: ['installer/linux/**', '**/*.pas', '**/*.lpr', '**/*.lpi', 'tools/**', '.github/workflows/linux-packages.yml']
+permissions:
+  contents: read
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    env:
+      VERSION: ${{ inputs.version || '0.1.1-dev' }}
+      MULTICNC_GUI_SMOKE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instalar ferramentas
+        run: sudo apt-get update && sudo apt-get install -y lazarus lcl-gtk2 fp-units-misc binutils gcc dpkg-dev xvfb xauth
+      - name: Gerar pacotes e executar testes nativos
+        run: installer/linux/build_release.sh ${{ matrix.arch }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MultiSuite-Linux-${{ matrix.arch }}
+          path: dist/linux-${{ matrix.arch }}/*
+          if-no-files-found: error
+  armhf:
+    name: armhf (ARMv7 emulado)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      VERSION: ${{ inputs.version || '0.1.1-dev' }}
+      MULTICNC_GUI_SMOKE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm
+      - name: Compilar e executar em userspace ARM hard-float
+        run: |
+          docker run --rm --platform linux/arm/v7 -e VERSION -e MULTICNC_GUI_SMOKE -e MULTICNC_TEST_TIMEOUT=300 \
+            -v "$PWD:/src" -w /src arm32v7/debian:bookworm sh -ec '
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git python3 lazarus lcl-gtk2 fp-units-misc binutils gcc dpkg-dev xvfb xauth
+              git config --global --add safe.directory /src
+              installer/linux/build_release.sh armhf
+            '
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MultiSuite-Linux-armhf
+          path: dist/linux-armhf/*
+          if-no-files-found: error

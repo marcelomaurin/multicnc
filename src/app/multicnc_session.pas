@@ -18,7 +18,7 @@ type
     FTransport: TSimulatorTransport;
     FProtocol: TInterfacedObject;
     FMachine: TMultiCNCMachine;
-    FLines: TStringList;
+    FLines, FSource: TStringList;
     FIndex: Integer;
     FState: TSessionState;
     FFileName: string;
@@ -57,6 +57,7 @@ constructor TSimulationSession.Create;
 begin
   inherited Create;
   FLines := TStringList.Create;
+  FSource := TStringList.Create;
   FState := ssDisconnected;
 end;
 
@@ -64,6 +65,7 @@ destructor TSimulationSession.Destroy;
 begin
   ReleaseConnection;
   FLines.Free;
+  FSource.Free;
   inherited Destroy;
 end;
 
@@ -142,7 +144,8 @@ begin
     end;
     if Commands.Count = 0 then raise Exception.Create('O arquivo nao contem comandos.');
     FLines.Assign(Commands);
-    FFileName := FileName;
+    FSource.Assign(Source);
+    FFileName := ExpandFileName(FileName);
     FIndex := 0;
     if Connected then FState := ssIdle else FState := ssDisconnected;
   finally
@@ -215,7 +218,7 @@ end;
 
 function TSimulationSession.ProgramText: string;
 begin
-  Result := FLines.Text;
+  Result := FSource.Text;
 end;
 
 end.

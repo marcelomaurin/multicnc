@@ -8,17 +8,61 @@ O repositório reúne várias aplicações. **Elas não são o mesmo programa.**
 
 | Aplicação / módulo | O que faz | Use quando quiser |
 |---|---|---|
-| **MultiCNC** | Controle de máquinas CNC e execução de G-code | Operar Router, Laser CNC ou outros equipamentos suportados |
-| **MultiSuite** | Gestor unificado da suíte | Abrir e organizar as diferentes ferramentas do projeto a partir de um único ponto |
+| **MultiCNC** | Análise de G-code, prévia e envio simulado; núcleo de protocolos e transportes | Inspecionar trabalhos e testar o envio antes da integração com hardware |
+| **MultiSuite** | Projetos globais, arquivos, workflow manual e launcher | Criar, salvar, reabrir e organizar um projeto, escolhendo a ferramenta de cada arquivo |
 | **MultiPhysics** | Simulação física multidomínio | Estudar eletricidade, eletrônica, mecânica, térmica, magnetismo, materiais, sensores, motores, energia e falhas |
 | **Ferramentas de projeto mecânico** | Projeto e preparação de peças e conjuntos | Trabalhar com geometria, peças mecânicas, montagem e preparação para CNC Router |
 | **Ferramentas de PCB/eletrônica** | Projeto de circuitos e placas | Trabalhar com esquemas, componentes, conexões e PCB |
 | **Ferramentas Laser** | Preparação de desenhos, imagens, logos e trabalhos para laser | Criar ou preparar arte para corte e gravação a laser |
 | **Ferramentas CNC Router/CAM** | Preparação de usinagem mecânica | Preparar operações, trajetórias e trabalhos para Router |
 | **Montagem eletromecânica** | Visualização conjunta de mecânica e eletrônica | Ver componentes mecânicos, placas, sensores, motores e conexões no mesmo projeto |
-| **Central de Testes** | Compilação e validação das funcionalidades | Desenvolver, testar e diagnosticar os módulos da suíte |
+| **Central de Testes** | Executa os testes de console incluídos no pacote | Verificar os núcleos instalados e salvar um relatório por usuário |
 
-> **Resumo rápido:** MultiCNC controla a máquina; MultiPhysics simula o comportamento físico; as ferramentas de projeto criam/preparam o projeto; MultiSuite reúne e chama as aplicações.
+MultiCNC analisa G-code e simula o envio; MultiPhysics simula o comportamento físico; as ferramentas de projeto criam e preparam o projeto; MultiSuite organiza os arquivos e abre as aplicações.
+
+## Funcionalidades disponíveis nas interfaces
+
+| Aplicação | Fluxo implementado |
+|---|---|
+| MultiSuite | Novo/abrir/salvar/salvar como `.msuite`, recentes, adicionar/remover arquivos e selecionar a ferramenta responsável; MultiPhysics permanece registrado. Etapas do workflow são atualizadas manualmente. |
+| MultiCNC | Abre `--file`, diálogo ou arquivo arrastado; preserva comentários, calcula a trajetória no analisador existente, apresenta vistas XY/XZ/YZ, limites editáveis, avisos e relatório exportável. Erros bloqueiam o início da simulação. |
+| MultiSlicer | Importa STL, configura camadas, paredes, infill, mesa, bico, velocidade, temperaturas e Marlin/Klipper; mostra percursos por camada. Prévia e exportação usam o mesmo pipeline e alterações invalidam o resultado anterior. |
+| Central de Testes | Procura testes na instalação ou árvore de desenvolvimento; executa em pastas temporárias, captura stdout/stderr e códigos de saída e grava relatórios em uma pasta gravável do usuário. |
+
+Os recursos de protocolo, streaming e TCP estão no núcleo. A GUI MultiCNC ainda usa o simulador; não anuncia conexão física nem telemetria como disponíveis na tela. O analisador assume a origem de trabalho X0 Y0 Z0 e sinaliza operações que tornam a análise parcial. Veja [o painel](src/app/README.md) e [o fluxo integrado](docs/FLUXOS_IMPLEMENTADOS.md).
+
+Os arquivos de `releases/0.1.0` são históricos e anteriores aos commits `960dbafd`/`67682e1a` do painel. Os novos pipelines geram **0.1.1-dev** como artefatos do Actions, com `build-manifest.json`, `qa-tests.json` e `SHA256SUMS`. A existência de um workflow não comprova aprovação: confira o run e o commit de origem do artefato antes de publicar uma release.
+
+## Motores da modernização de 2026
+
+O núcleo recebeu os recursos abaixo em Object Pascal (FPC/Lazarus). Disponibilidade de um motor não significa que todos os seus parâmetros já possuem uma tela; a tabela anterior delimita os fluxos atuais de interface. Builds e verificações usam também Python 3.9 ou superior.
+
+| Ferramenta | O que entrou |
+|---|---|
+| **MultiCNC** | Telemetria Grbl/grblHAL/FluidNC (status `<...>`, `ALARM`/`error` com texto), overrides em tempo real, envio por *character-counting* (Grbl) e linhas numeradas com checksum/`Resend` (Marlin), drivers **grblHAL** e **FluidNC**, transporte **TCP/telnet**, análise prévia de G-code com estimativa de tempo pelo modelo de *junction deviation* do Grbl e verificação do envelope da máquina (`multicnc_cli --check arquivo.nc`). |
+| **MultiCAM** | Fresamento **trocoidal**, pocket por **offsets** com entrada helicoidal, perfil com **compensação de raio**, rampa e tabs, calculadora de avanços e rotações com **afinamento de cavaco**, pós-processador modal com **arc fitting G2/G3** (perfil típico cai de 516 para 190 linhas). |
+| **LaserArt / LaserPCB** | Rasterização em **escala de cinza** (potência variável), dithering Floyd-Steinberg, Jarvis, Stucki, Atkinson, Sierra, Burkes e Bayer com varredura serpentina, **overscan**, varredura bidirecional, salto de áreas brancas, modo laser dinâmico `M4` e G-code modal. |
+| **MultiSlicer** | Contornos com furos, **perímetros**, topo/fundo sólidos, infill **gyroid**, **altura de camada adaptativa**, extrusão volumétrica, sabores **Marlin** e **Klipper** (`M73`, `M486`/`EXCLUDE_OBJECT`, pressure advance), retração só ao cruzar perímetros, arcos nos perímetros, STL binário e **3MF**. |
+| **MultiPCB** | **Gerber X2** com netlist embutida e funções de abertura, **Gerber Job** (`.gbrjob`), Excellon com tabela de ferramentas, **DRC de clearance** e **autorouter A\*** de duas camadas com vias. |
+| **MultiPhysics** | Solver de circuitos **Newton-Raphson global** (diodo e MOSFET dentro da MNA, *gmin/source stepping*, regra trapezoidal) e integradores **RK4**, **Dormand-Prince 45** adaptativo e **Velocity Verlet**. |
+| **MultiCAD** | **Solver de restrições** (Levenberg-Marquardt) com análise de **graus de liberdade** e detecção de conflitos, extrusão para malha fechada com furos, exportação **STL** e **3MF** (lida diretamente pelo MultiSlicer). |
+| **MultiAssembly** | **ERC eletromecânico** (drivers sem STEP/DIR, tensões incompatíveis, E-stop...), **BOM** CSV/JSON e geração dos parâmetros **Grbl `$100`–`$132`** e do YAML do **FluidNC** a partir da cinemática. |
+| **Geometria compartilhada** | `src/shared/multisuite_geometry` (offset, recorte, contornos) e `multisuite_arcfit` (G2/G3), usadas por CAM, Slicer e CAD. |
+
+Correções incluídas: compensação Z do PCB passou a usar interpolação **bilinear** em grade (o IDW anterior subestimava a inclinação: 0,04 mm de erro num desnível de 0,2 mm), leitura de STL ASCII em sistemas com vírgula decimal (pt-BR), workspace do MultiSuite salvo sem diretório, remoção de material com espessura de stock não informada e relação mecânica não inicializada na demonstração do MultiAssembly.
+
+### Testes
+
+```bash
+bash tests/run_all.sh            # todos os módulos
+bash tests/run_all.sh multicam   # um módulo
+```
+
+O script descobre os testes de console, compila com `fpc` e executa cada um. Os executáveis ficam ao lado de cada `.lpr`, onde a Central de Testes os encontra. O workflow **Suite CI** roda os testes, compila todos os `.lpi` e executa testes das interfaces MultiCNC, MultiSuite e MultiSlicer com Xvfb. Relatórios estruturados registram cada resultado; compilar sem executar é registrado como `not-run`.
+
+```bash
+python3 tools/verify_suite.py gui --run  # Lazarus/GTK2, Xvfb e xauth
+```
 
 ---
 
@@ -48,14 +92,15 @@ CNC Core
  |-- Job Manager
  |-- G-code Engine
  |
-Protocol Drivers
- |-- GRBL
+Protocol Drivers            Streaming
+ |-- GRBL                    |-- character-counting (Grbl/grblHAL/FluidNC)
+ |-- grblHAL                 |-- send-response
+ |-- FluidNC                 |-- Marlin: checksum + Resend
  |-- Marlin
- |-- futuros: FluidNC / grblHAL
  |
 Transport
- |-- Serial
- |-- TCP/IP
+ |-- Serial (CHATGPT/TAISerialModem)
+ |-- TCP/IP (FluidNC/grblHAL via telnet)
  |-- Simulator
 ```
 
@@ -269,7 +314,7 @@ Por isso, consulte também a documentação específica de cada módulo antes de
 
 A suíte possui empacotamento Inno Setup em `installer/windows`.
 
-O script `build_release.bat` compila as ferramentas antes de gerar o instalador. O workflow **Windows Installer** permite gerar o pacote pelo GitHub Actions e publica o executável como artefato somente quando o processo de build é concluído com sucesso.
+O script `build_release.bat` compila as ferramentas e executa os testes de console antes de gerar o instalador. **Windows Installer** publica o executável e seus metadados como artefatos. **Linux Packages** gera DEB/tar para amd64 e arm64 em runners nativos e armhf em userspace ARMv7 emulado. Emulação não comprova operação em uma placa ARM física. Consulte `SHA256SUMS`, o commit e os resultados dentro de cada pacote.
 
 ---
 

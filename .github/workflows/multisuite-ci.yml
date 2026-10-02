@@ -1,22 +1,16 @@
 name: MultiSuite CI
 on:
   push:
-    paths: ['multisuite/**','.github/workflows/multisuite-ci.yml']
+    paths: ['multisuite/**','tests/run_all.sh','.github/workflows/multisuite-ci.yml']
   pull_request:
-    paths: ['multisuite/**']
+    paths: ['multisuite/**','tests/run_all.sh','.github/workflows/multisuite-ci.yml']
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y fp-compiler fp-units-base fp-units-fcl
-      - run: |
-          fpc -Fu$GITHUB_WORKSPACE/multisuite/src/core multisuite/tests/test_registry.lpr
-          ./test_registry
-          fpc -Fu$GITHUB_WORKSPACE/multisuite/src/core multisuite/tests/test_workspace.lpr
-          ./test_workspace
-          fpc -Fu$GITHUB_WORKSPACE/multisuite/src/core multisuite/tests/test_launcher_paths.lpr
-          ./test_launcher_paths
+      - run: bash tests/run_all.sh multisuite
   build-gui:
     runs-on: ubuntu-latest
     steps:

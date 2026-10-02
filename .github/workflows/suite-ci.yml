@@ -1,0 +1,27 @@
+name: Suite CI
+# Compila e executa todos os testes de console de todas as ferramentas e
+# compila todos os projetos Lazarus (aplicacoes e testes com LCL).
+on:
+  push:
+  pull_request:
+jobs:
+  console-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instalar Free Pascal
+        run: sudo apt-get update && sudo apt-get install -y fp-compiler fp-units-base fp-units-fcl fp-units-misc
+      - name: Compilar e executar testes
+        run: bash tests/run_all.sh
+      - name: Validar ferramentas de release
+        run: python3 -m unittest discover -s tests -p test_release_tools.py
+  lazarus-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instalar Lazarus
+        run: sudo apt-get update && sudo apt-get install -y lazarus xvfb xauth
+      - name: Compilar todos os projetos .lpi
+        shell: bash
+        run: |
+          python3 tools/verify_suite.py gui --run

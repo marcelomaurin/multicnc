@@ -6,6 +6,8 @@ lib/
 *.res
 *.lps
 *.dbg
+__pycache__/
+*.pyc
 /dist/
 /laserpcb/src/app/laserpcb_layout
 /laserpcb/tests/test_alignment
@@ -28,3 +30,25 @@ lib/
 
 # instaladores publicados
 !/releases/**
+
+# executaveis gerados pelo lazbuild e por tests/run_all.sh
+/src/app/multicnc
+/src/app/multicnc_cli
+/laserpcb/src/app/laserart
+/laserpcb/src/app/laserpcb
+/multiassembly/src/app/multiassembly
+/multicad/src/app/multicad
+/multicam/src/app/multicam
+/multipcb/src/app/multipcb
+/multiphysics/src/app/multiphysics
+/multislicer/src/app/multislicer
+/multisuite/src/app/multisuite
+/multisuite/src/testing/multisuite_test_center
+/multisuite/src/testing/multisuite_test_console
+/tests/test_*
+/*/tests/test_*
+!/tests/test_*.lpr
+!/tests/test_*.lpi
+!/tests/test_*.py
+!/*/tests/test_*.lpr
+!/*/tests/test_*.lpi
