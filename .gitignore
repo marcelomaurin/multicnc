@@ -49,5 +49,6 @@ __pycache__/
 /*/tests/test_*
 !/tests/test_*.lpr
 !/tests/test_*.lpi
+!/tests/test_*.py
 !/*/tests/test_*.lpr
 !/*/tests/test_*.lpi
