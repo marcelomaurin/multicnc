@@ -32,6 +32,10 @@ A árvore Git deve estar limpa. O padrão é `0.1.1-dev`; não sobrescreve os ar
 
 O script compila aplicativos, executa testes nativos, inclui os testes, verifica arquiteturas, gera DEB/tar e cria/confere `SHA256SUMS`. A saída fica em `dist/linux-<arch>/`.
 
+Para `armhf`, o compilador recebe explicitamente `-CaEABIHF -CfVFPV3_D16 -CpARMV7A` nas aplicações e testes. O pacote exige a flag ELF de ABI hard-float; um host Debian armhf, por si só, não garante essa configuração do Free Pascal. O alvo é ARMv7 com VFPv3-D16.
+
+O CI também executa os três testes de interface em Xvfb em cada alvo Linux, inclusive no ARMv7 emulado. Para repetir essa verificação local, instale `xvfb` e `xauth` e defina `MULTICNC_GUI_SMOKE=1` ao executar o script.
+
 ## CI
 
 `Linux Packages` gera amd64 e arm64 em runners nativos. armhf usa Debian Bookworm ARMv7 dentro de QEMU; testes são executados nesse userspace. Emulação não valida uma placa física, dispositivo serial, display ou periféricos.

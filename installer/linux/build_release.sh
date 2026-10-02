@@ -55,6 +55,23 @@ APPS=(
 rm -rf "$OUT"
 mkdir -p "$STAGE$APPDIR" "$STAGE/usr/bin" "$STAGE/usr/share/applications" "$STAGE/usr/share/mime/packages" "$STAGE/DEBIAN"
 
+if [ "$ARCH" = armhf ]; then
+  # Debian's native FPC can default to EABI soft-float despite the armhf host.
+  # A compiler wrapper works with older lazbuild versions without ExtraOpts.
+  FPC_REAL="$(command -v "${FPC:-fpc}")"
+  FPC_WRAP_DIR="$(mktemp -d)"
+  trap 'rm -rf "$FPC_WRAP_DIR"' EXIT
+  python3 - "$FPC_REAL" "$FPC_WRAP_DIR/fpc-armhf" <<'PY'
+import pathlib, shlex, sys
+p = pathlib.Path(sys.argv[2])
+p.write_text('#!/bin/sh\nexec ' + shlex.quote(sys.argv[1]) +
+             ' "$@" -CaEABIHF -CfVFPV3_D16 -CpARMV7A\n')
+p.chmod(0o755)
+PY
+  export FPC="$FPC_WRAP_DIR/fpc-armhf"
+  LAZOPTS+=(--compiler="$FPC" --build-all)
+fi
+
 for entry in "${APPS[@]}"; do
   IFS='|' read -r id lpi exe name desc <<<"$entry"
   echo "=== Compilando $lpi ==="
@@ -80,6 +97,13 @@ Categories=Engineering;Development;
 $mime
 EOF
 done
+
+if [ "${MULTICNC_GUI_SMOKE:-0}" = 1 ]; then
+  for test in tests/test_app multisuite/tests/test_suite_app multislicer/tests/test_slicer_app; do
+    lazbuild "${LAZOPTS[@]}" "$test.lpi"
+    xvfb-run -a "$ROOT/$test"
+  done
+fi
 
 cp -r docs "$STAGE$APPDIR/docs"
 
