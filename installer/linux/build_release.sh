@@ -65,11 +65,34 @@ if [ "$ARCH" = armhf ]; then
 import pathlib, shlex, sys
 p = pathlib.Path(sys.argv[2])
 p.write_text('#!/bin/sh\nexec ' + shlex.quote(sys.argv[1]) +
-             ' "$@" -CaEABIHF -CfVFPV3_D16 -CpARMV7A\n')
+             ' "$@" -Aas -CaEABIHF -CfVFPV3_D16 -CpARMV7A\n')
 p.chmod(0o755)
 PY
   export FPC="$FPC_WRAP_DIR/fpc-armhf"
   LAZOPTS+=(--compiler="$FPC" --build-all)
+  # Check the actual linker output before the expensive LCL/application build.
+  cat > "$FPC_WRAP_DIR/abi_probe.pas" <<'PAS'
+program abi_probe;
+uses SysUtils, Math;
+begin
+  if Abs(Sqrt(StrToFloat('2.25')) - 1.5) > 0.00001 then Halt(1);
+  Writeln('ARM floating point: OK');
+end.
+PAS
+  "$FPC" -FE"$FPC_WRAP_DIR" -FU"$FPC_WRAP_DIR" "$FPC_WRAP_DIR/abi_probe.pas"
+  readelf -h "$FPC_WRAP_DIR/abi_probe"
+  readelf -A "$FPC_WRAP_DIR/abi_probe"
+  python3 - "$FPC_WRAP_DIR/abi_probe" <<'PY'
+import pathlib, struct, sys
+head = pathlib.Path(sys.argv[1]).read_bytes()[:52]
+if len(head) < 52 or head[:6] != b'\x7fELF\x01\x01':
+    raise SystemExit('O compilador ARM nao gerou ELF32 little-endian.')
+flags = struct.unpack_from('<I', head, 36)[0]
+if flags & 0xff000600 != 0x05000400:
+    raise SystemExit(f'O compilador ARM nao gerou EABI5 hard-float: 0x{flags:x}')
+print(f'ARM compiler ABI: OK (e_flags=0x{flags:x})')
+PY
+  [ "$ARCH" != "$HOSTARCH" ] || "$FPC_WRAP_DIR/abi_probe"
 fi
 
 for entry in "${APPS[@]}"; do
