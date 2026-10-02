@@ -59,13 +59,22 @@ if [ "$ARCH" = armhf ]; then
   # Debian's native FPC can default to EABI soft-float despite the armhf host.
   # A compiler wrapper works with older lazbuild versions without ExtraOpts.
   FPC_REAL="$(command -v "${FPC:-fpc}")"
+  GCC_TARGET="$TRIPLE-gcc"
+  if ! command -v "$GCC_TARGET" >/dev/null; then
+    [ "$ARCH" = "$HOSTARCH" ] || { echo "ERRO: instale gcc-$TRIPLE para os objetos de inicializacao C." >&2; exit 1; }
+    GCC_TARGET=gcc
+  fi
+  CRT_BEGIN="$("$GCC_TARGET" -print-file-name=crtbegin.o)"
+  [ -f "$CRT_BEGIN" ] || { echo "ERRO: crtbegin.o do alvo ARM nao encontrado." >&2; exit 1; }
+  GCC_LIBDIR="$(dirname "$CRT_BEGIN")"
   FPC_WRAP_DIR="$(mktemp -d)"
   trap 'rm -rf "$FPC_WRAP_DIR"' EXIT
-  python3 - "$FPC_REAL" "$FPC_WRAP_DIR/fpc-armhf" <<'PY'
+  python3 - "$FPC_REAL" "$FPC_WRAP_DIR/fpc-armhf" "$GCC_LIBDIR" <<'PY'
 import pathlib, shlex, sys
 p = pathlib.Path(sys.argv[2])
 p.write_text('#!/bin/sh\nexec ' + shlex.quote(sys.argv[1]) +
-             ' "$@" -Parm -Tlinux -Aas -CaEABIHF -CfVFPV3_D16 -CpARMV7A\n')
+             ' "$@" -Parm -Tlinux -Aas -CaEABIHF -CfVFPV3_D16 -CpARMV7A ' +
+             shlex.quote('-Fl' + sys.argv[3]) + '\n')
 p.chmod(0o755)
 PY
   export FPC="$FPC_WRAP_DIR/fpc-armhf"
@@ -95,6 +104,31 @@ PY
   [ "$ARCH" != "$HOSTARCH" ] || "$FPC_WRAP_DIR/abi_probe"
 fi
 
+check_armhf() {
+  python3 - "$1" <<'PY'
+import pathlib, struct, sys
+head = pathlib.Path(sys.argv[1]).read_bytes()[:52]
+flags = struct.unpack_from('<I', head, 36)[0]
+if head[:6] != b'\x7fELF\x01\x01' or flags & 0xff000600 != 0x05000400:
+    raise SystemExit(f'ABI ARM incorreta antes/depois de strip: {sys.argv[1]} e_flags=0x{flags:x}')
+PY
+}
+
+strip_executable() {
+  if [ "$ARCH" = armhf ]; then
+    check_armhf "$1"
+    cp -p "$1" "$FPC_WRAP_DIR/unstripped"
+    "$STRIP" -s "$1"
+    if ! check_armhf "$1"; then
+      cp -p "$FPC_WRAP_DIR/unstripped" "$1"
+      echo "Strip alterou a ABI; preservando o executavel original: $1"
+    fi
+    rm -f "$FPC_WRAP_DIR/unstripped"
+  else
+    "$STRIP" -s "$1"
+  fi
+}
+
 for entry in "${APPS[@]}"; do
   IFS='|' read -r id lpi exe name desc <<<"$entry"
   echo "=== Compilando $lpi ==="
@@ -102,7 +136,7 @@ for entry in "${APPS[@]}"; do
   lazbuild "${LAZOPTS[@]}" "$lpi"
   [ -x "$exe" ] || { echo "ERRO: executavel nao encontrado: $exe" >&2; exit 1; }
   install -m 0755 "$exe" "$STAGE$APPDIR/$id"
-  "$STRIP" -s "$STAGE$APPDIR/$id"
+  strip_executable "$STAGE$APPDIR/$id"
 
   # Wrapper em /usr/bin: o launcher procura as ferramentas ao lado do executavel real.
   printf '#!/bin/sh\nexec %s/%s "$@"\n' "$APPDIR" "$id" > "$STAGE/usr/bin/$id"
@@ -136,7 +170,9 @@ if [ "$ARCH" = "$HOSTARCH" ]; then
 else
   MULTICNC_TEST_FLAGS="-P$CPU -Tlinux" python3 tools/verify_suite.py console --build-only --stage "$STAGE$APPDIR"
 fi
-find "$STAGE$APPDIR/tests" -type f -name 'test_*' -exec "$STRIP" -s {} \;
+while IFS= read -r -d '' exe; do
+  strip_executable "$exe"
+done < <(find "$STAGE$APPDIR/tests" -type f -name 'test_*' -print0)
 
 # A dependência minima vem dos simbolos dos executaveis efetivamente gerados.
 GLIBC_MIN=$(find "$STAGE$APPDIR" -type f -exec readelf --version-info {} \; 2>/dev/null | sed -n 's/.*Name: GLIBC_\([0-9.]*\).*/\1/p' | sort -Vu | tail -1)

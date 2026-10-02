@@ -30,7 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Instalar ferramentas
-        run: sudo apt-get update && sudo apt-get install -y lazarus lcl-gtk2 fp-units-misc binutils dpkg-dev xvfb xauth
+        run: sudo apt-get update && sudo apt-get install -y lazarus lcl-gtk2 fp-units-misc binutils gcc dpkg-dev xvfb xauth
       - name: Gerar pacotes e executar testes nativos
         run: installer/linux/build_release.sh ${{ matrix.arch }}
       - uses: actions/upload-artifact@v4
@@ -55,7 +55,7 @@ jobs:
           docker run --rm --platform linux/arm/v7 -e VERSION -e MULTICNC_GUI_SMOKE -e MULTICNC_TEST_TIMEOUT=300 \
             -v "$PWD:/src" -w /src arm32v7/debian:bookworm sh -ec '
               apt-get update
-              DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git python3 lazarus lcl-gtk2 fp-units-misc binutils dpkg-dev xvfb xauth
+              DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git python3 lazarus lcl-gtk2 fp-units-misc binutils gcc dpkg-dev xvfb xauth
               git config --global --add safe.directory /src
               installer/linux/build_release.sh armhf
             '

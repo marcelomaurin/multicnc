@@ -36,6 +36,8 @@ Para `armhf`, o compilador recebe explicitamente `-Aas -CaEABIHF -CfVFPV3_D16 -C
 
 O CI também executa os três testes de interface em Xvfb em cada alvo Linux, inclusive no ARMv7 emulado. Para repetir essa verificação local, instale `xvfb` e `xauth` e defina `MULTICNC_GUI_SMOKE=1` ao executar o script.
 
+O build ARM exige GCC do alvo para `crtbegin.o`/`crtend.o`. O script fornece essa pasta ao FPC e verifica a ABI antes e depois de `strip`; se a redução de tamanho alterar a declaração ABI, preserva o binário original. A validação final do pacote continua obrigatória.
+
 ## CI
 
 `Linux Packages` gera amd64 e arm64 em runners nativos. armhf usa Debian Bookworm ARMv7 dentro de QEMU; testes são executados nesse userspace. Emulação não valida uma placa física, dispositivo serial, display ou periféricos.
