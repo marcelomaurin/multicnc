@@ -42,9 +42,17 @@ def verify_architecture(app, target_os, arch):
                 if target_os != "linux" or machine != expected or head[4] != expected_class:
                     raise SystemExit("Arquitetura ELF incorreta: " + str(path))
                 if arch == "armhf":
-                    attributes = command("readelf", "-A", str(path))
-                    if "Tag_ABI_VFP_args: VFP registers" not in attributes:
-                        raise SystemExit("ARM sem ABI hard-float: " + str(path))
+                    if len(head) < 52:
+                        raise SystemExit("Cabecalho ELF32 truncado: " + str(path))
+                    order = "<" if head[5] == 1 else ">"
+                    kind = struct.unpack_from(order + "H", head, 16)[0]
+                    flags = struct.unpack_from(order + "I", head, 36)[0]
+                    # AAELF32 5.2: executable ABI is declared in e_flags.
+                    # Tag_ABI_VFP_args is an object compatibility attribute
+                    # and is not present in every valid FPC executable.
+                    if (kind not in (2, 3) or flags >> 24 < 5 or
+                            not flags & 0x400 or flags & 0x200):
+                        raise SystemExit(f"ARM sem ABI hard-float (e_flags=0x{flags:x}): {path}")
                 valid.add(path)
             elif head.startswith(b"MZ"):
                 if len(head) < 64:

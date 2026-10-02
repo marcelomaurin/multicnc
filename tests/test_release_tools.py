@@ -14,10 +14,12 @@ NAMES = ("multisuite", "multicad", "multipcb", "multiassembly", "multiphysics",
          "multicam", "multislicer", "laserpcb", "laserart", "multicnc", "multisuite_test_center")
 
 
-def elf(machine=62, bits=2):
+def elf(machine=62, bits=2, flags=0):
     data = bytearray(64)
     data[:6] = b"\x7fELF" + bytes((bits, 1))
     struct.pack_into("<H", data, 18, machine)
+    struct.pack_into("<H", data, 16, 2)
+    struct.pack_into("<I", data, 36 if bits == 1 else 48, flags)
     return data
 
 
@@ -63,12 +65,15 @@ class ReleaseChecks(unittest.TestCase):
             release.verify_architecture(self.app, "windows", "amd64")
 
     def test_armhf_requires_hard_float(self):
-        self.fill("", elf(40, 1))
-        with patch.object(release, "command", return_value="Tag_ABI_VFP_args: VFP registers"):
-            release.verify_architecture(self.app, "linux", "armhf")
-        with patch.object(release, "command", return_value="Tag_ABI_VFP_args: Base AAPCS"):
+        for flags in (0, 0x05000200, 0x05000600, 0x04000400):
+            self.fill("", elf(40, 1, flags))
             with self.assertRaises(SystemExit):
                 release.verify_architecture(self.app, "linux", "armhf")
+
+    def test_armhf_executable_without_optional_attributes(self):
+        self.fill("", elf(40, 1, 0x05000400))
+        with patch.object(release, "command", side_effect=AssertionError("ELF e_flags declares executable ABI")):
+            release.verify_architecture(self.app, "linux", "armhf")
 
     def test_truncated_header_rejected(self):
         self.fill("", elf())
