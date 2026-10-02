@@ -6,6 +6,8 @@ lib/
 *.res
 *.lps
 *.dbg
+__pycache__/
+*.pyc
 /dist/
 /laserpcb/src/app/laserpcb_layout
 /laserpcb/tests/test_alignment

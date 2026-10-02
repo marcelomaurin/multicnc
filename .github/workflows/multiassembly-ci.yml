@@ -1,18 +1,16 @@
 name: MultiAssembly CI
 on:
   push:
-    paths: ['multiassembly/**','.github/workflows/multiassembly-ci.yml']
+    paths: ['multiassembly/**','tests/run_all.sh','.github/workflows/multiassembly-ci.yml']
   pull_request:
-    paths: ['multiassembly/**']
+    paths: ['multiassembly/**','tests/run_all.sh','.github/workflows/multiassembly-ci.yml']
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y fp-compiler fp-units-base fp-units-fcl
-      - run: |
-          fpc -Fu$GITHUB_WORKSPACE/multiassembly/src/core multiassembly/tests/test_multiassembly.lpr
-          ./test_multiassembly
+      - run: bash tests/run_all.sh multiassembly
   build-gui:
     runs-on: ubuntu-latest
     steps:

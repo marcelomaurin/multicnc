@@ -1,5 +1,5 @@
 #define MyAppName "MultiSuite"
-#define MyAppVersion "0.1.0"
+#include "..\..\dist\version.iss"
 #define MyAppPublisher "Maurinsoft"
 #define MyAppExeName "multisuite.exe"
 
@@ -7,6 +7,7 @@
 AppId={{A9D52D62-2B20-4A38-A44B-6A975EF41F9D}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
+VersionInfoVersion={#MyBinaryVersion}
 AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\MultiSuite
 DefaultGroupName=MultiSuite
@@ -26,18 +27,7 @@ ChangesAssociations=yes
 Name: "{userdocs}\MultiSuite Projects"
 
 [Files]
-Source: "..\..\dist\app\multisuite.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\..\dist\app\multicad.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\..\dist\app\multipcb.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\..\dist\app\multiassembly.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\..\dist\app\multiphysics.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\..\dist\app\multicam.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\..\dist\app\multislicer.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\..\dist\app\laserpcb.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\..\dist\app\laserart.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\..\dist\app\multicnc.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\..\dist\app\multisuite_test_center.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\..\docs\*"; DestDir: "{app}\docs"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\..\dist\app\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{autoprograms}\MultiSuite"; Filename: "{app}\multisuite.exe"

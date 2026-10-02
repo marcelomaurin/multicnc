@@ -11,7 +11,8 @@
 # (ex.: Raspberry Pi) basta rodar sem argumento de cruzamento: o script detecta.
 set -euo pipefail
 
-VERSION="${VERSION:-0.1.0}"
+VERSION="${VERSION:-0.1.1-dev}"
+[[ "$VERSION" =~ ^[0-9][A-Za-z0-9.+~-]*$ ]] || { echo "ERRO: versao invalida." >&2; exit 1; }
 HOSTARCH="$(dpkg --print-architecture 2>/dev/null || echo amd64)"
 ARCH="${1:-$HOSTARCH}"
 case "$ARCH" in
@@ -82,6 +83,24 @@ done
 
 cp -r docs "$STAGE$APPDIR/docs"
 
+# Testes acompanham a instalacao e executam em diretorios temporarios gravaveis.
+if [ "$ARCH" = "$HOSTARCH" ]; then
+  python3 tools/verify_suite.py console --stage "$STAGE$APPDIR"
+else
+  MULTICNC_TEST_FLAGS="-P$CPU -Tlinux" python3 tools/verify_suite.py console --build-only --stage "$STAGE$APPDIR"
+fi
+for exe in "$STAGE$APPDIR"/tests/test_* "$STAGE$APPDIR"/*/tests/test_*; do
+  "$STRIP" -s "$exe"
+done
+
+# A dependência minima vem dos simbolos dos executaveis efetivamente gerados.
+GLIBC_MIN=$(find "$STAGE$APPDIR" -type f -exec readelf --version-info {} \; 2>/dev/null | sed -n 's/.*Name: GLIBC_\([0-9.]*\).*/\1/p' | sort -Vu | tail -1)
+[ -n "$GLIBC_MIN" ] || { echo "ERRO: nao foi possivel determinar a glibc minima." >&2; exit 1; }
+MANIFEST_OPTS=()
+[ "${RELEASE_REQUIRE_CLEAN:-1}" = 1 ] && MANIFEST_OPTS+=(--require-clean)
+python3 tools/release_manifest.py --app-dir "$STAGE$APPDIR" --version "$VERSION" --os linux --arch "$ARCH" "${MANIFEST_OPTS[@]}"
+cp "$STAGE$APPDIR/build-manifest.json" "$STAGE$APPDIR/qa-tests.json" "$OUT/"
+
 cat > "$STAGE/usr/share/mime/packages/multisuite.xml" <<'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
@@ -99,7 +118,7 @@ Version: $VERSION
 Section: science
 Priority: optional
 Architecture: $ARCH
-Depends: libgtk2.0-0 | libgtk2.0-0t64, libc6
+Depends: libgtk2.0-0 | libgtk2.0-0t64, libc6 (>= $GLIBC_MIN)
 Installed-Size: $SIZE
 Maintainer: Maurinsoft <marcelomaurinmartins@gmail.com>
 Homepage: https://github.com/marcelomaurin/multicnc
@@ -124,6 +143,8 @@ mkdir -p "$TARDIR"
 cp -r "$STAGE$APPDIR/." "$TARDIR/"
 tar -C "$OUT" -cJf "$OUT/MultiSuite-$VERSION-linux-$TARNAME.tar.xz" "$(basename "$TARDIR")"
 rm -rf "$TARDIR" "$STAGE"
+
+(cd "$OUT" && sha256sum "multisuite_${VERSION}_${ARCH}.deb" "MultiSuite-${VERSION}-linux-${TARNAME}.tar.xz" > SHA256SUMS && sha256sum -c SHA256SUMS)
 
 echo
 echo "Pacotes gerados em $OUT:"

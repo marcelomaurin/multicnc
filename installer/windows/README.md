@@ -1,20 +1,26 @@
 # Instalador Windows MultiSuite
 
-## Requisitos de build
-- Windows 64-bit.
-- Lazarus/Free Pascal com lazbuild no PATH.
-- Inno Setup 6 com ISCC no PATH.
+## Requisitos
 
-## Gerar instalador
-Execute:
+Windows 64 bits, Git, Python 3.9+, Lazarus/Free Pascal (`lazbuild` e `fpc` no PATH), Inno Setup 6 (`iscc`) e árvore Git limpa.
+
+## Gerar
+
+```bat
+set VERSION=0.1.1-dev
 installer\windows\build_release.bat
+```
 
-O script compila todas as aplicacoes, interrompe no primeiro erro, copia somente executaveis gerados com sucesso para dist\app e chama o Inno Setup.
+O script compila os onze aplicativos, compila/executa os testes de console, copia os testes e a documentação para o pacote e valida os cabeçalhos PE como amd64. Em seguida gera `build-manifest.json`, `qa-tests.json`, o instalador e `SHA256SUMS`.
 
-## Pacote
-Instala MultiSuite, MultiCAD, MultiPCB, MultiAssembly, MultiPhysics, MultiCAM, MultiSlicer, LaserPCB, LaserArt, MultiCNC e Central de Testes.
+`MyAppVersion` e a versão numérica do executável do instalador vêm do mesmo valor VERSION. O manifesto registra o commit de origem e os hashes dos arquivos antes do Inno Setup. A versão padrão de desenvolvimento não substitui os binários históricos 0.1.0.
 
-Cria a pasta MultiSuite Projects em Documentos, menu Iniciar e opcionalmente atalho na area de trabalho. Registra .msuite como projeto MultiSuite.
+## Instalação
 
-## Regra de release
-Nao distribuir um instalador se build_release.bat falhar. A existencia do script nao significa que os onze executaveis compilam atualmente; o build deve ser executado em Windows com Lazarus e as falhas corrigidas antes da publicacao.
+Inclui MultiSuite, MultiCAD, MultiPCB, MultiAssembly, MultiPhysics, MultiCAM, MultiSlicer, LaserPCB, LaserArt, MultiCNC e Central de Testes com seus testes de console. O projeto `.msuite` pode ser aberto pela associação de arquivos.
+
+Projetos, histórico e relatórios pertencem ao usuário; a Central não depende de escrever em Program Files. A pasta de testes acompanha a instalação.
+
+## CI e publicação
+
+`Windows Installer` disponibiliza instalador, checksum, manifesto e relatório como artefatos do Actions. Um run aprovado confirma compilação/empacotamento e execução dos testes de console. Instalação interativa e hardware precisam de verificação própria. Publicar uma GitHub Release/tag continua uma etapa separada.

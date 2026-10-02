@@ -13,22 +13,15 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y fp-compiler fp-units-base fp-units-fcl fp-units-misc
       - name: Compilar e executar testes
         run: bash tests/run_all.sh
+      - name: Validar ferramentas de release
+        run: python3 -m unittest discover -s tests -p test_release_tools.py
   lazarus-build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Instalar Lazarus
-        run: sudo apt-get update && sudo apt-get install -y lazarus
+        run: sudo apt-get update && sudo apt-get install -y lazarus xvfb xauth
       - name: Compilar todos os projetos .lpi
         shell: bash
         run: |
-          set -e
-          status=0
-          for f in $(find . -name '*.lpi' -not -path './.git/*' | sort); do
-            if lazbuild -q "$f" > build.log 2>&1; then
-              echo "OK   $f"
-            else
-              echo "FAIL $f"; grep -E '\) Error|Fatal' build.log | head -5; status=1
-            fi
-          done
-          exit $status
+          python3 tools/verify_suite.py gui --run
