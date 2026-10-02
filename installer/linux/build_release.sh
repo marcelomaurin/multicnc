@@ -65,7 +65,7 @@ if [ "$ARCH" = armhf ]; then
 import pathlib, shlex, sys
 p = pathlib.Path(sys.argv[2])
 p.write_text('#!/bin/sh\nexec ' + shlex.quote(sys.argv[1]) +
-             ' "$@" -Aas -CaEABIHF -CfVFPV3_D16 -CpARMV7A\n')
+             ' "$@" -Parm -Tlinux -Aas -CaEABIHF -CfVFPV3_D16 -CpARMV7A\n')
 p.chmod(0o755)
 PY
   export FPC="$FPC_WRAP_DIR/fpc-armhf"
