@@ -5,7 +5,8 @@ unit mainform;
 interface
 
 uses Classes, SysUtils, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls,
-  Dialogs, Graphics, Spin, StrUtils, LazUTF8, LCLType, multicnc_types, multicnc_session;
+  Dialogs, Graphics, Spin, StrUtils, LazUTF8, LCLType, multicnc_types,
+  multicnc_session, multicnc_gcode_analyzer, multicnc_preview;
 
 type
   TMainForm = class(TForm)
@@ -16,10 +17,17 @@ type
     JogButtons: array[0..5] of TButton;
     StepSize: TFloatSpinEdit;
     FeedRate: TSpinEdit;
-    ProgramMemo, MemoLog: TMemo;
+    ProgramMemo, MemoLog, AnalysisWarnings: TMemo;
     EditCommand, SearchEdit: TEdit;
     Pages: TPageControl;
-    ProgramTab: TTabSheet;
+    ProgramTab, PreviewTab: TTabSheet;
+    Preview: TGCodePreview;
+    Trace: TGCodeTrace;
+    Envelope: TMachineEnvelope;
+    Report: TGCodeReport;
+    AnalysisLabel: TLabel;
+    PlaneChoice: TComboBox;
+    BtnEnvelope, BtnReport: TButton;
     SearchResult: TLabel;
     StateLabel, FileLabel, ProgressLabel: TLabel;
     Progress: TProgressBar;
@@ -44,9 +52,18 @@ type
     procedure Log(const AText: string);
     procedure UpdateControls;
     procedure Closing(Sender: TObject; var CanClose: Boolean);
+    procedure AnalyzeProgram;
+    procedure AnalysisSettingsClick(Sender: TObject);
+    procedure ExportAnalysisClick(Sender: TObject);
+    procedure PlaneChanged(Sender: TObject);
+    procedure MachineChanged(Sender: TObject);
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
+    procedure OpenFile(const AFileName: string);
+    procedure SetAnalysisEnvelope(const Value: TMachineEnvelope);
+    property AnalysisReport: TGCodeReport read Report;
+    property ProgramTrace: TGCodeTrace read Trace;
   end;
 
 implementation
@@ -79,7 +96,7 @@ begin
 end;
 
 constructor TMainForm.Create(AOwner: TComponent);
-var Header, Connection, Body, Side, Workspace, Actions, Footer, ConsoleBar, SearchBar, LogBar: TPanel;
+var Header, Connection, Body, Side, Workspace, Actions, Footer, ConsoleBar, SearchBar, LogBar, PreviewBar: TPanel;
   ConsoleTab: TTabSheet; L: TLabel; I: Integer;
 const JogNames: array[0..5] of string = ('X -', 'X +', 'Y -', 'Y +', 'Z -', 'Z +');
 begin
@@ -99,6 +116,8 @@ begin
   OnDropFiles := @DropFiles;
   Session := TSimulationSession.Create;
   Session.OnLog := @Log;
+  Trace := TGCodeTrace.Create;
+  Envelope := DefaultEnvelope(300, 300, 100);
 
   Header := Panel(Self, alTop, 82);
   L := LabelAt(Header, 'MultiCNC', 20, 12);
@@ -162,7 +181,7 @@ begin
   end;
   BtnHome := ButtonAt(Side, 'Referenciar (Home)', 20, 336, 220, @CommandClick);
   L := LabelAt(Side, 'Posicao: indisponivel' + LineEnding +
-    'O simulador confirma comandos,' + LineEnding + 'mas nao calcula trajetorias.', 20, 392);
+    'Use a previa para revisar o' + LineEnding + 'G-code antes de simular.', 20, 392);
   L.Font.Color := clGrayText;
 
   Workspace := Panel(Body, alClient, 0);
@@ -214,6 +233,29 @@ begin
   ProgramMemo.ScrollBars := ssAutoBoth;
   ProgramMemo.Font.Name := 'Consolas';
   ProgramMemo.Text := 'Abra um arquivo .nc, .gcode ou .tap para inspecionar e simular.';
+  PreviewTab := TTabSheet.Create(Self);
+  PreviewTab.PageControl := Pages;
+  PreviewTab.Caption := 'Trajetoria e analise';
+  PreviewBar := Panel(PreviewTab, alTop, 48);
+  PlaneChoice := TComboBox.Create(Self);
+  PlaneChoice.Name := 'PreviewPlane'; PlaneChoice.Parent := PreviewBar;
+  PlaneChoice.SetBounds(10, 10, 110, 28); PlaneChoice.Style := csDropDownList;
+  PlaneChoice.Items.Add('XY'); PlaneChoice.Items.Add('XZ'); PlaneChoice.Items.Add('YZ');
+  PlaneChoice.ItemIndex := 0; PlaneChoice.OnChange := @PlaneChanged;
+  BtnEnvelope := ButtonAt(PreviewBar, 'Limites da analise...', 132, 6, 190, @AnalysisSettingsClick);
+  BtnEnvelope.Name := 'AnalysisSettings';
+  BtnReport := ButtonAt(PreviewBar, 'Exportar relatorio...', 334, 6, 190, @ExportAnalysisClick);
+  AnalysisLabel := TLabel.Create(Self); AnalysisLabel.Name := 'AnalysisSummary';
+  AnalysisLabel.Parent := PreviewTab; AnalysisLabel.Align := alTop;
+  AnalysisLabel.AutoSize := False; AnalysisLabel.Height := 116;
+  AnalysisLabel.WordWrap := True; AnalysisLabel.BorderSpacing.Around := 8;
+  AnalysisLabel.Caption := 'Analise a partir da origem de trabalho X0 Y0 Z0. Configure os limites antes de simular.';
+  AnalysisWarnings := TMemo.Create(Self); AnalysisWarnings.Name := 'AnalysisWarnings';
+  AnalysisWarnings.Parent := PreviewTab; AnalysisWarnings.Align := alBottom;
+  AnalysisWarnings.Height := 105; AnalysisWarnings.ReadOnly := True;
+  AnalysisWarnings.ScrollBars := ssAutoVertical;
+  Preview := TGCodePreview.Create(Self); Preview.Parent := PreviewTab;
+  Preview.Align := alClient; Preview.SetProgram(Trace, Envelope);
   ConsoleTab := TTabSheet.Create(Self);
   ConsoleTab.PageControl := Pages;
   ConsoleTab.Caption := 'Console';
@@ -240,6 +282,7 @@ begin
   Timer.Enabled := False;
   Timer.Interval := 100;
   Timer.OnTimer := @Tick;
+  MachineType.OnChange := @MachineChanged;
   UpdateControls;
 end;
 
@@ -247,6 +290,7 @@ destructor TMainForm.Destroy;
 begin
   if Assigned(Timer) then Timer.Enabled := False;
   Session.Free;
+  Trace.Free;
   inherited Destroy;
 end;
 
@@ -275,7 +319,9 @@ begin
   if Session.Connected then BtnConnect.Caption := 'Desconectar' else BtnConnect.Caption := 'Conectar simulador';
   BtnConnect.Enabled := not Busy;
   BtnOpen.Enabled := not Busy;
-  BtnStart.Enabled := Session.Connected and not Busy and (Session.Count > 0);
+  BtnStart.Enabled := Session.Connected and not Busy and (Session.Count > 0) and (Report.Errors = 0);
+  BtnEnvelope.Enabled := not Busy;
+  BtnReport.Enabled := Session.Count > 0;
   BtnPause.Enabled := Session.State = ssRunning;
   BtnResume.Enabled := Session.State = ssPaused;
   BtnStop.Enabled := Session.Connected;
@@ -319,18 +365,124 @@ end;
 procedure TMainForm.LoadProgram(const AFileName: string);
 begin
   try
-    Session.LoadFile(AFileName);
-    ProgramMemo.Text := Session.ProgramText;
-    ProgramMemo.SelStart := 0;
-    SearchEdit.Clear;
-    FileLabel.Caption := ExtractFileName(Session.FileName);
-    FileLabel.Hint := Session.FileName;
-    Pages.ActivePage := ProgramTab;
-    Log('Programa carregado: ' + Session.FileName);
+    OpenFile(AFileName);
   except
     on E: Exception do MessageDlg('Nao foi possivel abrir', E.Message, mtError, [mbOK], 0);
   end;
   UpdateControls;
+end;
+
+procedure TMainForm.OpenFile(const AFileName: string);
+begin
+  // O mesmo fluxo atende ao dialogo, drag/drop e --file do launcher.
+  Session.LoadFile(AFileName);
+  ProgramMemo.Text := Session.ProgramText; ProgramMemo.SelStart := 0;
+  SearchEdit.Clear;
+  FileLabel.Caption := ExtractFileName(Session.FileName); FileLabel.Hint := Session.FileName;
+  AnalyzeProgram;
+  Pages.ActivePage := PreviewTab;
+  Log('Programa carregado: ' + Session.FileName);
+  UpdateControls;
+end;
+
+procedure TMainForm.SetAnalysisEnvelope(const Value: TMachineEnvelope);
+begin
+  if Session.State in [ssRunning, ssPaused] then
+    raise Exception.Create('Pare a simulacao antes de alterar os limites.');
+  ValidateEnvelope(Value);
+  Envelope := Value; AnalyzeProgram; UpdateControls;
+end;
+
+procedure TMainForm.AnalyzeProgram;
+var W: TStringList;
+begin
+  if Session.Count = 0 then begin Preview.SetProgram(Trace, Envelope); Exit; end;
+  W := TStringList.Create;
+  try
+    Report := TGCodeAnalyzer.Analyze(ProgramMemo.Lines, Envelope, W, Trace);
+    AnalysisWarnings.Lines.Assign(W);
+    AnalysisLabel.Caption := Format('%d movimentos | %d arcos | %d erros | %d avisos',
+      [Report.Motions, Report.Arcs, Report.Errors, W.Count]) + LineEnding +
+      Format('Corte: %.1f mm | Rapido: %.1f mm | Tempo estimado: %s',
+      [Report.CutLength, Report.RapidLength, FormatDuration(Report.EstimatedSeconds)]) + LineEnding +
+      Format('Trajetoria: X %.2f..%.2f | Y %.2f..%.2f | Z %.2f..%.2f mm',
+      [Report.MinX, Report.MaxX, Report.MinY, Report.MaxY, Report.MinZ, Report.MaxZ]) + LineEnding +
+      Format('Limites: X %.1f..%.1f | Y %.1f..%.1f | Z %.1f..%.1f mm',
+      [Envelope.MinX, Envelope.MaxX, Envelope.MinY, Envelope.MaxY, Envelope.MinZ, Envelope.MaxZ]) + LineEnding +
+      'Origem de trabalho assumida: X0 Y0 Z0. Tempo e trajetoria sao estimativas.';
+    if Report.Incomplete and not Report.LimitReached then AnalysisWarnings.Lines.Insert(0,
+      'Analise parcial: coordenadas de maquina, homing ou probe dependem do controlador.');
+    if Trace.Truncated then AnalysisWarnings.Lines.Add('Previa limitada aos primeiros 200000 segmentos. Consulte os avisos para limites da analise.');
+    Preview.SetProgram(Trace, Envelope);
+    if Report.Errors > 0 then
+      Status.SimpleText := 'Erros na analise: confira a aba Trajetoria e analise antes de simular.'
+    else if Report.Incomplete then Status.SimpleText := 'Analise parcial. Confira os avisos.'
+    else Status.SimpleText := 'Analise concluida. Revise limites, trajetoria e avisos antes de simular.';
+  finally W.Free; end;
+end;
+
+procedure TMainForm.MachineChanged(Sender: TObject);
+begin
+  Envelope.RequireSpindleForCut := MachineType.ItemIndex <> Ord(mtPrinter3D);
+  AnalyzeProgram; UpdateControls;
+end;
+
+procedure TMainForm.PlaneChanged(Sender: TObject);
+begin Preview.Plane := TPreviewPlane(PlaneChoice.ItemIndex); end;
+
+procedure TMainForm.AnalysisSettingsClick(Sender: TObject);
+const Names: array[0..9] of string = ('X minimo (mm)', 'X maximo (mm)', 'Y minimo (mm)',
+  'Y maximo (mm)', 'Z minimo (mm)', 'Z maximo (mm)', 'Avanco maximo (mm/min)',
+  'Avanco rapido (mm/min)', 'Aceleracao XY (mm/s2)', 'Aceleracao Z (mm/s2)');
+var D: TForm; Edits: array[0..9] of TFloatSpinEdit; Values: array[0..9] of Double;
+  I: Integer; L: TLabel; B: TButton; E: TMachineEnvelope;
+begin
+  D := TForm.CreateNew(Self);
+  try
+    D.Caption := 'Limites para analise e simulacao'; D.Position := poOwnerFormCenter;
+    D.SetBounds(0, 0, 430, 500); D.BorderStyle := bsDialog;
+    Values[0] := Envelope.MinX; Values[1] := Envelope.MaxX;
+    Values[2] := Envelope.MinY; Values[3] := Envelope.MaxY;
+    Values[4] := Envelope.MinZ; Values[5] := Envelope.MaxZ;
+    Values[6] := Envelope.MaxFeed; Values[7] := Envelope.RapidFeed;
+    Values[8] := Envelope.Acceleration; Values[9] := Envelope.AccelerationZ;
+    for I := 0 to 9 do begin
+      L := TLabel.Create(D); L.Parent := D; L.SetBounds(12, 14 + I * 38, 225, 25); L.Caption := Names[I];
+      Edits[I] := TFloatSpinEdit.Create(D); Edits[I].Parent := D;
+      Edits[I].SetBounds(244, 10 + I * 38, 170, 30); Edits[I].MinValue := -1000000;
+      Edits[I].MaxValue := 1000000; Edits[I].DecimalPlaces := 3; Edits[I].Value := Values[I];
+    end;
+    L := TLabel.Create(D); L.Parent := D; L.SetBounds(12, 396, 402, 32);
+    L.Caption := 'Informe limites no sistema de coordenadas do programa.';
+    B := TButton.Create(D); B.Parent := D; B.SetBounds(190, 442, 105, 32);
+    B.Caption := 'Aplicar'; B.ModalResult := mrOK; B.Default := True;
+    B := TButton.Create(D); B.Parent := D; B.SetBounds(309, 442, 105, 32);
+    B.Caption := 'Cancelar'; B.ModalResult := mrCancel; B.Cancel := True;
+    if D.ShowModal <> mrOK then Exit;
+    E := Envelope; E.MinX := Edits[0].Value; E.MaxX := Edits[1].Value;
+    E.MinY := Edits[2].Value; E.MaxY := Edits[3].Value;
+    E.MinZ := Edits[4].Value; E.MaxZ := Edits[5].Value;
+    E.MaxFeed := Edits[6].Value; E.RapidFeed := Edits[7].Value;
+    E.Acceleration := Edits[8].Value; E.AccelerationZ := Edits[9].Value;
+    try SetAnalysisEnvelope(E);
+    except on Ex: Exception do MessageDlg('Limites invalidos', Ex.Message, mtError, [mbOK], 0); end;
+  finally D.Free; end;
+end;
+
+procedure TMainForm.ExportAnalysisClick(Sender: TObject);
+var D: TSaveDialog; Lines: TStringList;
+begin
+  D := TSaveDialog.Create(Self); Lines := TStringList.Create;
+  try
+    D.Filter := 'Relatorio de texto|*.txt'; D.DefaultExt := 'txt';
+    D.FileName := ChangeFileExt(ExtractFileName(Session.FileName), '-analise.txt');
+    D.Options := [ofOverwritePrompt, ofPathMustExist, ofEnableSizing];
+    if not D.Execute then Exit;
+    Lines.Add('MultiCNC - Analise de G-code'); Lines.Add('Arquivo: ' + Session.FileName);
+    Lines.Add(AnalysisLabel.Caption); Lines.Add(''); Lines.AddStrings(AnalysisWarnings.Lines);
+    try Lines.SaveToFile(D.FileName); Status.SimpleText := 'Relatorio salvo: ' + D.FileName;
+    except on E: Exception do MessageDlg('Falha ao salvar', E.Message, mtError, [mbOK], 0); end;
+  finally Lines.Free; D.Free; end;
 end;
 
 procedure TMainForm.DropFiles(Sender: TObject; const FileNames: array of string);
@@ -370,7 +522,7 @@ begin
   ProgramMemo.SelLength := UTF8Length(Query);
   LineNo := 1;
   for I := 1 to FoundAt - 1 do if Source[I] = #10 then Inc(LineNo);
-  SearchResult.Caption := Format('Comando %d da lista carregada', [LineNo]);
+  SearchResult.Caption := Format('Linha %d do arquivo', [LineNo]);
   if Wrapped then SearchResult.Caption := SearchResult.Caption + ' (voltou ao inicio)';
   ProgramMemo.HideSelection := False;
 end;
@@ -424,7 +576,10 @@ procedure TMainForm.CommandClick(Sender: TObject);
 var OK: Boolean;
 begin
   OK := False;
-  if Sender = BtnStart then OK := Session.Start
+  if Sender = BtnStart then begin
+    if Report.Errors = 0 then OK := Session.Start
+    else Log('Corrija os erros da analise antes de iniciar a simulacao.');
+  end
   else if Sender = BtnPause then OK := Session.Pause
   else if Sender = BtnResume then OK := Session.Resume
   else if Sender = BtnStop then OK := Session.Stop

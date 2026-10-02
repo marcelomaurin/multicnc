@@ -26,3 +26,6 @@ Controle serial, firmware/protocolo, usinagem CNC Router, desenho PCB ou montage
 
 ## Regra
 Mantenha perfil de impressao separado da conexao com a impressora. O slicer prepara; MultiCNC executa.
+
+## Previa e exportacao
+multislicer_main usa TModernSlicer para ambos os fluxos. multislicer_layerpreview desenha TLayerData.Paths do mesmo resultado que gera o G-code. Qualquer alteracao de configuracao ou STL invalida o programa anterior; ExportProgram deve regenerar quando necessario. Importacao invalida preserva o modelo anterior. Nao use TSlicer antigo para contar camadas da previa enquanto exporta pelo pipeline moderno.

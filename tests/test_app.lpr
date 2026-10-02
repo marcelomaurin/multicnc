@@ -1,10 +1,11 @@
 program test_app;
 {$mode objfpc}{$H+}
-uses Interfaces, Forms, Controls, StdCtrls, SysUtils, Classes, LCLType, mainform;
+uses Interfaces, Forms, Controls, StdCtrls, SysUtils, Classes, LCLType, mainform,
+  multicnc_gcode_analyzer;
 var F: TMainForm; I, FirstMatch, SecondMatch: Integer;
   ConnectButton, StartButton, JogZ, PauseButton, StopButton: TButton;
   ProgramView, Console: TMemo; Search: TEdit; FindNext: TButton;
-  Lines: TStringList; FN: string; Key: Word;
+  Lines: TStringList; FN: string; Key: Word; Env: TMachineEnvelope; Raised: Boolean;
 procedure Check(Value: Boolean; const Msg: string);
 begin
   if not Value then raise Exception.Create(Msg);
@@ -34,11 +35,14 @@ begin
     Console := TMemo(F.FindComponent('ConsoleLog'));
     Search := TEdit(F.FindComponent('ProgramSearch'));
     FindNext := TButton(F.FindComponent('FindNext'));
-    Lines.Text := 'G0 X0' + LineEnding + 'G1 X10' + LineEnding + 'G1 X20';
+    Lines.Text := '(arquivo original)' + LineEnding + 'M3 S1000' + LineEnding +
+      'G0 X0' + LineEnding + 'G1 X10 F500' + LineEnding + 'G1 X20';
     Lines.SaveToFile(FN);
     F.OnDropFiles(F, [FN]);
     Check(StartButton.Enabled, 'Dropped program is ready');
     Check(Pos('X20', ProgramView.Text) > 0, 'Program loaded');
+    Check(Pos('arquivo original', ProgramView.Text) > 0, 'Original comments preserved');
+    Check((F.AnalysisReport.Errors = 0) and (F.ProgramTrace.Count = 2), 'Analysis and real path available');
     Search.Text := 'g1';
     FindNext.Click;
     Check(ProgramView.SelText = 'G1', 'Case insensitive match');
@@ -69,6 +73,18 @@ begin
     StopButton.Click;
     F.OnDropFiles(F, [FN]);
     Check(Pos('X999', ProgramView.Text) > 0, 'Drop allowed after stop');
+    Check(not StartButton.Enabled and (F.AnalysisReport.Errors > 0), 'Envelope errors block simulation');
+    Env := DefaultEnvelope(1200, 300, 100);
+    F.SetAnalysisEnvelope(Env);
+    Check(StartButton.Enabled and (F.AnalysisReport.Errors = 0), 'Edited limits reanalyze the program');
+    Env.MaxX := Env.MinX;
+    Raised := False;
+    try F.SetAnalysisEnvelope(Env); except on E: Exception do Raised := True; end;
+    Check(Raised and StartButton.Enabled, 'Invalid limits preserve the valid configuration');
+    Lines.Text := 'G21 G90' + LineEnding + 'M3' + LineEnding + 'G0 X60 Y50' + LineEnding + 'G2 I-10 J0 F500';
+    Lines.SaveToFile(FN); F.OpenFile(FN);
+    Check((F.AnalysisReport.Arcs = 1) and (F.ProgramTrace.Count > 20), 'Launcher entry uses arc analysis');
+    F.Show; Application.ProcessMessages; // exercises drawing, including the discretized arc
     Check(Console.Lines.Count > 0, 'Console records operations');
     TButton(F.FindComponent('ClearConsole')).Click;
     Check(Console.Text = '', 'Clear console');

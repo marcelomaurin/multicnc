@@ -8,21 +8,34 @@ O repositório reúne várias aplicações. **Elas não são o mesmo programa.**
 
 | Aplicação / módulo | O que faz | Use quando quiser |
 |---|---|---|
-| **MultiCNC** | Controle de máquinas CNC e execução de G-code | Operar Router, Laser CNC ou outros equipamentos suportados |
-| **MultiSuite** | Gestor unificado da suíte | Abrir e organizar as diferentes ferramentas do projeto a partir de um único ponto |
+| **MultiCNC** | Análise de G-code, prévia e envio simulado; núcleo de protocolos e transportes | Inspecionar trabalhos e testar o envio antes da integração com hardware |
+| **MultiSuite** | Projetos globais, arquivos, workflow manual e launcher | Criar, salvar, reabrir e organizar um projeto, escolhendo a ferramenta de cada arquivo |
 | **MultiPhysics** | Simulação física multidomínio | Estudar eletricidade, eletrônica, mecânica, térmica, magnetismo, materiais, sensores, motores, energia e falhas |
 | **Ferramentas de projeto mecânico** | Projeto e preparação de peças e conjuntos | Trabalhar com geometria, peças mecânicas, montagem e preparação para CNC Router |
 | **Ferramentas de PCB/eletrônica** | Projeto de circuitos e placas | Trabalhar com esquemas, componentes, conexões e PCB |
 | **Ferramentas Laser** | Preparação de desenhos, imagens, logos e trabalhos para laser | Criar ou preparar arte para corte e gravação a laser |
 | **Ferramentas CNC Router/CAM** | Preparação de usinagem mecânica | Preparar operações, trajetórias e trabalhos para Router |
 | **Montagem eletromecânica** | Visualização conjunta de mecânica e eletrônica | Ver componentes mecânicos, placas, sensores, motores e conexões no mesmo projeto |
-| **Central de Testes** | Compilação e validação das funcionalidades | Desenvolver, testar e diagnosticar os módulos da suíte |
+| **Central de Testes** | Executa os testes de console incluídos no pacote | Verificar os núcleos instalados e salvar um relatório por usuário |
 
 > **Resumo rápido:** MultiCNC controla a máquina; MultiPhysics simula o comportamento físico; as ferramentas de projeto criam/preparam o projeto; MultiSuite reúne e chama as aplicações.
 
-## Novidades (modernização de 2026)
+## Funcionalidades disponíveis nas interfaces
 
-Cada ferramenta recebeu recursos que hoje são padrão nos softwares de referência da área, mantendo a função original de cada uma e o Object Pascal (FPC/Lazarus), sem dependências externas novas.
+| Aplicação | Fluxo implementado |
+|---|---|
+| MultiSuite | Novo/abrir/salvar/salvar como `.msuite`, recentes, adicionar/remover arquivos e selecionar a ferramenta responsável; MultiPhysics permanece registrado. Etapas do workflow são atualizadas manualmente. |
+| MultiCNC | Abre `--file`, diálogo ou arquivo arrastado; preserva comentários, calcula a trajetória no analisador existente, apresenta vistas XY/XZ/YZ, limites editáveis, avisos e relatório exportável. Erros bloqueiam o início da simulação. |
+| MultiSlicer | Importa STL, configura camadas, paredes, infill, mesa, bico, velocidade, temperaturas e Marlin/Klipper; mostra percursos por camada. Prévia e exportação usam o mesmo pipeline e alterações invalidam o resultado anterior. |
+| Central de Testes | Procura testes na instalação ou árvore de desenvolvimento; executa em pastas temporárias, captura stdout/stderr e códigos de saída e grava relatórios em uma pasta gravável do usuário. |
+
+Os recursos de protocolo, streaming e TCP estão no núcleo. A GUI MultiCNC ainda usa o simulador; não anuncia conexão física nem telemetria como disponíveis na tela. O analisador assume a origem de trabalho X0 Y0 Z0 e sinaliza operações que tornam a análise parcial. Veja [o painel](src/app/README.md) e [o fluxo integrado](docs/FLUXOS_IMPLEMENTADOS.md).
+
+Os arquivos de `releases/0.1.0` são históricos e anteriores aos commits `960dbafd`/`67682e1a` do painel. Os novos pipelines geram **0.1.1-dev** como artefatos do Actions, com `build-manifest.json`, `qa-tests.json` e `SHA256SUMS`. A existência de um workflow não comprova aprovação: confira o run e o commit de origem do artefato antes de publicar uma release.
+
+## Motores da modernização de 2026
+
+O núcleo recebeu os recursos abaixo em Object Pascal (FPC/Lazarus). Disponibilidade de um motor não significa que todos os seus parâmetros já possuem uma tela; a tabela anterior delimita os fluxos atuais de interface. Builds e verificações usam também Python 3.9 ou superior.
 
 | Ferramenta | O que entrou |
 |---|---|
@@ -45,7 +58,11 @@ bash tests/run_all.sh            # todos os módulos
 bash tests/run_all.sh multicam   # um módulo
 ```
 
-O script compila com `fpc` e executa os 66 testes de console; os executáveis ficam ao lado de cada `.lpr`, onde a Central de Testes os encontra. O workflow **Suite CI** roda os testes e compila todos os projetos `.lpi` com `lazbuild` a cada push.
+O script descobre os testes de console, compila com `fpc` e executa cada um. Os executáveis ficam ao lado de cada `.lpr`, onde a Central de Testes os encontra. O workflow **Suite CI** roda os testes, compila todos os `.lpi` e executa testes das interfaces MultiCNC, MultiSuite e MultiSlicer com Xvfb. Relatórios estruturados registram cada resultado; compilar sem executar é registrado como `not-run`.
+
+```bash
+python3 tools/verify_suite.py gui --run  # Lazarus/GTK2, Xvfb e xauth
+```
 
 ---
 
@@ -297,7 +314,7 @@ Por isso, consulte também a documentação específica de cada módulo antes de
 
 A suíte possui empacotamento Inno Setup em `installer/windows`.
 
-O script `build_release.bat` compila as ferramentas antes de gerar o instalador. O workflow **Windows Installer** permite gerar o pacote pelo GitHub Actions e publica o executável como artefato somente quando o processo de build é concluído com sucesso.
+O script `build_release.bat` compila as ferramentas e executa os testes de console antes de gerar o instalador. **Windows Installer** publica o executável e seus metadados como artefatos. **Linux Packages** gera DEB/tar para amd64 e arm64 em runners nativos e armhf em userspace ARMv7 emulado. Emulação não comprova operação em uma placa ARM física. Consulte `SHA256SUMS`, o commit e os resultados dentro de cada pacote.
 
 ---
 

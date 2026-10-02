@@ -243,7 +243,7 @@ begin
     Warn.Clear;
     Rep := TGCodeAnalyzer.Analyze(Prog, Env, Warn);
     Check(Abs(Rep.CutLength - 2 * Pi * 10) < 0.01, Format('arco completo %.4f', [Rep.CutLength]));
-    Check((Abs(Rep.MinX - 40) < 0.01) and (Abs(Rep.MaxY - 60) < 0.01), 'limites do arco');
+    Check((Abs(Rep.MinX) < 0.01) and (Abs(Rep.MaxY - 60) < 0.01), 'limites incluem origem e arco');
     // Arco por R e polegadas
     Prog.Text := 'G20'#10'M3'#10'G1 F10'#10'G3 X1 Y1 R1';
     Rep := TGCodeAnalyzer.Analyze(Prog, Env, Warn);

@@ -43,22 +43,46 @@ type
     EstimatedSeconds: Double;
     MaxFeed, MaxSpindle: Double;
     UsesInches: Boolean;
+    Incomplete: Boolean;             // posicoes de maquina/probe nao determinadas
+    LimitReached: Boolean;           // analise limitada; nao aprovar o arquivo inteiro
+  end;
+
+  TGCodePoint = record X, Y, Z: Double; end;
+  TGCodeSegment = record
+    StartPoint, EndPoint: TGCodePoint;
+    Rapid: Boolean;
+    SourceLine: Integer;
+  end;
+  TGCodeTrace = class
+  private
+    FSegments: array of TGCodeSegment;
+    FCount: Integer;
+    FTruncated: Boolean;
+  public
+    procedure Clear;
+    procedure Add(X1, Y1, Z1, X2, Y2, Z2: Double; ARapid: Boolean; ASourceLine: Integer);
+    function Segment(I: Integer): TGCodeSegment;
+    property Count: Integer read FCount;
+    property Truncated: Boolean read FTruncated;
   end;
 
   TGCodeAnalyzer = class
   public
     class function Analyze(Source: TStrings; const Env: TMachineEnvelope;
-      Warnings: TStrings): TGCodeReport;
+      Warnings: TStrings; Trace: TGCodeTrace = nil; MaxSegments: Integer = 1000000): TGCodeReport;
     class function AnalyzeFile(const FileName: string; const Env: TMachineEnvelope;
       Warnings: TStrings): TGCodeReport;
   end;
 
 function DefaultEnvelope(SizeX, SizeY, SizeZ: Double): TMachineEnvelope;
 function FormatDuration(Seconds: Double): string;
+procedure ValidateEnvelope(const Env: TMachineEnvelope);
 
 implementation
 
 type
+  TTraceAxis = (taX, taY, taZ);
+  EAnalysisLimit = class(Exception);
   TPlanSegment = record
     Length, NominalSpeed, Accel: Double; // mm, mm/s, mm/s^2
     UX, UY, UZ: Double;
@@ -67,11 +91,14 @@ type
   TAnalyzerState = class
     Env: TMachineEnvelope;
     Warnings: TStrings;
+    Trace: TGCodeTrace;
     R: TGCodeReport;
     X, Y, Z: Double;
     Motion: Integer;          // 0,1,2,3, -1 = nenhum
     Plane: Integer;           // 17,18,19
-    Absolute, ArcAbsolute, Inches: Boolean;
+    Absolute, ArcAbsolute, Inches, PositionKnown: Boolean;
+    UnknownAxes: set of TTraceAxis;
+    TotalSegments, MaxSegments: Integer;
     Feed, Spindle: Double;
     SpindleOn: Boolean;
     LineNo: Integer;
@@ -90,6 +117,29 @@ type
 
 const
   MAX_WARNINGS = 200;
+  MAX_TRACE_SEGMENTS = 200000;
+
+procedure TGCodeTrace.Clear;
+begin FCount := 0; FTruncated := False; end;
+
+procedure TGCodeTrace.Add(X1, Y1, Z1, X2, Y2, Z2: Double; ARapid: Boolean; ASourceLine: Integer);
+begin
+  if FCount >= MAX_TRACE_SEGMENTS then begin FTruncated := True; Exit; end;
+  if FCount >= Length(FSegments) then SetLength(FSegments, Min(MAX_TRACE_SEGMENTS, Max(256, FCount * 2)));
+  with FSegments[FCount] do begin
+    StartPoint.X := X1; StartPoint.Y := Y1; StartPoint.Z := Z1;
+    EndPoint.X := X2; EndPoint.Y := Y2; EndPoint.Z := Z2;
+    Rapid := ARapid;
+    SourceLine := ASourceLine;
+  end;
+  Inc(FCount);
+end;
+
+function TGCodeTrace.Segment(I: Integer): TGCodeSegment;
+begin
+  if (I < 0) or (I >= FCount) then raise ERangeError.Create('Segmento de G-code invalido.');
+  Result := FSegments[I];
+end;
 
 function DefaultEnvelope(SizeX, SizeY, SizeZ: Double): TMachineEnvelope;
 begin
@@ -105,6 +155,22 @@ begin
   Result.RequireSpindleForCut := True;
 end;
 
+procedure ValidateEnvelope(const Env: TMachineEnvelope);
+var Values: array[0..11] of Double; I: Integer;
+begin
+  Values[0] := Env.MinX; Values[1] := Env.MaxX; Values[2] := Env.MinY; Values[3] := Env.MaxY;
+  Values[4] := Env.MinZ; Values[5] := Env.MaxZ; Values[6] := Env.MaxFeed; Values[7] := Env.RapidFeed;
+  Values[8] := Env.Acceleration; Values[9] := Env.AccelerationZ;
+  Values[10] := Env.JunctionDeviation; Values[11] := Env.ArcTolerance;
+  for I := 0 to High(Values) do
+    if IsNan(Values[I]) or IsInfinite(Values[I]) or (Abs(Values[I]) > 1e9) then
+      raise Exception.Create('Limites de analise devem ser numeros finitos.');
+  if (Env.MinX >= Env.MaxX) or (Env.MinY >= Env.MaxY) or (Env.MinZ >= Env.MaxZ) or
+    (Env.MaxFeed <= 0) or (Env.RapidFeed <= 0) or (Env.Acceleration <= 0) or
+    (Env.AccelerationZ <= 0) or (Env.ArcTolerance <= 0) or (Env.JunctionDeviation < 0) then
+    raise Exception.Create('Limites invalidos: maximos devem superar minimos; velocidades e aceleracoes devem ser positivas.');
+end;
+
 function FormatDuration(Seconds: Double): string;
 var S: Int64;
 begin
@@ -115,6 +181,7 @@ end;
 procedure TAnalyzerState.Warn(const Msg: string);
 begin
   Inc(WarnCount);
+  if Warnings = nil then Exit;
   if WarnCount <= MAX_WARNINGS then
     Warnings.Add(Format('Linha %d: %s', [LineNo, Msg]))
   else if WarnCount = MAX_WARNINGS + 1 then
@@ -150,6 +217,12 @@ var L, A: Double;
 begin
   L := Sqrt(DX * DX + DY * DY + DZ * DZ);
   if L < 1e-9 then Exit;
+  if TotalSegments >= MaxSegments then begin
+    R.LimitReached := True; R.Incomplete := True; Inc(R.Errors);
+    Warn('limite de segmentos atingido: analise parcial, divida o programa em trabalhos menores');
+    raise EAnalysisLimit.Create('Limite de analise');
+  end;
+  Inc(TotalSegments);
   if PlanCount >= Length(Plan) then SetLength(Plan, Max(64, PlanCount * 2));
   Plan[PlanCount].Length := L;
   Plan[PlanCount].NominalSpeed := Max(SpeedMMs, 0.01);
@@ -212,13 +285,12 @@ end;
 procedure TAnalyzerState.Linear(TX, TY, TZ: Double; Rapid: Boolean);
 var D, Speed: Double;
 begin
+  AddPoint(X, Y, Z);
   D := Sqrt(Sqr(TX - X) + Sqr(TY - Y) + Sqr(TZ - Z));
   Inc(R.Motions);
   if Rapid then begin
-    R.RapidLength := R.RapidLength + D;
     Speed := Env.RapidFeed / 60;
   end else begin
-    R.CutLength := R.CutLength + D;
     if Feed <= 0 then begin
       if not WarnedFeed then begin
         WarnedFeed := True;
@@ -234,6 +306,8 @@ begin
     end;
   end;
   AddSegment(TX - X, TY - Y, TZ - Z, Speed);
+  if Rapid then R.RapidLength := R.RapidLength + D else R.CutLength := R.CutLength + D;
+  if Assigned(Trace) and (D > 1e-9) then Trace.Add(X, Y, Z, TX, TY, TZ, Rapid, LineNo);
   X := TX; Y := TY; Z := TZ;
   AddPoint(X, Y, Z);
 end;
@@ -347,8 +421,9 @@ begin
     if S = N then begin PA := A1; PB := B1; PC := C1; end;
     FromPlane(PA, PB, PC, PX, PY, PZ);
     ChordLen := Sqrt(Sqr(PX - LastX) + Sqr(PY - LastY) + Sqr(PZ - LastZ));
-    R.CutLength := R.CutLength + ChordLen;
     AddSegment(PX - LastX, PY - LastY, PZ - LastZ, Speed);
+    R.CutLength := R.CutLength + ChordLen;
+    if Assigned(Trace) then Trace.Add(LastX, LastY, LastZ, PX, PY, PZ, False, LineNo);
     AddPoint(PX, PY, PZ);
     LastX := PX; LastY := PY; LastZ := PZ;
   end;
@@ -360,29 +435,38 @@ var FS: TFormatSettings;
 begin
   FS := DefaultFormatSettings;
   FS.DecimalSeparator := '.';
-  Result := TryStrToFloat(S, V, FS);
+  Result := TryStrToFloat(S, V, FS) and not IsNan(V) and not IsInfinite(V) and (Abs(V) <= 1e9);
 end;
 
 class function TGCodeAnalyzer.Analyze(Source: TStrings; const Env: TMachineEnvelope;
-  Warnings: TStrings): TGCodeReport;
+  Warnings: TStrings; Trace: TGCodeTrace; MaxSegments: Integer): TGCodeReport;
 var
   St: TAnalyzerState;
   Idx, P, Q, GCount: Integer;
   Line, Num: string;
   Letter: Char;
-  Value, Scale, TX, TY, TZ, AI, AJ, AK, AR, Dwell: Double;
-  HasX, HasY, HasZ, HasI, HasJ, HasK, HasR, HasMotionWord, MachineCoords, HasDwell: Boolean;
+  Value, Scale, TX, TY, TZ, AI, AJ, AK, AR, Dwell, RawFeed: Double;
+  HasX, HasY, HasZ, HasI, HasJ, HasK, HasR, HasMotionWord, MachineCoords, HasDwell,
+    SetPosition, ReturnHome, HasFeed: Boolean;
   NewMotion, Code10: Integer;
 begin
+  ValidateEnvelope(Env);
+  if MaxSegments < 1 then raise Exception.Create('O limite de segmentos deve ser positivo.');
   St := TAnalyzerState.Create;
   try
     St.Env := Env;
+    St.MaxSegments := Min(MaxSegments, 1000000);
     St.Warnings := Warnings;
+    St.Trace := Trace;
+    if Assigned(Trace) then Trace.Clear;
+    if Assigned(Warnings) then Warnings.Clear;
     FillChar(St.R, SizeOf(St.R), 0);
     St.Motion := -1;
     St.Plane := 17;
     St.Absolute := True;
+    St.PositionKnown := True;
     St.ArcAbsolute := False;
+    try
     for Idx := 0 to Source.Count - 1 do begin
       St.LineNo := Idx + 1;
       Line := UpperCase(Source[Idx]);
@@ -402,6 +486,8 @@ begin
       HasX := False; HasY := False; HasZ := False; HasI := False; HasJ := False;
       HasK := False; HasR := False; HasMotionWord := False; MachineCoords := False;
       HasDwell := False; Dwell := 0;
+      SetPosition := False; ReturnHome := False;
+      HasFeed := False; RawFeed := 0;
       AI := 0; AJ := 0; AK := 0; AR := 0; TX := 0; TY := 0; TZ := 0;
       NewMotion := St.Motion;
       GCount := 0;
@@ -439,10 +525,13 @@ begin
                    901: St.ArcAbsolute := True;
                    911: St.ArcAbsolute := False;
                    530: MachineCoords := True;
-                   540, 550, 560, 570, 580, 590, 940, 930, 430, 491, 61, 640, 400, 490, 920, 921:
+                   920: SetPosition := True;
+                   540, 550, 560, 570, 580, 590, 940, 430, 491, 610, 640, 400, 490, 921:
                      ; // aceitos sem efeito na analise de trajetoria
                    280, 300: begin
                      St.Warn('G28/G30 move para posicao de maquina; trajetoria seguinte nao rastreada');
+                     St.R.Incomplete := True; St.PositionKnown := False; ReturnHome := True;
+                     St.UnknownAxes := [taX, taY, taZ];
                      St.FlushPlan;
                    end;
                    382, 383, 384, 385: begin
@@ -466,13 +555,7 @@ begin
                    7, 8, 9: ;
                  end;
                end;
-          'F': begin
-                 if St.Inches then St.Feed := Value * 25.4 else St.Feed := Value;
-                 St.R.MaxFeed := Max(St.R.MaxFeed, St.Feed);
-                 if (St.Feed > Env.MaxFeed) and (Env.MaxFeed > 0) then
-                   St.Warn(Format('avanco F%.0f acima do maximo da maquina (%.0f mm/min)',
-                     [St.Feed, Env.MaxFeed]));
-               end;
+          'F': begin HasFeed := True; RawFeed := Value; end;
           'S': begin St.Spindle := Value; St.R.MaxSpindle := Max(St.R.MaxSpindle, Value); end;
           'X': begin TX := Value; HasX := True; end;
           'Y': begin TY := Value; HasY := True; end;
@@ -485,18 +568,46 @@ begin
           'N', 'T', 'L', 'H', 'D', 'Q', 'E', 'A', 'B', 'C': ;
         end;
       end;
+      // A ordem das palavras de um bloco nao altera a unidade do avanco.
+      if HasFeed then begin
+        if St.Inches then St.Feed := RawFeed * 25.4 else St.Feed := RawFeed;
+        St.R.MaxFeed := Max(St.R.MaxFeed, St.Feed);
+        if (St.Feed > Env.MaxFeed) and (Env.MaxFeed > 0) then
+          St.Warn(Format('avanco F%.0f acima do maximo da maquina (%.0f mm/min)', [St.Feed, Env.MaxFeed]));
+      end;
       St.Motion := NewMotion;
+      if ReturnHome then Continue;
       if HasDwell then begin
         St.FlushPlan;
         St.R.EstimatedSeconds := St.R.EstimatedSeconds + Max(0, Dwell);
         Continue;
       end;
-      if not (HasX or HasY or HasZ) then Continue;
+      if not (HasX or HasY or HasZ) and not ((St.Motion in [2, 3]) and
+        (HasI or HasJ or HasK or HasR)) then Continue;
       if MachineCoords then begin
         St.FlushPlan;
+        St.R.Incomplete := True;
+        St.PositionKnown := False;
+        if HasX then Include(St.UnknownAxes, taX);
+        if HasY then Include(St.UnknownAxes, taY);
+        if HasZ then Include(St.UnknownAxes, taZ);
+        St.Warn('G53 usa coordenadas de maquina: limites e tempo sao parciais');
         Continue; // coordenadas de maquina: fora do sistema de trabalho
       end;
       if St.Inches then Scale := 25.4 else Scale := 1;
+      if SetPosition then begin
+        St.FlushPlan;
+        St.R.Incomplete := True;
+        St.Warn('G92 redefine a origem de trabalho: limites globais da trajetoria sao parciais');
+        if HasX then St.X := TX * Scale;
+        if HasY then St.Y := TY * Scale;
+        if HasZ then St.Z := TZ * Scale;
+        if HasX then Exclude(St.UnknownAxes, taX);
+        if HasY then Exclude(St.UnknownAxes, taY);
+        if HasZ then Exclude(St.UnknownAxes, taZ);
+        St.PositionKnown := St.UnknownAxes = [];
+        Continue; // G92 redefine coordenadas; nao e um movimento fisico.
+      end;
       if St.Absolute then begin
         if not HasX then TX := St.X else TX := TX * Scale;
         if not HasY then TY := St.Y else TY := TY * Scale;
@@ -505,6 +616,26 @@ begin
         TX := St.X + TX * Scale; TY := St.Y + TY * Scale; TZ := St.Z + TZ * Scale;
       end;
       AI := AI * Scale; AJ := AJ * Scale; AK := AK * Scale; AR := AR * Scale;
+      if St.Motion = -2 then begin
+        St.FlushPlan; St.R.Incomplete := True; St.PositionKnown := False;
+        if HasX then Include(St.UnknownAxes, taX);
+        if HasY then Include(St.UnknownAxes, taY);
+        if HasZ then Include(St.UnknownAxes, taZ);
+        St.Warn('ciclo de probe: posicao final depende do contato');
+        Continue;
+      end;
+      if not St.PositionKnown then begin
+        Inc(St.R.Motions); St.FlushPlan;
+        St.X := TX; St.Y := TY; St.Z := TZ;
+        if St.Absolute then begin
+          if HasX then Exclude(St.UnknownAxes, taX);
+          if HasY then Exclude(St.UnknownAxes, taY);
+          if HasZ then Exclude(St.UnknownAxes, taZ);
+          St.PositionKnown := St.UnknownAxes = [];
+          if St.PositionKnown then St.AddPoint(TX, TY, TZ);
+        end;
+        Continue; // Nunca liga pontos usando uma posicao desconhecida.
+      end;
       case St.Motion of
         0: St.Linear(TX, TY, TZ, True);
         1: St.Linear(TX, TY, TZ, False);
@@ -516,7 +647,6 @@ begin
                 end else
                   St.Arc(TX, TY, TZ, AI, AJ, AK, AR, HasR, St.Motion = 2);
               end;
-        -2: begin St.FlushPlan; St.Warn('ciclo de probe: posicao final depende do contato'); end;
       else
         begin
           Inc(St.R.Errors);
@@ -524,6 +654,7 @@ begin
         end;
       end;
     end;
+    except on E: EAnalysisLimit do begin end; end;
     St.FlushPlan;
     Result := St.R;
   finally

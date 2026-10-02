@@ -28,7 +28,7 @@
    <Filename Value="multisuite_test_center" />
   </Target>
   <SearchPaths>
-   <OtherUnitFiles Value="." />
+   <OtherUnitFiles Value=".;../core" />
    <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
   </SearchPaths>
   <Parsing>
