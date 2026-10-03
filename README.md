@@ -65,39 +65,29 @@ Tipo de máquina, protocolo e transporte são independentes. Por exemplo, Router
 
 Use o **MultiCNC** quando o objetivo final for **controlar ou operar uma máquina**.
 
-### SimuCNC e porta serial virtual
+### SimuCNC e conexão serial
 
-O **SimuCNC** é uma aplicação separada. Ele funciona como uma impressora 3D com
-firmware Marlin: recebe comandos pela serial, responde aos comandos e apresenta
-os movimentos e a peça em uma visualização 3D. O MultiCNC continua sendo o
-cliente/controlador que se conecta ao equipamento.
+O **SimuCNC** é uma aplicação separada que recebe comandos Marlin pela serial,
+responde como equipamento e apresenta movimentos e extrusão em 3D. O **MultiCNC**
+é a controladora conectada a esse equipamento simulado.
 
-Para usar o SimuCNC com o MultiCNC no Windows, é obrigatório instalar um driver
-de par de portas seriais virtuais. O componente suportado pelo projeto é o
-**com0com**. Ele cria duas pontas da mesma ligação, por exemplo:
+A ligação pode usar **dois adaptadores USB–serial cruzados**, dispensando o
+com0com, ou um par de portas virtuais com driver compatível com o Windows.
+O requisito obrigatório é uma ligação serial funcional entre duas portas distintas.
 
-```text
-MultiCNC  -> COM3  <->  COM4 <- SimuCNC
-```
+#### Dois adaptadores USB–serial
 
-O SimuCNC abre uma ponta e o MultiCNC abre a outra. As duas portas não
-representam duas máquinas; são as duas extremidades da mesma porta virtual.
+Conecte TX de um adaptador ao RX do outro, RX ao TX e GND ao GND.
+**Não conecte VCC.** Use padrões e níveis elétricos compatíveis: não misture
+TTL com RS-232. Adaptadores RS-232 usam cabo null-modem com pinagem adequada.
 
-#### Instalação do com0com
+Cada adaptador deve aparecer como uma COM no Windows. Configure o MultiCNC em
+uma COM e o SimuCNC na outra, com o mesmo baud rate (por exemplo, 115200), 8N1 e
+sem controle de fluxo. No SimuCNC, clique em **Iniciar Marlin**, sem usar
+**Criar par virtual**.
 
-1. Baixe o instalador assinado para Windows no [SourceForge do com0com](https://sourceforge.net/projects/com0com/files/com0com/3.0.0.0/).
-2. Execute o instalador como administrador.
-3. No SimuCNC, informe o caminho do `setupc.exe` instalado. Normalmente:
-   `C:\Program Files\com0com\setupc.exe`.
-4. Informe as portas, por exemplo `COM4` para o SimuCNC e `COM3` para o MultiCNC.
-5. Clique em **Criar par virtual** no SimuCNC.
-6. Clique em **Iniciar Marlin** no SimuCNC e conecte o MultiCNC na outra porta.
-
-O driver com0com é um requisito obrigatório para o modo serial do SimuCNC; sem
-ele o Windows não possui uma porta virtual que possa ser aberta pelo MultiCNC.
-No Windows 11, Secure Boot e as políticas de assinatura podem bloquear versões
-antigas do driver. Se as portas não aparecerem no Gerenciador de Dispositivos,
-verifique o status do driver antes de configurar o SimuCNC.
+Consulte o [guia de ligação serial do SimuCNC](docs/SIMUCNC_COM0COM.md) para
+pinagem, configuração, diagnóstico e a alternativa com com0com no Windows 11.
 
 ---
 
