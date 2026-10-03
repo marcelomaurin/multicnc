@@ -125,7 +125,7 @@ begin
   MachineType.Items.Add('CNC Router');
   MachineType.Items.Add('Laser');
   MachineType.Items.Add('Impressora 3D');
-  MachineType.ItemIndex := 0;
+  MachineType.ItemIndex := Ord(mtPrinter3D);
   LabelAt(Connection, 'Protocolo', 220, 5);
   ProtocolType := TComboBox.Create(Self);
   ProtocolType.Parent := Connection;
@@ -469,4 +469,5 @@ begin
 end;
 
 end.
+
 
