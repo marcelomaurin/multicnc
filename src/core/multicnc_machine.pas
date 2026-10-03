@@ -27,6 +27,9 @@ type
     function Connect: Boolean;
     procedure Disconnect;
     function Home: Boolean;
+    function Zero: Boolean;
+    function Status: Boolean;
+    function Unlock: Boolean;
     function Pause: Boolean;
     function Resume: Boolean;
     function Stop: Boolean;
@@ -73,6 +76,12 @@ function TMultiCNCMachine.Home: Boolean;
 begin
   Result := Assigned(FProtocol) and SendProtocolCommand(FProtocol.BuildHomeCommand);
 end;
+function TMultiCNCMachine.Zero: Boolean;
+begin Result := Assigned(FProtocol) and SendProtocolCommand(FProtocol.BuildZeroCommand); end;
+function TMultiCNCMachine.Status: Boolean;
+begin Result := Assigned(FProtocol) and SendProtocolCommand(FProtocol.BuildStatusCommand); end;
+function TMultiCNCMachine.Unlock: Boolean;
+begin Result := Assigned(FProtocol) and SendProtocolCommand(FProtocol.BuildUnlockCommand); end;
 
 function TMultiCNCMachine.Pause: Boolean;
 begin
@@ -97,7 +106,7 @@ end;
 
 function TMultiCNCMachine.SendGCode(const ALine: string): Boolean;
 begin
-  Result := SendProtocolCommand(Trim(ALine));
+  Result := SendProtocolCommand(Trim(ALine) + #10);
 end;
 
 function TMultiCNCMachine.GetMachineType: TMachineType;

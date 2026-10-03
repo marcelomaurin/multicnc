@@ -2,9 +2,9 @@
 
 O SimuCNC simula uma impressora 3D com Marlin. Ele recebe G-code pela porta serial, responde como firmware Marlin e atualiza a visualização 3D. O MultiCNC é o controlador cliente.
 
-## Requisito obrigatório
+## Requisito do modo serial
 
-É necessária uma ligação serial funcional entre duas portas distintas: uma para
+No modo serial, é necessária uma ligação funcional entre duas portas distintas: uma para
 o MultiCNC e outra para o SimuCNC. Há duas opções:
 
 - Dois adaptadores USB–serial ligados por cabo cruzado.
@@ -12,6 +12,8 @@ o MultiCNC e outra para o SimuCNC. Há duas opções:
 
 **O com0com não é obrigatório ao usar adaptadores físicos.** Nesse caso, apenas
 os drivers dos próprios adaptadores precisam estar instalados e funcionando.
+
+O [modo TCP](SIMUCNC_TCP.md) dispensa portas COM, adaptadores e com0com.
 
 ## Opção 1: dois adaptadores USB–serial cruzados
 
@@ -38,7 +40,7 @@ pinagem adequada aos conectores; não aplique a pinagem de um módulo TTL ao DB9
 
 1. Conecte ambos os adaptadores ao computador e identifique suas portas no
    Gerenciador de Dispositivos. COM3 e COM4 são apenas exemplos.
-2. No SimuCNC, informe a COM do adaptador B no campo da porta serial e clique em
+2. No SimuCNC, selecione **Serial** na lista **Comunicação** e informe a COM do adaptador B no campo da porta serial e clique em
    **Iniciar Marlin**. Ignore os campos de criação do par e do `setupc.exe`;
    **não clique em Criar par virtual**.
 3. No MultiCNC, selecione **Impressora 3D**, protocolo **Marlin**, a COM do

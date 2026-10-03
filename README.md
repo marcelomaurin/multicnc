@@ -65,6 +65,13 @@ Tipo de máquina, protocolo e transporte são independentes. Por exemplo, Router
 
 Use o **MultiCNC** quando o objetivo final for **controlar ou operar uma máquina**.
 
+### Modelos públicos de teste
+
+Arquivos de exemplo ficam em [`models`](models/), separados por `printer3d`,
+`cnc_router` e `cnc_laser`. Cada subpasta informa a origem, a licença CC0-1.0
+e o formato do programa. São trajetórias pequenas para leitura e simulação;
+confira sempre os parâmetros antes de usar qualquer arquivo em hardware real.
+
 ### SimuCNC e conexão serial
 
 O **SimuCNC** é uma aplicação separada que recebe comandos Marlin pela serial,
@@ -73,7 +80,8 @@ responde como equipamento e apresenta movimentos e extrusão em 3D. O **MultiCNC
 
 A ligação pode usar **dois adaptadores USB–serial cruzados**, dispensando o
 com0com, ou um par de portas virtuais com driver compatível com o Windows.
-O requisito obrigatório é uma ligação serial funcional entre duas portas distintas.
+No modo serial, é necessária uma ligação funcional entre duas portas distintas.
+Também é possível usar o [servidor TCP do SimuCNC](docs/SIMUCNC_TCP.md), sem COM ou com0com.
 
 #### Dois adaptadores USB–serial
 

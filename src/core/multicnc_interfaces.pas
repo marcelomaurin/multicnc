@@ -31,6 +31,9 @@ type
     procedure Reset;
     procedure ProcessIncoming(const AData: string);
     function BuildHomeCommand: string;
+    function BuildZeroCommand: string;
+    function BuildStatusCommand: string;
+    function BuildUnlockCommand: string;
     function BuildPauseCommand: string;
     function BuildResumeCommand: string;
     function BuildStopCommand: string;
@@ -46,6 +49,9 @@ type
     function Connect: Boolean;
     procedure Disconnect;
     function Home: Boolean;
+    function Zero: Boolean;
+    function Status: Boolean;
+    function Unlock: Boolean;
     function Pause: Boolean;
     function Resume: Boolean;
     function Stop: Boolean;

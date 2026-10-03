@@ -12,8 +12,11 @@ type
   private
     Session: TSimulationSession;
     MachineType, ProtocolType: TComboBox;
-    DeviceEdit, BaudEdit: TEdit;
-    BtnConnect, BtnOpen, BtnStart, BtnPause, BtnResume, BtnStop, BtnHome, BtnSend: TButton;
+    DeviceEdit, BaudEdit, HostEdit, PortEdit: TEdit;
+    CommunicationMode: TComboBox;
+    SerialPanel, TCPPanel: TPanel;
+    BtnConnect, BtnOpen, BtnStart, BtnPause, BtnResume, BtnStop, BtnHome,
+      BtnZero, BtnStatus, BtnUnlock, BtnSend: TButton;
     JogButtons: array[0..5] of TButton;
     StepSize: TFloatSpinEdit;
     FeedRate: TSpinEdit;
@@ -37,6 +40,8 @@ type
     procedure Shortcut(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure DropFiles(Sender: TObject; const FileNames: array of string);
     procedure LoadProgram(const AFileName: string);
+    procedure CommunicationChanged(Sender: TObject);
+    procedure SelectionChanged(Sender: TObject);
     procedure ConnectClick(Sender: TObject);
     procedure OpenClick(Sender: TObject);
     procedure CommandClick(Sender: TObject);
@@ -109,37 +114,69 @@ begin
   StateLabel := LabelAt(Header, 'Desconectado', 620, 25);
   StateLabel.Font.Style := [fsBold];
 
-  Connection := Panel(Self, alTop, 80);
+  Connection := Panel(Self, alTop, 105);
   Connection.Top := 90;
   LabelAt(Connection, 'Maquina', 20, 5);
   MachineType := TComboBox.Create(Self);
   MachineType.Parent := Connection;
-  MachineType.SetBounds(20, 29, 180, 30);
+  MachineType.SetBounds(20, 29, 150, 30);
   MachineType.Style := csDropDownList;
   MachineType.Items.Add('CNC Router');
   MachineType.Items.Add('Laser');
   MachineType.Items.Add('Impressora 3D');
   MachineType.ItemIndex := 0;
-  LabelAt(Connection, 'Protocolo', 220, 5);
+  MachineType.OnChange := @SelectionChanged;
+  LabelAt(Connection, 'Protocolo', 185, 5);
   ProtocolType := TComboBox.Create(Self);
   ProtocolType.Parent := Connection;
-  ProtocolType.SetBounds(220, 29, 150, 30);
+  ProtocolType.SetBounds(185, 29, 125, 30);
   ProtocolType.Style := csDropDownList;
   ProtocolType.Items.Add('GRBL');
   ProtocolType.Items.Add('Marlin');
   ProtocolType.ItemIndex := 0;
-  LabelAt(Connection, 'Porta COM / IP', 390, 5);
+  ProtocolType.OnChange := @SelectionChanged;
+  LabelAt(Connection, 'Comunicação', 325, 5);
+  CommunicationMode := TComboBox.Create(Self);
+  CommunicationMode.Parent := Connection;
+  CommunicationMode.SetBounds(325, 29, 100, 28);
+  CommunicationMode.Items.Add('Serial');
+  CommunicationMode.Items.Add('TCP');
+  CommunicationMode.ItemIndex := 0;
+  CommunicationMode.Style := csDropDownList;
+  CommunicationMode.OnChange := @CommunicationChanged;
+
+  SerialPanel := TPanel.Create(Self);
+  SerialPanel.Parent := Connection;
+  SerialPanel.SetBounds(440, 0, 260, 90);
+  SerialPanel.BevelOuter := bvNone;
+  TCPPanel := TPanel.Create(Self);
+  TCPPanel.Parent := Connection;
+  TCPPanel.SetBounds(440, 0, 260, 90);
+  TCPPanel.BevelOuter := bvNone;
+
+  LabelAt(SerialPanel, 'Porta COM', 0, 5);
   DeviceEdit := TEdit.Create(Self);
-  DeviceEdit.Parent := Connection;
-  DeviceEdit.SetBounds(390, 29, 120, 30);
+  DeviceEdit.Parent := SerialPanel;
+  DeviceEdit.SetBounds(0, 29, 120, 30);
   DeviceEdit.Text := 'COM3';
-  LabelAt(Connection, 'Baud', 520, 5);
+  LabelAt(SerialPanel, 'Baud', 135, 5);
   BaudEdit := TEdit.Create(Self);
-  BaudEdit.Parent := Connection;
-  BaudEdit.SetBounds(520, 29, 90, 30);
+  BaudEdit.Parent := SerialPanel;
+  BaudEdit.SetBounds(135, 29, 110, 30);
   BaudEdit.Text := '115200';
-  BtnConnect := ButtonAt(Connection, 'Conectar equipamento', 630, 26, 185, @ConnectClick);
-  LabelAt(Connection, 'Serial COM ou dispositivo compatível', 830, 32);
+
+  LabelAt(TCPPanel, 'IP do equipamento', 0, 5);
+  HostEdit := TEdit.Create(Self);
+  HostEdit.Parent := TCPPanel;
+  HostEdit.SetBounds(0, 29, 155, 30);
+  HostEdit.Text := '127.0.0.1';
+  LabelAt(TCPPanel, 'Porta TCP', 165, 5);
+  PortEdit := TEdit.Create(Self);
+  PortEdit.Parent := TCPPanel;
+  PortEdit.SetBounds(165, 29, 80, 30);
+  PortEdit.Text := '9000';
+  BtnConnect := ButtonAt(Connection, 'Conectar equipamento', 715, 26, 205, @ConnectClick);
+  CommunicationChanged(Self);
 
   Status := TStatusBar.Create(Self);
   Status.Parent := Self;
@@ -172,13 +209,16 @@ begin
     JogButtons[I].Tag := I;
   end;
   BtnHome := ButtonAt(Side, 'Referenciar (Home)', 20, 336, 220, @CommandClick);
-  L := LabelAt(Side, 'Posicao: indisponivel' + LineEnding +
-    'O simulador confirma comandos,' + LineEnding + 'mas nao calcula trajetorias.', 20, 392);
+  BtnZero := ButtonAt(Side, 'Zerar coordenadas (G92)', 20, 380, 220, @CommandClick);
+  BtnStatus := ButtonAt(Side, 'Consultar posição/status', 20, 424, 220, @CommandClick);
+  BtnUnlock := ButtonAt(Side, 'Desbloquear / reset', 20, 468, 220, @CommandClick);
+  L := LabelAt(Side, 'Posição: consulte no equipamento' + LineEnding +
+    'Os comandos são enviados conforme o protocolo selecionado.', 20, 520);
   L.Font.Color := clGrayText;
 
   Workspace := Panel(Body, alClient, 0);
   Actions := Panel(Workspace, alTop, 106);
-  BtnOpen := ButtonAt(Actions, 'Abrir G-code...', 12, 10, 145, @OpenClick);
+  BtnOpen := ButtonAt(Actions, 'Abrir programa CNC...', 12, 10, 170, @OpenClick);
   BtnStart := ButtonAt(Actions, 'Iniciar', 168, 10, 100, @CommandClick);
   BtnPause := ButtonAt(Actions, 'Pausar', 278, 10, 100, @CommandClick);
   BtnResume := ButtonAt(Actions, 'Retomar', 388, 10, 100, @CommandClick);
@@ -283,6 +323,9 @@ begin
   StateLabel.Caption := StateNames[Session.State];
   MachineType.Enabled := not Session.Connected;
   ProtocolType.Enabled := not Session.Connected;
+  CommunicationMode.Enabled := not Session.Connected;
+  HostEdit.Enabled := not Session.Connected;
+  PortEdit.Enabled := not Session.Connected;
   DeviceEdit.Enabled := not Session.Connected;
   BaudEdit.Enabled := not Session.Connected;
   if Session.Connected then BtnConnect.Caption := 'Desconectar' else BtnConnect.Caption := 'Conectar equipamento';
@@ -293,6 +336,9 @@ begin
   BtnResume.Enabled := Session.State = ssPaused;
   BtnStop.Enabled := Session.Connected;
   BtnHome.Enabled := Manual;
+  BtnZero.Enabled := Manual;
+  BtnStatus.Enabled := Session.Connected;
+  BtnUnlock.Enabled := Manual;
   BtnSend.Enabled := Manual;
   EditCommand.Enabled := Manual;
   StepSize.Enabled := Manual;
@@ -302,14 +348,61 @@ begin
   if Progress.Max = 0 then Progress.Max := 1;
   Progress.Position := Session.Completed;
   ProgressLabel.Caption := Format('%d / %d comandos enviados', [Session.Completed, Session.Count]);
-  Timer.Enabled := Session.State = ssRunning;
+  Timer.Enabled := Session.Connected;
+end;
+
+procedure TMainForm.SelectionChanged(Sender: TObject);
+begin
+  if MachineType.ItemIndex = 2 then begin
+    BtnOpen.Caption := 'Abrir G-code...';
+    if Sender = MachineType then ProtocolType.ItemIndex := 1;
+  end else begin
+    BtnOpen.Caption := 'Abrir programa CNC...';
+    if Sender = MachineType then ProtocolType.ItemIndex := 0;
+  end;
+end;
+
+procedure TMainForm.CommunicationChanged(Sender: TObject);
+begin
+  SerialPanel.Visible := CommunicationMode.ItemIndex = 0;
+  TCPPanel.Visible := CommunicationMode.ItemIndex = 1;
 end;
 
 procedure TMainForm.ConnectClick(Sender: TObject);
+var Endpoint: string; Baud, PortNumber: Integer;
 begin
-  if Session.Connected then begin Session.Disconnect; Log('Simulador desconectado.'); end
-  else if Session.Connect(TMachineType(MachineType.ItemIndex), TProtocolKind(ProtocolType.ItemIndex), Trim(DeviceEdit.Text), StrToIntDef(Trim(BaudEdit.Text), 115200)) then
-    Log('Conectado: ' + MachineType.Text + ' / ' + ProtocolType.Text + ' em ' + DeviceEdit.Text);
+  if Session.Connected then begin
+    Session.Disconnect;
+    Log('Equipamento desconectado.');
+  end else begin
+    Baud := 115200;
+    if CommunicationMode.ItemIndex = 0 then begin
+      Endpoint := Trim(DeviceEdit.Text);
+      if (Endpoint = '') or (Pos(':', Endpoint) > 0) then begin
+        Log('Informe uma porta serial válida, por exemplo COM3.'); Exit;
+      end;
+      if not TryStrToInt(Trim(BaudEdit.Text), Baud) or (Baud <= 0) then begin
+        Log('Informe um baud rate positivo.'); Exit;
+      end;
+    end else begin
+      if (Trim(HostEdit.Text) = '') or (Pos(':', HostEdit.Text) > 0) then begin
+        Log('Informe o IPv4 do equipamento no campo IP.'); Exit;
+      end;
+      if not TryStrToInt(Trim(PortEdit.Text), PortNumber) or
+         (PortNumber < 1) or (PortNumber > 65535) then begin
+        Log('A porta TCP deve estar entre 1 e 65535.'); Exit;
+      end;
+      Endpoint := Trim(HostEdit.Text) + ':' + IntToStr(PortNumber);
+    end;
+    try
+      if Session.Connect(TMachineType(MachineType.ItemIndex),
+        TProtocolKind(ProtocolType.ItemIndex), Endpoint, Baud) then
+        Log('Conectado: ' + MachineType.Text + ' / ' + ProtocolType.Text + ' em ' + Endpoint)
+      else Log('Falha ao conectar em ' + Endpoint + '. Confira a porta e o equipamento.');
+    except
+      on E: Exception do Log('Falha na conexão: ' + E.Message);
+    end;
+  end;
   UpdateControls;
 end;
 
@@ -319,7 +412,13 @@ begin
   D := TOpenDialog.Create(Self);
   try
     D.Title := 'Abrir programa para simulacao';
-    D.Filter := 'G-code|*.nc;*.gcode;*.tap;*.ngc|Todos os arquivos|*.*';
+    if MachineType.ItemIndex = 2 then begin
+      D.Title := 'Abrir G-code da impressora 3D';
+      D.Filter := 'G-code|*.gcode;*.gco;*.nc;*.ngc|Todos os arquivos|*.*';
+    end else begin
+      D.Title := 'Abrir programa CNC';
+      D.Filter := 'Programas CNC|*.nc;*.tap;*.cnc;*.ngc;*.gcode|Todos os arquivos|*.*';
+    end;
     D.Options := [ofFileMustExist, ofEnableSizing];
     if not D.Execute then Exit;
     LoadProgram(D.FileName);
@@ -442,6 +541,9 @@ begin
   else if Sender = BtnResume then OK := Session.Resume
   else if Sender = BtnStop then OK := Session.Stop
   else if Sender = BtnHome then OK := Session.Home
+  else if Sender = BtnZero then OK := Session.Zero
+  else if Sender = BtnStatus then OK := Session.Status
+  else if Sender = BtnUnlock then OK := Session.Unlock
   else if Sender = BtnSend then begin
     OK := Session.Send(EditCommand.Text);
     if OK then EditCommand.Clear;

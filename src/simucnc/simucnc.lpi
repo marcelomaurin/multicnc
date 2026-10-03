@@ -33,7 +33,7 @@
    <Filename Value="SimuCNC" />
   </Target>
   <SearchPaths>
-   <OtherUnitFiles Value="../app;../core;../protocols;../transports;../shared;D:\projetos\maurinsoft\CHATGPT\pacote\AI Simulation\Marlin;D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AISerial;D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AIVirtualSerial;D:\projetos\maurinsoft\CHATGPT\pacote\AI" />
+   <OtherUnitFiles Value="D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AISockets;../app;../core;../protocols;../transports;../shared;D:\projetos\maurinsoft\CHATGPT\pacote\AI Simulation\Marlin;D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AISerial;D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AIVirtualSerial;D:\projetos\maurinsoft\CHATGPT\pacote\AI" />
    <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
   </SearchPaths>
   <Parsing>

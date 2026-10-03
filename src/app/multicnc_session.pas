@@ -43,6 +43,9 @@ type
     function Resume: Boolean;
     function Stop: Boolean;
     function Home: Boolean;
+    function Zero: Boolean;
+    function Status: Boolean;
+    function Unlock: Boolean;
     function Jog(Axis: TAxis; Distance, Feed: Double): Boolean;
     function Send(const Line: string): Boolean;
     function SupportsAxis(Axis: TAxis): Boolean;
@@ -83,8 +86,8 @@ begin
   FreeAndNil(FMachine);
   FreeAndNil(FProtocol);
   FMachine := nil;
-  FSerialTransport := nil;
-  FTCPTransport := nil;
+  FreeAndNil(FSerialTransport);
+  FreeAndNil(FTCPTransport);
   FTransport := nil;
 end;
 
@@ -211,6 +214,12 @@ begin
   Result := Connected and not (FState in [ssRunning, ssPaused, ssError]);
   if Result then Result := FMachine.Home;
 end;
+function TSimulationSession.Zero: Boolean;
+begin Result := Connected and not (FState in [ssRunning, ssPaused, ssError]); if Result then Result:=FMachine.Zero; end;
+function TSimulationSession.Status: Boolean;
+begin Result := Connected and FMachine.Status; end;
+function TSimulationSession.Unlock: Boolean;
+begin Result := Connected and not (FState in [ssRunning, ssPaused, ssError]); if Result then Result:=FMachine.Unlock; end;
 
 function TSimulationSession.SupportsAxis(Axis: TAxis): Boolean;
 begin

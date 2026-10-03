@@ -30,6 +30,9 @@ type
     procedure Reset;
     procedure ProcessIncoming(const AData: string);
     function BuildHomeCommand: string;
+    function BuildZeroCommand: string;
+    function BuildStatusCommand: string;
+    function BuildUnlockCommand: string;
     function BuildPauseCommand: string;
     function BuildResumeCommand: string;
     function BuildStopCommand: string;
@@ -82,6 +85,12 @@ begin end;
 
 function TSimulatorProtocol.BuildHomeCommand: string;
 begin Result := '$H' + LineEnding; end;
+function TSimulatorProtocol.BuildZeroCommand: string;
+begin Result := 'G92 X0 Y0 Z0' + LineEnding; end;
+function TSimulatorProtocol.BuildStatusCommand: string;
+begin Result := '?' end;
+function TSimulatorProtocol.BuildUnlockCommand: string;
+begin Result := '$X' + LineEnding; end;
 
 function TSimulatorProtocol.BuildPauseCommand: string;
 begin Result := '!' + LineEnding; end;
