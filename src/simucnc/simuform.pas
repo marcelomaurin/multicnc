@@ -91,7 +91,7 @@ var Header, Connection, Body, Side, Workspace, Actions, Footer, ConsoleBar, Sear
 const JogNames: array[0..5] of string = ('X -', 'X +', 'Y -', 'Y +', 'Z -', 'Z +');
 begin
   inherited CreateNew(AOwner);
-  Caption := 'MultiCNC | Painel de operacao';
+  Caption := 'SimuCNC | Simulador Marlin';
   Position := poScreenCenter;
   SetBounds(0, 0, 1120, 760);
   Constraints.MinWidth := 980;
@@ -106,6 +106,12 @@ begin
   OnDropFiles := @DropFiles;
   Session := TSimulationSession.Create;
   Session.OnLog := @Log;
+  Marlin := TAIMarlinSimulator.Create(Self);
+  Marlin.OnResponse := @MarlinResponse;
+  Marlin.OnMotion := @MarlinMotion;
+  PrinterLines := TStringList.Create;
+  PrinterIndex := 0;
+  PrinterConnected := False;
 
   Header := Panel(Self, alTop, 82);
   L := LabelAt(Header, 'MultiCNC', 20, 12);
@@ -469,5 +475,7 @@ begin
 end;
 
 end.
+
+
 
 
