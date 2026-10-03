@@ -29,7 +29,7 @@
    <Filename Value="multicnc" />
   </Target>
   <SearchPaths>
-   <OtherUnitFiles Value="../core;../protocols;../transports;../shared" />
+   <OtherUnitFiles Value="../core;../protocols;../transports;../shared;D:\projetos\maurinsoft\CHATGPT\pacote\AI Simulation\Marlin;D:\projetos\maurinsoft\CHATGPT\pacote\AI" />
    <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
   </SearchPaths>
   <Parsing>
