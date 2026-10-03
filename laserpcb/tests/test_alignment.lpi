@@ -24,7 +24,7 @@
    <Filename Value="test_alignment" />
   </Target>
   <SearchPaths>
-   <OtherUnitFiles Value="../src/core;../src/layout" />
+   <OtherUnitFiles Value="../src/core;../src/layout;../../src/shared" />
    <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
   </SearchPaths>
   <Parsing>

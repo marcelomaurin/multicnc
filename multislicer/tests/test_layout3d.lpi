@@ -24,7 +24,7 @@
    <Filename Value="test_layout3d" />
   </Target>
   <SearchPaths>
-   <OtherUnitFiles Value="../src/core;../src/layout" />
+   <OtherUnitFiles Value="../src/core;../src/layout;../../src/shared" />
    <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
   </SearchPaths>
   <Parsing>

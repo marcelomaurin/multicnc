@@ -25,6 +25,13 @@ lib/
 /multislicer/src/app/multislicer_position
 /multislicer/tests/test_layout3d
 /tests/test_simulator
+/tests/test_streaming
+/tests/test_locale_invariant
+/tests/test_session
 
 # instaladores publicados
 !/releases/**
+
+# logs de compilacao locais
+/build-*.log
+/test-*.log

@@ -1,7 +1,7 @@
 unit multicad_main;
 {$mode objfpc}{$H+}
 interface
-uses Classes,SysUtils,Forms,Controls,StdCtrls,ExtCtrls,ComCtrls,multicad_document,multicad_feature,multicad_sketch,multicad_extrude,multicad_viewport;
+uses multisuite_numfmt, Classes,SysUtils,Forms,Controls,StdCtrls,ExtCtrls,ComCtrls,multicad_document,multicad_feature,multicad_sketch,multicad_extrude,multicad_viewport;
 type TMainForm=class(TForm)
  private Doc:TCadDocument;Tree:TTreeView;View:TCadViewport;Props:TMemo;Bar:TPanel;procedure RefreshTree;function Button(const S:string;H:TNotifyEvent):TButton;procedure NewSketch(Sender:TObject);procedure RectangleClick(Sender:TObject);procedure CircleClick(Sender:TObject);procedure ExtrudeClick(Sender:TObject);
  public constructor Create(AOwner:TComponent);override;destructor Destroy;override;
@@ -14,5 +14,5 @@ procedure TMainForm.RefreshTree;var I:Integer;begin Tree.Items.Clear;Tree.Items.
 procedure TMainForm.NewSketch(Sender:TObject);begin Doc.AddSketch('Sketch'+IntToStr(Doc.Count+1));RefreshTree;end;
 procedure TMainForm.RectangleClick(Sender:TObject);var S:TCadSketch;begin if(Doc.Count=0)or not(Doc.Feature(Doc.Count-1)is TCadSketch)then S:=Doc.AddSketch('Sketch'+IntToStr(Doc.Count+1))else S:=TCadSketch(Doc.Feature(Doc.Count-1));S.AddRectangle(-20,-15,20,15);RefreshTree;end;
 procedure TMainForm.CircleClick(Sender:TObject);var S:TCadSketch;begin if(Doc.Count=0)or not(Doc.Feature(Doc.Count-1)is TCadSketch)then S:=Doc.AddSketch('Sketch'+IntToStr(Doc.Count+1))else S:=TCadSketch(Doc.Feature(Doc.Count-1));S.AddCircle(0,0,10);RefreshTree;end;
-procedure TMainForm.ExtrudeClick(Sender:TObject);var I:Integer;S:TCadSketch;E:TCadExtrude;begin S:=nil;for I:=Doc.Count-1 downto 0 do if Doc.Feature(I)is TCadSketch then begin S:=TCadSketch(Doc.Feature(I));Break;end;if not Assigned(S)then Exit;E:=TCadExtrude.Create('Extrude'+IntToStr(Doc.Count+1),S.ID,10,False);Doc.AddFeature(E);Props.Lines.Text:='Feature: '+E.Name+LineEnding+'Profundidade: '+FloatToStr(E.Depth)+' mm';RefreshTree;end;
+procedure TMainForm.ExtrudeClick(Sender:TObject);var I:Integer;S:TCadSketch;E:TCadExtrude;begin S:=nil;for I:=Doc.Count-1 downto 0 do if Doc.Feature(I)is TCadSketch then begin S:=TCadSketch(Doc.Feature(I));Break;end;if not Assigned(S)then Exit;E:=TCadExtrude.Create('Extrude'+IntToStr(Doc.Count+1),S.ID,10,False);Doc.AddFeature(E);Props.Lines.Text:='Feature: '+E.Name+LineEnding+'Profundidade: '+FloatToStr(E.Depth,InvariantFS)+' mm';RefreshTree;end;
 end.

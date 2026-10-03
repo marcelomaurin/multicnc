@@ -1,7 +1,7 @@
 unit simuform;
 {$mode objfpc}{$H+}
 interface
-uses Math, aitcpserver, Classes, SysUtils, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls, Dialogs,
+uses multisuite_numfmt, Math, aitcpserver, Classes, SysUtils, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls, Dialogs,
   aimarlinserialdevice, aimarlinsimulator, aivirtualserialpair, multicnc_print3d_view;
 type
   TMainForm = class(TForm)
@@ -20,6 +20,9 @@ type
     procedure ViewClick(Sender:TObject);
     procedure FrameChanged(Sender:TObject);
     procedure ConfigClick(Sender:TObject);
+    function IsMarlin:Boolean;
+    function FilterRealtime(const Data:string; Sim:TAIMarlinSimulator):string;
+    procedure SerialReceive(Sender:TObject; const AText:string);
   private
     View: TPrint3DView; LogMemo: TMemo; Timer: TTimer; Status: TStatusBar;
     MachineCombo, ModeCombo, ProtocolCombo: TComboBox;
@@ -112,6 +115,7 @@ begin
   Status:=TStatusBar.Create(Self); Status.Parent:=Self; Status.Align:=alBottom; Status.SimplePanel:=True; Status.SimpleText:='Porta virtual desligada';
   PairManager:=TAIVirtualSerialPair.Create(Self);
   Device:=TAIMarlinSerialDevice.Create(Self); Device.OnTraffic:=@Traffic; Device.Simulator.OnMotion:=@Motion;
+  Device.Serial.OnRXReceive:=@SerialReceive; { trata os comandos de tempo real do GRBL }
   TCP:=TAITCPServer.Create(Self); TCP.OnData:=@TCPData;
   TCP.OnConnect:=@TCPConnected; TCP.OnDisconnect:=@TCPDisconnected;
   TCPMarlin:=TAIMarlinSimulator.Create(Self); TCPMarlin.OnMotion:=@Motion;
@@ -121,7 +125,7 @@ begin
   ModeChanged(Self);
   MachineChanged(Self);
   if FindCmdLineSwitch('laser') then begin MachineCombo.ItemIndex:=2; MachineChanged(Self); end;
-  if FindCmdLineSwitch('grbl') then ProtocolCombo.ItemIndex:=1;
+  if FindCmdLineSwitch('grbl') then ProtocolCombo.ItemIndex:=ProtocolCombo.Items.IndexOf('GRBL');
   if FindCmdLineSwitch('tcp') then begin ModeCombo.ItemIndex:=1; ModeChanged(Self); TCPClick(Self); end;
 end;
 destructor TMainForm.Destroy; begin Timer.Enabled:=False; TCP.OnDisconnect:=nil; TCP.Stop; Device.Close; inherited Destroy; end;
@@ -132,7 +136,7 @@ begin View.ShowFrame:=FrameCheck.Checked;end;
 procedure TMainForm.ConfigClick(Sender:TObject);
 var SX,SY,SZ:string; X,Y,Z:Double; FS:TFormatSettings;
 begin
-  SX:=FloatToStr(View.VolumeX); SY:=FloatToStr(View.VolumeY); SZ:=FloatToStr(View.VolumeZ);
+  SX:=FloatToStr(View.VolumeX,InvariantFS); SY:=FloatToStr(View.VolumeY,InvariantFS); SZ:=FloatToStr(View.VolumeZ,InvariantFS);
   if not InputQuery('Dimensões da mesa', 'Tamanho X (mm):', SX) then Exit;
   if not InputQuery('Dimensões da mesa', 'Tamanho Y (mm):', SY) then Exit;
   if not InputQuery('Dimensões da mesa', 'Altura Z (mm):', SZ) then Exit;
@@ -143,7 +147,7 @@ begin
     MessageDlg('Dimensões inválidas','Informe valores entre 10 e 2000 mm.',mtError,[mbOK],0); Exit;
   end;
   View.SetBuildVolume(X,Y,Z); TCPMarlin.SetBuildVolume(X,Y,Z); Device.Simulator.SetBuildVolume(X,Y,Z);
-  Log(Format('Mesa configurada: X %.1f mm, Y %.1f mm, Z %.1f mm',[X,Y,Z]));
+  Log(Format('Mesa configurada: X %.1f mm, Y %.1f mm, Z %.1f mm',[X,Y,Z],InvariantFS));
 end;
 procedure TMainForm.Log(const S:string); begin LogMemo.Lines.Add(FormatDateTime('hh:nn:ss',Now)+'  '+Trim(S)); while LogMemo.Lines.Count>1000 do LogMemo.Lines.Delete(0); end;
 procedure TMainForm.CaptureCommands(const Data:string);
@@ -156,14 +160,47 @@ begin
         CodeList.Items.Add(Line);
         while CodeList.Items.Count>2000 do CodeList.Items.Delete(0);
         CodeList.ItemIndex:=CodeList.Items.Count-1;CodeList.TopIndex:=Max(0,CodeList.Items.Count-15);
-        if (Pos('$J=',UpperCase(Line))=1) and (ProtocolCombo.ItemIndex=0) then
+        if (Pos('$J=',UpperCase(Line))=1) and IsMarlin then
           Log('Jog GRBL recebido com SimuCNC em Marlin; altere o protocolo para GRBL.');
       end;
     end else if Length(CommandBuffer)<4096 then CommandBuffer:=CommandBuffer+Data[I];
   end;
 end;
+procedure TMainForm.UpdateLaserStatus;
+begin
+  if Assigned(LaserStatus) then LaserStatus.Caption:=Format('Laser: %.0f',[LaserPower],InvariantFS);
+end;
+function TMainForm.IsMarlin:Boolean;
+begin Result:=(ProtocolCombo.ItemIndex>=0) and (ProtocolCombo.Items[ProtocolCombo.ItemIndex]='Marlin'); end;
+{ No GRBL, '?', '!', '~' e Ctrl-X (#24) sao comandos de tempo real, enviados
+  sem quebra de linha e em qualquer ponto do fluxo. O simulador Marlin so
+  entende linhas; sem este filtro, o '?' enviado periodicamente pelo MultiCNC
+  seria grudado no proximo G-code ("?G1 X10") e causaria erro. }
+function TMainForm.FilterRealtime(const Data:string; Sim:TAIMarlinSimulator):string;
+var I:Integer;
+begin
+  if IsMarlin then Exit(Data);
+  Result:='';
+  for I:=1 to Length(Data) do
+    case Data[I] of
+      '?': Sim.SubmitLine('?');
+      '!': Sim.Pause;
+      '~': Sim.Resume;
+      #24: begin Sim.Reset; LaserPower:=0; end;
+    else Result:=Result+Data[I];
+    end;
+end;
+procedure TMainForm.SerialReceive(Sender:TObject; const AText:string);
+var Payload:string;
+begin
+  Payload:=FilterRealtime(AText,Device.Simulator);
+  if Payload='' then Exit;
+  Traffic(Device,'RX '+Payload);
+  Device.Simulator.Receive(Payload);
+end;
 procedure TMainForm.Traffic(Sender:TObject; const AText:string);
 begin
+  if Copy(AText,1,4)='TX <' then Exit; { relatorio de estado periodico }
   Log(AText);
   if Copy(AText,1,3)='RX ' then begin
     UpdateLaserPower(Copy(AText,4,Length(AText)));
@@ -171,8 +208,19 @@ begin
   end;
 end;
 procedure TMainForm.Motion(Sender:TObject; const A,B:TAIMarlinPosition; Material:Double);
+var Power:Double;
 begin
-  if (MachineCombo.ItemIndex=2) and (LaserPower>0) then View.AddLaserMotion(A,B,LaserPower)
+  { A potencia vem do simulador, no momento em que o movimento e executado.
+    LaserPower reflete o ultimo comando recebido: com o envio antecipado
+    (buffer do GRBL), o M5 do fim do programa chega antes dos G1 serem
+    executados e zeraria a marcacao. }
+  if Sender is TAIMarlinSimulator then begin
+    Power:=TAIMarlinSimulator(Sender).State.LaserPower;
+    { GRBL em modo laser ($32=1): movimento rapido (G0) nunca queima. }
+    if TAIMarlinSimulator(Sender).RapidMove then Power:=0;
+  end
+  else Power:=LaserPower;
+  if (MachineCombo.ItemIndex=2) and (Power>0) then View.AddLaserMotion(A,B,Power)
   else View.AddMotion(Sender,A,B,Material);
 end;
 procedure TMainForm.PairClick(Sender:TObject); begin
@@ -233,13 +281,16 @@ begin
   ConnectButton.Enabled:=not TCP.Active; PairButton.Enabled:=not TCP.Active;
 end;
 procedure TMainForm.TCPData(Sender:TObject; const Data:string);
+var Payload:string;
 begin
-  UpdateLaserPower(Data); CaptureCommands(Data); Log('TCP RX '+Data);
-  if (ProtocolCombo.ItemIndex=0) and (Pos('$J=',UpperCase(Trim(Data)))=1) then begin
+  Payload:=FilterRealtime(Data,TCPMarlin);
+  if Payload='' then Exit;
+  UpdateLaserPower(Payload); CaptureCommands(Payload); Log('TCP RX '+Payload);
+  if IsMarlin and (Pos('$J=',UpperCase(Trim(Payload)))=1) then begin
     Log('Comando GRBL ignorado: selecione o protocolo GRBL para simular este equipamento.');
     Exit;
   end;
-  TCPMarlin.Receive(Data);
+  TCPMarlin.Receive(Payload);
 end;
 procedure TMainForm.UpdateLaserPower(const Data:string);
 var Lines:TStringList; I,P,Q:Integer; U,Token:string; V:Double; FS:TFormatSettings;
@@ -263,7 +314,7 @@ end;
 procedure TMainForm.TCPResponse(Sender:TObject; const Data:string);
 begin
   if TCP.Connected then TCP.Send(Data);
-  Log('TCP TX '+Data);
+  if Copy(Data,1,1)<>'<' then Log('TCP TX '+Data);
 end;
 procedure TMainForm.TCPConnected(Sender:TObject);
 begin
@@ -284,6 +335,6 @@ begin
   else Device.Poll(Dt);
   if TCP.Active then View.SetPosition(TCPMarlin.State.Position)
   else View.SetPosition(Device.Simulator.State.Position);
-  with View.CurrentPosition do PositionLabel.Caption:=Format('X: %.3f   Y: %.3f   Z: %.3f mm',[X,Y,Z]);
+  with View.CurrentPosition do PositionLabel.Caption:=Format('X: %.3f   Y: %.3f   Z: %.3f mm',[X,Y,Z],InvariantFS);
 end;
 end.

@@ -5,7 +5,7 @@ unit mainform;
 interface
 
 uses Classes, SysUtils, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls,
-  Dialogs, Graphics, Spin, StrUtils, LazUTF8, LCLType, multicnc_types, multicnc_session;
+  Dialogs, Graphics, Spin, StrUtils, LazUTF8, LCLType, multisuite_numfmt, multicnc_types, multicnc_session;
 
 type
   TMainForm = class(TForm)
@@ -25,7 +25,8 @@ type
     Pages: TPageControl;
     ProgramTab: TTabSheet;
     SearchResult: TLabel;
-    StateLabel, FileLabel, ProgressLabel: TLabel;
+    StateLabel, FileLabel, ProgressLabel, PositionLabel: TLabel;
+    LastState: TSessionState;
     Progress: TProgressBar;
     Timer: TTimer;
     Status: TStatusBar;
@@ -110,7 +111,7 @@ begin
   L := LabelAt(Header, 'MultiCNC', 20, 12);
   L.Font.Size := 20;
   L.Font.Style := [fsBold];
-  LabelAt(Header, 'SIMULADOR  /  Preparacao e teste de comandos', 22, 51);
+  LabelAt(Header, 'CONTROLE  /  Envio de programas com confirmacao da controladora', 22, 51);
   StateLabel := LabelAt(Header, 'Desconectado', 620, 25);
   StateLabel.Font.Style := [fsBold];
 
@@ -182,7 +183,7 @@ begin
   Status.Parent := Self;
   Status.Align := alBottom;
   Status.SimplePanel := True;
-  Status.SimpleText := 'Simulacao de envio. Sem telemetria ou controle de hardware.';
+  Status.SimpleText := 'Comandos validados e enviados com confirmacao (ok). Mantenha a parada de emergencia fisica ao alcance.';
   Body := Panel(Self, alClient, 0);
   Side := Panel(Body, alLeft, 268);
   L := LabelAt(Side, 'Movimento manual', 20, 14);
@@ -212,9 +213,12 @@ begin
   BtnZero := ButtonAt(Side, 'Zerar coordenadas (G92)', 20, 380, 220, @CommandClick);
   BtnStatus := ButtonAt(Side, 'Consultar posição/status', 20, 424, 220, @CommandClick);
   BtnUnlock := ButtonAt(Side, 'Desbloquear / reset', 20, 468, 220, @CommandClick);
-  L := LabelAt(Side, 'Posição: consulte no equipamento' + LineEnding +
-    'Os comandos são enviados conforme o protocolo selecionado.', 20, 520);
-  L.Font.Color := clGrayText;
+  PositionLabel := LabelAt(Side, 'Posição: -', 20, 520);
+  PositionLabel.Name := 'PositionLabel';
+  PositionLabel.AutoSize := False;
+  PositionLabel.SetBounds(20, 520, 230, 70);
+  PositionLabel.WordWrap := True;
+  PositionLabel.Font.Name := 'Consolas';
 
   Workspace := Panel(Body, alClient, 0);
   Actions := Panel(Workspace, alTop, 106);
@@ -224,7 +228,8 @@ begin
   BtnResume := ButtonAt(Actions, 'Retomar', 388, 10, 100, @CommandClick);
   BtnStop := ButtonAt(Actions, 'PARAR', 500, 10, 132, @CommandClick);
   BtnStop.Font.Style := [fsBold];
-  BtnStop.Hint := 'Interrompe a simulacao. Nao substitui uma parada de emergencia fisica.';
+  BtnStop.Hint := 'Para a maquina (GRBL: soft reset; Marlin: M410 e desliga spindle/laser/aquecimento).' +
+    ' Nao substitui a parada de emergencia fisica.';
   BtnStop.ShowHint := True;
   FileLabel := LabelAt(Actions, 'Nenhum arquivo aberto', 14, 65);
   FileLabel.AutoSize := False;
@@ -264,7 +269,7 @@ begin
   ProgramMemo.WordWrap := False;
   ProgramMemo.ScrollBars := ssAutoBoth;
   ProgramMemo.Font.Name := 'Consolas';
-  ProgramMemo.Text := 'Abra um arquivo .nc, .gcode ou .tap para inspecionar e simular.';
+  ProgramMemo.Text := 'Abra um arquivo .nc, .gcode ou .tap para inspecionar e executar.';
   ConsoleTab := TTabSheet.Create(Self);
   ConsoleTab.PageControl := Pages;
   ConsoleTab.Caption := 'Console';
@@ -315,12 +320,21 @@ end;
 
 procedure TMainForm.UpdateControls;
 const StateNames: array[TSessionState] of string = ('Desconectado', 'Pronto',
-  'Simulando', 'Pausado', 'Envio simulado concluido', 'Interrompido', 'Erro');
-var Busy, Manual: Boolean; I: Integer;
+  'Executando', 'Pausado', 'Programa concluido', 'Interrompido', 'Erro');
+var Busy, Manual, Alarm: Boolean; I: Integer; P: TMachinePosition;
 begin
   Busy := Session.State in [ssRunning, ssPaused];
-  Manual := Session.Connected and not Busy and (Session.State <> ssError);
+  Manual := Session.Connected and not Busy;
+  Alarm := Session.MachineState = msAlarm;
   StateLabel.Caption := StateNames[Session.State];
+  if Alarm then StateLabel.Caption := StateLabel.Caption + ' | ALARME';
+  if Session.Connected then
+  begin
+    P := Session.Position;
+    PositionLabel.Caption := Format('Maquina: %s' + LineEnding + 'X %9.3f  Y %9.3f' + LineEnding + 'Z %9.3f',
+      [MachineStateToString(Session.MachineState), P.X, P.Y, P.Z], InvariantFS);
+  end
+  else PositionLabel.Caption := 'Posição: -';
   MachineType.Enabled := not Session.Connected;
   ProtocolType.Enabled := not Session.Connected;
   CommunicationMode.Enabled := not Session.Connected;
@@ -336,18 +350,18 @@ begin
   BtnResume.Enabled := Session.State = ssPaused;
   BtnStop.Enabled := Session.Connected;
   BtnHome.Enabled := Manual;
-  BtnZero.Enabled := Manual;
+  BtnZero.Enabled := Manual and not Alarm;
   BtnStatus.Enabled := Session.Connected;
   BtnUnlock.Enabled := Manual;
   BtnSend.Enabled := Manual;
   EditCommand.Enabled := Manual;
-  StepSize.Enabled := Manual;
-  FeedRate.Enabled := Manual;
-  for I := 0 to 5 do JogButtons[I].Enabled := Manual and Session.SupportsAxis(TAxis(I div 2));
+  StepSize.Enabled := Manual and not Alarm;
+  FeedRate.Enabled := Manual and not Alarm;
+  for I := 0 to 5 do JogButtons[I].Enabled := Manual and not Alarm and Session.SupportsAxis(TAxis(I div 2));
   Progress.Max := Session.Count;
   if Progress.Max = 0 then Progress.Max := 1;
   Progress.Position := Session.Completed;
-  ProgressLabel.Caption := Format('%d / %d comandos enviados', [Session.Completed, Session.Count]);
+  ProgressLabel.Caption := Format('%d / %d comandos confirmados', [Session.Completed, Session.Count]);
   Timer.Enabled := Session.Connected;
 end;
 
@@ -411,7 +425,7 @@ var D: TOpenDialog;
 begin
   D := TOpenDialog.Create(Self);
   try
-    D.Title := 'Abrir programa para simulacao';
+    D.Title := 'Abrir programa';
     if MachineType.ItemIndex = 2 then begin
       D.Title := 'Abrir G-code da impressora 3D';
       D.Filter := 'G-code|*.gcode;*.gco;*.nc;*.ngc|Todos os arquivos|*.*';
@@ -452,7 +466,7 @@ begin
     Exit;
   end;
   if Session.State in [ssRunning, ssPaused] then begin
-    Status.SimpleText := 'Pare a simulacao antes de abrir outro arquivo.';
+    Status.SimpleText := 'Pare o programa antes de abrir outro arquivo.';
     Exit;
   end;
   LoadProgram(FileNames[0]);
@@ -509,7 +523,7 @@ var D: TSaveDialog;
 begin
   D := TSaveDialog.Create(Self);
   try
-    D.Title := 'Salvar registro do simulador';
+    D.Title := 'Salvar registro do console';
     D.Filter := 'Arquivo de texto|*.txt';
     D.DefaultExt := 'txt';
     D.FileName := 'multicnc-' + FormatDateTime('yyyymmdd-hhnnss', Now) + '.txt';
@@ -529,7 +543,7 @@ end;
 procedure TMainForm.ClearLogClick(Sender: TObject);
 begin
   MemoLog.Clear;
-  Status.SimpleText := 'Console limpo. A simulacao permanece no estado atual.';
+  Status.SimpleText := 'Console limpo. A maquina permanece no estado atual.';
 end;
 
 procedure TMainForm.CommandClick(Sender: TObject);
@@ -549,7 +563,7 @@ begin
     if OK then EditCommand.Clear;
   end;
   if OK then Log(TButton(Sender).Caption + ': OK')
-  else Log('Acao recusada. Verifique a conexao, o estado e o comando.');
+  else Log('Acao recusada: ' + Session.LastError);
   UpdateControls;
 end;
 
@@ -559,7 +573,8 @@ begin
   Index := TButton(Sender).Tag;
   Distance := StepSize.Value;
   if Index mod 2 = 0 then Distance := -Distance;
-  if not Session.Jog(TAxis(Index div 2), Distance, FeedRate.Value) then Log('Movimento recusado.');
+  if not Session.Jog(TAxis(Index div 2), Distance, FeedRate.Value) then
+    Log('Movimento recusado: ' + Session.LastError);
   UpdateControls;
 end;
 
@@ -569,9 +584,17 @@ begin
     Session.Poll;
     Session.Tick;
   except
-    on E: Exception do begin Session.Stop; Log('Falha na simulacao: ' + E.Message); end;
+    on E: Exception do begin Session.Stop; Log('Falha durante a execucao: ' + E.Message); end;
   end;
-  if Session.State = ssDone then Log('Envio simulado concluido. Nao representa usinagem fisica.');
+  { Registra apenas as transicoes de estado, nao a cada tick. }
+  if Session.State <> LastState then
+  begin
+    case Session.State of
+      ssDone: Log('Programa concluido: todas as linhas confirmadas pela controladora.');
+      ssError: Log('Programa interrompido: ' + Session.LastError);
+    end;
+    LastState := Session.State;
+  end;
   UpdateControls;
 end;
 
@@ -579,8 +602,8 @@ procedure TMainForm.Closing(Sender: TObject; var CanClose: Boolean);
 begin
   CanClose := True;
   if Session.State in [ssRunning, ssPaused] then begin
-    CanClose := MessageDlg('Simulacao em andamento',
-      'Interromper a simulacao e fechar?', mtConfirmation, [mbYes, mbNo], 0) = mrYes;
+    CanClose := MessageDlg('Programa em andamento',
+      'Parar a maquina e fechar?', mtConfirmation, [mbYes, mbNo], 0) = mrYes;
     if CanClose then Session.Stop;
   end;
 end;

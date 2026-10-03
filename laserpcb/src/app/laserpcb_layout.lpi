@@ -29,7 +29,7 @@
    <Filename Value="laserpcb_layout" />
   </Target>
   <SearchPaths>
-   <OtherUnitFiles Value="../core;../layout;../ui;../camera;../import;../export" />
+   <OtherUnitFiles Value="../core;../layout;../ui;../camera;../import;../export;../../../src/shared" />
    <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
   </SearchPaths>
   <Parsing>

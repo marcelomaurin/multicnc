@@ -29,7 +29,7 @@
    <Filename Value="multislicer_position" />
   </Target>
   <SearchPaths>
-   <OtherUnitFiles Value="../core;../layout;../ui;../import;../export" />
+   <OtherUnitFiles Value="../core;../layout;../ui;../import;../export;../../../src/shared" />
    <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
   </SearchPaths>
   <Parsing>

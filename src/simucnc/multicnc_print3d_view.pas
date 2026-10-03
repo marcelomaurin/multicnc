@@ -1,7 +1,7 @@
 unit multicnc_print3d_view;
 {$mode objfpc}{$H+}
 interface
-uses Classes, SysUtils, Controls, Graphics, Math, aimarlinsimulator;
+uses multisuite_numfmt, Classes, SysUtils, Controls, Graphics, Math, aimarlinsimulator;
 type
   TPrintSegment = record A, B: TAIMarlinPosition; Material: Double; end;
   TPrint3DView = class(TCustomControl)
@@ -18,12 +18,15 @@ type
     property VolumeY:Double read FVolumeY;
     property VolumeZ:Double read FVolumeZ;
     property SegmentCount:Integer read GetSegmentCount;
+    { Trecho I desenhado; Material<0 indica queima de laser (-potencia). }
+    function Segment(I:Integer):TPrintSegment;
     property CurrentPosition:TAIMarlinPosition read FCurrent;
   end;
 implementation
 constructor TPrint3DView.Create(AOwner:TComponent); begin inherited Create(AOwner); Color:=clWhite; FVolumeX:=220;FVolumeY:=220;FVolumeZ:=250; FRotX:=58; FRotZ:=-38; FZoom:=1.0; DoubleBuffered:=True; end;
 procedure TPrint3DView.SetBuildVolume(X,Y,Z:Double); begin if (X>0) and (Y>0) and (Z>0) then begin FVolumeX:=X;FVolumeY:=Y;FVolumeZ:=Z;Invalidate;end;end;
 function TPrint3DView.GetSegmentCount:Integer;begin Result:=Length(FSegments);end;
+function TPrint3DView.Segment(I:Integer):TPrintSegment;begin Result:=FSegments[I];end;
 procedure TPrint3DView.ClearPrint; begin SetLength(FSegments,0); FillChar(FCurrent,SizeOf(FCurrent),0); Invalidate; end;
 procedure TPrint3DView.AddMotion(Sender:TObject;const A,B:TAIMarlinPosition;Material:Double); var N:Integer; begin FCurrent:=B; if Material>0 then begin N:=Length(FSegments); SetLength(FSegments,N+1); FSegments[N].A:=A; FSegments[N].B:=B; FSegments[N].Material:=Material; end; Invalidate; end;
 procedure TPrint3DView.AddLaserMotion(const A,B:TAIMarlinPosition; Power:Double); var N:Integer; begin FCurrent:=B; if Power>0 then begin N:=Length(FSegments); SetLength(FSegments,N+1); FSegments[N].A:=A; FSegments[N].B:=B; FSegments[N].Material:=-Power; end; Invalidate; end;
@@ -118,11 +121,11 @@ begin
   Project(Pos3(0,0,45),Q);ACanvas.TextOut(Q.X,Q.Y,'Z');
   ACanvas.Font.Size:=12; if FLaserMode then ACanvas.TextOut(16,14,'CNC Laser | GRBL') else ACanvas.TextOut(16,14,'Impressora 3D | Marlin');
   ACanvas.Font.Size:=10;
-  ACanvas.TextOut(16,40,Format('Bico  X: %.2f   Y: %.2f   Z: %.2f mm',[X,Y,Z]));
+  ACanvas.TextOut(16,40,Format('Bico  X: %.2f   Y: %.2f   Z: %.2f mm',[X,Y,Z],InvariantFS));
   ACanvas.Font.Color:=RGBToColor(181,195,213);
   ACanvas.TextOut(16,ClientHeight-40,'Arraste para girar | Roda para zoom | Duplo clique: restaurar vista');
   if FLaserMode then ACanvas.TextOut(16,ClientHeight-22,'Mesa branca | Preto: área queimada pelo laser')
-  else ACanvas.TextOut(16,ClientHeight-22,Format('Mesa %.0f x %.0f mm | Altura %.0f mm | Azul: material depositado',[FVolumeX,FVolumeY,FVolumeZ]));
+  else ACanvas.TextOut(16,ClientHeight-22,Format('Mesa %.0f x %.0f mm | Altura %.0f mm | Azul: material depositado',[FVolumeX,FVolumeY,FVolumeZ],InvariantFS));
   ACanvas.Brush.Style:=bsSolid;ACanvas.Pen.Width:=1;
 end;
 procedure TPrint3DView.DblClick; begin inherited; ResetView; end;

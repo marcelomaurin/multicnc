@@ -21,7 +21,7 @@
    <Filename Value="test_routing" />
   </Target>
   <SearchPaths>
-   <OtherUnitFiles Value="../src/core;../src/eda" />
+   <OtherUnitFiles Value="../src/core;../src/eda;../../src/shared" />
    <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
   </SearchPaths>
   <Parsing>

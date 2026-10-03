@@ -21,7 +21,7 @@
    <Filename Value="test_calibration_matrix" />
   </Target>
   <SearchPaths>
-   <OtherUnitFiles Value="../src/core;../src/art;../src/export" />
+   <OtherUnitFiles Value="../src/core;../src/art;../src/export;../../src/shared" />
    <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
   </SearchPaths>
   <Parsing>

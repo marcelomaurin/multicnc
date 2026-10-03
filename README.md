@@ -273,7 +273,16 @@ PROJETAR -> MONTAR -> SIMULAR -> VALIDAR -> FABRICAR / CONTROLAR
 
 ## Segurança
 
-Comandos físicos passam pelo núcleo de segurança. O sistema deve bloquear comandos incompatíveis com o estado da máquina, validar limites e manter parada/cancelamento acessíveis.
+Comandos físicos passam pelo núcleo de segurança (`src/core/multicnc_safety.pas`) antes de chegar ao transporte:
+
+- **Envio com confirmação:** cada linha só é enviada quando a controladora tem espaço. No GRBL, por contagem de caracteres (buffer de 127 bytes); no Marlin, uma linha por vez, aguardando `ok`.
+- **Erros e alarmes:** `error:`/`Error:` interrompe o programa e descarta o que ainda não foi enviado; `ALARM:`/`Printer halted` bloqueia movimentos até desbloquear (`$X`/`M999`) ou referenciar.
+- **Estado e posição:** lidos do relatório do GRBL (`<Idle|MPos:...>`, consultado a cada 250 ms) e da resposta do `M114` no Marlin.
+- **Validação de linhas:** rejeita números com vírgula decimal, caracteres de controle e linhas acima de 127 caracteres; o jog respeita os eixos da máquina e o curso configurado.
+- **Parada:** GRBL usa soft reset (`Ctrl-X`), que para os motores e desliga spindle/laser. No Marlin, a pausa é feita parando o envio, e a parada usa `M410` (quickstop), seguido de `M5` ou do desligamento dos aquecedores (`M104 S0`, `M140 S0`, `M107`). Com envio pelo host, `M25`/`M524` não têm efeito.
+- **Ponto decimal:** todo G-code, STL, SVG e Excellon é gerado e lido com ponto decimal, independentemente da configuração regional do Windows (`src/shared/multisuite_numfmt.pas`).
+
+Isso não substitui a parada de emergência física nem os limites do firmware: no GRBL, habilite homing (`$22=1`) e soft limits (`$20=1`).
 
 Recursos de IA, quando utilizados, **não devem controlar diretamente movimento, laser, spindle ou aquecedores sem passar pelas regras de segurança do núcleo**.
 

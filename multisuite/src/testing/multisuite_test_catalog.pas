@@ -8,6 +8,8 @@ implementation
 procedure Add(var A:TTestDefinitions;const Tool,N,S,E:string);var I:Integer;begin I:=Length(A);SetLength(A,I+1);A[I].Tool:=Tool;A[I].Name:=N;A[I].Source:=S;A[I].Executable:=E;end;
 function DefaultTestCatalog:TTestDefinitions;begin SetLength(Result,0);
  Add(Result,'MultiCNC','Simulator','tests/test_simulator.lpr','tests/test_simulator');
+ Add(Result,'MultiCNC','Controle de fluxo, alarmes e seguranca','tests/test_streaming.lpr','tests/test_streaming');
+ Add(Result,'MultiSuite','Numeros com ponto decimal (pt-BR)','tests/test_locale_invariant.lpr','tests/test_locale_invariant');
  Add(Result,'MultiCAD','Documento CAD','multicad/tests/test_document.lpr','multicad/tests/test_document');
  Add(Result,'MultiPCB','EDA','multipcb/tests/test_eda.lpr','multipcb/tests/test_eda');Add(Result,'MultiPCB','Routing','multipcb/tests/test_routing.lpr','multipcb/tests/test_routing');Add(Result,'MultiPCB','Heightmap','multipcb/tests/test_heightmap.lpr','multipcb/tests/test_heightmap');
  Add(Result,'MultiPhysics','Ambientes fisicos','multiphysics/tests/test_environment.lpr','multiphysics/tests/test_environment');

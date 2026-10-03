@@ -24,7 +24,7 @@
    <Filename Value="test_heightmap" />
   </Target>
   <SearchPaths>
-   <OtherUnitFiles Value="../src/core;../src/positioning" />
+   <OtherUnitFiles Value="../src/core;../src/positioning;../../src/shared" />
    <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
   </SearchPaths>
   <Parsing>

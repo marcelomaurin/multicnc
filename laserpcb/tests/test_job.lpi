@@ -24,7 +24,7 @@
    <Filename Value="test_job" />
   </Target>
   <SearchPaths>
-   <OtherUnitFiles Value="../src/core" />
+   <OtherUnitFiles Value="../src/core;../../src/shared" />
    <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
   </SearchPaths>
   <Parsing>

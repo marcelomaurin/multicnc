@@ -3,10 +3,12 @@ on:
   push:
     paths:
       - 'multicam/**'
+      - 'src/shared/**'
       - '.github/workflows/multicam-simulator-ci.yml'
   pull_request:
     paths:
       - 'multicam/**'
+      - 'src/shared/**'
 jobs:
   test-core:
     runs-on: ubuntu-latest
@@ -18,7 +20,7 @@ jobs:
         shell: bash
         run: |
           set -e
-          U="-Fu$GITHUB_WORKSPACE/multicam/src/core -Fu$GITHUB_WORKSPACE/multicam/src/mechanical -Fu$GITHUB_WORKSPACE/multicam/src/simulation"
+          U="-Fu$GITHUB_WORKSPACE/src/shared -Fu$GITHUB_WORKSPACE/multicam/src/core -Fu$GITHUB_WORKSPACE/multicam/src/mechanical -Fu$GITHUB_WORKSPACE/multicam/src/simulation"
           mkdir -p /tmp/multicam-tests
           for t in multicam/tests/test_mechanical_cam.lpr multicam/tests/test_mechanical_setup.lpr multicam/tests/test_advanced_mechanical.lpr multicam/tests/test_simulation.lpr multicam/tests/test_electronics_simulation.lpr multicam/tests/test_integrated_simulator.lpr multicam/tests/test_real_physics.lpr multicam/tests/test_simulation_session.lpr multicam/tests/test_demo_pipeline.lpr; do
             echo "=== $t ==="

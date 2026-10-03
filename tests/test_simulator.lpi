@@ -24,7 +24,7 @@
    <Filename Value="test_simulator" />
   </Target>
   <SearchPaths>
-   <OtherUnitFiles Value="../src/core;../src/transports" />
+   <OtherUnitFiles Value="../src/core;../src/transports;../src/shared" />
    <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
   </SearchPaths>
   <Parsing>

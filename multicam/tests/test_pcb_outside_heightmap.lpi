@@ -24,7 +24,7 @@
    <Filename Value="test_pcb_outside_heightmap" />
   </Target>
   <SearchPaths>
-   <OtherUnitFiles Value="../src/core;../src/pcb;../../multipcb/src/core;../../multipcb/src/positioning" />
+   <OtherUnitFiles Value="../src/core;../src/pcb;../../multipcb/src/core;../../multipcb/src/positioning;../../src/shared" />
    <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
   </SearchPaths>
   <Parsing>

@@ -1,0 +1,21 @@
+name: MultiCNC Core CI
+on:
+  push:
+    paths: ['src/**','multicam/src/**','multislicer/src/**','multipcb/src/**','laserpcb/src/**','tests/**','.github/workflows/multicnc-core-ci.yml']
+  pull_request:
+    paths: ['src/**','multicam/src/**','multislicer/src/**','multipcb/src/**','laserpcb/src/**','tests/**']
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y fp-compiler fp-units-base fp-units-fcl
+      - name: Nucleo do MultiCNC e numeros com ponto decimal (virgula regional simulada)
+        shell: bash
+        run: |
+          set -e
+          mkdir -p /tmp/cnc
+          U="-Fusrc/shared -Fusrc/core -Fusrc/protocols -Fusrc/transports"
+          fpc $U -FU/tmp/cnc -FE/tmp/cnc tests/test_simulator.lpr && /tmp/cnc/test_simulator
+          U="$U -Fumulticam/src/core -Fumulticam/src/export -Fumultislicer/src/core -Fumultislicer/src/import -Fumultislicer/src/export -Fumultipcb/src/core -Fumultipcb/src/export -Fulaserpcb/src/core -Fulaserpcb/src/export -Fulaserpcb/src/import"
+          fpc $U -FU/tmp/cnc -FE/tmp/cnc tests/test_locale_invariant.lpr && /tmp/cnc/test_locale_invariant
