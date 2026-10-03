@@ -31,7 +31,7 @@ begin
   BaudEdit:=TEdit.Create(Self); BaudEdit.Parent:=P; BaudEdit.SetBounds(155,32,90,28); BaudEdit.Text:='115200';
   ConnectButton:=TButton.Create(Self); ConnectButton.Parent:=P; ConnectButton.Caption:='Iniciar Marlin'; ConnectButton.SetBounds(520,28,130,34); ConnectButton.OnClick:=@ConnectClick;
   L:=TLabel.Create(Self); L.Parent:=P; L.Caption:='setupc.exe'; L.SetBounds(12,78,70,22);
-  SetupEdit:=TEdit.Create(Self); SetupEdit.Parent:=P; SetupEdit.SetBounds(85,75,430,28); SetupEdit.Text:='C:\Program Files\com0com\setupc.exe';
+  SetupEdit:=TEdit.Create(Self); SetupEdit.Parent:=P; SetupEdit.SetBounds(85,75,430,28); SetupEdit.Text:='C:\Program Files (x86)\com0com\setupc.exe';
   PairButton:=TButton.Create(Self); PairButton.Parent:=P; PairButton.Caption:='Criar par virtual'; PairButton.SetBounds(520,73,130,34); PairButton.OnClick:=@PairClick;
   ResetButton:=TButton.Create(Self); ResetButton.Parent:=P; ResetButton.Caption:='Limpar peça'; ResetButton.SetBounds(400,28,110,34); ResetButton.OnClick:=@ResetClick;
   ClearButton:=TButton.Create(Self); ClearButton.Parent:=P; ClearButton.Caption:='Limpar log'; ClearButton.SetBounds(520,28,110,34); ClearButton.OnClick:=@ClearClick;
@@ -61,6 +61,7 @@ procedure TMainForm.ResetClick(Sender:TObject); begin View.ClearPrint; Device.Si
 procedure TMainForm.ClearClick(Sender:TObject); begin LogMemo.Clear; end;
 procedure TMainForm.Tick(Sender:TObject); begin Device.Poll(0.1); end;
 end.
+
 
 
 
