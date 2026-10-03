@@ -5,7 +5,8 @@ unit multicnc_session;
 interface
 
 uses Classes, SysUtils, multicnc_types, multicnc_interfaces, multicnc_machine,
-  multicnc_simulator, multicnc_grbl, multicnc_marlin;
+  multicnc_simulator, multicnc_chatgpt_serial, multicnc_tcp_transport,
+  multicnc_grbl, multicnc_marlin;
 
 type
   TSessionState = (ssDisconnected, ssIdle, ssRunning, ssPaused, ssDone, ssStopped, ssError);
@@ -15,7 +16,9 @@ type
     acknowledgement-driven streaming and controller state reconciliation. }
   TSimulationSession = class
   private
-    FTransport: TSimulatorTransport;
+    FTransport: IMultiCNCTransport;
+    FSerialTransport: TChatGPTSerialTransport;
+    FTCPTransport: TTCPTransport;
     FProtocol: TInterfacedObject;
     FMachine: TMultiCNCMachine;
     FLines: TStringList;
@@ -30,11 +33,12 @@ type
   public
     constructor Create;
     destructor Destroy; override;
-    function Connect(Kind: TMachineType; ProtocolKind: TProtocolKind): Boolean;
+    function Connect(Kind: TMachineType; ProtocolKind: TProtocolKind; const Device: string; BaudRate: Integer): Boolean;
     procedure Disconnect;
     procedure LoadFile(const FileName: string);
     function Start: Boolean;
     procedure Tick;
+    procedure Poll;
     function Pause: Boolean;
     function Resume: Boolean;
     function Stop: Boolean;
@@ -78,16 +82,25 @@ begin
   if Assigned(FMachine) then FMachine.Disconnect;
   FreeAndNil(FMachine);
   FreeAndNil(FProtocol);
-  FreeAndNil(FTransport);
+  FMachine := nil;
+  FSerialTransport := nil;
+  FTCPTransport := nil;
+  FTransport := nil;
 end;
 
-function TSimulationSession.Connect(Kind: TMachineType; ProtocolKind: TProtocolKind): Boolean;
+function TSimulationSession.Connect(Kind: TMachineType; ProtocolKind: TProtocolKind; const Device: string; BaudRate: Integer): Boolean;
 var Protocol: IMultiCNCProtocol;
 begin
   Result := False;
   if Connected then Exit;
   ReleaseConnection;
-  FTransport := TSimulatorTransport.Create;
+  if Pos(':', Device) > 0 then begin
+    FTCPTransport := TTCPTransport.Create(Device);
+    FTransport := FTCPTransport;
+  end else begin
+    FSerialTransport := TChatGPTSerialTransport.Create(Device, BaudRate);
+    FTransport := FSerialTransport;
+  end;
   if ProtocolKind = pkMarlin then begin
     FProtocol := TMarlinProtocol.Create;
     Protocol := TMarlinProtocol(FProtocol);
@@ -157,6 +170,12 @@ begin
   if Result then begin FIndex := 0; FState := ssRunning; end;
 end;
 
+procedure TSimulationSession.Poll;
+begin
+  if Assigned(FSerialTransport) then FSerialTransport.Poll
+  else if Assigned(FTCPTransport) then FTCPTransport.Poll;
+end;
+
 procedure TSimulationSession.Tick;
 begin
   if FState <> ssRunning then Exit;
@@ -219,3 +238,5 @@ begin
 end;
 
 end.
+
+

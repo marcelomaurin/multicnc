@@ -12,6 +12,7 @@ type
   private
     Session: TSimulationSession;
     MachineType, ProtocolType: TComboBox;
+    DeviceEdit, BaudEdit: TEdit;
     BtnConnect, BtnOpen, BtnStart, BtnPause, BtnResume, BtnStop, BtnHome, BtnSend: TButton;
     JogButtons: array[0..5] of TButton;
     StepSize: TFloatSpinEdit;
@@ -127,8 +128,18 @@ begin
   ProtocolType.Items.Add('GRBL');
   ProtocolType.Items.Add('Marlin');
   ProtocolType.ItemIndex := 0;
-  BtnConnect := ButtonAt(Connection, 'Conectar simulador', 390, 26, 185, @ConnectClick);
-  LabelAt(Connection, 'Transporte: simulador local', 600, 32);
+  LabelAt(Connection, 'Porta COM / IP', 390, 5);
+  DeviceEdit := TEdit.Create(Self);
+  DeviceEdit.Parent := Connection;
+  DeviceEdit.SetBounds(390, 29, 120, 30);
+  DeviceEdit.Text := 'COM3';
+  LabelAt(Connection, 'Baud', 520, 5);
+  BaudEdit := TEdit.Create(Self);
+  BaudEdit.Parent := Connection;
+  BaudEdit.SetBounds(520, 29, 90, 30);
+  BaudEdit.Text := '115200';
+  BtnConnect := ButtonAt(Connection, 'Conectar equipamento', 630, 26, 185, @ConnectClick);
+  LabelAt(Connection, 'Serial COM ou dispositivo compatível', 830, 32);
 
   Status := TStatusBar.Create(Self);
   Status.Parent := Self;
@@ -272,7 +283,9 @@ begin
   StateLabel.Caption := StateNames[Session.State];
   MachineType.Enabled := not Session.Connected;
   ProtocolType.Enabled := not Session.Connected;
-  if Session.Connected then BtnConnect.Caption := 'Desconectar' else BtnConnect.Caption := 'Conectar simulador';
+  DeviceEdit.Enabled := not Session.Connected;
+  BaudEdit.Enabled := not Session.Connected;
+  if Session.Connected then BtnConnect.Caption := 'Desconectar' else BtnConnect.Caption := 'Conectar equipamento';
   BtnConnect.Enabled := not Busy;
   BtnOpen.Enabled := not Busy;
   BtnStart.Enabled := Session.Connected and not Busy and (Session.Count > 0);
@@ -295,8 +308,8 @@ end;
 procedure TMainForm.ConnectClick(Sender: TObject);
 begin
   if Session.Connected then begin Session.Disconnect; Log('Simulador desconectado.'); end
-  else if Session.Connect(TMachineType(MachineType.ItemIndex), TProtocolKind(ProtocolType.ItemIndex)) then
-    Log('Conectado: ' + MachineType.Text + ' / ' + ProtocolType.Text + ' / simulador');
+  else if Session.Connect(TMachineType(MachineType.ItemIndex), TProtocolKind(ProtocolType.ItemIndex), Trim(DeviceEdit.Text), StrToIntDef(Trim(BaudEdit.Text), 115200)) then
+    Log('Conectado: ' + MachineType.Text + ' / ' + ProtocolType.Text + ' em ' + DeviceEdit.Text);
   UpdateControls;
 end;
 
@@ -451,6 +464,7 @@ end;
 procedure TMainForm.Tick(Sender: TObject);
 begin
   try
+    Session.Poll;
     Session.Tick;
   except
     on E: Exception do begin Session.Stop; Log('Falha na simulacao: ' + E.Message); end;
@@ -470,3 +484,4 @@ begin
 end;
 
 end.
+
