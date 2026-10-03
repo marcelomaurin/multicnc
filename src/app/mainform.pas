@@ -4,8 +4,8 @@ unit mainform;
 
 interface
 
-uses Classes, SysUtils, Math, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls,
-  Dialogs, Graphics, Spin, StrUtils, LazUTF8, LCLType, multicnc_types, multicnc_session, aimarlinsimulator, multicnc_print3d_view;
+uses Classes, SysUtils, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls,
+  Dialogs, Graphics, Spin, StrUtils, LazUTF8, LCLType, multicnc_types, multicnc_session;
 
 type
   TMainForm = class(TForm)
@@ -25,11 +25,6 @@ type
     Progress: TProgressBar;
     Timer: TTimer;
     Status: TStatusBar;
-    Marlin: TAIMarlinSimulator;
-    PrintView: TPrint3DView;
-    PrinterLines: TStringList;
-    PrinterIndex: Integer;
-    PrinterConnected: Boolean;
     function Panel(ParentControl: TWinControl; Alignment: TAlign; Size: Integer): TPanel;
     function LabelAt(ParentControl: TWinControl; const AText: string; X, Y: Integer): TLabel;
     function ButtonAt(ParentControl: TWinControl; const AText: string;
@@ -47,8 +42,6 @@ type
     procedure JogClick(Sender: TObject);
     procedure Tick(Sender: TObject);
     procedure Log(const AText: string);
-    procedure MarlinResponse(Sender: TObject; const AText: string);
-    procedure MarlinMotion(Sender: TObject; const A, B: TAIMarlinPosition; Material: Double);
     procedure UpdateControls;
     procedure Closing(Sender: TObject; var CanClose: Boolean);
   public
@@ -173,10 +166,6 @@ begin
   L.Font.Color := clGrayText;
 
   Workspace := Panel(Body, alClient, 0);
-  PrintView := TPrint3DView.Create(Self);
-  PrintView.Parent := Workspace;
-  PrintView.Align := alClient;
-  PrintView.Visible := False;
   Actions := Panel(Workspace, alTop, 106);
   BtnOpen := ButtonAt(Actions, 'Abrir G-code...', 12, 10, 145, @OpenClick);
   BtnStart := ButtonAt(Actions, 'Iniciar', 168, 10, 100, @CommandClick);
@@ -257,7 +246,6 @@ end;
 destructor TMainForm.Destroy;
 begin
   if Assigned(Timer) then Timer.Enabled := False;
-  PrinterLines.Free;
   Session.Free;
   inherited Destroy;
 end;
@@ -274,41 +262,44 @@ begin
   end;
 end;
 
-procedure TMainForm.MarlinResponse(Sender: TObject; const AText: string);
-begin
-  if Trim(AText) <> '' then Log('Marlin: ' + Trim(AText));
-end;
-procedure TMainForm.MarlinMotion(Sender: TObject; const A, B: TAIMarlinPosition; Material: Double);
-begin
-  if Assigned(PrintView) then PrintView.AddMotion(Sender, A, B, Material);
-end;
-
 procedure TMainForm.UpdateControls;
+const StateNames: array[TSessionState] of string = ('Desconectado', 'Pronto',
+  'Simulando', 'Pausado', 'Envio simulado concluido', 'Interrompido', 'Erro');
 var Busy, Manual: Boolean; I: Integer;
 begin
-  if MachineType.ItemIndex = Ord(mtPrinter3D) then begin
-    Busy := PrinterConnected and (PrinterIndex < PrinterLines.Count); Manual := PrinterConnected and not Busy;
-    StateLabel.Caption := IfThen(not PrinterConnected, 'Desconectado', IfThen(Busy, 'Imprimindo 3D', 'Pronto'));
-    MachineType.Enabled := not PrinterConnected; ProtocolType.Enabled := not PrinterConnected;
-    BtnConnect.Caption := IfThen(PrinterConnected, 'Desconectar', 'Conectar simulador'); BtnConnect.Enabled := not Busy;
-    BtnOpen.Enabled := not Busy; BtnStart.Enabled := PrinterConnected and not Busy and (PrinterLines.Count > 0);
-    BtnPause.Enabled := PrinterConnected and not Marlin.State.Paused and Busy; BtnResume.Enabled := PrinterConnected and Marlin.State.Paused;
-    BtnStop.Enabled := PrinterConnected; BtnHome.Enabled := Manual; BtnSend.Enabled := Manual; EditCommand.Enabled := Manual; StepSize.Enabled := Manual; FeedRate.Enabled := Manual;
-    PrintView.Visible := PrinterConnected; Pages.Visible := not PrinterConnected; Progress.Max := Max(1,PrinterLines.Count); Progress.Position := Min(PrinterIndex,Progress.Max); ProgressLabel.Caption := Format('%d / %d linhas processadas',[PrinterIndex,PrinterLines.Count]); Timer.Enabled := Busy; Exit;
-  end;
-  PrintView.Visible := False; Pages.Visible := True; Busy := Session.State in [ssRunning, ssPaused]; Manual := Session.Connected and not Busy and (Session.State <> ssError);
-  case Session.State of ssDisconnected: StateLabel.Caption:='Desconectado'; ssIdle: StateLabel.Caption:='Pronto'; ssRunning: StateLabel.Caption:='Simulando'; ssPaused: StateLabel.Caption:='Pausado'; ssDone: StateLabel.Caption:='Envio concluido'; ssStopped: StateLabel.Caption:='Interrompido'; ssError: StateLabel.Caption:='Erro'; end; MachineType.Enabled := not Session.Connected; ProtocolType.Enabled := not Session.Connected; BtnConnect.Enabled := not Busy; BtnConnect.Caption := IfThen(Session.Connected,'Desconectar','Conectar simulador'); BtnOpen.Enabled := not Busy; BtnStart.Enabled := Session.Connected and not Busy and (Session.Count > 0); BtnPause.Enabled := Session.State=ssRunning; BtnResume.Enabled := Session.State=ssPaused; BtnStop.Enabled := Session.Connected; BtnHome.Enabled := Manual; BtnSend.Enabled := Manual; EditCommand.Enabled := Manual; StepSize.Enabled := Manual; FeedRate.Enabled := Manual;
-  for I:=0 to 5 do JogButtons[I].Enabled := Manual and Session.SupportsAxis(TAxis(I div 2)); Progress.Max:=Max(1,Session.Count); Progress.Position:=Session.Completed; ProgressLabel.Caption:=Format('%d / %d comandos enviados',[Session.Completed,Session.Count]); Timer.Enabled:=Session.State=ssRunning;
+  Busy := Session.State in [ssRunning, ssPaused];
+  Manual := Session.Connected and not Busy and (Session.State <> ssError);
+  StateLabel.Caption := StateNames[Session.State];
+  MachineType.Enabled := not Session.Connected;
+  ProtocolType.Enabled := not Session.Connected;
+  if Session.Connected then BtnConnect.Caption := 'Desconectar' else BtnConnect.Caption := 'Conectar simulador';
+  BtnConnect.Enabled := not Busy;
+  BtnOpen.Enabled := not Busy;
+  BtnStart.Enabled := Session.Connected and not Busy and (Session.Count > 0);
+  BtnPause.Enabled := Session.State = ssRunning;
+  BtnResume.Enabled := Session.State = ssPaused;
+  BtnStop.Enabled := Session.Connected;
+  BtnHome.Enabled := Manual;
+  BtnSend.Enabled := Manual;
+  EditCommand.Enabled := Manual;
+  StepSize.Enabled := Manual;
+  FeedRate.Enabled := Manual;
+  for I := 0 to 5 do JogButtons[I].Enabled := Manual and Session.SupportsAxis(TAxis(I div 2));
+  Progress.Max := Session.Count;
+  if Progress.Max = 0 then Progress.Max := 1;
+  Progress.Position := Session.Completed;
+  ProgressLabel.Caption := Format('%d / %d comandos enviados', [Session.Completed, Session.Count]);
+  Timer.Enabled := Session.State = ssRunning;
 end;
+
 procedure TMainForm.ConnectClick(Sender: TObject);
 begin
-  if MachineType.ItemIndex = Ord(mtPrinter3D) then begin
-    PrinterConnected := not PrinterConnected;
-    if PrinterConnected then begin Marlin.Reset; Log('Simulador Marlin conectado.'); end else begin Marlin.Pause; Log('Simulador Marlin desconectado.'); end;
-  end else if Session.Connected then begin Session.Disconnect; Log('Simulador desconectado.'); end
-  else if Session.Connect(TMachineType(MachineType.ItemIndex), TProtocolKind(ProtocolType.ItemIndex)) then Log('Conectado: ' + MachineType.Text + ' / ' + ProtocolType.Text + ' / simulador');
+  if Session.Connected then begin Session.Disconnect; Log('Simulador desconectado.'); end
+  else if Session.Connect(TMachineType(MachineType.ItemIndex), TProtocolKind(ProtocolType.ItemIndex)) then
+    Log('Conectado: ' + MachineType.Text + ' / ' + ProtocolType.Text + ' / simulador');
   UpdateControls;
 end;
+
 procedure TMainForm.OpenClick(Sender: TObject);
 var D: TOpenDialog;
 begin
@@ -328,12 +319,20 @@ end;
 procedure TMainForm.LoadProgram(const AFileName: string);
 begin
   try
-    if MachineType.ItemIndex = Ord(mtPrinter3D) then begin PrinterLines.LoadFromFile(AFileName); PrinterIndex:=0; ProgramMemo.Text:=PrinterLines.Text; end
-    else begin Session.LoadFile(AFileName); ProgramMemo.Text:=Session.ProgramText; end;
-    ProgramMemo.SelStart:=0; SearchEdit.Clear; FileLabel.Caption:=ExtractFileName(AFileName); FileLabel.Hint:=AFileName; Pages.ActivePage:=ProgramTab; Log('Programa carregado: '+AFileName);
-  except on E: Exception do MessageDlg('Nao foi possivel abrir',E.Message,mtError,[mbOK],0); end;
+    Session.LoadFile(AFileName);
+    ProgramMemo.Text := Session.ProgramText;
+    ProgramMemo.SelStart := 0;
+    SearchEdit.Clear;
+    FileLabel.Caption := ExtractFileName(Session.FileName);
+    FileLabel.Hint := Session.FileName;
+    Pages.ActivePage := ProgramTab;
+    Log('Programa carregado: ' + Session.FileName);
+  except
+    on E: Exception do MessageDlg('Nao foi possivel abrir', E.Message, mtError, [mbOK], 0);
+  end;
   UpdateControls;
 end;
+
 procedure TMainForm.DropFiles(Sender: TObject; const FileNames: array of string);
 begin
   if Length(FileNames) <> 1 then begin
@@ -424,19 +423,21 @@ end;
 procedure TMainForm.CommandClick(Sender: TObject);
 var OK: Boolean;
 begin
-  OK:=False;
-  if MachineType.ItemIndex=Ord(mtPrinter3D) then begin
-    if Sender=BtnStart then begin PrinterIndex:=0; Marlin.Reset; PrintView.ClearPrint; OK:=True; end
-    else if Sender=BtnPause then begin Marlin.Pause; OK:=True; end
-    else if Sender=BtnResume then begin Marlin.Resume; OK:=True; end
-    else if Sender=BtnStop then begin Marlin.EmergencyStop; PrinterIndex:=PrinterLines.Count; OK:=True; end
-    else if Sender=BtnHome then OK:=Marlin.SubmitLine('G28')
-    else if Sender=BtnSend then begin OK:=Marlin.SubmitLine(EditCommand.Text); if OK then begin Marlin.Advance(0.1); EditCommand.Clear; end; end;
-  end else begin
-    if Sender=BtnStart then OK:=Session.Start else if Sender=BtnPause then OK:=Session.Pause else if Sender=BtnResume then OK:=Session.Resume else if Sender=BtnStop then OK:=Session.Stop else if Sender=BtnHome then OK:=Session.Home else if Sender=BtnSend then begin OK:=Session.Send(EditCommand.Text); if OK then EditCommand.Clear; end;
+  OK := False;
+  if Sender = BtnStart then OK := Session.Start
+  else if Sender = BtnPause then OK := Session.Pause
+  else if Sender = BtnResume then OK := Session.Resume
+  else if Sender = BtnStop then OK := Session.Stop
+  else if Sender = BtnHome then OK := Session.Home
+  else if Sender = BtnSend then begin
+    OK := Session.Send(EditCommand.Text);
+    if OK then EditCommand.Clear;
   end;
-  if OK then Log(TButton(Sender).Caption+': OK') else Log('Acao recusada. Verifique o estado e o comando.'); UpdateControls;
+  if OK then Log(TButton(Sender).Caption + ': OK')
+  else Log('Acao recusada. Verifique a conexao, o estado e o comando.');
+  UpdateControls;
 end;
+
 procedure TMainForm.JogClick(Sender: TObject);
 var Index: Integer; Distance: Double;
 begin
@@ -450,14 +451,14 @@ end;
 procedure TMainForm.Tick(Sender: TObject);
 begin
   try
-    if MachineType.ItemIndex=Ord(mtPrinter3D) then begin
-      if PrinterIndex<PrinterLines.Count then begin Marlin.SubmitLine(PrinterLines[PrinterIndex]); Inc(PrinterIndex); end;
-      Marlin.Advance(0.1);
-      if (PrinterIndex>=PrinterLines.Count) and Marlin.IsIdle then Log('Impressao 3D concluida.');
-    end else Session.Tick;
-  except on E: Exception do begin if MachineType.ItemIndex=Ord(mtPrinter3D) then Marlin.EmergencyStop else Session.Stop; Log('Falha na simulacao: '+E.Message); end; end;
+    Session.Tick;
+  except
+    on E: Exception do begin Session.Stop; Log('Falha na simulacao: ' + E.Message); end;
+  end;
+  if Session.State = ssDone then Log('Envio simulado concluido. Nao representa usinagem fisica.');
   UpdateControls;
 end;
+
 procedure TMainForm.Closing(Sender: TObject; var CanClose: Boolean);
 begin
   CanClose := True;
