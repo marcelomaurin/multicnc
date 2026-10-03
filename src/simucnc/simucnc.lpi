@@ -7,6 +7,10 @@
    <Title Value="SimuCNC" />
    <UseAppBundle Value="False" />
    <ResourceType Value="res" />
+     <UseXPManifest Value="True" />
+     <XPManifest>
+       <ExecutionLevel Value="requireAdministrator" />
+     </XPManifest>
   </General>
   <BuildModes Count="1">
    <Item1 Name="Default" Default="True" />
