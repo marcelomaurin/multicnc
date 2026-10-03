@@ -65,6 +65,40 @@ Tipo de máquina, protocolo e transporte são independentes. Por exemplo, Router
 
 Use o **MultiCNC** quando o objetivo final for **controlar ou operar uma máquina**.
 
+### SimuCNC e porta serial virtual
+
+O **SimuCNC** é uma aplicação separada. Ele funciona como uma impressora 3D com
+firmware Marlin: recebe comandos pela serial, responde aos comandos e apresenta
+os movimentos e a peça em uma visualização 3D. O MultiCNC continua sendo o
+cliente/controlador que se conecta ao equipamento.
+
+Para usar o SimuCNC com o MultiCNC no Windows, é obrigatório instalar um driver
+de par de portas seriais virtuais. O componente suportado pelo projeto é o
+**com0com**. Ele cria duas pontas da mesma ligação, por exemplo:
+
+```text
+MultiCNC  -> COM3  <->  COM4 <- SimuCNC
+```
+
+O SimuCNC abre uma ponta e o MultiCNC abre a outra. As duas portas não
+representam duas máquinas; são as duas extremidades da mesma porta virtual.
+
+#### Instalação do com0com
+
+1. Baixe o instalador assinado para Windows no [SourceForge do com0com](https://sourceforge.net/projects/com0com/files/com0com/3.0.0.0/).
+2. Execute o instalador como administrador.
+3. No SimuCNC, informe o caminho do `setupc.exe` instalado. Normalmente:
+   `C:\Program Files\com0com\setupc.exe`.
+4. Informe as portas, por exemplo `COM4` para o SimuCNC e `COM3` para o MultiCNC.
+5. Clique em **Criar par virtual** no SimuCNC.
+6. Clique em **Iniciar Marlin** no SimuCNC e conecte o MultiCNC na outra porta.
+
+O driver com0com é um requisito obrigatório para o modo serial do SimuCNC; sem
+ele o Windows não possui uma porta virtual que possa ser aberta pelo MultiCNC.
+No Windows 11, Secure Boot e as políticas de assinatura podem bloquear versões
+antigas do driver. Se as portas não aparecerem no Gerenciador de Dispositivos,
+verifique o status do driver antes de configurar o SimuCNC.
+
 ---
 
 ## 2. MultiSuite — gestor unificado
