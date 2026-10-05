@@ -29,7 +29,7 @@
    <Filename Value="multicnc" />
   </Target>
   <SearchPaths>
-   <OtherUnitFiles Value="D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AISerial;D:\projetos\maurinsoft\CHATGPT\pacote\AI;../core;../protocols;../transports;../shared" />
+   <OtherUnitFiles Value="..\..\..\CHATGPT\pacote\AI Input\AISerial;..\..\..\CHATGPT\pacote\AI;D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AISerial;D:\projetos\maurinsoft\CHATGPT\pacote\AI;../core;../protocols;../transports;../shared" />
    <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
   </SearchPaths>
   <Parsing>
