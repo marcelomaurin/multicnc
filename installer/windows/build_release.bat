@@ -4,8 +4,19 @@ cd /d "%~dp0\..\.."
 set ROOT=%CD%
 set DIST=%ROOT%\dist
 set APP=%DIST%\app
+set BIN=%ROOT%\bin
+
+set VERSION=%~1
+if "%VERSION%"=="" set VERSION=0.01
+
+set SETUP_SEQ=%~2
+if "%SETUP_SEQ%"=="" set SETUP_SEQ=001
+
+set OUTPUT_NAME=setup_%SETUP_SEQ%
+
 if exist "%DIST%" rmdir /s /q "%DIST%"
 mkdir "%APP%"
+if not exist "%BIN%" mkdir "%BIN%"
 
 where lazbuild >nul 2>nul || (echo ERRO: lazbuild nao encontrado no PATH.& exit /b 1)
 
@@ -21,14 +32,18 @@ call :build laserpcb\src\app\laserart.lpi laserpcb\src\app\laserart.exe laserart
 call :build src\app\multicnc.lpi src\app\multicnc.exe multicnc.exe || exit /b 1
 call :build multisuite\src\testing\multisuite_test_center.lpi multisuite\src\testing\multisuite_test_center.exe multisuite_test_center.exe || exit /b 1
 
-rem Remove informacao de debug dos executaveis distribuidos (~26 MB -> ~4 MB cada).
-rem strip.exe acompanha o Lazarus (fpc\<versao>\bin\x86_64-win64); se nao estiver no PATH, segue sem strip.
 where strip >nul 2>nul && (for %%F in ("%APP%\*.exe") do strip --strip-debug "%%F") || echo AVISO: strip nao encontrado; executaveis mantem informacao de debug.
 
 where iscc >nul 2>nul || (echo ERRO: Inno Setup ISCC nao encontrado no PATH.& exit /b 2)
-iscc installer\windows\multisuite.iss || exit /b 3
+iscc "-dMyAppVersion=%VERSION%" "-dSetupSeq=%SETUP_SEQ%" "-dOutputExeName=%OUTPUT_NAME%" installer\windows\multisuite.iss || exit /b 3
+
+if exist "%DIST%\%OUTPUT_NAME%.exe" (
+  copy /y "%DIST%\%OUTPUT_NAME%.exe" "%BIN%\%OUTPUT_NAME%.exe" >nul
+  echo Instalador copiado para: bin\%OUTPUT_NAME%.exe
+)
+
 echo.
-echo Instalador gerado em dist\
+echo Instalador gerado com sucesso em dist\ e bin\
 exit /b 0
 
 :build
