@@ -36,7 +36,10 @@ type
   public
     function GetName: string; override;
     function ReceiveBufferSize: Integer; override;
-    function BuildHomeCommand: string; override;
+    function BuildHomeCommand(AFeed: Double = 0): string; override;
+    function BuildSetHomeCommand: string; override;
+    function BuildPhysicalHomingCommand: string; override;
+    function BuildFeedRateCommand(AFeed: Double): string; override;
     function BuildZeroCommand: string; override;
     function BuildStatusCommand: string; override;
     function BuildUnlockCommand: string; override;
@@ -121,8 +124,28 @@ begin Result := 'Simulator'; end;
 function TSimulatorProtocol.ReceiveBufferSize: Integer;
 begin Result := 127; end;
 
-function TSimulatorProtocol.BuildHomeCommand: string;
-begin Result := '$H' + LineEnding; end;
+function TSimulatorProtocol.BuildSetHomeCommand: string;
+begin
+  Result := 'G28.1' + LineEnding;
+end;
+
+function TSimulatorProtocol.BuildHomeCommand(AFeed: Double = 0): string;
+begin
+  if AFeed > 0 then
+    Result := Format('G28 F%.0f%s', [AFeed, LineEnding], InvariantFS)
+  else
+    Result := 'G28' + LineEnding;
+end;
+
+function TSimulatorProtocol.BuildPhysicalHomingCommand: string;
+begin
+  Result := '$H' + LineEnding;
+end;
+
+function TSimulatorProtocol.BuildFeedRateCommand(AFeed: Double): string;
+begin
+  Result := Format('G0 F%.0f%s', [AFeed, LineEnding], InvariantFS);
+end;
 function TSimulatorProtocol.BuildZeroCommand: string;
 begin Result := 'G92 X0 Y0 Z0' + LineEnding; end;
 function TSimulatorProtocol.BuildStatusCommand: string;

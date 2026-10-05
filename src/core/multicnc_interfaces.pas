@@ -49,7 +49,9 @@ type
     function LastMessage: string;
     { Bytes que a controladora aceita em buffer; 0 = uma linha por vez. }
     function ReceiveBufferSize: Integer;
-    function BuildHomeCommand: string;
+    function BuildHomeCommand(AFeed: Double = 0): string;
+    function BuildSetHomeCommand: string;
+    function BuildPhysicalHomingCommand: string;
     function BuildZeroCommand: string;
     function BuildStatusCommand: string;
     function BuildUnlockCommand: string;
@@ -59,6 +61,8 @@ type
     { Linhas enviadas apos a parada para desligar spindle/laser/aquecedores. }
     function BuildSafeOffCommands(AType: TMachineType): string;
     function BuildJogCommand(AAxis: TAxis; ADistance, AFeed: Double): string;
+    function BuildFeedRateCommand(AFeed: Double): string;
+    procedure ResetPositionToZero;
   end;
 
   IMultiCNCMachine = interface
@@ -69,7 +73,9 @@ type
     function GetCapabilities: TMachineCapabilities;
     function Connect: Boolean;
     procedure Disconnect;
-    function Home: Boolean;
+    function Home(AFeed: Double = 0): Boolean;
+    function SetHome(out AHomePos: TMachinePosition): Boolean;
+    function PhysicalHoming: Boolean;
     function Zero: Boolean;
     function Status: Boolean;
     function Unlock: Boolean;
@@ -78,6 +84,9 @@ type
     function Stop: Boolean;
     function Jog(AAxis: TAxis; ADistance, AFeed: Double): Boolean;
     function SendGCode(const ALine: string): Boolean;
+    function SetFeedRate(AFeed: Double): Boolean;
+    function GetHomePosition: TMachinePosition;
+    function IsHomePositionSet: Boolean;
   end;
 
 implementation

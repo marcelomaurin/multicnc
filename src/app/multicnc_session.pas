@@ -10,6 +10,7 @@ unit multicnc_session;
 interface
 
 uses Classes, SysUtils, multicnc_types, multicnc_interfaces, multicnc_machine,
+  multicnc_gcode_analyzer, multicnc_laser_config,
   multicnc_simulator, multicnc_chatgpt_serial, multicnc_tcp_transport,
   multicnc_grbl, multicnc_marlin;
 
@@ -30,7 +31,11 @@ type
     FProtocol: TObject;
     FProtocolKind: TProtocolKind;
     FMachine: TMultiCNCMachine;
-    FLines: TStringList;
+    FLines, FLoadedLines, FOriginalLines: TStringList;
+    FBounds: TGCodeBounds;
+    FLaserSettings: TLaserSettings;
+    FMachineKind: TMachineType;
+    FFramingActive: Boolean;
     FIndex: Integer;          { proxima linha do programa a enfileirar }
     FState: TSessionState;
     FFileName: string;
@@ -48,6 +53,8 @@ type
     function GetCompleted: Integer;
     function GetMachineState: TMachineState;
     function GetPosition: TMachinePosition;
+    function GetHomePosition: TMachinePosition;
+    function GetHomePositionSet: Boolean;
     function Fail(const Reason: string): Boolean;
   public
     constructor Create;
@@ -60,12 +67,16 @@ type
     procedure Disconnect;
     procedure LoadFile(const FileName: string);
     function Start: Boolean;
+    function RunFraming(const AFramingLines: TStrings): Boolean;
     procedure Tick;
     procedure Poll;
     function Pause: Boolean;
     function Resume: Boolean;
     function Stop: Boolean;
-    function Home: Boolean;
+    function Home(AFeed: Double = 0): Boolean;
+    function SetHome(out AHomePos: TMachinePosition): Boolean;
+    function PhysicalHoming: Boolean;
+    function SetFeedRate(AFeed: Double): Boolean;
     function Zero: Boolean;
     function Status: Boolean;
     function Unlock: Boolean;
@@ -83,6 +94,15 @@ type
     property FileName: string read FFileName;
     property MachineState: TMachineState read GetMachineState;
     property Position: TMachinePosition read GetPosition;
+    property Bounds: TGCodeBounds read FBounds;
+    property LaserSettings: TLaserSettings read FLaserSettings write FLaserSettings;
+    property EnvelopeX: Double read FEnvelopeX;
+    property EnvelopeY: Double read FEnvelopeY;
+    property EnvelopeZ: Double read FEnvelopeZ;
+    property FramingActive: Boolean read FFramingActive;
+    property MachineType: TMachineType read FMachineKind;
+    property HomePosition: TMachinePosition read GetHomePosition;
+    property HomePositionSet: Boolean read GetHomePositionSet;
     property LastError: string read FLastError;
     property OnLog: TTransportDataEvent read FOnLog write FOnLog;
   end;
@@ -93,6 +113,11 @@ constructor TSimulationSession.Create;
 begin
   inherited Create;
   FLines := TStringList.Create;
+  FLoadedLines := TStringList.Create;
+  FOriginalLines := TStringList.Create;
+  FBounds := TGCodeAnalyzer.EmptyBounds;
+  FLaserSettings := DefaultLaserSettings;
+  FFramingActive := False;
   FState := ssDisconnected;
 end;
 
@@ -100,6 +125,8 @@ destructor TSimulationSession.Destroy;
 begin
   ReleaseConnection;
   FLines.Free;
+  FLoadedLines.Free;
+  FOriginalLines.Free;
   inherited Destroy;
 end;
 
@@ -170,6 +197,7 @@ begin
   FTransportObject := ATransportObject;
   FTransport := ATransport;
   FProtocolKind := ProtocolKind;
+  FMachineKind := Kind;
   if ProtocolKind = pkMarlin then
   begin
     FProtocol := TMarlinProtocol.Create;
@@ -259,9 +287,12 @@ begin
       Commands.Add(Line);
     end;
     if Commands.Count = 0 then raise Exception.Create('O arquivo nao contem comandos.');
+    FLoadedLines.Assign(Commands);
     FLines.Assign(Commands);
+    TGCodeAnalyzer.Analyze(Commands, FBounds);
     FFileName := FileName;
     FIndex := 0;
+    FFramingActive := False;
     if Connected then FState := ssIdle else FState := ssDisconnected;
   finally
     Source.Free;
@@ -269,22 +300,60 @@ begin
   end;
 end;
 
-function TSimulationSession.Start: Boolean;
+function TSimulationSession.RunFraming(const AFramingLines: TStrings): Boolean;
 begin
   if not Connected then Exit(Fail('Maquina desconectada'));
-  if Count = 0 then Exit(Fail('Nenhum programa carregado'));
+  if (AFramingLines = nil) or (AFramingLines.Count = 0) then Exit(Fail('Nenhum percurso de contorno disponivel'));
+  if FState in [ssRunning, ssPaused] then Exit(Fail('Maquina ocupada com outro programa'));
+  if FMachine.GetState in [msAlarm, msError] then
+    Exit(Fail('Maquina em alarme: desbloqueie ou referencie antes de iniciar'));
+  if FMachine.PendingLines > 0 then
+    Exit(Fail('Aguarde a controladora concluir os comandos pendentes'));
+
+  FFramingActive := True;
+  FLines.Assign(AFramingLines);
+  FIndex := 0;
+  FErrorBase := FMachine.ErrorCount;
+  FAlarmBase := FMachine.AlarmCount;
+  FLastError := '';
+  FState := ssRunning;
+  if Assigned(FOnLog) then FOnLog('Iniciando contorno (framing)...');
+  FeedJob;
+  Result := FState in [ssRunning, ssIdle, ssDone];
+end;
+
+function TSimulationSession.Start: Boolean;
+var Transformed: TStringList;
+begin
+  if not Connected then Exit(Fail('Maquina desconectada'));
+  if FLoadedLines.Count = 0 then Exit(Fail('Nenhum programa carregado'));
   if FState in [ssRunning, ssPaused] then Exit(Fail('Programa ja em execucao'));
   if FMachine.GetState in [msAlarm, msError] then
     Exit(Fail('Maquina em alarme: desbloqueie ou referencie antes de iniciar'));
   if FMachine.PendingLines > 0 then
     Exit(Fail('Aguarde a controladora concluir os comandos pendentes'));
+
+  FFramingActive := False;
+  if FMachineKind = mtLaser then
+  begin
+    Transformed := TransformGCodeForLaser(FLoadedLines, FLaserSettings);
+    try
+      FLines.Assign(Transformed);
+    finally
+      Transformed.Free;
+    end;
+    if FLaserSettings.AirAssist and (Trim(FLaserSettings.AirAssistOnCmd) <> '') then
+      FMachine.SendGCode(Trim(FLaserSettings.AirAssistOnCmd));
+  end
+  else
+    FLines.Assign(FLoadedLines);
+
   FIndex := 0;
   FErrorBase := FMachine.ErrorCount;
   FAlarmBase := FMachine.AlarmCount;
   FLastError := '';
   FState := ssRunning;
   FeedJob;
-  { Com uma controladora que confirma na hora, o programa pode terminar aqui. }
   Result := FState in [ssRunning, ssDone];
 end;
 
@@ -322,7 +391,26 @@ begin
   end;
   CheckFirmwareFaults;
   if (FState = ssRunning) and (FIndex >= Count) and (FMachine.PendingLines = 0) then
-    FState := ssDone;
+  begin
+        if FFramingActive then
+    begin
+      FLines.Assign(FLoadedLines);
+      FIndex := 0;
+      FFramingActive := False;
+      FState := ssIdle;
+      if Assigned(FOnLog) then FOnLog('Contorno (framing) concluido.');
+    end
+    else
+    begin
+      if (FMachineKind = mtLaser) and Assigned(FMachine) then
+      begin
+        FMachine.SendGCode('M5');
+        if FLaserSettings.AirAssist and (Trim(FLaserSettings.AirAssistOffCmd) <> '') then
+          FMachine.SendGCode(Trim(FLaserSettings.AirAssistOffCmd));
+      end;
+      FState := ssDone;
+    end;
+  end;
 end;
 
 procedure TSimulationSession.Poll;
@@ -358,7 +446,17 @@ function TSimulationSession.Pause: Boolean;
 begin
   if not (Connected and (FState = ssRunning)) then Exit(Fail('Nada em execucao'));
   Result := FMachine.Pause;
-  if Result then FState := ssPaused else FLastError := FMachine.LastError;
+  if Result then
+  begin
+    FState := ssPaused;
+    if (FMachineKind = mtLaser) and Assigned(FMachine) then
+    begin
+      FMachine.SendGCode('M5');
+      if FLaserSettings.AirAssist and (Trim(FLaserSettings.AirAssistOffCmd) <> '') then
+        FMachine.SendGCode(Trim(FLaserSettings.AirAssistOffCmd));
+    end;
+  end
+  else FLastError := FMachine.LastError;
 end;
 
 function TSimulationSession.Resume: Boolean;
@@ -367,8 +465,12 @@ begin
   Result := FMachine.Resume;
   if Result then
   begin
+    if (FMachineKind = mtLaser) and Assigned(FMachine) then
+    begin
+      if FLaserSettings.AirAssist and (Trim(FLaserSettings.AirAssistOnCmd) <> '') then
+        FMachine.SendGCode(Trim(FLaserSettings.AirAssistOnCmd));
+    end;
     FState := ssRunning;
-    FeedJob;
   end
   else FLastError := FMachine.LastError;
 end;
@@ -377,6 +479,18 @@ function TSimulationSession.Stop: Boolean;
 begin
   if not Connected then Exit(Fail('Maquina desconectada'));
   Result := FMachine.Stop;
+  if FFramingActive then
+  begin
+    FLines.Assign(FLoadedLines);
+    FIndex := 0;
+    FFramingActive := False;
+  end;
+  if (FMachineKind = mtLaser) and Assigned(FMachine) then
+  begin
+    FMachine.SendGCode('M5');
+    if FLaserSettings.AirAssist and (Trim(FLaserSettings.AirAssistOffCmd) <> '') then
+      FMachine.SendGCode(Trim(FLaserSettings.AirAssistOffCmd));
+  end;
   if Result then FState := ssStopped
   else
   begin
@@ -385,16 +499,50 @@ begin
   end;
 end;
 
-function TSimulationSession.Home: Boolean;
+function TSimulationSession.GetHomePosition: TMachinePosition;
+begin
+  if Assigned(FMachine) then Result := FMachine.GetHomePosition else Result := EmptyPosition;
+end;
+
+function TSimulationSession.GetHomePositionSet: Boolean;
+begin
+  if Assigned(FMachine) then Result := FMachine.IsHomePositionSet else Result := False;
+end;
+
+function TSimulationSession.SetHome(out AHomePos: TMachinePosition): Boolean;
+begin
+  AHomePos := EmptyPosition;
+  if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Indisponivel durante o programa'));
+  Result := FMachine.SetHome(AHomePos);
+  if not Result then FLastError := FMachine.LastError;
+end;
+
+function TSimulationSession.PhysicalHoming: Boolean;
 begin
   if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Indisponivel durante o programa'));
-  Result := FMachine.Home;
+  Result := FMachine.PhysicalHoming;
+  if not Result then FLastError := FMachine.LastError;
+end;
+
+function TSimulationSession.Home(AFeed: Double = 0): Boolean;
+begin
+  if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Indisponivel durante o programa'));
+  Result := FMachine.Home(AFeed);
+  if not Result then FLastError := FMachine.LastError;
+end;
+
+function TSimulationSession.SetFeedRate(AFeed: Double): Boolean;
+begin
+  if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Indisponivel durante o programa'));
+  Result := FMachine.SetFeedRate(AFeed);
   if not Result then FLastError := FMachine.LastError;
 end;
 
 function TSimulationSession.Zero: Boolean;
 begin
   if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Indisponivel durante o programa'));
+  if Assigned(FMachine) and (FMachine.GetMachineType = mtPrinter3D) then
+    Exit(Fail('Referenciamento de zero indisponivel para impressora 3D'));
   Result := FMachine.Zero;
   if not Result then FLastError := FMachine.LastError;
 end;

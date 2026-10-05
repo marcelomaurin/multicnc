@@ -36,7 +36,9 @@ type
     function TakeResetDetected: Boolean;
     function LastMessage: string;
     function ReceiveBufferSize: Integer; virtual; abstract;
-    function BuildHomeCommand: string; virtual; abstract;
+    function BuildHomeCommand(AFeed: Double = 0): string; virtual; abstract;
+    function BuildSetHomeCommand: string; virtual; abstract;
+    function BuildPhysicalHomingCommand: string; virtual; abstract;
     function BuildZeroCommand: string; virtual; abstract;
     function BuildStatusCommand: string; virtual; abstract;
     function BuildUnlockCommand: string; virtual; abstract;
@@ -45,6 +47,8 @@ type
     function BuildStopCommand: string; virtual; abstract;
     function BuildSafeOffCommands(AType: TMachineType): string; virtual;
     function BuildJogCommand(AAxis: TAxis; ADistance, AFeed: Double): string; virtual; abstract;
+    function BuildFeedRateCommand(AFeed: Double): string; virtual; abstract;
+    procedure ResetPositionToZero; virtual;
   end;
 
 { Le 'x,y,z[,a]' com ponto decimal. }
@@ -151,6 +155,16 @@ function TMultiCNCProtocolBase.TakeResetDetected: Boolean;
 begin
   Result := FResetDetected;
   FResetDetected := False;
+end;
+
+procedure TMultiCNCProtocolBase.ResetPositionToZero;
+begin
+  FPosition.X := 0;
+  FPosition.Y := 0;
+  FPosition.Z := 0;
+  FPosition.A := 0;
+  FPosition.E := 0;
+  FHasPosition := True;
 end;
 
 function TMultiCNCProtocolBase.LastMessage: string;

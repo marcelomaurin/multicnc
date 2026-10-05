@@ -27,6 +27,8 @@ type
     FMachineType: TMachineType;
     FState: TMachineState;
     FPosition: TMachinePosition;
+    FHomePosition: TMachinePosition;
+    FHomePositionSet: Boolean;
     FCapabilities: TMachineCapabilities;
     FEnvelope: TWorkEnvelope;
     FTransport: IMultiCNCTransport;
@@ -59,13 +61,18 @@ type
     function GetCapabilities: TMachineCapabilities;
     function Connect: Boolean;
     procedure Disconnect;
-    function Home: Boolean;
+    function Home(AFeed: Double = 0): Boolean;
+    function SetHome(out AHomePos: TMachinePosition): Boolean;
+    function PhysicalHoming: Boolean;
     function Zero: Boolean;
+    function GetHomePosition: TMachinePosition;
+    function IsHomePositionSet: Boolean;
     function Status: Boolean;
     function Unlock: Boolean;
     function Pause: Boolean;
     function Resume: Boolean;
     function Stop: Boolean;
+    function SetFeedRate(AFeed: Double): Boolean;
     function Jog(AAxis: TAxis; ADistance, AFeed: Double): Boolean;
     { Valida e coloca a linha na fila; o envio acontece conforme o firmware
       confirma as anteriores. }
@@ -79,6 +86,8 @@ type
     function PendingLines: Integer;
     property ErrorCount: Integer read FErrorCount;
     property AlarmCount: Integer read FAlarmCount;
+    property HomePosition: TMachinePosition read FHomePosition;
+    property HomePositionSet: Boolean read FHomePositionSet;
     property LastError: string read FLastError;
     property OnData: TTransportDataEvent read FOnData write FOnData;
   end;
@@ -94,6 +103,8 @@ begin
   FProtocol := AProtocol;
   FState := msDisconnected;
   FPosition := EmptyPosition;
+  FHomePosition := EmptyPosition;
+  FHomePositionSet := False;
   FCapabilities := DefaultCapabilities(AType);
   FillChar(FEnvelope, SizeOf(FEnvelope), 0);
   FQueue := TStringList.Create;
@@ -296,6 +307,8 @@ begin
   FLastError := '';
   FFeedPaused := False;
   FWaitingReset := False;
+  FHomePosition := EmptyPosition;
+  FHomePositionSet := False;
   FState := msConnecting;
   Result := FTransport.Connect;
   if Result then FState := msIdle else FState := msError;
@@ -308,18 +321,70 @@ begin
   FState := msDisconnected;
 end;
 
-function TMultiCNCMachine.Home: Boolean;
+function TMultiCNCMachine.GetHomePosition: TMachinePosition;
+begin
+  Result := FHomePosition;
+end;
+
+function TMultiCNCMachine.IsHomePositionSet: Boolean;
+begin
+  Result := FHomePositionSet;
+end;
+
+function TMultiCNCMachine.SetHome(out AHomePos: TMachinePosition): Boolean;
+begin
+  AHomePos := EmptyPosition;
+  if not Assigned(FProtocol) then Exit(Reject('Sem protocolo'));
+  if FState in [msRunning, msPaused] then Exit(Reject('Maquina em execucao'));
+  FHomePosition := FPosition;
+  FHomePositionSet := True;
+  AHomePos := FHomePosition;
+  Result := SendProtocolCommand(FProtocol.BuildSetHomeCommand, False);
+end;
+
+function TMultiCNCMachine.PhysicalHoming: Boolean;
+begin
+  if not Assigned(FProtocol) then Exit(Reject('Sem protocolo'));
+  if FState in [msRunning, msPaused] then Exit(Reject('Maquina em execucao'));
+  Result := SendProtocolCommand(FProtocol.BuildPhysicalHomingCommand, False);
+end;
+
+function TMultiCNCMachine.Home(AFeed: Double = 0): Boolean;
 begin
   if not Assigned(FProtocol) then Exit(Reject('Sem protocolo'));
   if FState in [msRunning, msPaused] then Exit(Reject('Maquina em execucao'));
   { Permitido em alarme: e a forma de sair dele. }
-  Result := SendProtocolCommand(FProtocol.BuildHomeCommand, False);
+  Result := SendProtocolCommand(FProtocol.BuildHomeCommand(AFeed), False);
+end;
+
+function TMultiCNCMachine.SetFeedRate(AFeed: Double): Boolean;
+var
+  Cmd: string;
+begin
+  if not Assigned(FProtocol) then Exit(Reject('Sem protocolo'));
+  if AFeed <= 0 then Exit(Reject('Avanco invalido'));
+  Cmd := FProtocol.BuildFeedRateCommand(AFeed);
+  if Cmd = '' then Exit(False);
+  Result := SendProtocolCommand(Cmd, True);
 end;
 
 function TMultiCNCMachine.Zero: Boolean;
 begin
   if not Assigned(FProtocol) then Exit(Reject('Sem protocolo'));
+  if FMachineType = mtPrinter3D then
+    Exit(Reject('Referenciamento de zero nao aplicavel a impressora 3D'));
   Result := SendProtocolCommand(FProtocol.BuildZeroCommand, True);
+  if Result then
+  begin
+    FPosition.X := 0;
+    FPosition.Y := 0;
+    FPosition.Z := 0;
+    if Assigned(FProtocol) then
+    begin
+      FProtocol.ResetPositionToZero;
+      Status;
+    end;
+  end;
 end;
 
 function TMultiCNCMachine.Status: Boolean;

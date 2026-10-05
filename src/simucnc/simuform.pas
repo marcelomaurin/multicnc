@@ -2,7 +2,7 @@ unit simuform;
 {$mode objfpc}{$H+}
 interface
 uses multisuite_numfmt, Math, aitcpserver, Classes, SysUtils, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls, Dialogs,
-  aimarlinserialdevice, aimarlinsimulator, aivirtualserialpair, multicnc_print3d_view;
+  aimarlinserialdevice, aimarlinsimulator, aivirtualserialpair, multicnc_print3d_view, simu_table_config_form, Graphics;
 type
   TMainForm = class(TForm)
   private
@@ -10,7 +10,7 @@ type
     ConnectButton, PairButton, ClearButton, ResetButton: TButton;
     ConfigButton: TButton;
     FrameCheck:TCheckBox;
-    PositionLabel, LaserStatus:TLabel;
+    RealPositionLabel, RefPositionLabel, RefIconLabel, HomeStatusLabel, LaserStatus:TLabel;
     CodeList:TListBox;
     CommandBuffer:string;
     LaserPower:Double;
@@ -53,64 +53,110 @@ implementation
 constructor TMainForm.Create(AOwner: TComponent);
 var P,BottomBar,RightPanel,PositionPanel:TPanel; L:TLabel; B:TButton; I:Integer;
 begin
-  inherited CreateNew(AOwner); Caption:='SimuCNC - Simulador de equipamento CNC'; Position:=poScreenCenter; SetBounds(0,0,1100,760);
+  inherited CreateNew(AOwner); Caption:='SimuCNC - Simulador de equipamento CNC'; Position:=poScreenCenter; SetBounds(0,0,1100,760); ShowHint:=True;
   P:=TPanel.Create(Self); P.Parent:=Self; P.Align:=alTop; P.Height:=112; P.BevelOuter:=bvNone;
   L:=TLabel.Create(Self); L.Parent:=P; L.Caption:='Equipamento'; L.SetBounds(12,8,110,20);
   MachineCombo:=TComboBox.Create(Self); MachineCombo.Parent:=P; MachineCombo.SetBounds(12,32,115,28);
   MachineCombo.Style:=csDropDownList; MachineCombo.Items.Add('Impressora 3D');
   MachineCombo.Items.Add('CNC Router'); MachineCombo.Items.Add('CNC Laser');
   MachineCombo.ItemIndex:=0; MachineCombo.OnChange:=@MachineChanged;
+  MachineCombo.Hint:='Select simulated CNC machine type'; MachineCombo.ShowHint:=True;
   L:=TLabel.Create(Self); L.Parent:=P; L.Caption:='Comunicação'; L.SetBounds(140,8,110,20);
   ModeCombo:=TComboBox.Create(Self); ModeCombo.Parent:=P; ModeCombo.SetBounds(140,32,115,28);
   ModeCombo.Items.Add('Serial'); ModeCombo.Items.Add('TCP'); ModeCombo.ItemIndex:=0;
   ModeCombo.Style:=csDropDownList; ModeCombo.OnChange:=@ModeChanged;
+  ModeCombo.Hint:='Select communication interface (Virtual Serial port or TCP network)'; ModeCombo.ShowHint:=True;
   L:=TLabel.Create(Self); L.Parent:=P; L.Caption:='Protocolo'; L.SetBounds(268,8,110,20);
   ProtocolCombo:=TComboBox.Create(Self); ProtocolCombo.Parent:=P; ProtocolCombo.SetBounds(268,32,115,28);
   ProtocolCombo.Style:=csDropDownList; ProtocolCombo.Items.Add('Marlin'); ProtocolCombo.Items.Add('GRBL');
   ProtocolCombo.ItemIndex:=0;
+  ProtocolCombo.Hint:='Select firmware dialect (Marlin 3D/CNC or GRBL Router/Laser)'; ProtocolCombo.ShowHint:=True;
   SerialPanel:=TPanel.Create(Self); SerialPanel.Parent:=P;
   SerialPanel.SetBounds(400,0,680,112); SerialPanel.BevelOuter:=bvNone;
   TCPPanel:=TPanel.Create(Self); TCPPanel.Parent:=P;
   TCPPanel.SetBounds(400,0,680,112); TCPPanel.BevelOuter:=bvNone;
   L:=TLabel.Create(Self); L.Parent:=SerialPanel; L.Caption:='Porta serial'; L.SetBounds(12,8,130,22);
   DeviceEdit:=TEdit.Create(Self); DeviceEdit.Parent:=SerialPanel; DeviceEdit.SetBounds(12,32,130,28); DeviceEdit.Text:='COM4';
+  DeviceEdit.Hint:='Virtual COM port opened by SimuCNC (e.g. COM4)'; DeviceEdit.ShowHint:=True;
   L:=TLabel.Create(Self); L.Parent:=SerialPanel; L.Caption:='Baud'; L.SetBounds(155,8,70,22);
   BaudEdit:=TEdit.Create(Self); BaudEdit.Parent:=SerialPanel; BaudEdit.SetBounds(155,32,90,28); BaudEdit.Text:='115200';
+  BaudEdit.Hint:='Serial communication baud rate'; BaudEdit.ShowHint:=True;
   L:=TLabel.Create(Self); L.Parent:=SerialPanel; L.Caption:='COM do MultiCNC (par virtual)'; L.SetBounds(260,8,240,22);
   PeerEdit:=TEdit.Create(Self); PeerEdit.Parent:=SerialPanel; PeerEdit.SetBounds(260,32,120,28); PeerEdit.Text:='COM3';
-  ConnectButton:=TButton.Create(Self); ConnectButton.Parent:=SerialPanel; ConnectButton.Caption:='Iniciar serial'; ConnectButton.SetBounds(520,28,130,34); ConnectButton.OnClick:=@ConnectClick;
+  PeerEdit.Hint:='Virtual COM port used by MultiCNC (e.g. COM3)'; PeerEdit.ShowHint:=True;
+  ConnectButton:=TButton.Create(Self); ConnectButton.Parent:=SerialPanel; ConnectButton.Caption:='🔌 Start Serial'; ConnectButton.SetBounds(520,28,130,34); ConnectButton.OnClick:=@ConnectClick;
+  ConnectButton.Hint:='Open or close virtual serial communication port'; ConnectButton.ShowHint:=True;
   L:=TLabel.Create(Self); L.Parent:=SerialPanel; L.Caption:='setupc.exe'; L.SetBounds(12,78,70,22);
   SetupEdit:=TEdit.Create(Self); SetupEdit.Parent:=SerialPanel; SetupEdit.SetBounds(85,75,430,28); SetupEdit.Text:='C:\Program Files (x86)\com0com\setupc.exe';
-  PairButton:=TButton.Create(Self); PairButton.Parent:=SerialPanel; PairButton.Caption:='Criar par virtual'; PairButton.SetBounds(520,73,130,34); PairButton.OnClick:=@PairClick;
+  SetupEdit.Hint:='Path to com0com setupc.exe command line tool'; SetupEdit.ShowHint:=True;
+  PairButton:=TButton.Create(Self); PairButton.Parent:=SerialPanel; PairButton.Caption:='🔗 Create Pair'; PairButton.SetBounds(520,73,130,34); PairButton.OnClick:=@PairClick;
+  PairButton.Hint:='Create virtual COM port pair using com0com'; PairButton.ShowHint:=True;
   L:=TLabel.Create(Self); L.Parent:=TCPPanel; L.Caption:='IP local TCP'; L.SetBounds(12,8,120,20);
   HostEdit:=TEdit.Create(Self); HostEdit.Parent:=TCPPanel; HostEdit.SetBounds(12,32,180,28); HostEdit.Text:='0.0.0.0';
+  HostEdit.Hint:='TCP IP address to bind (0.0.0.0 listens on all interfaces)'; HostEdit.ShowHint:=True;
   L:=TLabel.Create(Self); L.Parent:=TCPPanel; L.Caption:='Porta TCP'; L.SetBounds(210,8,80,20);
   PortEdit:=TEdit.Create(Self); PortEdit.Parent:=TCPPanel; PortEdit.SetBounds(210,32,100,28); PortEdit.Text:='9000';
+  PortEdit.Hint:='TCP port number to listen on (e.g. 9000)'; PortEdit.ShowHint:=True;
   TCPButton:=TButton.Create(Self); TCPButton.Parent:=TCPPanel; TCPButton.SetBounds(330,28,130,34);
-  TCPButton.Caption:='Iniciar TCP'; TCPButton.OnClick:=@TCPClick;
+  TCPButton.Caption:='🌐 Start TCP'; TCPButton.OnClick:=@TCPClick;
+  TCPButton.Hint:='Start or stop TCP server for incoming G-code connections'; TCPButton.ShowHint:=True;
   L:=TLabel.Create(Self); L.Parent:=TCPPanel; L.Caption:='G-code via TCP; use 0.0.0.0 para escutar em todas as interfaces.'; L.SetBounds(12,78,650,20);
   BottomBar:=TPanel.Create(Self);BottomBar.Parent:=Self;BottomBar.Align:=alBottom;BottomBar.Height:=52;
-  ResetButton:=TButton.Create(Self); ResetButton.Parent:=BottomBar; ResetButton.Caption:='Limpar peça'; ResetButton.SetBounds(12,8,110,34); ResetButton.OnClick:=@ResetClick;
-  ClearButton:=TButton.Create(Self); ClearButton.Parent:=BottomBar; ClearButton.Caption:='Limpar log'; ClearButton.SetBounds(130,8,110,34); ClearButton.OnClick:=@ClearClick;
+  ResetButton:=TButton.Create(Self); ResetButton.Parent:=BottomBar; ResetButton.Caption:='🗑 Clear Model'; ResetButton.SetBounds(12,8,114,34); ResetButton.OnClick:=@ResetClick;
+  ResetButton.Hint:='Clear 3D workpiece model and toolpath history'; ResetButton.ShowHint:=True;
+  ClearButton:=TButton.Create(Self); ClearButton.Parent:=BottomBar; ClearButton.Caption:='🧹 Clear Log'; ClearButton.SetBounds(132,8,110,34); ClearButton.OnClick:=@ClearClick;
+  ClearButton.Hint:='Clear received G-code log window'; ClearButton.ShowHint:=True;
   for I:=0 to 2 do begin
-    B:=TButton.Create(Self); B.Parent:=BottomBar; B.SetBounds(252+I*100,8,94,34); B.Tag:=I;
-    case I of 0:B.Caption:='Perspectiva';1:B.Caption:='Superior';2:B.Caption:='Frontal';end;
+    B:=TButton.Create(Self); B.Parent:=BottomBar; B.SetBounds(248+I*106,8,102,34); B.Tag:=I;
+    case I of
+      0: begin B.Caption:='📐 Perspective'; B.Hint:='Switch 3D camera to perspective isometric view'; end;
+      1: begin B.Caption:='🔝 Top View'; B.Hint:='Switch 3D camera to top-down view (XY plane)'; end;
+      2: begin B.Caption:='⏹ Front View'; B.Hint:='Switch 3D camera to front view (XZ plane)'; end;
+    end;
+    B.ShowHint:=True;
     B.OnClick:=@ViewClick;
   end;
-  FrameCheck:=TCheckBox.Create(Self);FrameCheck.Parent:=BottomBar;FrameCheck.Caption:='Estrutura';
-  FrameCheck.SetBounds(564,12,100,26);FrameCheck.OnChange:=@FrameChanged;
-  ConfigButton:=TButton.Create(Self);ConfigButton.Parent:=BottomBar;ConfigButton.Caption:='Configurar mesa';
-  ConfigButton.SetBounds(680,8,130,34);ConfigButton.OnClick:=@ConfigClick;
+  FrameCheck:=TCheckBox.Create(Self);FrameCheck.Parent:=BottomBar;FrameCheck.Caption:='🔲 Build Frame';
+  FrameCheck.SetBounds(572,12,110,26);FrameCheck.OnChange:=@FrameChanged;
+  FrameCheck.Hint:='Show or hide build volume boundary wireframe box'; FrameCheck.ShowHint:=True;
+  ConfigButton:=TButton.Create(Self);ConfigButton.Parent:=BottomBar;ConfigButton.Caption:='⚙ Table Size';
+  ConfigButton.SetBounds(688,8,124,34);ConfigButton.OnClick:=@ConfigClick;
+  ConfigButton.Hint:='Configure machine table dimensions and build limits (X, Y, Z)'; ConfigButton.ShowHint:=True;
+  LaserStatus:=TLabel.Create(Self); LaserStatus.Parent:=BottomBar;
+  LaserStatus.SetBounds(822,16,160,24); LaserStatus.Font.Name:='Segoe UI'; LaserStatus.Font.Style:=[fsBold];
+  LaserStatus.Caption:='⚡ Laser: 0'; LaserStatus.Hint:='Current simulated laser/spindle power (S0..S1000)';
+  LaserStatus.ShowHint:=True;
   PositionPanel:=TPanel.Create(Self);PositionPanel.Parent:=Self;PositionPanel.Align:=alTop;
-  PositionPanel.Top:=112;PositionPanel.Height:=54;PositionPanel.BevelOuter:=bvNone;
-  PositionLabel:=TLabel.Create(Self);PositionLabel.Parent:=PositionPanel;PositionLabel.SetBounds(16,12,950,32);
-  PositionLabel.Font.Size:=18;PositionLabel.Font.Name:='Consolas';PositionLabel.Caption:='X: 0.000   Y: 0.000   Z: 0.000 mm';
+  PositionPanel.Top:=112;PositionPanel.Height:=72;PositionPanel.BevelOuter:=bvNone;
+  PositionPanel.Color:=$00F7F7F7;
+  RealPositionLabel:=TLabel.Create(Self);RealPositionLabel.Parent:=PositionPanel;RealPositionLabel.SetBounds(16,10,720,24);
+  RealPositionLabel.Font.Size:=13;RealPositionLabel.Font.Name:='Consolas';RealPositionLabel.Font.Style:=[fsBold];
+  RealPositionLabel.Caption:='⚙ Real (MPos): X:    0.000   Y:    0.000   Z:    0.000 mm';
+  RealPositionLabel.Hint:='Real Machine Position (MPos) - Absolute physical coordinates of the machine axes';
+  RealPositionLabel.ShowHint:=True;
+  RefPositionLabel:=TLabel.Create(Self);RefPositionLabel.Parent:=PositionPanel;RefPositionLabel.SetBounds(16,38,720,24);
+  RefPositionLabel.Font.Size:=13;RefPositionLabel.Font.Name:='Consolas';RefPositionLabel.Font.Style:=[fsBold];
+  RefPositionLabel.Caption:='🎯 Ref  (WPos): X:    0.000   Y:    0.000   Z:    0.000 mm';
+  RefPositionLabel.Hint:='Reference Work Position (WPos) - Workpiece coordinates offset by G92 origin';
+  RefPositionLabel.ShowHint:=True;
+  HomeStatusLabel:=TLabel.Create(Self);HomeStatusLabel.Parent:=PositionPanel;HomeStatusLabel.SetBounds(740,10,240,24);
+  HomeStatusLabel.Font.Size:=10;HomeStatusLabel.Font.Name:='Segoe UI';HomeStatusLabel.Font.Style:=[fsBold];
+  HomeStatusLabel.Caption:='🏠 [G28: NOT SET]';HomeStatusLabel.Font.Color:=clGrayText;
+  HomeStatusLabel.Hint:='Application stored HOME reference position (G28.1).';
+  HomeStatusLabel.ShowHint:=True;
+  RefIconLabel:=TLabel.Create(Self);RefIconLabel.Parent:=PositionPanel;RefIconLabel.SetBounds(740,38,240,24);
+  RefIconLabel.Font.Size:=10;RefIconLabel.Font.Name:='Segoe UI';RefIconLabel.Font.Style:=[fsBold];
+  RefIconLabel.Caption:='⌖ [PHYSICAL ZERO]';RefIconLabel.Font.Color:=clGrayText;
+  RefIconLabel.Hint:='Standard machine physical origin active (no G92 work offset applied).';
+  RefIconLabel.ShowHint:=True;
   RightPanel:=TPanel.Create(Self);RightPanel.Parent:=Self;RightPanel.Align:=alRight;RightPanel.Width:=300;
   L:=TLabel.Create(Self);L.Parent:=RightPanel;L.Align:=alTop;L.Caption:='G-CODE RECEBIDO (última linha destacada)';
   LogMemo:=TMemo.Create(Self); LogMemo.Parent:=RightPanel;LogMemo.Align:=alBottom;LogMemo.Height:=180;
   LogMemo.ReadOnly:=True;LogMemo.ScrollBars:=ssAutoBoth;
+  LogMemo.Hint:='Communication diagnostic and activity log'; LogMemo.ShowHint:=True;
   CodeList:=TListBox.Create(Self);CodeList.Name:='ReceivedGCode';CodeList.Parent:=RightPanel;CodeList.Align:=alClient;
   CodeList.Font.Name:='Consolas';CodeList.Font.Size:=10;
+  CodeList.Hint:='Received G-code command stream (last executed line highlighted)'; CodeList.ShowHint:=True;
   View:=TPrint3DView.Create(Self);View.Name:='PrinterView'; View.Parent:=Self; View.Align:=alClient;
   Status:=TStatusBar.Create(Self); Status.Parent:=Self; Status.Align:=alBottom; Status.SimplePanel:=True; Status.SimpleText:='Porta virtual desligada';
   PairManager:=TAIVirtualSerialPair.Create(Self);
@@ -134,19 +180,15 @@ begin case TButton(Sender).Tag of 0:View.ResetView;1:View.TopView;2:View.FrontVi
 procedure TMainForm.FrameChanged(Sender:TObject);
 begin View.ShowFrame:=FrameCheck.Checked;end;
 procedure TMainForm.ConfigClick(Sender:TObject);
-var SX,SY,SZ:string; X,Y,Z:Double; FS:TFormatSettings;
+var X,Y,Z:Double;
 begin
-  SX:=FloatToStr(View.VolumeX,InvariantFS); SY:=FloatToStr(View.VolumeY,InvariantFS); SZ:=FloatToStr(View.VolumeZ,InvariantFS);
-  if not InputQuery('Dimensões da mesa', 'Tamanho X (mm):', SX) then Exit;
-  if not InputQuery('Dimensões da mesa', 'Tamanho Y (mm):', SY) then Exit;
-  if not InputQuery('Dimensões da mesa', 'Altura Z (mm):', SZ) then Exit;
-  FS:=DefaultFormatSettings; FS.DecimalSeparator:='.';
-  SX:=StringReplace(SX,',','.',[rfReplaceAll]);SY:=StringReplace(SY,',','.',[rfReplaceAll]);SZ:=StringReplace(SZ,',','.',[rfReplaceAll]);
-  if not TryStrToFloat(SX,X,FS) or not TryStrToFloat(SY,Y,FS) or not TryStrToFloat(SZ,Z,FS) or
-     (X<10) or (Y<10) or (Z<10) or (X>2000) or (Y>2000) or (Z>2000) then begin
-    MessageDlg('Dimensões inválidas','Informe valores entre 10 e 2000 mm.',mtError,[mbOK],0); Exit;
-  end;
-  View.SetBuildVolume(X,Y,Z); TCPMarlin.SetBuildVolume(X,Y,Z); Device.Simulator.SetBuildVolume(X,Y,Z);
+  X := View.VolumeX;
+  Y := View.VolumeY;
+  Z := View.VolumeZ;
+  if not TTableConfigForm.Execute(X, Y, Z) then Exit;
+  View.SetBuildVolume(X,Y,Z);
+  TCPMarlin.SetBuildVolume(X,Y,Z);
+  Device.Simulator.SetBuildVolume(X,Y,Z);
   Log(Format('Mesa configurada: X %.1f mm, Y %.1f mm, Z %.1f mm',[X,Y,Z],InvariantFS));
 end;
 procedure TMainForm.Log(const S:string); begin LogMemo.Lines.Add(FormatDateTime('hh:nn:ss',Now)+'  '+Trim(S)); while LogMemo.Lines.Count>1000 do LogMemo.Lines.Delete(0); end;
@@ -231,8 +273,8 @@ end;
 
 procedure TMainForm.ConnectClick(Sender:TObject); begin
   if TCP.Active then begin Log('Pare o servidor TCP antes de iniciar a serial.'); Exit; end;
-  if Device.Serial.Active then begin Device.Close; ConnectButton.Caption:='Iniciar porta'; Status.SimpleText:='Porta virtual desligada'; Log('Porta fechada.'); end
-  else if Device.Open(Trim(DeviceEdit.Text),StrToIntDef(BaudEdit.Text,115200)) then begin ConnectButton.Caption:='Parar porta'; Status.SimpleText:='Marlin virtual ativo em '+DeviceEdit.Text; Log('Marlin virtual pronto.'); end
+  if Device.Serial.Active then begin Device.Close; ConnectButton.Caption:='🔌 Start Serial'; Status.SimpleText:='Porta virtual desligada'; Log('Porta fechada.'); end
+  else if Device.Open(Trim(DeviceEdit.Text),StrToIntDef(BaudEdit.Text,115200)) then begin ConnectButton.Caption:='⏹ Stop Serial'; Status.SimpleText:='Marlin virtual ativo em '+DeviceEdit.Text; Log('Marlin virtual pronto.'); end
   else Log('Falha ao abrir porta: '+Device.LastError);
   ModeCombo.Enabled:=not Device.Serial.Active;
   DeviceEdit.Enabled:=not Device.Serial.Active; BaudEdit.Enabled:=not Device.Serial.Active;
@@ -274,8 +316,8 @@ begin
     end;
     Log('TCP escutando em '+HostEdit.Text+':'+PortEdit.Text);
   end;
-  if TCP.Active then begin TCPButton.Caption:='Parar TCP'; Status.SimpleText:='TCP aguardando controladora'; end
-  else begin TCPButton.Caption:='Iniciar TCP'; Status.SimpleText:='TCP desligado'; end;
+  if TCP.Active then begin TCPButton.Caption:='⏹ Stop TCP'; TCPButton.Hint:='Stop TCP server and disconnect clients'; Status.SimpleText:='TCP server listening - waiting for controller'; end
+  else begin TCPButton.Caption:='🌐 Start TCP'; TCPButton.Hint:='Start TCP server for network G-code connections'; Status.SimpleText:='TCP server stopped'; end;
   ModeCombo.Enabled:=not TCP.Active;
   HostEdit.Enabled:=not TCP.Active; PortEdit.Enabled:=not TCP.Active;
   ConnectButton.Enabled:=not TCP.Active; PairButton.Enabled:=not TCP.Active;
@@ -327,14 +369,45 @@ begin
   Log('Controladora TCP desconectada'); Status.SimpleText:='TCP aguardando controladora';
 end;
 procedure TMainForm.Tick(Sender:TObject);
-var NowTick: QWord; Dt: Double;
+var NowTick: QWord; Dt: Double; Sim: TAIMarlinSimulator; RealPos, RefPos: TAIMarlinPosition;
 begin
   NowTick:=GetTickCount64; Dt:=(NowTick-LastTick)/1000; LastTick:=NowTick;
-  if Dt>0.5 then Dt:=0.5;
+  if Dt<0 then Dt:=0 else if Dt>0.2 then Dt:=0.2;
   if TCP.Active then begin TCP.Poll; if TCP.Connected then TCPMarlin.Advance(Dt); end
   else Device.Poll(Dt);
-  if TCP.Active then View.SetPosition(TCPMarlin.State.Position)
-  else View.SetPosition(Device.Simulator.State.Position);
-  with View.CurrentPosition do PositionLabel.Caption:=Format('X: %.3f   Y: %.3f   Z: %.3f mm',[X,Y,Z],InvariantFS);
+  if TCP.Active then Sim := TCPMarlin else Sim := Device.Simulator;
+  RealPos := Sim.State.Position;
+  RefPos := Sim.WorkPosition;
+  View.SetPosition(RealPos);
+  RealPositionLabel.Caption := Format('⚙ Real (MPos): X: %8.3f   Y: %8.3f   Z: %8.3f mm',
+    [RealPos.X, RealPos.Y, RealPos.Z], InvariantFS);
+  RefPositionLabel.Caption := Format('🎯 Ref  (WPos): X: %8.3f   Y: %8.3f   Z: %8.3f mm',
+    [RefPos.X, RefPos.Y, RefPos.Z], InvariantFS);
+  if Sim.G28HomeSet then
+  begin
+    HomeStatusLabel.Caption := Format('🏠 [G28: %.1f, %.1f, %.1f]',
+      [Sim.G28Home.X, Sim.G28Home.Y, Sim.G28Home.Z], InvariantFS);
+    HomeStatusLabel.Font.Color := $00AA5500;
+    HomeStatusLabel.Hint := Format('Stored HOME reference point (G28.1): X=%.3f, Y=%.3f, Z=%.3f',
+      [Sim.G28Home.X, Sim.G28Home.Y, Sim.G28Home.Z], InvariantFS);
+  end
+  else
+  begin
+    HomeStatusLabel.Caption := '🏠 [G28: NOT SET]';
+    HomeStatusLabel.Font.Color := clGrayText;
+    HomeStatusLabel.Hint := 'Stored HOME reference point not yet set with G28.1 (defaults to 0,0,0).';
+  end;
+  if Sim.G92Active then
+  begin
+    RefIconLabel.Caption := '🎯 [G92 REF ACTIVE]';
+    RefIconLabel.Font.Color := $00008800;
+    RefIconLabel.Hint := 'Workpiece coordinate origin set (G92 active). Machine referenced to work zero.';
+  end
+  else
+  begin
+    RefIconLabel.Caption := '⌖ [PHYSICAL ZERO]';
+    RefIconLabel.Font.Color := clGrayText;
+    RefIconLabel.Hint := 'Standard machine physical origin active (no G92 work offset applied).';
+  end;
 end;
 end.

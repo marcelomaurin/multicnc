@@ -15,6 +15,7 @@ type
   TGRBLProtocol = class(TMultiCNCProtocolBase)
   private
     FWCO: TMachinePosition;
+    FMPos: TMachinePosition;
     procedure ParseStatus(const S: string);
   protected
     procedure HandleLine(const ALine: string); override;
@@ -22,7 +23,9 @@ type
     function GetName: string; override;
     procedure Reset; override;
     function ReceiveBufferSize: Integer; override;
-    function BuildHomeCommand: string; override;
+    function BuildHomeCommand(AFeed: Double = 0): string; override;
+    function BuildSetHomeCommand: string; override;
+    function BuildPhysicalHomingCommand: string; override;
     function BuildZeroCommand: string; override;
     function BuildStatusCommand: string; override;
     function BuildUnlockCommand: string; override;
@@ -30,6 +33,8 @@ type
     function BuildResumeCommand: string; override;
     function BuildStopCommand: string; override;
     function BuildJogCommand(AAxis: TAxis; ADistance, AFeed: Double): string; override;
+    function BuildFeedRateCommand(AFeed: Double): string; override;
+    procedure ResetPositionToZero; override;
   end;
 
 implementation
@@ -43,6 +48,7 @@ procedure TGRBLProtocol.Reset;
 begin
   inherited Reset;
   FWCO := EmptyPosition;
+  FMPos := EmptyPosition;
 end;
 
 { <Idle|MPos:1.000,2.000,3.000|FS:0,0|WCO:0.000,0.000,0.000> }
@@ -68,7 +74,11 @@ begin
     P := Pos('|', Body);
     if P = 0 then begin Field := Body; Body := ''; end
     else begin Field := Copy(Body, 1, P - 1); Delete(Body, 1, P); end;
-    if Copy(Field, 1, 5) = 'MPos:' then HasM := ParseAxisList(Copy(Field, 6, MaxInt), MPos)
+    if Copy(Field, 1, 5) = 'MPos:' then
+    begin
+      HasM := ParseAxisList(Copy(Field, 6, MaxInt), MPos);
+      if HasM then FMPos := MPos;
+    end
     else if Copy(Field, 1, 5) = 'WPos:' then HasW := ParseAxisList(Copy(Field, 6, MaxInt), WPos)
     else if Copy(Field, 1, 4) = 'WCO:' then
     begin
@@ -127,7 +137,23 @@ begin
   Result := 127; { RX_BUFFER_SIZE 128 do GRBL, menos uma margem }
 end;
 
-function TGRBLProtocol.BuildHomeCommand: string; begin Result := '$H' + LineEnding; end;
+function TGRBLProtocol.BuildSetHomeCommand: string;
+begin
+  Result := 'G28.1' + LineEnding;
+end;
+
+function TGRBLProtocol.BuildHomeCommand(AFeed: Double = 0): string;
+begin
+  if AFeed > 0 then
+    Result := Format('G28 F%.0f%s', [AFeed, LineEnding], InvariantFS)
+  else
+    Result := 'G28' + LineEnding;
+end;
+
+function TGRBLProtocol.BuildPhysicalHomingCommand: string;
+begin
+  Result := '$H' + LineEnding;
+end;
 function TGRBLProtocol.BuildZeroCommand: string; begin Result := 'G92 X0 Y0 Z0' + LineEnding; end;
 function TGRBLProtocol.BuildStatusCommand: string; begin Result := '?'; end;
 function TGRBLProtocol.BuildUnlockCommand: string; begin Result := '$X' + LineEnding; end;
@@ -141,6 +167,17 @@ function TGRBLProtocol.BuildJogCommand(AAxis: TAxis; ADistance, AFeed: Double): 
 const N: array[TAxis] of string = ('X', 'Y', 'Z', 'A', 'E');
 begin
   Result := Format('$J=G91 %s%.3f F%.0f%s', [N[AAxis], ADistance, AFeed, LineEnding], InvariantFS);
+end;
+
+function TGRBLProtocol.BuildFeedRateCommand(AFeed: Double): string;
+begin
+  Result := Format('G0 F%.0f%s', [AFeed, LineEnding], InvariantFS);
+end;
+
+procedure TGRBLProtocol.ResetPositionToZero;
+begin
+  inherited ResetPositionToZero;
+  FWCO := FMPos;
 end;
 
 end.

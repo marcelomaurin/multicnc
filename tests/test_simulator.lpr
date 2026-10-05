@@ -10,6 +10,7 @@ var
   Transport: IMultiCNCTransport;
   Protocol: IMultiCNCProtocol;
   Machine: IMultiCNCMachine;
+  HPos: TMachinePosition;
 begin
   Transport := TSimulatorTransport.Create;
   Protocol := TSimulatorProtocol.Create;
@@ -17,7 +18,11 @@ begin
 
   if not Machine.Connect then Halt(1);
   if Machine.GetState <> msIdle then Halt(2);
+  if not Machine.SetHome(HPos) then Halt(11);
+  if not Machine.IsHomePositionSet then Halt(12);
+  if not Machine.PhysicalHoming then Halt(13);
   if not Machine.Home then Halt(3);
+  if not Machine.Zero then Halt(14);
   if not Machine.Jog(axX, 10, 1000) then Halt(4);
   if Machine.Jog(axE, 10, 1000) then Halt(5); // Router nao possui E.
   if not Machine.SendGCode('G0 X20 Y20') then Halt(6);

@@ -23,7 +23,9 @@ type
   public
     function GetName: string; override;
     function ReceiveBufferSize: Integer; override;
-    function BuildHomeCommand: string; override;
+    function BuildHomeCommand(AFeed: Double = 0): string; override;
+    function BuildSetHomeCommand: string; override;
+    function BuildPhysicalHomingCommand: string; override;
     function BuildZeroCommand: string; override;
     function BuildStatusCommand: string; override;
     function BuildUnlockCommand: string; override;
@@ -32,6 +34,7 @@ type
     function BuildStopCommand: string; override;
     function BuildSafeOffCommands(AType: TMachineType): string; override;
     function BuildJogCommand(AAxis: TAxis; ADistance, AFeed: Double): string; override;
+    function BuildFeedRateCommand(AFeed: Double): string; override;
   end;
 
 implementation
@@ -97,7 +100,23 @@ begin
   Result := 0; { uma linha por vez }
 end;
 
-function TMarlinProtocol.BuildHomeCommand: string; begin Result := 'G28' + LineEnding; end;
+function TMarlinProtocol.BuildSetHomeCommand: string;
+begin
+  Result := 'G28.1' + LineEnding;
+end;
+
+function TMarlinProtocol.BuildHomeCommand(AFeed: Double = 0): string;
+begin
+  if AFeed > 0 then
+    Result := Format('G28 F%.0f%s', [AFeed, LineEnding], InvariantFS)
+  else
+    Result := 'G28' + LineEnding;
+end;
+
+function TMarlinProtocol.BuildPhysicalHomingCommand: string;
+begin
+  Result := 'G28' + LineEnding;
+end;
 function TMarlinProtocol.BuildZeroCommand: string; begin Result := 'G92 X0 Y0 Z0' + LineEnding; end;
 function TMarlinProtocol.BuildStatusCommand: string; begin Result := 'M114' + LineEnding; end;
 { M999 so tem efeito depois de uma parada por erro (Printer halted). }
@@ -122,6 +141,11 @@ const N: array[TAxis] of string = ('X', 'Y', 'Z', 'A', 'E');
 begin
   Result := Format('G91%sG0 %s%.3f F%.0f%sG90%s',
     [LineEnding, N[AAxis], ADistance, AFeed, LineEnding, LineEnding], InvariantFS);
+end;
+
+function TMarlinProtocol.BuildFeedRateCommand(AFeed: Double): string;
+begin
+  Result := Format('G0 F%.0f%s', [AFeed, LineEnding], InvariantFS);
 end;
 
 end.
