@@ -41,3 +41,21 @@ E-Stop, limites, estado da maquina e validacao devem ser deterministas. IA pode 
 
 ## Regra para IA
 Nao coloque CAD, CAM, EDA ou slicing dentro do MultiCNC. Aqui ficam hardware, protocolos, transporte, safety, job execution e monitoramento.
+
+## Correcoes GRBL (2026-10-05)
+
+- A pausa GRBL bloqueia a fila do host antes de enviar `!`. Respostas `ok`
+  liberam a contagem de bytes, mas nao enviam novas linhas ate `Resume`.
+- O limite de RX e conferido inclusive para a primeira linha. Linhas GRBL
+  brutas com mais de 79 bytes sao recusadas conservadoramente (buffer de
+  linha padrao de 80 bytes); comentarios e espacos contam neste limite.
+- `!`, `~`, `?` e bytes acima de ASCII 126 nao podem aparecer nas linhas
+  enfileiradas, pois o firmware interpreta comandos de tempo real fora do
+  parser G-code, inclusive em comentarios. Use Pause/Resume/Status.
+- A parada por Ctrl-X recusa novos comandos ate receber o banner `Grbl`.
+  Um `ok` atrasado nao libera o bloqueio. O banner invalida o WCO anterior.
+- `tests/test_grbl_regressions.lpr` cobre pausa/retomada, limite de linha,
+  capacidade RX, comandos de tempo real, erro fragmentado e reset/WCO.
+  Este teste nao depende de AISerial/LCL e roda no workflow do nucleo.
+- Validacao local: regressao GRBL, simulador e numeros independentes da
+  configuracao regional passaram com FPC 3.2.2. Sem teste em hardware real.

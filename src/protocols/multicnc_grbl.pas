@@ -112,6 +112,8 @@ begin
   else if Copy(L, 1, 5) = 'grbl ' then
   begin
     { Reinicio (#24 ou reset fisico): a controladora descartou a fila. }
+    FWCO := EmptyPosition;
+    FHasPosition := False;
     FResetDetected := True;
     SetState(msIdle);
     SetMessage(ALine);

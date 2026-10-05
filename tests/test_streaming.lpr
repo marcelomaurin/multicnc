@@ -275,6 +275,7 @@ begin
     F.Ack(F.Pending.Count);
     S.Tick;
     Check(Pos('!', F.Realtime) > 0, 'feed hold enviado');
+    Check(F.Sent.Count = I, 'nenhuma linha nova durante pausa');
     Check(S.Completed > 0, 'linhas confirmadas contam no progresso');
     Check(S.Resume, 'retomar');
     Guard := 0;

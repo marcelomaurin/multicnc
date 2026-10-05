@@ -35,6 +35,7 @@ type
     FInFlight: TList;         { tamanho (bytes) de cada linha sem "ok" }
     FInFlightBytes: Integer;
     FPumping: Boolean;
+    FFeedPaused, FWaitingReset: Boolean;
     FErrorCount: Integer;
     FAlarmCount: Integer;
     FLastError: string;
@@ -147,7 +148,11 @@ begin
   begin
     FProtocol.ProcessIncoming(AData);
     if FProtocol.TakeResetDetected then
+    begin
       ClearPending; { a controladora descartou tudo o que estava pendente }
+      FWaitingReset := False;
+      FFeedPaused := False;
+    end;
     if FProtocol.TakeResponses(Acks, Errors) then
     begin
       ReleaseInFlight(Acks);
@@ -167,6 +172,8 @@ begin
         FLastError := FProtocol.LastMessage;
         FQueue.Clear;
       end;
+      if SameText(FProtocol.GetName, 'GRBL') and (S = msPaused) then
+        FFeedPaused := True;
       if FState <> msDisconnected then FState := S;
     end;
     if FProtocol.ReportedPosition(P) then FPosition := P;
@@ -191,13 +198,14 @@ begin
   FPumping := True;
   try
     Limit := FProtocol.ReceiveBufferSize;
-    while (FQueue.Count > 0) and FTransport.IsConnected do
+    while (FQueue.Count > 0) and FTransport.IsConnected and
+      not FFeedPaused and not FWaitingReset do
     begin
       Line := FQueue[0];
       Len := Length(Line) + 1; { + LF }
       if Limit > 0 then
       begin
-        if (FInFlight.Count > 0) and (FInFlightBytes + Len > Limit) then Break;
+        if FInFlightBytes + Len > Limit then Break;
       end
       else if FInFlight.Count > 0 then
         Break;
@@ -219,11 +227,12 @@ begin
 end;
 
 function TMultiCNCMachine.EnqueueLines(const AText: string; AValidate: Boolean): Boolean;
-var Lines: TStringList; I: Integer; Reason, L: string;
+var Lines: TStringList; I, J: Integer; Reason, L: string;
 begin
   Result := False;
   if not (Assigned(FTransport) and FTransport.IsConnected) then
     Exit(Reject('Maquina desconectada'));
+  if FWaitingReset then Exit(Reject('Aguarde o reinicio do GRBL'));
   Lines := TStringList.Create;
   try
     Lines.Text := AText;
@@ -234,6 +243,16 @@ begin
     for I := 0 to Lines.Count - 1 do
     begin
       L := Lines[I];
+      { GRBL padrao: 80 bytes no buffer de linha, incluindo terminador.
+        Limite conservador sobre a linha bruta, mesmo com comentarios. }
+      if SameText(FProtocol.GetName, 'GRBL') then
+      begin
+        if Length(L) > 79 then Exit(Reject('Linha GRBL com mais de 79 caracteres'));
+        if (Pos('!', L) > 0) or (Pos('~', L) > 0) or (Pos('?', L) > 0) then
+          Exit(Reject('Comando de tempo real dentro de linha GRBL'));
+        for J := 1 to Length(L) do
+          if Ord(L[J]) > 126 then Exit(Reject('Linha GRBL deve usar caracteres ASCII'));
+      end;
       if AValidate then
       begin
         if not TSafetyValidator.CheckCommand(GetState, L, Reason) then Exit(Reject(Reason));
@@ -275,6 +294,8 @@ begin
   FErrorCount := 0;
   FAlarmCount := 0;
   FLastError := '';
+  FFeedPaused := False;
+  FWaitingReset := False;
   FState := msConnecting;
   Result := FTransport.Connect;
   if Result then FState := msIdle else FState := msError;
@@ -320,17 +341,27 @@ begin
   if not Assigned(FProtocol) then Exit(Reject('Sem protocolo'));
   C := FProtocol.BuildPauseCommand;
   { Vazio: pausa no host (o chamador para de enviar linhas). }
+  FFeedPaused := SameText(FProtocol.GetName, 'GRBL');
+  { GRBL: bloqueia antes do Send, inclusive callbacks sincronos. }
   if C = '' then Result := Assigned(FTransport) and FTransport.IsConnected
   else Result := SendRealtime(C);
+  if not Result then FFeedPaused := False;
 end;
 
 function TMultiCNCMachine.Resume: Boolean;
 var C: string;
 begin
   if not Assigned(FProtocol) then Exit(Reject('Sem protocolo'));
+  if FWaitingReset then Exit(Reject('Aguarde o reinicio do GRBL'));
+  if FState in [msAlarm, msError] then Exit(Reject('Maquina em alarme/erro'));
   C := FProtocol.BuildResumeCommand;
   if C = '' then Result := Assigned(FTransport) and FTransport.IsConnected
   else Result := SendRealtime(C);
+  if Result then
+  begin
+    FFeedPaused := False;
+    Pump;
+  end;
 end;
 
 function TMultiCNCMachine.Stop: Boolean;
@@ -340,6 +371,8 @@ begin
   if not (Assigned(FTransport) and FTransport.IsConnected) then Exit(Reject('Maquina desconectada'));
   { Nada mais da fila sera enviado. }
   ClearPending;
+  FFeedPaused := False;
+  FWaitingReset := SameText(FProtocol.GetName, 'GRBL');
   C := FProtocol.BuildStopCommand;
   if C = '' then Exit(Reject('Protocolo sem comando de parada'));
   { A parada nunca espera a fila: vai direto ao transporte. }
@@ -399,6 +432,8 @@ begin
   Result := FState;
   if not (Assigned(FTransport) and FTransport.IsConnected) then
     Exit(msDisconnected);
+  if FWaitingReset then Exit(msConnecting);
+  if FFeedPaused and not (Result in [msAlarm, msError]) then Exit(msPaused);
   { Controladora ociosa mas com linhas pendentes = em execucao. }
   if (Result = msIdle) and (PendingLines > 0) then Result := msRunning;
 end;
