@@ -28,3 +28,11 @@ Abrir porta serial, controlar GRBL/Marlin diretamente ou substituir MultiCNC.
 
 ## Seguranca
 Nunca transforme parametros de demonstracao em recomendacoes automaticas para maquina real. Validar limites, ferramenta, stock e trajetoria antes de exportar/executar.
+
+## Controle de colisao (2026-10-05)
+
+Leia [COLLISION_DETECTION.md](COLLISION_DETECTION.md) antes de alterar o motor.
+O player precisa chamar BeforeMove antes de incrementar o indice. A sessao
+precisa validar antes de remover material ou atualizar a eletronica. Nunca
+execute movimentos dentro de eventos de atualizacao visual. O teste inclui
+um veto no player e a restauracao do material ao reiniciar.
