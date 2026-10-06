@@ -1125,9 +1125,11 @@ var
   T: TPrinterTemperatures; HRealStr, BRealStr, HStat: string;
 begin
   Busy := Session.State in [ssRunning, ssPaused];
-  Manual := Session.Connected and not Busy;
+  Manual := Session.Connected and Session.ControllerReady and not Busy;
   Alarm := Session.MachineState = msAlarm;
   StateLabel.Caption := StateNames[Session.State];
+  if Session.Connected and not Session.ControllerReady then
+    StateLabel.Caption := 'Initializing Marlin...';
   if Alarm then StateLabel.Caption := StateLabel.Caption + ' | ALARM';
   if Session.Connected then
   begin
@@ -1173,7 +1175,9 @@ begin
     begin
       LblNozzleTemp.Caption := Format('Real: - C  |  Config: %.0f C', [1.0 * SpConfigHotendTemp.Value], InvariantFS);
       LblBedTemp.Caption := Format('Real: - C  |  Config: %.0f C', [1.0 * SpConfigBedTemp.Value], InvariantFS);
-      if Session.Connected then
+      if Session.Connected and not Session.ControllerReady then
+        LblHeaterStatus.Caption := 'Initializing Marlin...'
+      else if Session.Connected then
         LblHeaterStatus.Caption := 'Reading temperatures...'
       else
         LblHeaterStatus.Caption := 'Heaters Disconnected';
@@ -1195,7 +1199,7 @@ begin
   BtnConnect.Enabled := not Busy;
   BtnOpen.Enabled := not Busy;
   BtnFraming.Enabled := Session.Connected and not Busy and (Session.Count > 0);
-  BtnStart.Enabled := Session.Connected and not Busy and (Session.Count > 0);
+  BtnStart.Enabled := Session.Connected and Session.ControllerReady and not Busy and (Session.Count > 0);
   BtnPause.Enabled := Session.State = ssRunning;
   BtnResume.Enabled := Session.State = ssPaused;
   BtnStop.Enabled := Session.Connected;
@@ -1435,11 +1439,10 @@ begin
         TProtocolKind(ProtocolType.ItemIndex), Endpoint, Baud) then
       begin
         Log('Connected: ' + MachineType.Text + ' / ' + ProtocolType.Text + ' at ' + Endpoint);
-        Session.SetFeedRate(FeedRate.Value);
         if MachineType.ItemIndex = 2 then
-        begin
-          Session.QueryTemperatures;
-        end;
+          Log('Marlin conectado. Aguardando inicializacao da controladora antes do handshake M115/M105...')
+        else
+          Session.SetFeedRate(FeedRate.Value);
       end
       else Log('Failed to connect to ' + Endpoint + '. Check port and device.');
     except

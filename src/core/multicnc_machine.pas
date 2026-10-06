@@ -176,7 +176,8 @@ begin
     end;
     if FProtocol.TakeResponses(Acks, Errors) then
     begin
-      ReleaseInFlight(Acks);
+      { Tanto 'ok' quanto 'error:' encerram a resposta de uma linha enviada. }
+      ReleaseInFlight(Acks + Errors);
       if Errors > 0 then
       begin
         Inc(FErrorCount, Errors);

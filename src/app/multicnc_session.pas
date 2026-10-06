@@ -44,6 +44,8 @@ type
     FErrorBase, FAlarmBase: Integer;
     FLastPoll: QWord;
     FLastTempQuery: QWord;
+    FMarlinReadyAt: QWord;
+    FMarlinHandshakeSent: Boolean;
     FEnvelopeX, FEnvelopeY, FEnvelopeZ: Double;
     procedure Receive(const Data: string);
     procedure ReleaseConnection;
@@ -57,6 +59,7 @@ type
     function GetTemperatures: TPrinterTemperatures;
     function GetHomePosition: TMachinePosition;
     function GetHomePositionSet: Boolean;
+    function GetControllerReady: Boolean;
     function Fail(const Reason: string): Boolean;
   public
     constructor Create;
@@ -90,6 +93,7 @@ type
     procedure SetWorkEnvelope(X, Y, Z: Double);
     procedure SetThermalLimits(AMaxHotend, AMaxBed: Integer);
     property Connected: Boolean read GetConnected;
+    property ControllerReady: Boolean read GetControllerReady;
     property State: TSessionState read FState;
     { Linhas do programa confirmadas pela controladora. }
     property Completed: Integer read GetCompleted;
@@ -125,6 +129,8 @@ begin
   FBounds := TGCodeAnalyzer.EmptyBounds;
   FLaserSettings := DefaultLaserSettings;
   FFramingActive := False;
+  FMarlinReadyAt := 0;
+  FMarlinHandshakeSent := False;
   FState := ssDisconnected;
 end;
 
@@ -221,8 +227,18 @@ begin
   FErrorBase := 0;
   FAlarmBase := 0;
   FLastError := '';
+  FLastTempQuery := 0;
+  FMarlinHandshakeSent := False;
+  FMarlinReadyAt := 0;
   Result := FMachine.Connect;
-  if Result then FState := ssIdle
+  if Result then
+  begin
+    FState := ssIdle;
+    { Muitas placas Marlin reiniciam ao abrir a serial. Aguarda o boot antes
+      de enviar o primeiro comando; GRBL continua imediato. }
+    if ProtocolKind = pkMarlin then
+      FMarlinReadyAt := GetTickCount64 + 2500;
+  end
   else
   begin
     FState := ssError;
@@ -240,6 +256,13 @@ end;
 function TSimulationSession.GetConnected: Boolean;
 begin
   Result := Assigned(FTransport) and FTransport.IsConnected;
+end;
+
+function TSimulationSession.GetControllerReady: Boolean;
+begin
+  Result := Connected;
+  if Result and (FProtocolKind = pkMarlin) then
+    Result := (FMarlinReadyAt = 0) or (GetTickCount64 >= FMarlinReadyAt);
 end;
 
 function TSimulationSession.GetCount: Integer;
@@ -341,6 +364,7 @@ function TSimulationSession.Start: Boolean;
 var Transformed: TStringList;
 begin
   if not Connected then Exit(Fail('Machine disconnected'));
+  if not ControllerReady then Exit(Fail('Aguarde a inicializacao do firmware Marlin'));
   if FLoadedLines.Count = 0 then Exit(Fail('No program loaded'));
   if FState in [ssRunning, ssPaused] then Exit(Fail('Program is already running'));
   if FMachine.GetState in [msAlarm, msError] then
@@ -443,10 +467,25 @@ begin
       FMachine.Status;
     end;
   end;
-  if (FMachineKind = mtPrinter3D) and Connected and Assigned(FMachine) then
+
+  { Marlin: diversas placas Arduino/RAMPS/Creality reiniciam quando a porta
+    serial e aberta. Nao envie G-code durante esse boot. Depois da janela de
+    inicializacao, faz uma identificacao M115 fora da fila e passa a consultar
+    temperaturas somente quando nao ha outro comando pendente. }
+  if (FMachineKind = mtPrinter3D) and (FProtocolKind = pkMarlin) and
+     Connected and Assigned(FMachine) then
   begin
     Now64 := GetTickCount64;
-    if (Now64 - FLastTempQuery >= 1000) and (FMachine.PendingLines <= 1) then
+    if not ControllerReady then Exit;
+
+    if not FMarlinHandshakeSent then
+    begin
+      FMarlinHandshakeSent := FTransport.Send('M115' + #10);
+      FLastTempQuery := Now64;
+      Exit;
+    end;
+
+    if (Now64 - FLastTempQuery >= 1000) and (FMachine.PendingLines = 0) then
     begin
       FLastTempQuery := Now64;
       FMachine.QueryTemperatures;
@@ -596,6 +635,7 @@ end;
 
 function TSimulationSession.Jog(Axis: TAxis; Distance, Feed: Double): Boolean;
 begin
+  if not ControllerReady then Exit(Fail('Aguarde a inicializacao do firmware Marlin'));
   if not SupportsAxis(Axis) then Exit(Fail('Eixo indisponivel'));
   if FState in [ssRunning, ssPaused] then Exit(Fail('Unavailable while program is running'));
   if not ((Abs(Distance) > 0) and (Abs(Distance) <= 100) and (Feed >= 1) and (Feed <= 10000)) then
@@ -607,6 +647,7 @@ end;
 function TSimulationSession.Send(const Line: string): Boolean;
 begin
   if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Unavailable while program is running'));
+  if not ControllerReady then Exit(Fail('Aguarde a inicializacao do firmware Marlin'));
   if (Trim(Line) = '') or (Pos(#10, Line) > 0) or (Pos(#13, Line) > 0) then
     Exit(Fail('Informe um unico comando'));
   Result := FMachine.SendGCode(Line);
@@ -626,18 +667,21 @@ end;
 
 function TSimulationSession.QueryTemperatures: Boolean;
 begin
+  if not ControllerReady then Exit(False);
   if Assigned(FMachine) then Result := FMachine.QueryTemperatures
   else Result := False;
 end;
 
 function TSimulationSession.SetHotendTemperature(ATemp: Double): Boolean;
 begin
+  if not ControllerReady then Exit(Fail('Aguarde a inicializacao do firmware Marlin'));
   if Assigned(FMachine) then Result := FMachine.SetHotendTemperature(ATemp)
   else Result := False;
 end;
 
 function TSimulationSession.SetBedTemperature(ATemp: Double): Boolean;
 begin
+  if not ControllerReady then Exit(Fail('Aguarde a inicializacao do firmware Marlin'));
   if Assigned(FMachine) then Result := FMachine.SetBedTemperature(ATemp)
   else Result := False;
 end;
