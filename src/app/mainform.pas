@@ -5,9 +5,10 @@ unit mainform;
 interface
 
 uses Classes, SysUtils, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls,
-  Dialogs, Graphics, Spin, StrUtils, LazUTF8, LCLType, multisuite_numfmt,
+  Dialogs, Graphics, Spin, Math, StrUtils, LazUTF8, LCLType, multisuite_numfmt,
   multicnc_types, multicnc_session, multicnc_gcode_analyzer, multicnc_laser_config,
-  multicnc_printer_profiles, ailistserialdevices;
+  multicnc_printer_profiles, ailistserialdevices, multisuite_icons,
+  multisuite_controls;
 
 type
   TMainForm = class(TForm)
@@ -20,8 +21,8 @@ type
     CommunicationMode: TComboBox;
     SerialPanel, TCPPanel: TPanel;
     BtnConnect, BtnOpen, BtnFraming, BtnStart, BtnPause, BtnResume, BtnStop,
-      BtnHome, BtnSetHome, BtnPhysicalHome, BtnZero, BtnStatus, BtnUnlock, BtnSend: TButton;
-    JogButtons: array[0..5] of TButton;
+      BtnHome, BtnSetHome, BtnPhysicalHome, BtnZero, BtnStatus, BtnUnlock, BtnSend: TSuiteButton;
+    JogButtons: array[0..5] of TSuiteButton;
     StepSize: TFloatSpinEdit;
     FeedRate: TSpinEdit;
     ProgramMemo, MemoLog: TMemo;
@@ -29,7 +30,11 @@ type
     Pages: TPageControl;
     ProgramTab, ConfigTab, ConsoleTab: TTabSheet;
     SearchResult: TLabel;
-    StateLabel, FileLabel, ProgramInfoLabel, ProgressLabel, PositionLabel, HomeLabel: TLabel;
+    StateLabel: TSuiteBadge;
+    FileLabel, ProgramInfoLabel, ProgressLabel, PositionLabel, HomeLabel: TLabel;
+    HeaderBar: TSuiteHeader;
+    ActionsBar, DroPanel: TPanel;
+    TabImages: TImageList;
     LastState: TSessionState;
     Progress: TProgressBar;
     Timer: TTimer;
@@ -45,7 +50,7 @@ type
     PrinterSpecsLabel: TLabel;
     GbPrinterTemps: TGroupBox;
     SpConfigHotendTemp, SpConfigBedTemp: TSpinEdit;
-    BtnApplyTemps, BtnCooldownTemps: TButton;
+    BtnApplyTemps, BtnCooldownTemps: TSuiteButton;
     LblConfigRealTemps: TLabel;
 
     { Main View Side Panel Temperature Indicators }
@@ -75,7 +80,14 @@ type
     function Panel(ParentControl: TWinControl; Alignment: TAlign; Size: Integer): TPanel;
     function LabelAt(ParentControl: TWinControl; const AText: string; X, Y: Integer): TLabel;
     function ButtonAt(ParentControl: TWinControl; const AText: string;
-      X, Y, W: Integer; Handler: TNotifyEvent): TButton;
+      X, Y, W: Integer; Handler: TNotifyEvent): TSuiteButton;
+    procedure AddTabIcon(AKind: TSuiteIconKind; AColor: TColor);
+    procedure HeaderResize(Sender: TObject);
+    procedure ActionsResize(Sender: TObject);
+    procedure FooterResize(Sender: TObject);
+    procedure LayoutActions;
+    procedure SidePaint(Sender: TObject);
+    procedure ActionsPaint(Sender: TObject);
     procedure SearchClick(Sender: TObject);
     procedure SearchChanged(Sender: TObject);
     procedure SaveLogClick(Sender: TObject);
@@ -118,6 +130,8 @@ begin
   Result := TPanel.Create(Self);
   Result.Parent := ParentControl;
   Result.BevelOuter := bvNone;
+  Result.Color := clSuiteSurface;
+  Result.ParentColor := False;
   Result.Align := Alignment;
   if Alignment in [alLeft, alRight] then Result.Width := Size else Result.Height := Size;
 end;
@@ -130,31 +144,127 @@ begin
   Result.SetBounds(X, Y, 200, 24);
 end;
 
-function TMainForm.ButtonAt(ParentControl: TWinControl; const AText: string;
-  X, Y, W: Integer; Handler: TNotifyEvent): TButton;
+procedure TMainForm.AddTabIcon(AKind: TSuiteIconKind; AColor: TColor);
+var
+  Bmp: TBitmap;
 begin
-  Result := TButton.Create(Self);
+  Bmp := RenderSuiteIcon(AKind, 16, AColor, sifNone, 2);
+  try
+    TabImages.Add(Bmp, nil);
+  finally
+    Bmp.Free;
+  end;
+end;
+
+procedure TMainForm.HeaderResize(Sender: TObject);
+begin
+  if (HeaderBar = nil) or (BtnConnect = nil) then Exit;
+  BtnConnect.Left := HeaderBar.ClientWidth - BtnConnect.Width - 20;
+  if StateLabel <> nil then
+  begin
+    StateLabel.AnchorRight := BtnConnect.Left - 14;
+    StateLabel.AutoFit;
+  end;
+end;
+
+{ Distribui os botoes visiveis da barra de acoes; a parada de emergencia
+  fica isolada a direita. }
+procedure TMainForm.LayoutActions;
+var
+  X: Integer;
+
+  procedure Place(B: TSuiteButton; AGapAfter: Integer);
+  begin
+    if (B = nil) or not B.Visible then Exit;
+    B.Left := X;
+    B.Top := 14;
+    X := X + B.Width + AGapAfter;
+  end;
+
+begin
+  if (ActionsBar = nil) or (BtnStop = nil) then Exit;
+  X := 16;
+  Place(BtnOpen, 8);
+  Place(BtnFraming, 8);
+  X := X + 12;
+  Place(BtnStart, 8);
+  Place(BtnPause, 8);
+  Place(BtnResume, 8);
+  BtnStop.Top := 14;
+  BtnStop.Left := Max(X + 12, ActionsBar.ClientWidth - BtnStop.Width - 16);
+end;
+
+procedure TMainForm.FooterResize(Sender: TObject);
+begin
+  if Progress <> nil then
+    Progress.Width := Max(50, TPanel(Sender).ClientWidth - 24);
+end;
+
+procedure TMainForm.ActionsResize(Sender: TObject);
+begin
+  LayoutActions;
+end;
+
+procedure TMainForm.SidePaint(Sender: TObject);
+var
+  P: TPanel;
+begin
+  P := TPanel(Sender);
+  P.Canvas.Pen.Color := clSuiteBorder;
+  P.Canvas.Line(P.Width - 1, 0, P.Width - 1, P.Height);
+end;
+
+procedure TMainForm.ActionsPaint(Sender: TObject);
+var
+  P: TPanel;
+begin
+  P := TPanel(Sender);
+  P.Canvas.Pen.Color := clSuiteBorder;
+  P.Canvas.Line(0, P.Height - 1, P.Width, P.Height - 1);
+end;
+
+function TMainForm.ButtonAt(ParentControl: TWinControl; const AText: string;
+  X, Y, W: Integer; Handler: TNotifyEvent): TSuiteButton;
+begin
+  Result := TSuiteButton.Create(Self);
   Result.Parent := ParentControl;
   Result.Caption := AText;
   Result.SetBounds(X, Y, W, 34);
   Result.OnClick := Handler;
 end;
 
+const
+  { Layout do painel lateral }
+  SIDE_W  = 332;
+  SIDE_X  = 20;
+  COL_W   = 143;
+  COL2_X  = 169;
+  ROW1_Y  = 294;
+  ROW2_Y  = 336;
+  ROW3_Y  = 378;
+  ROW_H   = 36;
+
 constructor TMainForm.Create(AOwner: TComponent);
 var
-  Header, Body, Side, Workspace, Actions, Footer, ConsoleBar, SearchBar, LogBar: TPanel;
+  Header: TSuiteHeader;
+  Body, Side, Workspace, Actions, Footer, ConsoleBar, SearchBar, LogBar: TPanel;
+  Title: TSuiteSectionTitle;
   L: TLabel; I: Integer;
-const JogNames: array[0..5] of string = ('X -', 'X +', 'Y -', 'Y +', 'Z -', 'Z +');
+  B: TSuiteButton;
+const
+  JogNames: array[0..5] of string = ('X-', 'X+', 'Y-', 'Y+', 'Z-', 'Z+');
+  JogIcons: array[0..5] of TSuiteIconKind = (sikArrowLeft, sikArrowRight,
+    sikArrowDown, sikArrowUp, sikArrowDown, sikArrowUp);
 begin
   inherited CreateNew(AOwner);
   Caption := 'MultiCNC | Control Panel';
   Position := poScreenCenter;
-  SetBounds(0, 0, 1140, 780);
-  Constraints.MinWidth := 1020;
+  SetBounds(0, 0, 1180, 800);
+  Constraints.MinWidth := 1180;
   Constraints.MinHeight := 700;
   Font.Name := 'Segoe UI';
   Font.Size := 10;
-  Color := clBtnFace;
+  Color := clSuiteSurface;
   OnCloseQuery := @Closing;
   KeyPreview := True;
   OnKeyDown := @Shortcut;
@@ -163,16 +273,24 @@ begin
   Session := TSimulationSession.Create;
   Session.OnLog := @Log;
 
-  { Top Header }
-  Header := Panel(Self, alTop, 75);
-  L := LabelAt(Header, 'MultiCNC', 20, 10);
-  L.Font.Size := 20;
-  L.Font.Style := [fsBold];
-  LabelAt(Header, 'CONTROL  /  Program execution with controller handshake', 22, 46);
-  StateLabel := LabelAt(Header, 'Disconnected', 620, 25);
-  StateLabel.Font.Style := [fsBold];
-  StateLabel.Font.Size := 11;
-  BtnConnect := ButtonAt(Header, 'Connect Device', 840, 18, 200, @ConnectClick);
+  { Top Header: faixa em degrade, estado e conexao }
+  Header := TSuiteHeader.Create(Self);
+  Header.Parent := Self;
+  Header.Align := alTop;
+  Header.Height := 76;
+  Header.Setup('MultiCNC', 'CONTROL  /  Program execution with controller handshake', sikCNC);
+  Header.OnResize := @HeaderResize;
+  HeaderBar := Header;
+
+  BtnConnect := ButtonAt(Header, 'Connect Device', 0, 19, 200, @ConnectClick);
+  BtnConnect.Height := 38;
+  BtnConnect.BackColor := clSuiteNavy2;
+  BtnConnect.SetLook(sbsSolid, clSuitePrimary, sikPlug);
+
+  StateLabel := TSuiteBadge.Create(Self);
+  StateLabel.Parent := Header;
+  StateLabel.SetBounds(600, 23, 160, 30);
+  StateLabel.Caption := 'Disconnected';
 
   { Bottom Status Bar }
   Status := TStatusBar.Create(Self);
@@ -185,75 +303,134 @@ begin
   Body := Panel(Self, alClient, 0);
 
   { Left Manual Jog & Indicator Panel }
-  Side := Panel(Body, alLeft, 268);
-  L := LabelAt(Side, 'Manual Jog', 20, 14);
-  L.Font.Style := [fsBold];
-  LabelAt(Side, 'Step (mm)', 20, 51);
+  Side := Panel(Body, alLeft, SIDE_W);
+  Side.Color := clSuiteCard;
+  Side.OnPaint := @SidePaint;
+
+  Title := TSuiteSectionTitle.CreateTitle(Self, 'MANUAL JOG', sikMove, clSuitePrimary);
+  Title.Parent := Side;
+  Title.SetBounds(SIDE_X, 14, 260, 22);
+
+  L := LabelAt(Side, 'Step (mm)', SIDE_X, 42);
+  L.AutoSize := False;
+  L.Width := COL_W;
+  L.Font.Size := 9;
+  L.Font.Color := clSuiteMuted;
   StepSize := TFloatSpinEdit.Create(Self);
   StepSize.Parent := Side;
-  StepSize.SetBounds(20, 75, 220, 30);
+  StepSize.SetBounds(SIDE_X, 62, COL_W, 28);
   StepSize.MinValue := 0.01;
   StepSize.MaxValue := 100;
   StepSize.DecimalPlaces := 2;
   StepSize.Increment := 0.1;
   StepSize.Value := 1;
 
-  LabelAt(Side, 'Feed rate (mm/min)', 20, 119);
+  L := LabelAt(Side, 'Feed rate (mm/min)', COL2_X, 42);
+  L.AutoSize := False;
+  L.Width := COL_W;
+  L.Font.Size := 9;
+  L.Font.Color := clSuiteMuted;
   FeedRate := TSpinEdit.Create(Self);
   FeedRate.Parent := Side;
-  FeedRate.SetBounds(20, 143, 220, 30);
+  FeedRate.SetBounds(COL2_X, 62, COL_W, 28);
   FeedRate.MinValue := 1;
   FeedRate.MaxValue := 10000;
   FeedRate.Value := 500;
   FeedRate.OnChange := @FeedRateChanged;
 
+  { Jog em cruz: XY a esquerda, Z a direita (X vermelho, Y verde, Z azul) }
   for I := 0 to 5 do begin
-    JogButtons[I] := ButtonAt(Side, JogNames[I], 20 + (I mod 2) * 114,
-      194 + (I div 2) * 44, 106, @JogClick);
+    JogButtons[I] := ButtonAt(Side, JogNames[I], 0, 0, 58, @JogClick);
     JogButtons[I].Tag := I;
+    case I div 2 of
+      0: JogButtons[I].SetLook(sbsSoft, clSuiteAxisX, JogIcons[I]);
+      1: JogButtons[I].SetLook(sbsSoft, clSuiteAxisY, JogIcons[I]);
+    else
+      JogButtons[I].SetLook(sbsSoft, clSuiteAxisZ, JogIcons[I]);
+    end;
   end;
+  JogButtons[3].SetBounds(SIDE_X + 72, 104, 66, 44);   { Y+ }
+  JogButtons[0].SetBounds(SIDE_X, 154, 66, 44);        { X- }
+  JogButtons[1].SetBounds(SIDE_X + 144, 154, 66, 44);  { X+ }
+  JogButtons[2].SetBounds(SIDE_X + 72, 204, 66, 44);   { Y- }
+  JogButtons[5].SetBounds(SIDE_X + 222, 104, 70, 69);  { Z+ }
+  JogButtons[4].SetBounds(SIDE_X + 222, 179, 70, 69);  { Z- }
+  L := LabelAt(Side, 'XY', SIDE_X + 72, 154);
+  L.AutoSize := False;
+  L.SetBounds(SIDE_X + 72, 154, 66, 44);
+  L.Alignment := taCenter;
+  L.Layout := tlCenter;
+  L.Font.Size := 9;
+  L.Font.Style := [fsBold];
+  L.Font.Color := clSuiteFaint;
 
-  BtnHome := ButtonAt(Side, 'Go Home', 20, 328, 108, @CommandClick);
+  Title := TSuiteSectionTitle.CreateTitle(Self, 'MACHINE', sikGear, clSuitePrimary);
+  Title.Parent := Side;
+  Title.SetBounds(SIDE_X, 264, 260, 22);
+
+  BtnHome := ButtonAt(Side, 'Go Home', SIDE_X, ROW1_Y, COL_W, @CommandClick);
+  BtnHome.SetLook(sbsOutline, clSuitePrimary, sikHome);
   BtnHome.Hint := 'Return axes to recorded HOME position (G28).';
   BtnHome.ShowHint := True;
-  BtnSetHome := ButtonAt(Side, 'Set Home Ref', 132, 328, 116, @CommandClick);
+  BtnSetHome := ButtonAt(Side, 'Set Home Ref', COL2_X, ROW1_Y, COL_W, @CommandClick);
+  BtnSetHome.SetLook(sbsOutline, clSuiteInfo, sikFlag);
   BtnSetHome.Hint := 'Record current axes position as application reference HOME (G28.1) without moving.';
   BtnSetHome.ShowHint := True;
 
-  BtnPhysicalHome := ButtonAt(Side, 'Physical Homing', 20, 368, 108, @CommandClick);
+  BtnPhysicalHome := ButtonAt(Side, 'Physical Homing', SIDE_X, ROW2_Y, COL_W, @CommandClick);
+  BtnPhysicalHome.SetLook(sbsOutline, clSuitePrimary, sikTarget);
   BtnPhysicalHome.Hint := 'Run physical homing cycle on endstop switches ($H in GRBL / G28 in Marlin 3D).';
   BtnPhysicalHome.ShowHint := True;
-  BtnZero := ButtonAt(Side, 'Zero Workpiece', 132, 368, 116, @CommandClick);
+  BtnZero := ButtonAt(Side, 'Zero Workpiece', COL2_X, ROW2_Y, COL_W, @CommandClick);
+  BtnZero.SetLook(sbsOutline, clSuiteSuccess, sikOrigin);
   BtnZero.Hint := 'Set current position as workpiece coordinate origin (G92 X0 Y0 Z0).';
   BtnZero.ShowHint := True;
 
-  BtnStatus := ButtonAt(Side, 'Status / Pos', 20, 408, 108, @CommandClick);
+  BtnStatus := ButtonAt(Side, 'Status / Pos', SIDE_X, ROW3_Y, COL_W, @CommandClick);
+  BtnStatus.SetLook(sbsOutline, clSuiteInfo, sikPulse);
   BtnStatus.Hint := 'Query machine state and position (? in GRBL / M114 in Marlin).';
   BtnStatus.ShowHint := True;
-  BtnUnlock := ButtonAt(Side, 'Unlock', 132, 408, 116, @CommandClick);
+  BtnUnlock := ButtonAt(Side, 'Unlock', COL2_X, ROW3_Y, COL_W, @CommandClick);
+  BtnUnlock.SetLook(sbsOutline, clSuiteWarning, sikUnlock);
   BtnUnlock.Hint := 'Unlock machine from alarm state ($X in GRBL / M999 in Marlin).';
   BtnUnlock.ShowHint := True;
 
-  PositionLabel := LabelAt(Side, 'Position: -', 20, 452);
+  { Leitura de posicao (DRO) }
+  Title := TSuiteSectionTitle.CreateTitle(Self, 'POSITION', sikGauge, clSuitePrimary);
+  Title.Parent := Side;
+  Title.SetBounds(SIDE_X, 424, 260, 22);
+
+  DroPanel := TPanel.Create(Self);
+  DroPanel.Parent := Side;
+  DroPanel.BevelOuter := bvNone;
+  DroPanel.Color := clSuiteNavy;
+  DroPanel.SetBounds(SIDE_X, 450, COL_W * 2 + 6, 104);
+
+  PositionLabel := LabelAt(DroPanel, 'Position: -', 14, 8);
   PositionLabel.Name := 'PositionLabel';
+  PositionLabel.Caption := 'Position: -';
   PositionLabel.AutoSize := False;
-  PositionLabel.SetBounds(20, 452, 228, 55);
+  PositionLabel.SetBounds(14, 8, COL_W * 2 - 22, 56);
   PositionLabel.WordWrap := True;
   PositionLabel.Font.Name := 'Consolas';
+  PositionLabel.Font.Size := 10;
+  PositionLabel.Font.Color := SuiteRGB(110, 231, 183);
 
-  HomeLabel := LabelAt(Side, 'HOME: -', 20, 512);
+  HomeLabel := LabelAt(DroPanel, 'HOME: -', 14, 64);
   HomeLabel.Name := 'HomeLabel';
+  HomeLabel.Caption := 'HOME: -';
   HomeLabel.AutoSize := False;
-  HomeLabel.SetBounds(20, 512, 228, 45);
+  HomeLabel.SetBounds(14, 64, COL_W * 2 - 22, 36);
   HomeLabel.WordWrap := True;
   HomeLabel.Font.Name := 'Consolas';
-  HomeLabel.Font.Color := $00994400;
+  HomeLabel.Font.Size := 9;
+  HomeLabel.Font.Color := SuiteRGB(252, 211, 77);
 
   { 3D Printer Temperature Indicator Group in Side Panel }
   GbSideTemperatures := TGroupBox.Create(Self);
   GbSideTemperatures.Parent := Side;
   GbSideTemperatures.Caption := '3D Printer Temperatures';
-  GbSideTemperatures.SetBounds(15, 510, 235, 130);
+  GbSideTemperatures.SetBounds(SIDE_X - 4, 562, COL_W * 2 + 14, 128);
   GbSideTemperatures.Visible := False;
 
   LabelAt(GbSideTemperatures, 'Nozzle / Hotend:', 10, 2);
@@ -263,7 +440,7 @@ begin
   LblNozzleTemp.Font.Name := 'Consolas';
   LblNozzleTemp.Font.Style := [fsBold];
   LblNozzleTemp.Font.Size := 9;
-  LblNozzleTemp.Font.Color := $000033AA;
+  LblNozzleTemp.Font.Color := clSuiteDanger;
   LblNozzleTemp.Caption := 'Real: - C  |  Config: 200 C';
 
   LabelAt(GbSideTemperatures, 'Heated Bed:', 10, 46);
@@ -273,62 +450,104 @@ begin
   LblBedTemp.Font.Name := 'Consolas';
   LblBedTemp.Font.Style := [fsBold];
   LblBedTemp.Font.Size := 9;
-  LblBedTemp.Font.Color := $00773300;
+  LblBedTemp.Font.Color := clSuiteWarning;
   LblBedTemp.Caption := 'Real: - C  |  Config: 60 C';
 
   LblHeaterStatus := TLabel.Create(Self);
   LblHeaterStatus.Parent := GbSideTemperatures;
   LblHeaterStatus.SetBounds(10, 93, 215, 18);
   LblHeaterStatus.Font.Size := 8;
-  LblHeaterStatus.Font.Color := clGray;
+  LblHeaterStatus.Font.Color := clSuiteMuted;
   LblHeaterStatus.Caption := 'Heaters Standby / Off';
 
   { Workspace (Center / Right) }
   Workspace := Panel(Body, alClient, 0);
-  Actions := Panel(Workspace, alTop, 82);
+  Actions := Panel(Workspace, alTop, 100);
+  Actions.Color := clSuiteCard;
+  Actions.OnPaint := @ActionsPaint;
+  Actions.OnResize := @ActionsResize;
+  ActionsBar := Actions;
 
-  BtnOpen := ButtonAt(Actions, 'Open Program...', 12, 10, 160, @OpenClick);
-  BtnFraming := ButtonAt(Actions, 'Frame (Test)', 178, 10, 110, @FramingClick);
-  BtnStart := ButtonAt(Actions, 'Start', 294, 10, 95, @CommandClick);
-  BtnPause := ButtonAt(Actions, 'Pause', 395, 10, 95, @CommandClick);
-  BtnResume := ButtonAt(Actions, 'Resume', 496, 10, 95, @CommandClick);
-  BtnStop := ButtonAt(Actions, 'Emergency Stop', 597, 10, 130, @CommandClick);
+  BtnOpen := ButtonAt(Actions, 'Open Program...', 16, 14, 158, @OpenClick);
+  BtnOpen.Height := 38;
+  BtnOpen.ShowHint := True;
+  BtnOpen.SetLook(sbsOutline, clSuitePrimary, sikFolder);
+  BtnFraming := ButtonAt(Actions, 'Frame (Test)', 0, 14, 128, @FramingClick);
+  BtnFraming.Height := 38;
+  BtnFraming.SetLook(sbsOutline, SuiteRGB(124, 58, 237), sikFrame);
+  BtnStart := ButtonAt(Actions, 'Start', 0, 14, 100, @CommandClick);
+  BtnStart.Height := 38;
+  BtnStart.SetLook(sbsSolid, clSuiteSuccess, sikPlay);
+  BtnPause := ButtonAt(Actions, 'Pause', 0, 14, 100, @CommandClick);
+  BtnPause.Height := 38;
+  BtnPause.SetLook(sbsSolid, clSuiteWarning, sikPause);
+  BtnResume := ButtonAt(Actions, 'Resume', 0, 14, 110, @CommandClick);
+  BtnResume.Height := 38;
+  BtnResume.SetLook(sbsSoft, clSuitePrimary, sikPlay);
+  BtnStop := ButtonAt(Actions, 'Emergency Stop', 0, 14, 168, @CommandClick);
+  BtnStop.Height := 38;
+  BtnStop.SetLook(sbsSolid, clSuiteDanger, sikStop);
+  BtnStop.Hint := 'Stop the machine immediately.';
+  BtnStop.ShowHint := True;
 
-  FileLabel := LabelAt(Actions, 'No file opened', 12, 48);
+  FileLabel := LabelAt(Actions, 'No file opened', 16, 60);
   FileLabel.Font.Style := [fsBold];
-  ProgramInfoLabel := LabelAt(Actions, 'No program loaded', 12, 64);
+  FileLabel.Font.Color := clSuiteText;
+  ProgramInfoLabel := LabelAt(Actions, 'No program loaded', 16, 78);
   ProgramInfoLabel.Width := 800;
   ProgramInfoLabel.Font.Size := 9;
-  ProgramInfoLabel.Font.Color := $00664400;
+  ProgramInfoLabel.Font.Color := clSuiteMuted;
   ProgramInfoLabel.Anchors := [akLeft, akTop, akRight];
   ProgramInfoLabel.ShowHint := True;
 
   Footer := Panel(Workspace, alBottom, 62);
   ProgressLabel := LabelAt(Footer, '0 / 0 commands sent', 12, 6);
+  ProgressLabel.Font.Color := clSuiteMuted;
   Progress := TProgressBar.Create(Self);
   Progress.Parent := Footer;
   Progress.SetBounds(12, 31, 610, 18);
-  Progress.Anchors := [akLeft, akRight, akTop];
+  Footer.OnResize := @FooterResize;
+
+  { Icones das abas }
+  TabImages := TImageList.Create(Self);
+  TabImages.Width := 16;
+  TabImages.Height := 16;
+  AddTabIcon(sikFile, clSuitePrimary);
+  AddTabIcon(sikGear, clSuiteMuted);
+  AddTabIcon(sikTerminal, clSuiteSuccess);
 
   Pages := TPageControl.Create(Self);
   Pages.Parent := Workspace;
   Pages.Align := alClient;
+  Pages.BorderSpacing.Around := 8;
+  Pages.Images := TabImages;
 
   { Tab 1: Program }
   ProgramTab := TTabSheet.Create(Self);
   ProgramTab.PageControl := Pages;
   ProgramTab.Caption := 'Program';
+  ProgramTab.ImageIndex := 0;
   SearchBar := Panel(ProgramTab, alTop, 80);
-  LabelAt(SearchBar, 'Search in program (Ctrl+F)', 10, 4);
+  SearchBar.Color := clSuiteCard;
+  L := LabelAt(SearchBar, 'Search in program (Ctrl+F)', 10, 4);
+  L.Font.Size := 9;
+  L.Font.Color := clSuiteMuted;
   SearchEdit := TEdit.Create(Self);
   SearchEdit.Name := 'ProgramSearch';
   SearchEdit.Parent := SearchBar;
   SearchEdit.SetBounds(10, 25, 300, 28);
+  SearchEdit.Text := '';
   SearchEdit.TextHint := 'e.g.: G1, X10 or M3';
   SearchEdit.OnChange := @SearchChanged;
-  ButtonAt(SearchBar, 'Next (F3)', 324, 22, 132, @SearchClick).Name := 'FindNext';
+  B := ButtonAt(SearchBar, 'Next (F3)', 320, 22, 132, @SearchClick);
+  B.Name := 'FindNext';
+  B.Caption := 'Next (F3)';
+  B.SetLook(sbsOutline, clSuitePrimary, sikSearch);
   SearchResult := LabelAt(SearchBar, 'Case-insensitive search.', 10, 58);
   SearchResult.Name := 'SearchResult';
+  SearchResult.Caption := 'Case-insensitive search.';
+  SearchResult.Font.Size := 9;
+  SearchResult.Font.Color := clSuiteMuted;
   ProgramMemo := TMemo.Create(Self);
   ProgramMemo.Name := 'ProgramText';
   ProgramMemo.Parent := ProgramTab;
@@ -343,6 +562,7 @@ begin
   ConfigTab := TTabSheet.Create(Self);
   ConfigTab.PageControl := Pages;
   ConfigTab.Caption := 'Config';
+  ConfigTab.ImageIndex := 1;
 
   ConfigScrollBox := TScrollBox.Create(Self);
   ConfigScrollBox.Parent := ConfigTab;
@@ -445,7 +665,7 @@ begin
   { 3D Printer Profile & Specifications Group }
   GbPrinterProfile := TGroupBox.Create(Self);
   GbPrinterProfile.Parent := ConfigScrollBox;
-  GbPrinterProfile.Caption := '3D Printer Brand & Model Profile';
+  GbPrinterProfile.Caption := '3D Printer Brand && Model Profile';
   GbPrinterProfile.SetBounds(15, 120, 715, 230);
   GbPrinterProfile.Visible := False;
 
@@ -468,6 +688,7 @@ begin
   PrinterSpecsLabel.Parent := GbPrinterProfile;
   PrinterSpecsLabel.SetBounds(15, 92, 680, 125);
   PrinterSpecsLabel.AutoSize := False;
+  PrinterSpecsLabel.ShowAccelChar := False;
   PrinterSpecsLabel.WordWrap := True;
   PrinterSpecsLabel.Font.Name := 'Consolas';
   PrinterSpecsLabel.Font.Size := 9;
@@ -476,7 +697,7 @@ begin
   { 3D Printer Temperature Configuration Group in Config Tab }
   GbPrinterTemps := TGroupBox.Create(Self);
   GbPrinterTemps.Parent := ConfigScrollBox;
-  GbPrinterTemps.Caption := '3D Printer Temperature Configuration & Targets';
+  GbPrinterTemps.Caption := '3D Printer Temperature Configuration && Targets';
   GbPrinterTemps.SetBounds(15, 360, 715, 135);
   GbPrinterTemps.Visible := False;
 
@@ -501,10 +722,12 @@ begin
   SpConfigBedTemp.OnChange := @TempConfigChanged;
 
   BtnApplyTemps := ButtonAt(GbPrinterTemps, 'Set Targets (M104/M140)', 295, 25, 220, @ApplyTempsClick);
+  BtnApplyTemps.SetLook(sbsSolid, clSuiteWarning, sikFlame);
   BtnApplyTemps.Hint := 'Send target temperature commands to the 3D printer controller.';
   BtnApplyTemps.ShowHint := True;
 
   BtnCooldownTemps := ButtonAt(GbPrinterTemps, 'Cooldown Heaters', 525, 25, 175, @CooldownTempsClick);
+  BtnCooldownTemps.SetLook(sbsSoft, clSuiteInfo, sikSnow);
   BtnCooldownTemps.Hint := 'Turn off nozzle and bed heaters (set targets to 0 C).';
   BtnCooldownTemps.ShowHint := True;
 
@@ -726,7 +949,7 @@ begin
   { Laser Group 7: Control & Framing }
   GbControl := TGroupBox.Create(Self);
   GbControl.Parent := LaserContainer;
-  GbControl.Caption := 'Laser Control & Framing';
+  GbControl.Caption := 'Laser Control && Framing';
   GbControl.SetBounds(15, 530, 675, 205);
 
   RbLaserM4 := TRadioButton.Create(Self);
@@ -796,15 +1019,26 @@ begin
   ConsoleTab := TTabSheet.Create(Self);
   ConsoleTab.PageControl := Pages;
   ConsoleTab.Caption := 'Console';
+  ConsoleTab.ImageIndex := 2;
   LogBar := Panel(ConsoleTab, alTop, 50);
-  ButtonAt(LogBar, 'Save Log...', 10, 8, 150, @SaveLogClick);
-  ButtonAt(LogBar, 'Clear Console', 172, 8, 150, @ClearLogClick).Name := 'ClearConsole';
+  LogBar.Color := clSuiteCard;
+  ButtonAt(LogBar, 'Save Log...', 10, 8, 150, @SaveLogClick).SetLook(sbsOutline, clSuitePrimary, sikSave);
+  B := ButtonAt(LogBar, 'Clear Console', 172, 8, 150, @ClearLogClick);
+  B.Name := 'ClearConsole';
+  B.Caption := 'Clear Console';
+  B.SetLook(sbsOutline, clSuiteDanger, sikTrash);
   ConsoleBar := Panel(ConsoleTab, alBottom, 50);
-  BtnSend := ButtonAt(ConsoleBar, 'Send', 0, 8, 100, @CommandClick);
+  ConsoleBar.Color := clSuiteCard;
+  BtnSend := ButtonAt(ConsoleBar, 'Send', 0, 8, 110, @CommandClick);
+  BtnSend.SetLook(sbsSolid, clSuitePrimary, sikSend);
   BtnSend.Align := alRight;
+  BtnSend.BorderSpacing.Around := 8;
   EditCommand := TEdit.Create(Self);
   EditCommand.Parent := ConsoleBar;
   EditCommand.Align := alClient;
+  EditCommand.BorderSpacing.Left := 8;
+  EditCommand.BorderSpacing.Top := 11;
+  EditCommand.BorderSpacing.Bottom := 11;
   EditCommand.TextHint := 'Manual G-code command';
   MemoLog := TMemo.Create(Self);
   MemoLog.Name := 'ConsoleLog';
@@ -825,6 +1059,7 @@ begin
   SelectionChanged(MachineType);
   UpdateMachineTypeLayout;
   UpdateControls;
+  HeaderResize(nil);
 end;
 
 destructor TMainForm.Destroy;
@@ -1131,6 +1366,19 @@ begin
   if Session.Connected and not Session.ControllerReady then
     StateLabel.Caption := 'Initializing Marlin...';
   if Alarm then StateLabel.Caption := StateLabel.Caption + ' | ALARM';
+  if Alarm or (Session.State = ssError) then
+    StateLabel.DotColor := clSuiteDanger
+  else if not Session.Connected then
+    StateLabel.DotColor := clSuiteNeutral
+  else if not Session.ControllerReady then
+    StateLabel.DotColor := clSuiteWarning
+  else
+    case Session.State of
+      ssRunning: StateLabel.DotColor := clSuitePrimary;
+      ssPaused, ssStopped: StateLabel.DotColor := clSuiteWarning;
+    else
+      StateLabel.DotColor := clSuiteSuccess;
+    end;
   if Session.Connected then
   begin
     P := Session.Position;
@@ -1195,7 +1443,16 @@ begin
   if Assigned(PrinterBrandCombo) then PrinterBrandCombo.Enabled := not Session.Connected;
   if Assigned(PrinterModelCombo) then PrinterModelCombo.Enabled := not Session.Connected;
 
-  if Session.Connected then BtnConnect.Caption := 'Disconnect' else BtnConnect.Caption := 'Connect Device';
+  if Session.Connected then
+  begin
+    BtnConnect.Caption := 'Disconnect';
+    BtnConnect.SetLook(sbsSoft, clSuiteDanger, sikPower);
+  end
+  else
+  begin
+    BtnConnect.Caption := 'Connect Device';
+    BtnConnect.SetLook(sbsSolid, clSuitePrimary, sikPlug);
+  end;
   BtnConnect.Enabled := not Busy;
   BtnOpen.Enabled := not Busy;
   BtnFraming.Enabled := Session.Connected and not Busy and (Session.Count > 0);
@@ -1253,83 +1510,38 @@ end;
 
 procedure TMainForm.UpdateMachineTypeLayout;
 begin
-  if MachineType.ItemIndex = 1 then { CNC Laser }
+  { Barra de acoes: o enquadramento (framing) so existe no laser }
+  BtnFraming.Visible := MachineType.ItemIndex = 1;
+  LaserContainer.Visible := MachineType.ItemIndex = 1;
+  GbPrinterProfile.Visible := MachineType.ItemIndex = 2;
+  GbPrinterTemps.Visible := MachineType.ItemIndex = 2;
+  GbSideTemperatures.Visible := MachineType.ItemIndex = 2;
+
+  if MachineType.ItemIndex = 2 then { 3D Printer }
   begin
-    BtnFraming.Visible := True;
-    BtnOpen.SetBounds(12, 10, 160, 34);
-    BtnFraming.SetBounds(178, 10, 110, 34);
-    BtnStart.SetBounds(294, 10, 95, 34);
-    BtnPause.SetBounds(395, 10, 95, 34);
-    BtnResume.SetBounds(496, 10, 95, 34);
-    BtnStop.SetBounds(597, 10, 130, 34);
-
-    LaserContainer.Visible := True;
-    GbPrinterProfile.Visible := False;
-    GbPrinterTemps.Visible := False;
-    GbSideTemperatures.Visible := False;
-
-    BtnHome.SetBounds(20, 328, 108, 34);
-    BtnSetHome.SetBounds(132, 328, 116, 34);
-    BtnSetHome.Visible := True;
-    BtnPhysicalHome.SetBounds(20, 368, 108, 34);
-    BtnZero.SetBounds(132, 368, 116, 34);
-    BtnZero.Visible := True;
-    BtnStatus.SetBounds(20, 408, 108, 34);
-    BtnUnlock.SetBounds(132, 408, 116, 34);
-    PositionLabel.Top := 452;
-    HomeLabel.Visible := True;
-    HomeLabel.Top := 512;
-  end
-  else if MachineType.ItemIndex = 2 then { 3D Printer }
-  begin
-    BtnFraming.Visible := False;
-    BtnOpen.SetBounds(12, 10, 170, 34);
-    BtnStart.SetBounds(188, 10, 100, 34);
-    BtnPause.SetBounds(294, 10, 100, 34);
-    BtnResume.SetBounds(400, 10, 100, 34);
-    BtnStop.SetBounds(506, 10, 132, 34);
-
-    LaserContainer.Visible := False;
-    GbPrinterProfile.Visible := True;
-    GbPrinterTemps.Visible := True;
-    GbSideTemperatures.Visible := True;
     PrinterModelChanged(nil);
-
     BtnSetHome.Visible := False;
     BtnZero.Visible := False;
-    BtnHome.SetBounds(20, 328, 228, 34);
-    BtnPhysicalHome.SetBounds(20, 368, 228, 34);
-    BtnStatus.SetBounds(20, 408, 108, 34);
-    BtnUnlock.SetBounds(132, 408, 116, 34);
-    PositionLabel.Top := 452;
+    BtnHome.SetBounds(SIDE_X, ROW1_Y, COL_W * 2 + 6, ROW_H);
+    BtnPhysicalHome.SetBounds(SIDE_X, ROW2_Y, COL_W * 2 + 6, ROW_H);
     HomeLabel.Visible := False;
+    DroPanel.Height := 68;
   end
-  else { CNC Router }
+  else { CNC Router / CNC Laser }
   begin
-    BtnFraming.Visible := False;
-    BtnOpen.SetBounds(12, 10, 170, 34);
-    BtnStart.SetBounds(188, 10, 100, 34);
-    BtnPause.SetBounds(294, 10, 100, 34);
-    BtnResume.SetBounds(400, 10, 100, 34);
-    BtnStop.SetBounds(506, 10, 132, 34);
-
-    LaserContainer.Visible := False;
-    GbPrinterProfile.Visible := False;
-    GbPrinterTemps.Visible := False;
-    GbSideTemperatures.Visible := False;
-
-    BtnHome.SetBounds(20, 328, 108, 34);
-    BtnSetHome.SetBounds(132, 328, 116, 34);
+    BtnHome.SetBounds(SIDE_X, ROW1_Y, COL_W, ROW_H);
+    BtnSetHome.SetBounds(COL2_X, ROW1_Y, COL_W, ROW_H);
     BtnSetHome.Visible := True;
-    BtnPhysicalHome.SetBounds(20, 368, 108, 34);
-    BtnZero.SetBounds(132, 368, 116, 34);
+    BtnPhysicalHome.SetBounds(SIDE_X, ROW2_Y, COL_W, ROW_H);
+    BtnZero.SetBounds(COL2_X, ROW2_Y, COL_W, ROW_H);
     BtnZero.Visible := True;
-    BtnStatus.SetBounds(20, 408, 108, 34);
-    BtnUnlock.SetBounds(132, 408, 116, 34);
-    PositionLabel.Top := 452;
     HomeLabel.Visible := True;
-    HomeLabel.Top := 512;
+    DroPanel.Height := 104;
   end;
+  GbSideTemperatures.Top := DroPanel.Top + DroPanel.Height + 10;
+  BtnStatus.SetBounds(SIDE_X, ROW3_Y, COL_W, ROW_H);
+  BtnUnlock.SetBounds(COL2_X, ROW3_Y, COL_W, ROW_H);
+  LayoutActions;
 end;
 
 procedure TMainForm.SelectionChanged(Sender: TObject);
@@ -1343,7 +1555,7 @@ begin
     case MachineType.ItemIndex of
       0: { CNC Router }
       begin
-        BtnOpen.Caption := 'Open CNC Program...';
+        BtnOpen.Hint := 'Open CNC program (.nc, .tap, .cnc, .ngc, .gcode) - Ctrl+O';
         if Sender = MachineType then ProtocolType.ItemIndex := 0;
         { Standard CNC Router baud rates (GRBL) }
         BaudCombo.Items.Add('115200'); { Standard for GRBL 1.1 / 3018-PRO }
@@ -1361,7 +1573,7 @@ begin
       end;
       1: { CNC Laser }
       begin
-        BtnOpen.Caption := 'Open CNC / Laser Program...';
+        BtnOpen.Hint := 'Open CNC / Laser program (.nc, .tap, .cnc, .ngc, .gcode) - Ctrl+O';
         if Sender = MachineType then ProtocolType.ItemIndex := 0;
         { Standard CNC Laser baud rates (GRBL Laser Mode) }
         BaudCombo.Items.Add('115200'); { Standard for GRBL 1.1f Laser Mode (LaserGRBL/LightBurn) }
@@ -1380,7 +1592,7 @@ begin
       end;
       2: { 3D Printer }
       begin
-        BtnOpen.Caption := 'Open G-code...';
+        BtnOpen.Hint := 'Open 3D printer G-code (.gcode, .gco, .nc, .ngc) - Ctrl+O';
         if Sender = MachineType then ProtocolType.ItemIndex := 1;
         { Standard 3D Printer baud rates (Marlin) }
         BaudCombo.Items.Add('115200'); { Creality, Prusa, Elegoo }
@@ -1712,7 +1924,7 @@ begin
     OK := Session.Send(EditCommand.Text);
     if OK then EditCommand.Clear;
   end;
-  if OK then Log(TButton(Sender).Caption + ': OK')
+  if OK then Log(TSuiteButton(Sender).Caption + ': OK')
   else Log('Action rejected: ' + Session.LastError);
   UpdateControls;
 end;
@@ -1720,7 +1932,7 @@ end;
 procedure TMainForm.JogClick(Sender: TObject);
 var Index: Integer; Distance: Double;
 begin
-  Index := TButton(Sender).Tag;
+  Index := TControl(Sender).Tag;
   Distance := StepSize.Value;
   if Index mod 2 = 0 then Distance := -Distance;
   if not Session.Jog(TAxis(Index div 2), Distance, FeedRate.Value) then

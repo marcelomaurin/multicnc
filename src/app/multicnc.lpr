@@ -1,6 +1,9 @@
 program multicnc;
 {$mode objfpc}{$H+}
 uses Interfaces, Forms, mainform, multisuite_context;
+
+{$R *.res}
+
 var F: TMainForm; C: TSuiteContext;
 begin
   Application.Initialize;

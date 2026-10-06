@@ -79,3 +79,18 @@ Os artefatos da arvore possuem uma ferramenta proprietaria. O duplo clique resol
 O modulo `multisuite_context.pas` define o parser comum desses argumentos. Cada aplicacao especializada deve incorporar esse contrato ao seu fluxo de inicializacao.
 
 Enquanto um formato ainda nao possuir loader, a aplicacao deve preservar o contexto recebido e informar que a abertura daquele formato ainda nao esta implementada; nunca deve fingir que carregou o documento.
+
+## MultiSuite Bandeja (atalho ao lado do relogio)
+
+`src/tray/multisuite_tray.lpi` gera o `multisuite_tray`, um aplicativo que fica na area de notificacao (bandeja, ao lado do relogio).
+
+- **Clique no icone:** abre/fecha um painel vertical, sem borda, ancorado acima da barra de tarefas (respeita barra embaixo, em cima ou nas laterais).
+- **Painel:** botao principal *Abrir MultiSuite*, campo de busca e uma lista vertical de botoes com icone, agrupados em Projetar, Preparar, Simular e Fabricar. Rodape com Central de testes e Sair.
+- **Teclado:** digitar filtra; Enter abre a primeira ferramenta encontrada (ou o MultiSuite, com a busca vazia); setas navegam; Esc fecha.
+- **Botao direito:** Abrir painel, Abrir MultiSuite, Iniciar com o Windows (chave `HKCU\...\Run`, com `--tray`) e Sair.
+- **Parametros:** `--tray` inicia apenas na bandeja; sem parametros o painel abre ao iniciar.
+- O painel fecha sozinho ao perder o foco. No Windows 11 usa cantos arredondados nativos.
+
+Os icones de traco ficam em `src/core/multisuite_icons.pas`: sao desenhados em codigo (grade 24x24, super-amostragem 4x com anti-aliasing e canal alfa), sem arquivos de imagem nem pacotes externos, e podem ser reutilizados pelas demais telas da suite.
+
+O launcher (`multisuite_launcher.pas`) procura cada executavel na pasta do proprio app, na pasta do projeto Lazarus da ferramenta (`ProjectFile` do registro), em `bin/` e na raiz, de modo que funciona tanto instalado quanto direto da arvore de desenvolvimento.

@@ -1,9 +1,10 @@
 program test_app;
 {$mode objfpc}{$H+}
-uses Interfaces, Forms, Controls, StdCtrls, SysUtils, Classes, LCLType, mainform;
+uses Interfaces, Forms, Controls, StdCtrls, SysUtils, Classes, LCLType, mainform,
+  multisuite_controls;
 var F: TMainForm; I, FirstMatch, SecondMatch: Integer;
-  ConnectButton, StartButton, JogZ, PauseButton, StopButton: TButton;
-  ProgramView, Console: TMemo; Search: TEdit; FindNext: TButton;
+  ConnectButton, StartButton, JogZ, PauseButton, StopButton: TSuiteButton;
+  ProgramView, Console: TMemo; Search: TEdit; FindNext: TSuiteButton;
   Lines: TStringList; FN: string; Key: Word;
 procedure Check(Value: Boolean; const Msg: string);
 begin
@@ -18,13 +19,13 @@ begin
     ConnectButton := nil; StartButton := nil; JogZ := nil;
     PauseButton := nil; StopButton := nil;
     for I := 0 to F.ComponentCount - 1 do
-      if F.Components[I] is TButton then
-        with TButton(F.Components[I]) do begin
-          if (Caption = 'Connect Device') or (Caption = 'Conectar simulador') or (Caption = 'Conectar equipamento') then ConnectButton := TButton(F.Components[I]);
-          if (Caption = 'Start') or (Caption = 'Iniciar') then StartButton := TButton(F.Components[I]);
-          if Caption = 'Z +' then JogZ := TButton(F.Components[I]);
-          if (Caption = 'Pause') or (Caption = 'Pausar') then PauseButton := TButton(F.Components[I]);
-          if (Caption = 'Emergency Stop') or (Caption = 'PARAR') or (Caption = 'Parar') then StopButton := TButton(F.Components[I]);
+      if F.Components[I] is TSuiteButton then
+        with TSuiteButton(F.Components[I]) do begin
+          if (Caption = 'Connect Device') or (Caption = 'Conectar simulador') or (Caption = 'Conectar equipamento') then ConnectButton := TSuiteButton(F.Components[I]);
+          if (Caption = 'Start') or (Caption = 'Iniciar') then StartButton := TSuiteButton(F.Components[I]);
+          if (Caption = 'Z +') or (Caption = 'Z+') then JogZ := TSuiteButton(F.Components[I]);
+          if (Caption = 'Pause') or (Caption = 'Pausar') then PauseButton := TSuiteButton(F.Components[I]);
+          if (Caption = 'Emergency Stop') or (Caption = 'PARAR') or (Caption = 'Parar') then StopButton := TSuiteButton(F.Components[I]);
         end;
     Check(Assigned(ConnectButton) and Assigned(StartButton) and Assigned(JogZ), 'Controls exist');
     Check(not StartButton.Enabled and not JogZ.Enabled, 'Disconnected controls');
@@ -33,7 +34,7 @@ begin
     ProgramView := TMemo(F.FindComponent('ProgramText'));
     Console := TMemo(F.FindComponent('ConsoleLog'));
     Search := TEdit(F.FindComponent('ProgramSearch'));
-    FindNext := TButton(F.FindComponent('FindNext'));
+    FindNext := TSuiteButton(F.FindComponent('FindNext'));
     Lines.Text := 'G0 X0' + LineEnding + 'G1 X10' + LineEnding + 'G1 X20';
     Lines.SaveToFile(FN);
     F.OnDropFiles(F, [FN]);
@@ -70,7 +71,7 @@ begin
     F.OnDropFiles(F, [FN]);
     Check(Pos('X999', ProgramView.Text) > 0, 'Drop allowed after stop');
     Check(Console.Lines.Count > 0, 'Console records operations');
-    TButton(F.FindComponent('ClearConsole')).Click;
+    TSuiteButton(F.FindComponent('ClearConsole')).Click;
     Check(Console.Text = '', 'Clear console');
     ConnectButton.Click;
     Check(not JogZ.Enabled, 'Disconnected again');
