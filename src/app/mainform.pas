@@ -120,6 +120,7 @@ type
     procedure CooldownTempsClick(Sender: TObject);
   public
     constructor Create(AOwner: TComponent); override;
+    procedure OpenProgramFile(const AFileName: string);
     destructor Destroy; override;
   end;
 
@@ -1706,6 +1707,50 @@ begin
     on E: Exception do MessageDlg('Could not open file', E.Message, mtError, [mbOK], 0);
   end;
   UpdateControls;
+end;
+
+{ Abre um programa vindo da suite (ex.: LaserArt via --file).
+  Arquivos gerados pelo LaserArt trazem o cabecalho "; LaserArt": neles a
+  potencia (S) e as passadas ja estao no G-code, entao a maquina vai para
+  CNC Laser, Pass count = 1 e override de velocidade desligado.
+  Nada e enviado a maquina: o usuario conecta e inicia normalmente. }
+procedure TMainForm.OpenProgramFile(const AFileName: string);
+var
+  SL: TStringList;
+  I: Integer;
+  IsLaserArt: Boolean;
+begin
+  if (AFileName = '') or not FileExists(AFileName) then Exit;
+  IsLaserArt := False;
+  SL := TStringList.Create;
+  try
+    try
+      SL.LoadFromFile(AFileName);
+      for I := 0 to Min(SL.Count, 40) - 1 do
+        if Pos('; LaserArt', SL[I]) = 1 then
+        begin
+          IsLaserArt := True;
+          Break;
+        end;
+    except
+      IsLaserArt := False;
+    end;
+  finally
+    SL.Free;
+  end;
+  if IsLaserArt and not Session.Connected then
+  begin
+    if MachineType.ItemIndex <> 1 then
+    begin
+      MachineType.ItemIndex := 1;
+      SelectionChanged(MachineType);
+    end;
+    SpCutPasses.Value := 1;
+    ChkOverrideSpeed.Checked := False;
+    SyncLaserSettingsFromUI;
+    Log('Arquivo do LaserArt: maquina CNC Laser, Pass count = 1, override desligado (S e passadas vem do arquivo).');
+  end;
+  LoadProgram(AFileName);
 end;
 
 procedure TMainForm.DropFiles(Sender: TObject; const FileNames: array of string);

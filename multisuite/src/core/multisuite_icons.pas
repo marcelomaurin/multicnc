@@ -26,7 +26,11 @@ type
     sikPlay, sikPause, sikStop, sikFolder, sikFrame, sikHome, sikFlag,
     sikTarget, sikOrigin, sikPulse, sikUnlock, sikPlug, sikArrowUp,
     sikArrowDown, sikArrowLeft, sikSave, sikTrash, sikSend, sikFile,
-    sikGear, sikTerminal, sikFlame, sikSnow, sikMove, sikThermo, sikGauge
+    sikGear, sikTerminal, sikFlame, sikSnow, sikMove, sikThermo, sikGauge,
+    { edicao grafica (LaserArt) }
+    sikPointer, sikPen, sikRect, sikCircle, sikPolygon, sikText, sikImage,
+    sikUndo, sikRedo, sikCopy, sikMirrorH, sikMirrorV, sikImport, sikEye,
+    sikWand, sikFit, sikLayers, sikExport, sikNew, sikZoomIn, sikZoomOut
   );
 
   { sifNone    - apenas o glifo, ocupando toda a area
@@ -640,6 +644,142 @@ begin
         Pn.Line(3, 15, 21, 15);
         Pn.Line(12, 15, 16.5, 8.5);
         Pn.Dot(12, 15, 1.6);
+      end;
+
+    sikPointer:
+      Pn.Poly([5, 3, 5, 19, 9.5, 14.5, 12.5, 21, 15.5, 19.5, 12.5, 13.5, 18.5, 13.5], True);
+
+    sikPen:
+      begin
+        Pn.Poly([16, 3.5, 20.5, 8, 9, 19.5, 3.5, 20.5, 4.5, 15], True);
+        Pn.Line(13.5, 6, 18, 10.5);
+      end;
+
+    sikRect:
+      Pn.RoundBox(3.5, 5.5, 20.5, 18.5, 1.5, False);
+
+    sikCircle:
+      Pn.Circle(12, 12, 8.5);
+
+    sikPolygon:
+      begin
+        SetLength(Pts, 12);
+        for T := 0 to 5 do
+        begin
+          B := DegToRad(-90 + T * 60);
+          Pts[T * 2] := 12 + 9 * Cos(B);
+          Pts[T * 2 + 1] := 12.5 + 9 * Sin(B);
+        end;
+        Pn.Poly(Pts, True);
+      end;
+
+    sikText:
+      begin
+        Pn.Poly([5, 20, 12, 3.5, 19, 20]);
+        Pn.Line(7.8, 14, 16.2, 14);
+      end;
+
+    sikImage:
+      begin
+        Pn.RoundBox(2.5, 4, 21.5, 20, 2.5, False);
+        Pn.Circle(8, 9, 1.8);
+        Pn.Poly([2.5, 17, 8.5, 12, 12.5, 15.5, 15.5, 12.5, 21.5, 17.5]);
+      end;
+
+    sikUndo:
+      begin
+        Pn.Arc(13, 13.5, 6.5, -90, 120);
+        Pn.Line(13, 7, 5, 7);
+        Pn.Poly([8.5, 3.5, 5, 7, 8.5, 10.5]);
+      end;
+
+    sikRedo:
+      begin
+        Pn.Arc(11, 13.5, 6.5, 60, 270);
+        Pn.Line(11, 7, 19, 7);
+        Pn.Poly([15.5, 3.5, 19, 7, 15.5, 10.5]);
+      end;
+
+    sikCopy:
+      begin
+        Pn.RoundBox(8, 8, 20.5, 20.5, 2, False);
+        Pn.Poly([16, 8, 16, 3.5, 3.5, 3.5, 3.5, 16, 8, 16]);
+      end;
+
+    sikMirrorH:
+      begin
+        Pn.Line(12, 2.5, 12, 21.5);
+        Pn.Poly([9, 6, 3, 12, 9, 18], True);
+        Pn.Poly([15, 6, 21, 12, 15, 18], True);
+      end;
+
+    sikMirrorV:
+      begin
+        Pn.Line(2.5, 12, 21.5, 12);
+        Pn.Poly([6, 9, 12, 3, 18, 9], True);
+        Pn.Poly([6, 15, 12, 21, 18, 15], True);
+      end;
+
+    sikImport:
+      begin
+        Pn.Line(12, 3, 12, 15);
+        Pn.Poly([7, 10, 12, 15, 17, 10]);
+        Pn.Poly([3.5, 15, 3.5, 20.5, 20.5, 20.5, 20.5, 15]);
+      end;
+
+    sikExport:
+      begin
+        Pn.Line(12, 15, 12, 3);
+        Pn.Poly([7, 8, 12, 3, 17, 8]);
+        Pn.Poly([3.5, 15, 3.5, 20.5, 20.5, 20.5, 20.5, 15]);
+      end;
+
+    sikEye:
+      begin
+        Pn.Poly([2, 12, 6, 7, 12, 5, 18, 7, 22, 12, 18, 17, 12, 19, 6, 17], True);
+        Pn.Circle(12, 12, 3.2);
+      end;
+
+    sikWand:
+      begin
+        Pn.Line(4, 20, 15, 9);
+        Pn.Line(17, 3, 17, 7);  Pn.Line(15, 5, 19, 5);
+        Pn.Line(20.5, 9.5, 20.5, 12.5); Pn.Line(19, 11, 22, 11);
+        Pn.Line(9, 4, 9, 7); Pn.Line(7.5, 5.5, 10.5, 5.5);
+      end;
+
+    sikFit:
+      begin
+        Pn.Poly([3, 8.5, 3, 3, 8.5, 3]);
+        Pn.Poly([15.5, 3, 21, 3, 21, 8.5]);
+        Pn.Poly([21, 15.5, 21, 21, 15.5, 21]);
+        Pn.Poly([8.5, 21, 3, 21, 3, 15.5]);
+        Pn.RoundBox(8, 8, 16, 16, 1, False);
+      end;
+
+    sikLayers:
+      DrawGlyph(Pn, sikSlicer);
+
+    sikNew:
+      begin
+        Pn.Poly([5, 2.5, 14.5, 2.5, 19.5, 7.5, 19.5, 21.5, 5, 21.5], True);
+        Pn.Line(12, 10.5, 12, 17.5);
+        Pn.Line(8.5, 14, 15.5, 14);
+      end;
+
+    sikZoomIn:
+      begin
+        Pn.Circle(10.5, 10.5, 6.5);
+        Pn.Line(15.5, 15.5, 20.5, 20.5);
+        Pn.Line(10.5, 7.5, 10.5, 13.5);
+        Pn.Line(7.5, 10.5, 13.5, 10.5);
+      end;
+
+    sikZoomOut:
+      begin
+        Pn.Circle(10.5, 10.5, 6.5);
+        Pn.Line(15.5, 15.5, 20.5, 20.5);
+        Pn.Line(7.5, 10.5, 13.5, 10.5);
       end;
   end;
 end;

@@ -6,7 +6,19 @@
    <Title Value="LaserArt" />
    <UseAppBundle Value="False" />
    <ResourceType Value="res" />
+   <UseXPManifest Value="True" />
+   <XPManifest>
+    <DpiAware Value="True/PM_V2" />
+    <TextName Value="Maurinsoft.MultiSuite.LaserArt" />
+    <TextDesc Value="LaserArt" />
+   </XPManifest>
+   <Icon Value="0" />
   </General>
+  <VersionInfo>
+   <UseVersionInfo Value="True" />
+   <MinorVersionNr Value="2" />
+   <StringTable CompanyName="Maurinsoft" FileDescription="LaserArt - arte para laser" ProductName="MultiSuite" ProductVersion="0.02" />
+  </VersionInfo>
   <BuildModes Count="1">
    <Item1 Name="Default" Default="True" />
   </BuildModes>
@@ -28,7 +40,7 @@
    <Filename Value="laserart" />
   </Target>
   <SearchPaths>
-   <OtherUnitFiles Value="../core;../art;../ui;../layout;../import;../export;../../../src/shared" />
+   <OtherUnitFiles Value="../core;../art;../ui;../layout;../import;../export;../../../src/shared;../../../multisuite/src/core" />
    <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
   </SearchPaths>
   <Parsing>
