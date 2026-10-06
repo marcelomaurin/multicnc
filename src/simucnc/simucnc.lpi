@@ -10,8 +10,17 @@
       <UseXPManifest Value="True"/>
       <XPManifest>
         <ExecutionLevel Value="requireAdministrator"/>
+        <DpiAware Value="True/PM_V2"/>
+        <TextName Value="Maurinsoft.MultiSuite.SimuCNC"/>
+        <TextDesc Value="SimuCNC"/>
       </XPManifest>
+      <Icon Value="0"/>
     </General>
+    <VersionInfo>
+      <UseVersionInfo Value="True"/>
+      <MinorVersionNr Value="2"/>
+      <StringTable CompanyName="Maurinsoft" FileDescription="SimuCNC - simulador de equipamentos" ProductName="MultiSuite" ProductVersion="0.02"/>
+    </VersionInfo>
     <BuildModes>
       <Item Name="Default" Default="True"/>
     </BuildModes>
