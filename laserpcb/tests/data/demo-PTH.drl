@@ -1,0 +1,25 @@
+M48
+; DRILL file {LaserPCB teste} 
+; FORMAT={-:-/ absolute / metric / decimal}
+FMAT,2
+METRIC
+T1C0.800
+T2C1.000
+T3C3.200
+%
+G90
+G05
+T1
+X5.0Y5.0
+X7.54Y5.0
+X10.08Y5.0
+T2
+X30.0Y5.0
+X32.54Y5.0
+X8.0Y22.0
+T3
+X3.0Y25.0
+X37.0Y25.0
+X37.0Y3.0
+T0
+M30
