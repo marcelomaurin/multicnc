@@ -44,6 +44,7 @@ type
       relatorio recebido). }
     function ReportedState(out AState: TMachineState): Boolean;
     function ReportedPosition(out APosition: TMachinePosition): Boolean;
+    function ReportedTemperatures(out ATemps: TPrinterTemperatures): Boolean;
     { True uma vez apos a controladora reiniciar (perde a fila de comandos). }
     function TakeResetDetected: Boolean;
     function LastMessage: string;
@@ -62,6 +63,9 @@ type
     function BuildSafeOffCommands(AType: TMachineType): string;
     function BuildJogCommand(AAxis: TAxis; ADistance, AFeed: Double): string;
     function BuildFeedRateCommand(AFeed: Double): string;
+    function BuildQueryTemperaturesCommand: string;
+    function BuildSetHotendTemperatureCommand(ATemp: Double): string;
+    function BuildSetBedTemperatureCommand(ATemp: Double): string;
     procedure ResetPositionToZero;
   end;
 
@@ -71,6 +75,10 @@ type
     function GetState: TMachineState;
     function GetPosition: TMachinePosition;
     function GetCapabilities: TMachineCapabilities;
+    function GetTemperatures: TPrinterTemperatures;
+    function QueryTemperatures: Boolean;
+    function SetHotendTemperature(ATemp: Double): Boolean;
+    function SetBedTemperature(ATemp: Double): Boolean;
     function Connect: Boolean;
     procedure Disconnect;
     function Home(AFeed: Double = 0): Boolean;

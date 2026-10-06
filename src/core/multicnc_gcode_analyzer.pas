@@ -47,7 +47,7 @@ end;
 
 function BoundsSummary(const Bounds: TGCodeBounds): string;
 begin
-  if not Bounds.HasMotion then Exit('Nenhum movimento identificado');
+  if not Bounds.HasMotion then Exit('No motion detected');
   Result := Format('Área: %.2f x %.2f mm | X: %.2f → %.2f mm | Y: %.2f → %.2f mm',
     [BoundsWidth(Bounds), BoundsHeight(Bounds), Bounds.MinX, Bounds.MaxX, Bounds.MinY, Bounds.MaxY], InvariantFS);
 end;

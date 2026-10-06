@@ -16,7 +16,7 @@ unit multicnc_machine;
 interface
 
 uses
-  Classes, SysUtils, multicnc_types, multicnc_interfaces, multicnc_safety;
+  Classes, SysUtils, multicnc_types, multicnc_interfaces, multicnc_safety, multicnc_printer_profiles;
 
 const
   MaxQueuedLines = 10000;
@@ -27,6 +27,8 @@ type
     FMachineType: TMachineType;
     FState: TMachineState;
     FPosition: TMachinePosition;
+    FTemperatures: TPrinterTemperatures;
+    FMaxHotendTemp, FMaxBedTemp: Integer;
     FHomePosition: TMachinePosition;
     FHomePositionSet: Boolean;
     FCapabilities: TMachineCapabilities;
@@ -59,6 +61,10 @@ type
     function GetState: TMachineState;
     function GetPosition: TMachinePosition;
     function GetCapabilities: TMachineCapabilities;
+    function GetTemperatures: TPrinterTemperatures;
+    function QueryTemperatures: Boolean;
+    function SetHotendTemperature(ATemp: Double): Boolean;
+    function SetBedTemperature(ATemp: Double): Boolean;
     function Connect: Boolean;
     procedure Disconnect;
     function Home(AFeed: Double = 0): Boolean;
@@ -78,6 +84,7 @@ type
       confirma as anteriores. }
     function SendGCode(const ALine: string): Boolean;
     procedure SetWorkEnvelope(AX, AY, AZ: Double);
+    procedure SetThermalLimits(AMaxHotend, AMaxBed: Integer);
     { Descarta o que ainda nao foi enviado (o que ja esta na controladora
       continua sendo executado). }
     procedure ClearQueue;
@@ -105,6 +112,9 @@ begin
   FPosition := EmptyPosition;
   FHomePosition := EmptyPosition;
   FHomePositionSet := False;
+  FTemperatures := EmptyTemperatures;
+  FMaxHotendTemp := DEFAULT_MAX_HOTEND_TEMP;
+  FMaxBedTemp := DEFAULT_MAX_BED_TEMP;
   FCapabilities := DefaultCapabilities(AType);
   FillChar(FEnvelope, SizeOf(FEnvelope), 0);
   FQueue := TStringList.Create;
@@ -153,7 +163,7 @@ begin
 end;
 
 procedure TMultiCNCMachine.TransportData(const AData: string);
-var Acks, Errors: Integer; S: TMachineState; P: TMachinePosition;
+var Acks, Errors: Integer; S: TMachineState; P: TMachinePosition; Temps: TPrinterTemperatures;
 begin
   if Assigned(FProtocol) then
   begin
@@ -188,6 +198,7 @@ begin
       if FState <> msDisconnected then FState := S;
     end;
     if FProtocol.ReportedPosition(P) then FPosition := P;
+    if FProtocol.ReportedTemperatures(Temps) then FTemperatures := Temps;
   end;
   if not FPumping then Pump;
   if Assigned(FOnData) then FOnData(AData);
@@ -228,7 +239,7 @@ begin
       begin
         ClearPending;
         FState := msError;
-        FLastError := 'Falha ao enviar para a controladora';
+        FLastError := 'Failed to send command to controller';
         Break;
       end;
     end;
@@ -242,7 +253,7 @@ var Lines: TStringList; I, J: Integer; Reason, L: string;
 begin
   Result := False;
   if not (Assigned(FTransport) and FTransport.IsConnected) then
-    Exit(Reject('Maquina desconectada'));
+    Exit(Reject('Machine disconnected'));
   if FWaitingReset then Exit(Reject('Aguarde o reinicio do GRBL'));
   Lines := TStringList.Create;
   try
@@ -284,12 +295,12 @@ function TMultiCNCMachine.SendRealtime(const ACommand: string): Boolean;
 begin
   Result := Assigned(FTransport) and FTransport.IsConnected and (ACommand <> '') and
     FTransport.Send(ACommand);
-  if not Result then FLastError := 'Falha ao enviar comando de tempo real';
+  if not Result then FLastError := 'Failed to send real-time command';
 end;
 
 function TMultiCNCMachine.SendProtocolCommand(const ACommand: string; AValidate: Boolean): Boolean;
 begin
-  if ACommand = '' then Exit(Reject('Comando nao suportado pelo protocolo'));
+  if ACommand = '' then Exit(Reject('Command not supported by protocol'));
   if ACommand[Length(ACommand)] in [#10, #13] then
     Result := EnqueueLines(ACommand, AValidate)
   else
@@ -309,6 +320,7 @@ begin
   FWaitingReset := False;
   FHomePosition := EmptyPosition;
   FHomePositionSet := False;
+  FTemperatures := EmptyTemperatures;
   FState := msConnecting;
   Result := FTransport.Connect;
   if Result then FState := msIdle else FState := msError;
@@ -335,7 +347,7 @@ function TMultiCNCMachine.SetHome(out AHomePos: TMachinePosition): Boolean;
 begin
   AHomePos := EmptyPosition;
   if not Assigned(FProtocol) then Exit(Reject('Sem protocolo'));
-  if FState in [msRunning, msPaused] then Exit(Reject('Maquina em execucao'));
+  if FState in [msRunning, msPaused] then Exit(Reject('Machine is running'));
   FHomePosition := FPosition;
   FHomePositionSet := True;
   AHomePos := FHomePosition;
@@ -345,14 +357,14 @@ end;
 function TMultiCNCMachine.PhysicalHoming: Boolean;
 begin
   if not Assigned(FProtocol) then Exit(Reject('Sem protocolo'));
-  if FState in [msRunning, msPaused] then Exit(Reject('Maquina em execucao'));
+  if FState in [msRunning, msPaused] then Exit(Reject('Machine is running'));
   Result := SendProtocolCommand(FProtocol.BuildPhysicalHomingCommand, False);
 end;
 
 function TMultiCNCMachine.Home(AFeed: Double = 0): Boolean;
 begin
   if not Assigned(FProtocol) then Exit(Reject('Sem protocolo'));
-  if FState in [msRunning, msPaused] then Exit(Reject('Maquina em execucao'));
+  if FState in [msRunning, msPaused] then Exit(Reject('Machine is running'));
   { Permitido em alarme: e a forma de sair dele. }
   Result := SendProtocolCommand(FProtocol.BuildHomeCommand(AFeed), False);
 end;
@@ -362,7 +374,7 @@ var
   Cmd: string;
 begin
   if not Assigned(FProtocol) then Exit(Reject('Sem protocolo'));
-  if AFeed <= 0 then Exit(Reject('Avanco invalido'));
+  if AFeed <= 0 then Exit(Reject('Invalid feed rate'));
   Cmd := FProtocol.BuildFeedRateCommand(AFeed);
   if Cmd = '' then Exit(False);
   Result := SendProtocolCommand(Cmd, True);
@@ -372,7 +384,7 @@ function TMultiCNCMachine.Zero: Boolean;
 begin
   if not Assigned(FProtocol) then Exit(Reject('Sem protocolo'));
   if FMachineType = mtPrinter3D then
-    Exit(Reject('Referenciamento de zero nao aplicavel a impressora 3D'));
+    Exit(Reject('Zero reference is not applicable to 3D printers'));
   Result := SendProtocolCommand(FProtocol.BuildZeroCommand, True);
   if Result then
   begin
@@ -418,7 +430,7 @@ var C: string;
 begin
   if not Assigned(FProtocol) then Exit(Reject('Sem protocolo'));
   if FWaitingReset then Exit(Reject('Aguarde o reinicio do GRBL'));
-  if FState in [msAlarm, msError] then Exit(Reject('Maquina em alarme/erro'));
+  if FState in [msAlarm, msError] then Exit(Reject('Machine in alarm/error'));
   C := FProtocol.BuildResumeCommand;
   if C = '' then Result := Assigned(FTransport) and FTransport.IsConnected
   else Result := SendRealtime(C);
@@ -433,7 +445,7 @@ function TMultiCNCMachine.Stop: Boolean;
 var C, Off: string;
 begin
   if not Assigned(FProtocol) then Exit(Reject('Sem protocolo'));
-  if not (Assigned(FTransport) and FTransport.IsConnected) then Exit(Reject('Maquina desconectada'));
+  if not (Assigned(FTransport) and FTransport.IsConnected) then Exit(Reject('Machine disconnected'));
   { Nada mais da fila sera enviado. }
   ClearPending;
   FFeedPaused := False;
@@ -449,7 +461,7 @@ begin
   end
   else
     Result := FTransport.Send(C);
-  if not Result then Exit(Reject('Falha ao enviar parada'));
+  if not Result then Exit(Reject('Failed to send stop command'));
   Off := FProtocol.BuildSafeOffCommands(FMachineType);
   if Off <> '' then EnqueueLines(Off, False);
 end;
@@ -473,6 +485,19 @@ begin
   FEnvelope.X := AX;
   FEnvelope.Y := AY;
   FEnvelope.Z := AZ;
+end;
+
+procedure TMultiCNCMachine.SetThermalLimits(AMaxHotend, AMaxBed: Integer);
+begin
+  if (AMaxHotend > 0) and (AMaxHotend <= ABSOLUTE_MAX_HOTEND_TEMP) then
+    FMaxHotendTemp := AMaxHotend
+  else
+    FMaxHotendTemp := ABSOLUTE_MAX_HOTEND_TEMP;
+
+  if (AMaxBed > 0) and (AMaxBed <= ABSOLUTE_MAX_BED_TEMP) then
+    FMaxBedTemp := AMaxBed
+  else
+    FMaxBedTemp := ABSOLUTE_MAX_BED_TEMP;
 end;
 
 procedure TMultiCNCMachine.ClearQueue;
@@ -508,5 +533,45 @@ begin Result := FPosition; end;
 
 function TMultiCNCMachine.GetCapabilities: TMachineCapabilities;
 begin Result := FCapabilities; end;
+
+function TMultiCNCMachine.GetTemperatures: TPrinterTemperatures;
+begin
+  Result := FTemperatures;
+end;
+
+function TMultiCNCMachine.QueryTemperatures: Boolean;
+begin
+  if not Assigned(FProtocol) then Exit(Reject('No protocol'));
+  if FMachineType <> mtPrinter3D then Exit(False);
+  Result := SendProtocolCommand(FProtocol.BuildQueryTemperaturesCommand, False);
+end;
+
+function TMultiCNCMachine.SetHotendTemperature(ATemp: Double): Boolean;
+var
+  Reason: string;
+begin
+  if not Assigned(FProtocol) then Exit(Reject('No protocol'));
+  if FMachineType <> mtPrinter3D then Exit(False);
+  if not ValidateHotendTemperature(ATemp, FMaxHotendTemp, Reason) then
+  begin
+    Reject(Reason);
+    Exit(False);
+  end;
+  Result := SendProtocolCommand(FProtocol.BuildSetHotendTemperatureCommand(ATemp), False);
+end;
+
+function TMultiCNCMachine.SetBedTemperature(ATemp: Double): Boolean;
+var
+  Reason: string;
+begin
+  if not Assigned(FProtocol) then Exit(Reject('No protocol'));
+  if FMachineType <> mtPrinter3D then Exit(False);
+  if not ValidateBedTemperature(ATemp, FMaxBedTemp, Reason) then
+  begin
+    Reject(Reason);
+    Exit(False);
+  end;
+  Result := SendProtocolCommand(FProtocol.BuildSetBedTemperatureCommand(ATemp), False);
+end;
 
 end.

@@ -69,7 +69,7 @@ function TSimulatorTransport.IsConnected: Boolean;
 begin Result := FConnected; end;
 
 function TSimulatorTransport.Send(const AData: string): Boolean;
-var Lines: TStringList; I: Integer; Reply: string;
+var Lines: TStringList; I: Integer; Reply, CurLine: string;
 begin
   Result := FConnected;
   if not Result then Exit;
@@ -82,8 +82,16 @@ begin
     { Somente linhas terminadas em quebra de linha sao confirmadas. }
     if (AData <> '') and (AData[Length(AData)] in [#10, #13]) then
       for I := 0 to Lines.Count - 1 do
-        if Trim(Lines[I]) <> '' then
-          Reply := Reply + 'SIM> ' + Trim(Lines[I]) + LineEnding + 'ok' + LineEnding;
+      begin
+        CurLine := Trim(Lines[I]);
+        if CurLine <> '' then
+        begin
+          if SameText(CurLine, 'M105') then
+            Reply := Reply + 'ok T:205.0 /200.0 B:60.0 /60.0' + LineEnding
+          else
+            Reply := Reply + 'SIM> ' + CurLine + LineEnding + 'ok' + LineEnding;
+        end;
+      end;
   finally
     Lines.Free;
   end;
@@ -149,7 +157,7 @@ end;
 function TSimulatorProtocol.BuildZeroCommand: string;
 begin Result := 'G92 X0 Y0 Z0' + LineEnding; end;
 function TSimulatorProtocol.BuildStatusCommand: string;
-begin Result := '?' end;
+begin Result := '?'; end;
 function TSimulatorProtocol.BuildUnlockCommand: string;
 begin Result := '$X' + LineEnding; end;
 function TSimulatorProtocol.BuildPauseCommand: string;

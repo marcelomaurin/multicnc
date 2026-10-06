@@ -106,12 +106,12 @@ function LaserSummaryString(const Settings: TLaserSettings): string;
 var ModeName, AirStr: string; Pwr: Double; Feed: Double;
 begin
   case Settings.WorkMode of
-    lwmEngrave: begin ModeName := 'Gravação'; Pwr := Settings.LaserPower; Feed := Settings.EngraveFeed; end;
-    lwmCut:     begin ModeName := 'Corte'; Pwr := Settings.PassPower; Feed := Settings.PassFeed; end;
-    lwmPerforate: begin ModeName := 'Picote'; Pwr := Settings.PerforatePower; Feed := Settings.PerforateFeed; end;
+    lwmEngrave: begin ModeName := 'Engraving'; Pwr := Settings.LaserPower; Feed := Settings.EngraveFeed; end;
+    lwmCut:     begin ModeName := 'Cutting'; Pwr := Settings.PassPower; Feed := Settings.PassFeed; end;
+    lwmPerforate: begin ModeName := 'Perforating'; Pwr := Settings.PerforatePower; Feed := Settings.PerforateFeed; end;
   end;
-  if Settings.AirAssist then AirStr := 'Sim' else AirStr := 'Não';
-  Result := Format('Modo: %s (%.0f%%) | %.0f mm/min | %d passada(s) | Ar: %s',
+  if Settings.AirAssist then AirStr := 'Yes' else AirStr := 'No';
+  Result := Format('Mode: %s (%.0f%%) | %.0f mm/min | %d pass(es) | Air: %s',
     [ModeName, Pwr, Feed, Settings.PassCount, AirStr], InvariantFS);
 end;
 
@@ -142,14 +142,14 @@ begin
     EffectiveFeed := Settings.PerforateFeed;
   end;
 
-  Result.Add('; === MultiCNC Preparacao Laser ===');
+  Result.Add('; === MultiCNC Laser Preparation ===');
   if Settings.AirAssist and (Trim(Settings.AirAssistOnCmd) <> '') then
-    Result.Add(Trim(Settings.AirAssistOnCmd) + ' ; Ligar assistencia de ar');
+    Result.Add(Trim(Settings.AirAssistOnCmd) + ' ; Air assist on');
 
   for Pass := 1 to Max(1, Settings.PassCount) do
   begin
     if (Settings.WorkMode = lwmCut) and (Settings.PassCount > 1) then
-      Result.Add(Format('; --- Passada %d de %d ---', [Pass, Settings.PassCount]));
+      Result.Add(Format('; --- Pass %d of %d ---', [Pass, Settings.PassCount]));
 
     for I := 0 to ASourceLines.Count - 1 do
     begin
@@ -176,17 +176,17 @@ begin
     if (Settings.WorkMode = lwmCut) and (Pass < Settings.PassCount) then
     begin
       if Settings.PassZStep > 0 then
-        Result.Add(Format('G91 G0 Z-%.3f G90 ; Incremento Z por passada', [Settings.PassZStep], InvariantFS));
+        Result.Add(Format('G91 G0 Z-%.3f G90 ; Z step per pass', [Settings.PassZStep], InvariantFS));
       if Settings.PassPauseMS > 0 then
-        Result.Add(Format('G4 P%.3f ; Pausa entre passadas', [Settings.PassPauseMS / 1000.0], InvariantFS));
+        Result.Add(Format('G4 P%.3f ; Pause between passes', [Settings.PassPauseMS / 1000.0], InvariantFS));
     end;
   end;
 
   // Encerramento seguro do laser e assistencia de ar
-  Result.Add('M5 ; Desligar laser');
+  Result.Add('M5 ; Laser off');
   if Settings.AirAssist and (Trim(Settings.AirAssistOffCmd) <> '') then
-    Result.Add(Trim(Settings.AirAssistOffCmd) + ' ; Desligar assistencia de ar');
-  Result.Add('; === Fim do Trabalho Laser ===');
+    Result.Add(Trim(Settings.AirAssistOffCmd) + ' ; Air assist off');
+  Result.Add('; === Laser Job End ===');
 end;
 
 end.

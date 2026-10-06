@@ -2,7 +2,7 @@ unit simuform;
 {$mode objfpc}{$H+}
 interface
 uses multisuite_numfmt, Math, aitcpserver, Classes, SysUtils, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls, Dialogs,
-  aimarlinserialdevice, aimarlinsimulator, aivirtualserialpair, multicnc_print3d_view, simu_table_config_form, Graphics;
+  aimarlinserialdevice, aimarlinsimulator, aivirtualserialpair, multicnc_print3d_view, simu_table_config_form, Graphics, Spin;
 type
   TMainForm = class(TForm)
   private
@@ -11,9 +11,18 @@ type
     ConfigButton: TButton;
     FrameCheck:TCheckBox;
     RealPositionLabel, RefPositionLabel, RefIconLabel, HomeStatusLabel, LaserStatus:TLabel;
+    TemperaturePanel: TPanel;
+    LblSimHotend, LblSimBed, LblSimTempStatus: TLabel;
+    SpSimHotendTarget, SpSimBedTarget: TSpinEdit;
+    BtnSetSimHotend, BtnSetSimBed, BtnSimCooldown, BtnSimInstantHeat: TButton;
     CodeList:TListBox;
     CommandBuffer:string;
     LaserPower:Double;
+    function GetActiveSimulator: TAIMarlinSimulator;
+    procedure SetSimHotendClick(Sender: TObject);
+    procedure SetSimBedClick(Sender: TObject);
+    procedure SimCooldownClick(Sender: TObject);
+    procedure SimInstantHeatClick(Sender: TObject);
     procedure CaptureCommands(const Data:string);
     procedure UpdateLaserPower(const Data:string);
     procedure UpdateLaserStatus;
@@ -149,6 +158,58 @@ begin
   RefIconLabel.Caption:='⌖ [PHYSICAL ZERO]';RefIconLabel.Font.Color:=clGrayText;
   RefIconLabel.Hint:='Standard machine physical origin active (no G92 work offset applied).';
   RefIconLabel.ShowHint:=True;
+  TemperaturePanel:=TPanel.Create(Self);TemperaturePanel.Parent:=Self;TemperaturePanel.Align:=alTop;
+  TemperaturePanel.Top:=185;TemperaturePanel.Height:=46;TemperaturePanel.BevelOuter:=bvNone;
+  TemperaturePanel.Color:=$00F2F4F8;TemperaturePanel.ShowHint:=True;
+
+  LblSimHotend:=TLabel.Create(Self);LblSimHotend.Parent:=TemperaturePanel;
+  LblSimHotend.SetBounds(16,12,175,22);LblSimHotend.Font.Size:=10;
+  LblSimHotend.Font.Name:='Segoe UI';LblSimHotend.Font.Style:=[fsBold];
+  LblSimHotend.Caption:='♨ Bico: 25.0 °C / 0 °C';
+  LblSimHotend.Hint:='Temperatura atual e configurada do bico extrusor (ºC)';
+
+  SpSimHotendTarget:=TSpinEdit.Create(Self);SpSimHotendTarget.Parent:=TemperaturePanel;
+  SpSimHotendTarget.SetBounds(195,9,65,26);SpSimHotendTarget.MinValue:=0;
+  SpSimHotendTarget.MaxValue:=320;SpSimHotendTarget.Value:=200;
+  SpSimHotendTarget.Hint:='Temperatura alvo para aquecer o bico (M104)';
+
+  BtnSetSimHotend:=TButton.Create(Self);BtnSetSimHotend.Parent:=TemperaturePanel;
+  BtnSetSimHotend.SetBounds(265,9,60,26);BtnSetSimHotend.Caption:='Definir';
+  BtnSetSimHotend.Hint:='Aplica temperatura alvo do bico';
+  BtnSetSimHotend.OnClick:=@SetSimHotendClick;
+
+  LblSimBed:=TLabel.Create(Self);LblSimBed.Parent:=TemperaturePanel;
+  LblSimBed.SetBounds(345,12,175,22);LblSimBed.Font.Size:=10;
+  LblSimBed.Font.Name:='Segoe UI';LblSimBed.Font.Style:=[fsBold];
+  LblSimBed.Caption:='🛏 Cama: 25.0 °C / 0 °C';
+  LblSimBed.Hint:='Temperatura atual e configurada da mesa/cama aquecida (ºC)';
+
+  SpSimBedTarget:=TSpinEdit.Create(Self);SpSimBedTarget.Parent:=TemperaturePanel;
+  SpSimBedTarget.SetBounds(525,9,65,26);SpSimBedTarget.MinValue:=0;
+  SpSimBedTarget.MaxValue:=150;SpSimBedTarget.Value:=60;
+  SpSimBedTarget.Hint:='Temperatura alvo para aquecer a cama/mesa (M140)';
+
+  BtnSetSimBed:=TButton.Create(Self);BtnSetSimBed.Parent:=TemperaturePanel;
+  BtnSetSimBed.SetBounds(595,9,60,26);BtnSetSimBed.Caption:='Definir';
+  BtnSetSimBed.Hint:='Aplica temperatura alvo da cama/mesa';
+  BtnSetSimBed.OnClick:=@SetSimBedClick;
+
+  BtnSimCooldown:=TButton.Create(Self);BtnSimCooldown.Parent:=TemperaturePanel;
+  BtnSimCooldown.SetBounds(670,9,85,26);BtnSimCooldown.Caption:='❄ Desligar';
+  BtnSimCooldown.Hint:='Desliga bico e cama (define temperatura alvo para 0 ºC)';
+  BtnSimCooldown.OnClick:=@SimCooldownClick;
+
+  BtnSimInstantHeat:=TButton.Create(Self);BtnSimInstantHeat.Parent:=TemperaturePanel;
+  BtnSimInstantHeat.SetBounds(760,9,95,26);BtnSimInstantHeat.Caption:='⚡ Aquecer Já';
+  BtnSimInstantHeat.Hint:='Atinge a temperatura alvo instantaneamente para teste rápido';
+  BtnSimInstantHeat.OnClick:=@SimInstantHeatClick;
+
+  LblSimTempStatus:=TLabel.Create(Self);LblSimTempStatus.Parent:=TemperaturePanel;
+  LblSimTempStatus.SetBounds(870,12,210,22);LblSimTempStatus.Font.Size:=9;
+  LblSimTempStatus.Font.Name:='Segoe UI';LblSimTempStatus.Font.Style:=[fsBold];
+  LblSimTempStatus.Font.Color:=clGrayText;
+  LblSimTempStatus.Caption:='❄ [AQUECEDORES DESLIGADOS]';
+  LblSimTempStatus.Hint:='Status do sistema térmico simulado';
   RightPanel:=TPanel.Create(Self);RightPanel.Parent:=Self;RightPanel.Align:=alRight;RightPanel.Width:=300;
   L:=TLabel.Create(Self);L.Parent:=RightPanel;L.Align:=alTop;L.Caption:='G-CODE RECEBIDO (última linha destacada)';
   LogMemo:=TMemo.Create(Self); LogMemo.Parent:=RightPanel;LogMemo.Align:=alBottom;LogMemo.Height:=180;
@@ -280,7 +341,82 @@ procedure TMainForm.ConnectClick(Sender:TObject); begin
   DeviceEdit.Enabled:=not Device.Serial.Active; BaudEdit.Enabled:=not Device.Serial.Active;
   PairButton.Enabled:=not Device.Serial.Active;
 end;
-procedure TMainForm.ResetClick(Sender:TObject); begin LaserPower:=0; View.ClearPrint; if TCP.Active then TCPMarlin.Reset else Device.Simulator.Reset; Log('Simulador reiniciado.'); end;
+function TMainForm.GetActiveSimulator: TAIMarlinSimulator;
+begin
+  if TCP.Active then Result := TCPMarlin else Result := Device.Simulator;
+end;
+
+procedure TMainForm.SetSimHotendClick(Sender: TObject);
+var Sim: TAIMarlinSimulator;
+begin
+  Sim := GetActiveSimulator;
+  if Assigned(Sim) then
+  begin
+    Sim.SetHotendTarget(SpSimHotendTarget.Value);
+    Log(Format('Simulador: Temperatura alvo do bico alterada para %d °C', [SpSimHotendTarget.Value]));
+  end;
+end;
+
+procedure TMainForm.SetSimBedClick(Sender: TObject);
+var Sim: TAIMarlinSimulator;
+begin
+  Sim := GetActiveSimulator;
+  if Assigned(Sim) then
+  begin
+    Sim.SetBedTarget(SpSimBedTarget.Value);
+    Log(Format('Simulador: Temperatura alvo da cama alterada para %d °C', [SpSimBedTarget.Value]));
+  end;
+end;
+
+procedure TMainForm.SimCooldownClick(Sender: TObject);
+var Sim: TAIMarlinSimulator;
+begin
+  Sim := GetActiveSimulator;
+  if Assigned(Sim) then
+  begin
+    Sim.SetHotendTarget(0);
+    Sim.SetBedTarget(0);
+    SpSimHotendTarget.Value := 0;
+    SpSimBedTarget.Value := 0;
+    Log('Simulador: Aquecedores desligados (resfriamento acionado).');
+  end;
+end;
+
+procedure TMainForm.SimInstantHeatClick(Sender: TObject);
+var Sim: TAIMarlinSimulator;
+begin
+  Sim := GetActiveSimulator;
+  if Assigned(Sim) then
+  begin
+    if Sim.State.HotendTarget > 0 then
+      Sim.SetHotendActual(Sim.State.HotendTarget)
+    else if SpSimHotendTarget.Value > 0 then
+    begin
+      Sim.SetHotendTarget(SpSimHotendTarget.Value);
+      Sim.SetHotendActual(SpSimHotendTarget.Value);
+    end;
+
+    if Sim.State.BedTarget > 0 then
+      Sim.SetBedActual(Sim.State.BedTarget)
+    else if SpSimBedTarget.Value > 0 then
+    begin
+      Sim.SetBedTarget(SpSimBedTarget.Value);
+      Sim.SetBedActual(SpSimBedTarget.Value);
+    end;
+
+    Log(Format('Simulador: Aquecimento instantâneo acionado (Bico=%.1f °C, Cama=%.1f °C).',
+      [Sim.State.Hotend, Sim.State.Bed], InvariantFS));
+  end;
+end;
+
+procedure TMainForm.ResetClick(Sender:TObject);
+begin
+  LaserPower:=0; View.ClearPrint;
+  if TCP.Active then TCPMarlin.Reset else Device.Simulator.Reset;
+  if Assigned(SpSimHotendTarget) then SpSimHotendTarget.Value := 0;
+  if Assigned(SpSimBedTarget) then SpSimBedTarget.Value := 0;
+  Log('Simulador reiniciado.');
+end;
 procedure TMainForm.ClearClick(Sender:TObject); begin LogMemo.Clear; end;
 procedure TMainForm.ModeChanged(Sender:TObject);
 begin
@@ -299,6 +435,7 @@ begin
     end;
   finally ProtocolCombo.Items.EndUpdate; end;
   LaserPower:=0;
+  if Assigned(TemperaturePanel) then TemperaturePanel.Visible := MachineCombo.ItemIndex = 0;
   if Assigned(View) then begin
     View.LaserMode:=MachineCombo.ItemIndex=2; View.Invalidate;
     if Assigned(TCPMarlin) then TCPMarlin.AllowZ:=MachineCombo.ItemIndex<>2;
@@ -408,6 +545,57 @@ begin
     RefIconLabel.Caption := '⌖ [PHYSICAL ZERO]';
     RefIconLabel.Font.Color := clGrayText;
     RefIconLabel.Hint := 'Standard machine physical origin active (no G92 work offset applied).';
+  end;
+  if Assigned(TemperaturePanel) and TemperaturePanel.Visible then
+  begin
+    LblSimHotend.Caption := Format('♨ Bico: %.1f °C / %.0f °C',
+      [Sim.State.Hotend, Sim.State.HotendTarget], InvariantFS);
+    if Sim.State.HotendTarget > 0 then
+    begin
+      if Abs(Sim.State.Hotend - Sim.State.HotendTarget) <= 2 then
+        LblSimHotend.Font.Color := $00008800
+      else
+        LblSimHotend.Font.Color := $000055CC;
+    end
+    else
+      LblSimHotend.Font.Color := clWindowText;
+
+    LblSimBed.Caption := Format('🛏 Cama: %.1f °C / %.0f °C',
+      [Sim.State.Bed, Sim.State.BedTarget], InvariantFS);
+    if Sim.State.BedTarget > 0 then
+    begin
+      if Abs(Sim.State.Bed - Sim.State.BedTarget) <= 2 then
+        LblSimBed.Font.Color := $00008800
+      else
+        LblSimBed.Font.Color := $000055CC;
+    end
+    else
+      LblSimBed.Font.Color := clWindowText;
+
+    if (not SpSimHotendTarget.Focused) and (Round(Sim.State.HotendTarget) <> SpSimHotendTarget.Value) then
+      SpSimHotendTarget.Value := Round(Sim.State.HotendTarget);
+    if (not SpSimBedTarget.Focused) and (Round(Sim.State.BedTarget) <> SpSimBedTarget.Value) then
+      SpSimBedTarget.Value := Round(Sim.State.BedTarget);
+
+    if (Sim.State.HotendTarget > 0) or (Sim.State.BedTarget > 0) then
+    begin
+      if ((Sim.State.HotendTarget = 0) or (Abs(Sim.State.Hotend - Sim.State.HotendTarget) <= 2)) and
+         ((Sim.State.BedTarget = 0) or (Abs(Sim.State.Bed - Sim.State.BedTarget) <= 2)) then
+      begin
+        LblSimTempStatus.Caption := '✅ [TEMPERATURA ESTABILIZADA]';
+        LblSimTempStatus.Font.Color := $00008800;
+      end
+      else
+      begin
+        LblSimTempStatus.Caption := '♨ [AQUECENDO...]';
+        LblSimTempStatus.Font.Color := $000055CC;
+      end;
+    end
+    else
+    begin
+      LblSimTempStatus.Caption := '❄ [AQUECEDORES DESLIGADOS]';
+      LblSimTempStatus.Font.Color := clGrayText;
+    end;
   end;
 end;
 end.

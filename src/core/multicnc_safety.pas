@@ -9,7 +9,7 @@ unit multicnc_safety;
 interface
 
 uses
-  SysUtils, Math, multicnc_types;
+  SysUtils, Math, multicnc_types, multicnc_printer_profiles;
 
 const
   { Linha maior que o buffer de linha do GRBL (80) com folga; acima disso o
@@ -44,12 +44,12 @@ begin
   Reason := '';
   if AState in [msDisconnected, msConnecting, msAlarm, msError] then
   begin
-    Reason := 'Estado da maquina nao permite movimento';
+    Reason := 'Machine state does not allow motion';
     Exit(False);
   end;
   if not (AAxis in C.Axes) then
   begin
-    Reason := 'Eixo nao suportado';
+    Reason := 'Axis not supported';
     Exit(False);
   end;
   Result := True;
@@ -69,7 +69,7 @@ begin
   end;
   if (AFeed <= 0) or IsNan(AFeed) or IsInfinite(AFeed) then
   begin
-    Reason := 'Avanco invalido';
+    Reason := 'Invalid feed rate';
     Exit(False);
   end;
   case AAxis of
@@ -81,7 +81,7 @@ begin
   end;
   if (Travel > 0) and (Abs(ADistance) > Travel) then
   begin
-    Reason := Format('Deslocamento maior que o curso do eixo (%.0f mm)', [Travel]);
+    Reason := Format('Travel exceeds axis travel range (%.0f mm)', [Travel]);
     Exit(False);
   end;
 end;
@@ -113,9 +113,31 @@ begin
     (U = 'M5') or (U = 'M107') or (Copy(U, 1, 7) = 'M104 S0') or (Copy(U, 1, 7) = 'M140 S0');
 end;
 
+function ExtractParamFloat(const ALine: string; AParam: Char; out AValue: Double): Boolean;
+var
+  P, Q: Integer;
+  Token, U: string;
+  FS: TFormatSettings;
+begin
+  Result := False;
+  AValue := 0;
+  U := UpperCase(ALine);
+  P := Pos(AParam, U);
+  if P = 0 then Exit;
+  Q := P + 1;
+  while (Q <= Length(U)) and (U[Q] = ' ') do Inc(Q);
+  P := Q;
+  while (Q <= Length(U)) and (U[Q] in ['0'..'9', '.', '+', '-']) do Inc(Q);
+  if Q = P then Exit;
+  Token := Copy(U, P, Q - P);
+  FS := DefaultFormatSettings;
+  FS.DecimalSeparator := '.';
+  Result := TryStrToFloat(Token, AValue, FS);
+end;
+
 class function TSafetyValidator.CheckCommand(AState: TMachineState; const ALine: string;
   out Reason: string): Boolean;
-var I: Integer; L: string;
+var I: Integer; L, U: string; V: Double;
 begin
   Reason := '';
   Result := False;
@@ -123,7 +145,7 @@ begin
   if L = '' then begin Reason := 'Comando vazio'; Exit; end;
   if AState in [msDisconnected, msConnecting] then
   begin
-    Reason := 'Maquina desconectada';
+    Reason := 'Machine disconnected';
     Exit;
   end;
   if Length(L) > MaxCommandLength then
@@ -144,9 +166,37 @@ begin
   end;
   if (AState in [msAlarm, msError]) and not AllowedInAlarm(L) then
   begin
-    Reason := 'Maquina em alarme/erro: desbloqueie ou referencie antes de mover';
+    Reason := 'Machine in alarm/error: unlock or home before moving';
     Exit;
   end;
+
+  { Thermal safety verification to prevent machine burnout }
+  U := UpperCase(L);
+  if (Copy(U, 1, 4) = 'M104') or (Copy(U, 1, 4) = 'M109') then
+  begin
+    if ExtractParamFloat(U, 'S', V) or ExtractParamFloat(U, 'R', V) then
+    begin
+      if (V < 0) or (V > ABSOLUTE_MAX_HOTEND_TEMP) then
+      begin
+        Reason := Format('Thermal Safety: Hotend temp (%.0f C) exceeds hardware safety limit (%d C). Blocked to prevent burnout.',
+          [V, ABSOLUTE_MAX_HOTEND_TEMP]);
+        Exit;
+      end;
+    end;
+  end
+  else if (Copy(U, 1, 4) = 'M140') or (Copy(U, 1, 4) = 'M190') then
+  begin
+    if ExtractParamFloat(U, 'S', V) or ExtractParamFloat(U, 'R', V) then
+    begin
+      if (V < 0) or (V > ABSOLUTE_MAX_BED_TEMP) then
+      begin
+        Reason := Format('Thermal Safety: Bed temp (%.0f C) exceeds hardware safety limit (%d C). Blocked to prevent burnout.',
+          [V, ABSOLUTE_MAX_BED_TEMP]);
+        Exit;
+      end;
+    end;
+  end;
+
   Result := True;
 end;
 

@@ -33,7 +33,7 @@ begin
     Check(S.Start, 'Start');
     { O simulador confirma cada linha na hora: o programa termina no Start. }
     Check(S.State = ssDone, 'Job completed after acknowledgements');
-    Check(S.Completed = 2, 'All lines confirmed');
+    Check(S.Completed = S.Count, 'All lines confirmed');
     Check(not S.Start or (S.State = ssDone), 'Restart completed job');
     Check(S.Stop, 'Stop');
     Raised := False;

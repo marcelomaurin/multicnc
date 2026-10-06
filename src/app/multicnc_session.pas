@@ -43,6 +43,7 @@ type
     FLastError: string;
     FErrorBase, FAlarmBase: Integer;
     FLastPoll: QWord;
+    FLastTempQuery: QWord;
     FEnvelopeX, FEnvelopeY, FEnvelopeZ: Double;
     procedure Receive(const Data: string);
     procedure ReleaseConnection;
@@ -53,6 +54,7 @@ type
     function GetCompleted: Integer;
     function GetMachineState: TMachineState;
     function GetPosition: TMachinePosition;
+    function GetTemperatures: TPrinterTemperatures;
     function GetHomePosition: TMachinePosition;
     function GetHomePositionSet: Boolean;
     function Fail(const Reason: string): Boolean;
@@ -86,6 +88,7 @@ type
     function ProgramText: string;
     { Curso util por eixo (mm), aplicado ao jog; 0 = desconhecido. }
     procedure SetWorkEnvelope(X, Y, Z: Double);
+    procedure SetThermalLimits(AMaxHotend, AMaxBed: Integer);
     property Connected: Boolean read GetConnected;
     property State: TSessionState read FState;
     { Linhas do programa confirmadas pela controladora. }
@@ -96,6 +99,10 @@ type
     property Position: TMachinePosition read GetPosition;
     property Bounds: TGCodeBounds read FBounds;
     property LaserSettings: TLaserSettings read FLaserSettings write FLaserSettings;
+    property Temperatures: TPrinterTemperatures read GetTemperatures;
+    function QueryTemperatures: Boolean;
+    function SetHotendTemperature(ATemp: Double): Boolean;
+    function SetBedTemperature(ATemp: Double): Boolean;
     property EnvelopeX: Double read FEnvelopeX;
     property EnvelopeY: Double read FEnvelopeY;
     property EnvelopeZ: Double read FEnvelopeZ;
@@ -219,7 +226,7 @@ begin
   else
   begin
     FState := ssError;
-    FLastError := 'Falha ao abrir a conexao';
+    FLastError := 'Failed to open connection';
   end;
 end;
 
@@ -237,7 +244,10 @@ end;
 
 function TSimulationSession.GetCount: Integer;
 begin
-  Result := FLines.Count;
+  if FLoadedLines.Count > 0 then
+    Result := FLoadedLines.Count
+  else
+    Result := FLines.Count;
 end;
 
 function TSimulationSession.GetCompleted: Integer;
@@ -264,18 +274,23 @@ begin
   if Assigned(FMachine) then FMachine.SetWorkEnvelope(X, Y, Z);
 end;
 
+procedure TSimulationSession.SetThermalLimits(AMaxHotend, AMaxBed: Integer);
+begin
+  if Assigned(FMachine) then FMachine.SetThermalLimits(AMaxHotend, AMaxBed);
+end;
+
 procedure TSimulationSession.LoadFile(const FileName: string);
 var Source, Commands: TStringList; Stream: TFileStream; I: Integer; Line: string;
 begin
   if FState in [ssRunning, ssPaused] then
-    raise Exception.Create('Pare o programa antes de abrir outro arquivo.');
+    raise Exception.Create('Stop program before opening another file.');
   Source := TStringList.Create;
   Commands := TStringList.Create;
   try
     Stream := TFileStream.Create(FileName, fmOpenRead or fmShareDenyWrite);
     try
       if Stream.Size > 5 * 1024 * 1024 then
-        raise Exception.Create('O arquivo excede o limite de 5 MB.');
+        raise Exception.Create('The file exceeds the 5 MB limit.');
       Source.LoadFromStream(Stream);
     finally
       Stream.Free;
@@ -286,7 +301,7 @@ begin
       if (Line[1] = '(') and (Line[Length(Line)] = ')') then Continue;
       Commands.Add(Line);
     end;
-    if Commands.Count = 0 then raise Exception.Create('O arquivo nao contem comandos.');
+    if Commands.Count = 0 then raise Exception.Create('The file contains no commands.');
     FLoadedLines.Assign(Commands);
     FLines.Assign(Commands);
     TGCodeAnalyzer.Analyze(Commands, FBounds);
@@ -302,11 +317,11 @@ end;
 
 function TSimulationSession.RunFraming(const AFramingLines: TStrings): Boolean;
 begin
-  if not Connected then Exit(Fail('Maquina desconectada'));
-  if (AFramingLines = nil) or (AFramingLines.Count = 0) then Exit(Fail('Nenhum percurso de contorno disponivel'));
-  if FState in [ssRunning, ssPaused] then Exit(Fail('Maquina ocupada com outro programa'));
+  if not Connected then Exit(Fail('Machine disconnected'));
+  if (AFramingLines = nil) or (AFramingLines.Count = 0) then Exit(Fail('No framing path available'));
+  if FState in [ssRunning, ssPaused] then Exit(Fail('Machine is busy with another program'));
   if FMachine.GetState in [msAlarm, msError] then
-    Exit(Fail('Maquina em alarme: desbloqueie ou referencie antes de iniciar'));
+    Exit(Fail('Machine in alarm: unlock or home before starting'));
   if FMachine.PendingLines > 0 then
     Exit(Fail('Aguarde a controladora concluir os comandos pendentes'));
 
@@ -325,11 +340,11 @@ end;
 function TSimulationSession.Start: Boolean;
 var Transformed: TStringList;
 begin
-  if not Connected then Exit(Fail('Maquina desconectada'));
-  if FLoadedLines.Count = 0 then Exit(Fail('Nenhum programa carregado'));
-  if FState in [ssRunning, ssPaused] then Exit(Fail('Programa ja em execucao'));
+  if not Connected then Exit(Fail('Machine disconnected'));
+  if FLoadedLines.Count = 0 then Exit(Fail('No program loaded'));
+  if FState in [ssRunning, ssPaused] then Exit(Fail('Program is already running'));
   if FMachine.GetState in [msAlarm, msError] then
-    Exit(Fail('Maquina em alarme: desbloqueie ou referencie antes de iniciar'));
+    Exit(Fail('Machine in alarm: unlock or home before starting'));
   if FMachine.PendingLines > 0 then
     Exit(Fail('Aguarde a controladora concluir os comandos pendentes'));
 
@@ -428,6 +443,15 @@ begin
       FMachine.Status;
     end;
   end;
+  if (FMachineKind = mtPrinter3D) and Connected and Assigned(FMachine) then
+  begin
+    Now64 := GetTickCount64;
+    if (Now64 - FLastTempQuery >= 1000) and (FMachine.PendingLines <= 1) then
+    begin
+      FLastTempQuery := Now64;
+      FMachine.QueryTemperatures;
+    end;
+  end;
 end;
 
 procedure TSimulationSession.Tick;
@@ -436,7 +460,7 @@ begin
   if not Connected then
   begin
     FState := ssError;
-    FLastError := 'Conexao perdida durante o programa';
+    FLastError := 'Connection lost while program was running';
     Exit;
   end;
   if FState = ssRunning then FeedJob else CheckFirmwareFaults;
@@ -461,7 +485,7 @@ end;
 
 function TSimulationSession.Resume: Boolean;
 begin
-  if not (Connected and (FState = ssPaused)) then Exit(Fail('Programa nao esta pausado'));
+  if not (Connected and (FState = ssPaused)) then Exit(Fail('Program is not paused'));
   Result := FMachine.Resume;
   if Result then
   begin
@@ -477,7 +501,7 @@ end;
 
 function TSimulationSession.Stop: Boolean;
 begin
-  if not Connected then Exit(Fail('Maquina desconectada'));
+  if not Connected then Exit(Fail('Machine disconnected'));
   Result := FMachine.Stop;
   if FFramingActive then
   begin
@@ -512,35 +536,35 @@ end;
 function TSimulationSession.SetHome(out AHomePos: TMachinePosition): Boolean;
 begin
   AHomePos := EmptyPosition;
-  if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Indisponivel durante o programa'));
+  if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Unavailable while program is running'));
   Result := FMachine.SetHome(AHomePos);
   if not Result then FLastError := FMachine.LastError;
 end;
 
 function TSimulationSession.PhysicalHoming: Boolean;
 begin
-  if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Indisponivel durante o programa'));
+  if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Unavailable while program is running'));
   Result := FMachine.PhysicalHoming;
   if not Result then FLastError := FMachine.LastError;
 end;
 
 function TSimulationSession.Home(AFeed: Double = 0): Boolean;
 begin
-  if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Indisponivel durante o programa'));
+  if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Unavailable while program is running'));
   Result := FMachine.Home(AFeed);
   if not Result then FLastError := FMachine.LastError;
 end;
 
 function TSimulationSession.SetFeedRate(AFeed: Double): Boolean;
 begin
-  if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Indisponivel durante o programa'));
+  if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Unavailable while program is running'));
   Result := FMachine.SetFeedRate(AFeed);
   if not Result then FLastError := FMachine.LastError;
 end;
 
 function TSimulationSession.Zero: Boolean;
 begin
-  if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Indisponivel durante o programa'));
+  if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Unavailable while program is running'));
   if Assigned(FMachine) and (FMachine.GetMachineType = mtPrinter3D) then
     Exit(Fail('Referenciamento de zero indisponivel para impressora 3D'));
   Result := FMachine.Zero;
@@ -550,12 +574,12 @@ end;
 function TSimulationSession.Status: Boolean;
 begin
   Result := Connected and FMachine.Status;
-  if not Result then FLastError := 'Falha ao consultar estado';
+  if not Result then FLastError := 'Failed to query machine state';
 end;
 
 function TSimulationSession.Unlock: Boolean;
 begin
-  if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Indisponivel durante o programa'));
+  if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Unavailable while program is running'));
   Result := FMachine.Unlock;
   if Result then
   begin
@@ -573,7 +597,7 @@ end;
 function TSimulationSession.Jog(Axis: TAxis; Distance, Feed: Double): Boolean;
 begin
   if not SupportsAxis(Axis) then Exit(Fail('Eixo indisponivel'));
-  if FState in [ssRunning, ssPaused] then Exit(Fail('Indisponivel durante o programa'));
+  if FState in [ssRunning, ssPaused] then Exit(Fail('Unavailable while program is running'));
   if not ((Abs(Distance) > 0) and (Abs(Distance) <= 100) and (Feed >= 1) and (Feed <= 10000)) then
     Exit(Fail('Passo ou avanco fora dos limites (0-100 mm, 1-10000 mm/min)'));
   Result := FMachine.Jog(Axis, Distance, Feed);
@@ -582,7 +606,7 @@ end;
 
 function TSimulationSession.Send(const Line: string): Boolean;
 begin
-  if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Indisponivel durante o programa'));
+  if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Unavailable while program is running'));
   if (Trim(Line) = '') or (Pos(#10, Line) > 0) or (Pos(#13, Line) > 0) then
     Exit(Fail('Informe um unico comando'));
   Result := FMachine.SendGCode(Line);
@@ -592,6 +616,30 @@ end;
 function TSimulationSession.ProgramText: string;
 begin
   Result := FLines.Text;
+end;
+
+function TSimulationSession.GetTemperatures: TPrinterTemperatures;
+begin
+  if Assigned(FMachine) then Result := FMachine.GetTemperatures
+  else Result := EmptyTemperatures;
+end;
+
+function TSimulationSession.QueryTemperatures: Boolean;
+begin
+  if Assigned(FMachine) then Result := FMachine.QueryTemperatures
+  else Result := False;
+end;
+
+function TSimulationSession.SetHotendTemperature(ATemp: Double): Boolean;
+begin
+  if Assigned(FMachine) then Result := FMachine.SetHotendTemperature(ATemp)
+  else Result := False;
+end;
+
+function TSimulationSession.SetBedTemperature(ATemp: Double): Boolean;
+begin
+  if Assigned(FMachine) then Result := FMachine.SetBedTemperature(ATemp)
+  else Result := False;
 end;
 
 end.

@@ -20,11 +20,11 @@ begin
     for I := 0 to F.ComponentCount - 1 do
       if F.Components[I] is TButton then
         with TButton(F.Components[I]) do begin
-          if Caption = 'Conectar simulador' then ConnectButton := TButton(F.Components[I]);
-          if Caption = 'Iniciar' then StartButton := TButton(F.Components[I]);
+          if (Caption = 'Connect Device') or (Caption = 'Conectar simulador') or (Caption = 'Conectar equipamento') then ConnectButton := TButton(F.Components[I]);
+          if (Caption = 'Start') or (Caption = 'Iniciar') then StartButton := TButton(F.Components[I]);
           if Caption = 'Z +' then JogZ := TButton(F.Components[I]);
-          if Caption = 'Pausar' then PauseButton := TButton(F.Components[I]);
-          if Caption = 'PARAR' then StopButton := TButton(F.Components[I]);
+          if (Caption = 'Pause') or (Caption = 'Pausar') then PauseButton := TButton(F.Components[I]);
+          if (Caption = 'Emergency Stop') or (Caption = 'PARAR') or (Caption = 'Parar') then StopButton := TButton(F.Components[I]);
         end;
     Check(Assigned(ConnectButton) and Assigned(StartButton) and Assigned(JogZ), 'Controls exist');
     Check(not StartButton.Enabled and not JogZ.Enabled, 'Disconnected controls');
@@ -51,7 +51,7 @@ begin
     Check(ProgramView.SelStart = FirstMatch, 'Search wraps');
     Search.Text := 'M999';
     FindNext.Click;
-    Check(TLabel(F.FindComponent('SearchResult')).Caption = 'Texto nao encontrado.', 'Missing query feedback');
+    Check((TLabel(F.FindComponent('SearchResult')).Caption = 'Text not found.') or (TLabel(F.FindComponent('SearchResult')).Caption = 'Texto nao encontrado.'), 'Missing query feedback');
     // A UTF-8 character before a match must not offset the selection.
     ProgramView.Text := 'G0 ; ' + #$C3#$A7 + LineEnding + 'G1 X10';
     Search.Text := 'X10';

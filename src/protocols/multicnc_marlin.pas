@@ -6,7 +6,8 @@ unit multicnc_marlin;
   planejador de movimentos. Como so ha uma linha pendente, o M410 entra na fila
   logo em seguida. Com EMERGENCY_PARSER ativo no firmware ele e imediato. }
 
-{$mode objfpc}{$H+}{$interfaces corba}
+{$mode objfpc}{$H+}
+{$interfaces corba}
 
 interface
 
@@ -35,6 +36,9 @@ type
     function BuildSafeOffCommands(AType: TMachineType): string; override;
     function BuildJogCommand(AAxis: TAxis; ADistance, AFeed: Double): string; override;
     function BuildFeedRateCommand(AFeed: Double): string; override;
+    function BuildQueryTemperaturesCommand: string; override;
+    function BuildSetHotendTemperatureCommand(ATemp: Double): string; override;
+    function BuildSetBedTemperatureCommand(ATemp: Double): string; override;
   end;
 
 implementation
@@ -67,6 +71,14 @@ begin
   begin
     Inc(FAcks);
     { "ok" pode trazer temperaturas: "ok T:200.0 /200.0 B:60.0 /60.0" }
+    if (Pos('t:', L) > 0) or (Pos('b:', L) > 0) then
+      if ParseMarlinTemperatures(ALine, FTemperatures) then
+        FHasTemperatures := True;
+  end
+  else if (Pos('t:', L) > 0) and ((Pos('/', L) > 0) or (Pos('b:', L) > 0)) then
+  begin
+    if ParseMarlinTemperatures(ALine, FTemperatures) then
+      FHasTemperatures := True;
   end
   else if L = 'start' then
   begin
@@ -117,15 +129,36 @@ function TMarlinProtocol.BuildPhysicalHomingCommand: string;
 begin
   Result := 'G28' + LineEnding;
 end;
-function TMarlinProtocol.BuildZeroCommand: string; begin Result := 'G92 X0 Y0 Z0' + LineEnding; end;
-function TMarlinProtocol.BuildStatusCommand: string; begin Result := 'M114' + LineEnding; end;
-{ M999 so tem efeito depois de uma parada por erro (Printer halted). }
-function TMarlinProtocol.BuildUnlockCommand: string; begin Result := 'M999' + LineEnding; end;
-{ Pausa/retomada no host: o envio e interrompido e os movimentos ja
-  enviados terminam. }
-function TMarlinProtocol.BuildPauseCommand: string; begin Result := ''; end;
-function TMarlinProtocol.BuildResumeCommand: string; begin Result := ''; end;
-function TMarlinProtocol.BuildStopCommand: string; begin Result := 'M410' + LineEnding; end;
+
+function TMarlinProtocol.BuildZeroCommand: string;
+begin
+  Result := 'G92 X0 Y0 Z0' + LineEnding;
+end;
+
+function TMarlinProtocol.BuildStatusCommand: string;
+begin
+  Result := 'M114' + LineEnding;
+end;
+
+function TMarlinProtocol.BuildUnlockCommand: string;
+begin
+  Result := 'M999' + LineEnding;
+end;
+
+function TMarlinProtocol.BuildPauseCommand: string;
+begin
+  Result := '';
+end;
+
+function TMarlinProtocol.BuildResumeCommand: string;
+begin
+  Result := '';
+end;
+
+function TMarlinProtocol.BuildStopCommand: string;
+begin
+  Result := 'M410' + LineEnding;
+end;
 
 function TMarlinProtocol.BuildSafeOffCommands(AType: TMachineType): string;
 begin
@@ -146,6 +179,21 @@ end;
 function TMarlinProtocol.BuildFeedRateCommand(AFeed: Double): string;
 begin
   Result := Format('G0 F%.0f%s', [AFeed, LineEnding], InvariantFS);
+end;
+
+function TMarlinProtocol.BuildQueryTemperaturesCommand: string;
+begin
+  Result := 'M105' + LineEnding;
+end;
+
+function TMarlinProtocol.BuildSetHotendTemperatureCommand(ATemp: Double): string;
+begin
+  Result := Format('M104 S%.0f%s', [ATemp, LineEnding], InvariantFS);
+end;
+
+function TMarlinProtocol.BuildSetBedTemperatureCommand(ATemp: Double): string;
+begin
+  Result := Format('M140 S%.0f%s', [ATemp, LineEnding], InvariantFS);
 end;
 
 end.

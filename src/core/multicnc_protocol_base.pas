@@ -19,9 +19,10 @@ type
   protected
     FBuffer: string;
     FAcks, FErrors: Integer;
-    FHasState, FHasPosition, FResetDetected: Boolean;
+    FHasState, FHasPosition, FHasTemperatures, FResetDetected: Boolean;
     FState: TMachineState;
     FPosition: TMachinePosition;
+    FTemperatures: TPrinterTemperatures;
     FLastMessage: string;
     procedure HandleLine(const ALine: string); virtual; abstract;
     procedure SetState(AState: TMachineState);
@@ -33,6 +34,7 @@ type
     function TakeResponses(out Acks, Errors: Integer): Boolean;
     function ReportedState(out AState: TMachineState): Boolean;
     function ReportedPosition(out APosition: TMachinePosition): Boolean;
+    function ReportedTemperatures(out ATemps: TPrinterTemperatures): Boolean; virtual;
     function TakeResetDetected: Boolean;
     function LastMessage: string;
     function ReceiveBufferSize: Integer; virtual; abstract;
@@ -48,6 +50,9 @@ type
     function BuildSafeOffCommands(AType: TMachineType): string; virtual;
     function BuildJogCommand(AAxis: TAxis; ADistance, AFeed: Double): string; virtual; abstract;
     function BuildFeedRateCommand(AFeed: Double): string; virtual; abstract;
+    function BuildQueryTemperaturesCommand: string; virtual;
+    function BuildSetHotendTemperatureCommand(ATemp: Double): string; virtual;
+    function BuildSetBedTemperatureCommand(ATemp: Double): string; virtual;
     procedure ResetPositionToZero; virtual;
   end;
 
@@ -109,8 +114,10 @@ begin
   FErrors := 0;
   FHasState := False;
   FHasPosition := False;
+  FHasTemperatures := False;
   FResetDetected := False;
   FPosition := EmptyPosition;
+  FTemperatures := EmptyTemperatures;
   FLastMessage := '';
 end;
 
@@ -151,6 +158,13 @@ begin
   FHasPosition := False;
 end;
 
+function TMultiCNCProtocolBase.ReportedTemperatures(out ATemps: TPrinterTemperatures): Boolean;
+begin
+  ATemps := FTemperatures;
+  Result := FHasTemperatures;
+  FHasTemperatures := False;
+end;
+
 function TMultiCNCProtocolBase.TakeResetDetected: Boolean;
 begin
   Result := FResetDetected;
@@ -173,6 +187,21 @@ begin
 end;
 
 function TMultiCNCProtocolBase.BuildSafeOffCommands(AType: TMachineType): string;
+begin
+  Result := '';
+end;
+
+function TMultiCNCProtocolBase.BuildQueryTemperaturesCommand: string;
+begin
+  Result := '';
+end;
+
+function TMultiCNCProtocolBase.BuildSetHotendTemperatureCommand(ATemp: Double): string;
+begin
+  Result := '';
+end;
+
+function TMultiCNCProtocolBase.BuildSetBedTemperatureCommand(ATemp: Double): string;
 begin
   Result := '';
 end;
