@@ -12,11 +12,11 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y fp-compiler fp-units-base fp-units-fcl
       - run: |
           fpc -Fu$GITHUB_WORKSPACE/multisuite/src/core multisuite/tests/test_registry.lpr
-          ./test_registry
+          ./multisuite/tests/test_registry
           fpc -Fu$GITHUB_WORKSPACE/multisuite/src/core multisuite/tests/test_workspace.lpr
-          ./test_workspace
+          ./multisuite/tests/test_workspace
           fpc -Fu$GITHUB_WORKSPACE/multisuite/src/core multisuite/tests/test_launcher_paths.lpr
-          ./test_launcher_paths
+          ./multisuite/tests/test_launcher_paths
   build-gui:
     runs-on: ubuntu-latest
     steps:

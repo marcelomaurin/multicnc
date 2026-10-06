@@ -397,7 +397,7 @@ end;
 
 procedure TMultiSuiteForm.AddToolCard(AParent: TWinControl; AToolIndex: Integer);
 var
-  P, Action: TPanel;
+  P, ActionPanel: TPanel;
   L: TLabel;
   B: TButton;
   T: TSuiteToolInfo;
@@ -418,15 +418,15 @@ begin
   P.BorderSpacing.Right := 24;
   P.BorderSpacing.Bottom := 9;
 
-  Action := TPanel.Create(P);
-  Action.Parent := P;
-  Action.Align := alRight;
-  Action.Width := 142;
-  Action.BevelOuter := bvNone;
-  Action.Color := clWhite;
+  ActionPanel := TPanel.Create(P);
+  ActionPanel.Parent := P;
+  ActionPanel.Align := alRight;
+  ActionPanel.Width := 142;
+  ActionPanel.BevelOuter := bvNone;
+  ActionPanel.Color := clWhite;
 
-  B := TButton.Create(Action);
-  B.Parent := Action;
+  B := TButton.Create(ActionPanel);
+  B.Parent := ActionPanel;
   B.SetBounds(18, 28, 104, 36);
   B.Caption := 'Abrir';
   B.Tag := AToolIndex;
