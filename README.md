@@ -1,8 +1,71 @@
 # MultiCNC
 
-Plataforma desktop para controle, projeto, preparação, simulação e testes de máquinas e sistemas de fabricação digital.
+**Idiomas:** Português · [English](README_EN.md) · [Español](README_ES.md) · [Français](README_FR.md) · [Deutsch](README_DE.md) · [Русский](README_RU.md) · [中文](README_ZH.md) · [العربية](README_AR.md) · [हिन्दी](README_HI.md)
 
-O repositório reúne várias aplicações. **Elas não são o mesmo programa.** Cada ferramenta possui uma finalidade específica e pode compartilhar bibliotecas e modelos com as demais.
+## Uma plataforma integrada para projetar, simular e fabricar
+
+O **MultiCNC** é uma suíte aberta de fabricação digital criada para aproximar, em um único ecossistema, as etapas de **projeto, preparação, simulação e operação de máquinas**.
+
+A proposta vai além de um simples programa para enviar G-code. O projeto busca oferecer uma experiência integrada para quem trabalha com **CNC Router, CNC Laser, impressão 3D, eletrônica, PCB, montagem eletromecânica e simulação física**.
+
+> **Uma ideia, vários processos, um único ambiente.**
+
+### Visão do projeto
+
+O objetivo do MultiCNC é reduzir a fragmentação do processo de fabricação digital. Em vez de depender de várias ferramentas desconectadas, a suíte procura reunir aplicações especializadas que trabalham de forma complementar, desde a criação e preparação do projeto até sua validação e execução na máquina.
+
+```text
+IDEIA
+  ↓
+PROJETO
+  ↓
+SIMULAÇÃO
+  ↓
+PREPARAÇÃO
+  ↓
+VALIDAÇÃO
+  ↓
+FABRICAÇÃO
+```
+
+### O que faz parte do ecossistema
+
+| Aplicação | Visão |
+|---|---|
+| **MultiCNC** | Operação e controle das máquinas |
+| **MultiSuite** | Ponto de entrada para toda a suíte |
+| **MultiCAD** | Projeto e preparação geométrica |
+| **MultiCAM** | Preparação de trajetórias e fabricação |
+| **MultiSlicer** | Preparação para impressão 3D |
+| **MultiPCB / LaserPCB** | Projeto e fabricação de placas eletrônicas |
+| **MultiAssembly** | Integração de mecânica e eletrônica em uma montagem |
+| **MultiPhysics** | Simulação física multidomínio |
+
+### CNC Router, Laser e impressão 3D
+
+O MultiCNC foi pensado para trabalhar com diferentes processos de fabricação. Na **CNC Router**, o foco está na preparação e execução de usinagem. No **CNC Laser**, o usuário pode preparar trabalhos de gravação, corte e picote, além de conferir o posicionamento do material antes da execução. Na **impressão 3D**, a proposta é integrar a preparação do modelo e sua fabricação ao mesmo ecossistema.
+
+No modo Laser, por exemplo, o recurso de **contorno da área de trabalho** permite conferir onde o desenho será executado antes de iniciar, ajudando o operador a verificar se a peça está bem posicionada e se o trabalho cabe no material. As configurações específicas de laser incluem potência, velocidade, passadas, tipo de operação e assistência de ar.
+
+### Simular antes de fabricar
+
+O **MultiPhysics** amplia a proposta da suíte ao permitir estudar o comportamento do projeto antes de levá-lo para a máquina real. A visão inclui elementos mecânicos, elétricos, eletrônicos, materiais, sensores, motores, forças, movimentos e outros fenômenos físicos em um ambiente integrado.
+
+### Inteligência Artificial como assistência
+
+A inteligência artificial faz parte da evolução do projeto como uma camada de apoio ao usuário. Ela pode auxiliar na análise de projetos, interpretação de comandos, preparação de trabalhos, diagnóstico e orientação, sempre mantendo a decisão e a operação da máquina sob controle do usuário.
+
+### Para quem é o MultiCNC
+
+O projeto é voltado a **makers, estudantes, professores, escolas técnicas, universidades, FabLabs, laboratórios, pesquisadores, desenvolvedores, profissionais de automação e pequenas oficinas**.
+
+O MultiCNC também funciona como ambiente de estudo e experimentação em manufatura digital, CAD/CAM, eletrônica, controle de máquinas e simulação.
+
+### Projeto aberto e em evolução
+
+O MultiCNC é **open source** e está em desenvolvimento contínuo. Os módulos da suíte podem estar em diferentes níveis de maturidade, por isso a documentação técnica abaixo informa o papel de cada aplicação e o estado dos recursos.
+
+---
 
 ## Qual aplicação devo usar?
 
