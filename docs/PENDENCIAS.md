@@ -1,19 +1,29 @@
 # Pendencias da suite (atualizado 06/10/2026, noite)
 
 Lista do que ficou aberto. Detalhes do LaserArt em
-`laserpcb/docs/LASERART_PLANO.md`.
+`laserart/docs/LASERART_PLANO.md`.
 
 ## LaserArt
-- **Nova versao pronta** (estilo LightBurn/RDWorks):
-  - SVG, texto, imagem e formas, com 30 camadas;
-  - Teste de material e biblioteca de materiais;
-  - previa com tempo estimado;
-  - Salvar G-code e Enviar ao MultiCNC.
-- `bin\laserart.exe` e `laserpcb\src\app\laserart.exe` (x64) gerados.
-- Teste `laserpcb/tests/test_laserart_output` (27 verificacoes) esta na
-  Central de testes.
-- Falta: teste fim a fim na maquina/SimuCNC laser. Apagar as units
-  antigas sem uso (lista no plano).
+- **Nova versao pronta** e com pasta propria na raiz: `laserart/`
+  (`src/core`, `src/ui`, `src/app`, `tests`, `docs`). Nao depende mais do
+  LaserPCB. Inclui SVG, texto, imagem, formas, 30 camadas, Teste de material,
+  biblioteca de materiais, previa e Enviar ao MultiCNC.
+- `bin\laserart.exe` e `laserart\src\app\laserart.exe` (x64) gerados.
+- Registro da suite, Central de testes e scripts de build
+  (`installer\windows\build_release.bat`, `installer/linux/build_release.sh`)
+  apontam para `laserart/`.
+- Falta: teste fim a fim na maquina/SimuCNC laser.
+- **Apagar a copia antiga dentro de `laserpcb\`** (nao e mais usada):
+  - `laserpcb\src\art\` (pasta inteira, so tem `laserart_*`)
+  - `laserpcb\src\app\laserart*` (`laserart.exe`, `.ico`, `.lpi`, `.lpr`,
+    `.manifest`, `.res`, `laserart_main.pas`, `laserart_calibrationform.pas`)
+  - `laserpcb\src\ui\laserart_canvas.pas`, `laserart_editor.pas`,
+    `laserart_widgets.pas`
+  - `laserpcb\tests\test_laserart_output.*` e `test_calibration_matrix.*`
+  - `laserpcb\docs\LASERART_PLANO.md` (hoje so aponta para a pasta nova)
+  - `laserpcb\src\app\lib\i386-win32\laserart*` (cache de compilacao)
+- `multisuite.exe` e `multisuite_tray.exe` antigos acham o LaserArt em
+  `bin\`; recompilados, acham tambem em `laserart\src\app\`.
 
 ## SimuCNC
 - Layout novo e 3D por equipamento (impressora/router/laser) em

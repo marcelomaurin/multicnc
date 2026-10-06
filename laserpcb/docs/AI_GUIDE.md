@@ -1,12 +1,7 @@
-# LaserPCB e LaserArt - Guia para IA
+# LaserPCB - Guia para IA
 
-## Duas ferramentas no mesmo modulo
-
-### LaserPCB
-Especializada em preparacao de placas PCB para processo laser: layout, posicionamento, nesting, transformacoes, alinhamento, camera/calibracao e geracao do trabalho/G-code.
-
-### LaserArt
-Especializada em conteudo grafico geral para laser: imagens, logos, arte raster/vetorial, efeitos, materiais, calibracao e construcao do job.
+## Finalidade
+Preparacao de placas PCB para processo laser: layout, posicionamento, nesting, transformacoes, alinhamento, camera/calibracao e geracao do trabalho/G-code.
 
 ## Estrutura
 - src/core/: tipos/job/perfil LaserPCB.
@@ -14,17 +9,16 @@ Especializada em conteudo grafico geral para laser: imagens, logos, arte raster/
 - src/camera/: interface de camera.
 - src/import/: SVG.
 - src/export/: G-code.
-- src/art/: documento LaserArt, raster, vector, image effects, materiais, calibracao e job builder.
-- src/ui/: canvas LaserPCB e LaserArt.
-- src/app/: executaveis LaserPCB, layout e LaserArt.
+- src/ui/: canvas LaserPCB.
+- src/app/: executaveis LaserPCB e layout.
 - docs/: arquitetura, posicionamento e alinhamento.
-- tests/: job/layout/alinhamento/calibracao.
+- tests/: job/layout/alinhamento.
 
-## Limite entre elas
-Se a finalidade e fabricar PCB, prefira LaserPCB. Se e gravar/cortar imagem, logotipo, texto ou arte geral, use LaserArt.
+## Limite com o LaserArt
+Se a finalidade e fabricar PCB, use LaserPCB. Se e gravar/cortar imagem, logotipo, texto ou arte geral, use o LaserArt (pasta `laserart/` na raiz).
 
 ## Integracao
-MultiPCB fornece dados de placa. LaserPCB/LaserArt preparam o job. MultiCNC executa a maquina laser.
+MultiPCB fornece dados de placa. LaserPCB prepara o job. MultiCNC executa a maquina laser.
 
 ## Nao pertence aqui
 Controle direto de porta serial/protocolo da maquina ou modelagem CAD mecanica.

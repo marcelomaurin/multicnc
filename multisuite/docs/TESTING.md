@@ -25,7 +25,7 @@ MultiAssembly: modelo eletromecanico.
 MultiCAM: CAM mecanico, setup, simulacao, eletronica virtual e pipeline demo.
 MultiSlicer: layout 3D.
 LaserPCB: job, layout e alinhamento.
-LaserArt: matriz/calibracao.
+LaserArt: saida G-code (SVG, texto, imagem) e matriz de teste de material.
 MultiSuite: registro e workspace.
 
 ## Regra para IA

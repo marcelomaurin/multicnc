@@ -4,8 +4,8 @@ unit laserart_calibrationform;
   (colunas) e a velocidade (linhas). Grave a matriz no material, escolha o
   melhor quadrado e salve os valores como material na aba Materiais.
 
-  Usa TLaserCalibration.BuildMatrix (laserart_calibration) e o exportador
-  de G-code do LaserPCB. Potencia em valor S (0..S max do GRBL). }
+  Usa TLaserCalibration.BuildMatrix e TLACalibJob (laserart_calibration).
+  Potencia em valor S (0..S max do GRBL). }
 
 {$mode objfpc}{$H+}
 
@@ -13,7 +13,7 @@ interface
 
 uses
   multisuite_numfmt, Classes, SysUtils, Math, Forms, Controls, StdCtrls, ExtCtrls,
-  Dialogs, Graphics, Spin, laserpcb_job, laserpcb_gcode, laserart_calibration,
+  Dialogs, Graphics, Spin, laserart_calibration,
   multisuite_icons, multisuite_controls;
 
 type
@@ -23,7 +23,7 @@ type
     ECols, ERows: TSpinEdit;
     Preview: TPaintBox;
     Log: TLabel;
-    J: TLaserPCBJob;
+    J: TLACalibJob;
     function Field(AParent: TWinControl; const ACaption: string; X, Y: Integer;
       AMin, AMax, AValue: Double; ADec: Integer): TFloatSpinEdit;
     function Valid(out Msg: string): Boolean;
@@ -75,7 +75,7 @@ begin
   Font.Name := 'Segoe UI';
   Font.Size := 9;
   Color := clSuiteSurface;
-  J := TLaserPCBJob.Create;
+  J := TLACalibJob.Create;
 
   H := TSuiteHeader.Create(Self);
   H.Parent := Self;
@@ -231,7 +231,6 @@ begin
     for X := 0 to Cols - 1 do
     begin
       { intensidade estimada: potencia alta e velocidade baixa = mais escuro }
-      T := (X / Max(1, Cols - 1)) * 0.75 + ((Rows - 1 - (Rows - 1 - Y)) / Max(1, Rows - 1)) * 0.0;
       T := EnsureRange((X / Max(1, Cols - 1)) * 0.7 + (1 - (Rows - 1 - Y) / Max(1, Rows - 1)) * 0.3, 0, 1);
       R := Rect(OX + X * CW + 3, OY + Y * CH + 3, OX + (X + 1) * CW - 3, OY + (Y + 1) * CH - 3);
       C.Brush.Style := bsSolid;
@@ -260,7 +259,7 @@ begin
     D.Options := [ofOverwritePrompt, ofPathMustExist, ofEnableSizing];
     if D.Execute then
     begin
-      TLaserGCodeExporter.ExportJob(J, D.FileName);
+      J.SaveGCode(D.FileName);
       Log.Font.Color := clSuiteSuccess;
       Log.Caption := 'Arquivo gerado: ' + D.FileName + '. Revise limites e area util antes de executar no MultiCNC.';
     end;

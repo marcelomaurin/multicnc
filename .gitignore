@@ -9,7 +9,8 @@ lib/
 /dist/
 /laserpcb/src/app/laserpcb_layout
 /laserpcb/tests/test_alignment
-/laserpcb/tests/test_calibration_matrix
+/laserart/tests/test_calibration_matrix
+/laserart/tests/test_laserart_output
 /laserpcb/tests/test_job
 /laserpcb/tests/test_layout
 /multicam/src/app/multicam_simulator

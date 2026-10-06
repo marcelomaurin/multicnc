@@ -46,7 +46,7 @@ APPS=(
   "multicam|multicam/src/app/multicam.lpi|multicam/src/app/multicam|MultiCAM|CAM e simulacao CNC Router"
   "multislicer|multislicer/src/app/multislicer.lpi|multislicer/src/app/multislicer|MultiSlicer|Fatiamento para impressao 3D"
   "laserpcb|laserpcb/src/app/laserpcb.lpi|laserpcb/src/app/laserpcb|LaserPCB|Preparacao de PCB para laser"
-  "laserart|laserpcb/src/app/laserart.lpi|laserpcb/src/app/laserart|LaserArt|Imagem, vetor e arte para laser"
+  "laserart|laserart/src/app/laserart.lpi|laserart/src/app/laserart|LaserArt|Imagem, vetor e arte para laser"
   "multicnc|src/app/multicnc.lpi|src/app/multicnc|MultiCNC|Controle e execucao da maquina"
   "multisuite_test_center|multisuite/src/testing/multisuite_test_center.lpi|multisuite/src/testing/multisuite_test_center|MultiSuite Central de Testes|Central de testes do MultiSuite"
 )

@@ -17,7 +17,7 @@ Antes de escrever codigo, identifique qual ferramenta e dona da responsabilidade
 | MultiCAM | Planejamento de usinagem CNC Router, toolpaths, simulacao de usinagem e G-code |
 | MultiSlicer | Fatiamento e posicionamento para impressao 3D |
 | LaserPCB | Preparacao/alinhamento de PCB para processo laser |
-| LaserArt | Imagens, logos, vetores e arte para laser; implementado dentro de laserpcb |
+| LaserArt | Imagens, logos, textos, vetores e arte para laser (pasta `laserart/`) |
 | MultiCNC | Conexao, seguranca, protocolo e execucao fisica da maquina |
 
 ## Fluxo conceitual
