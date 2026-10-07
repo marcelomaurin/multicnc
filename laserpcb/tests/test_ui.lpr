@@ -1,7 +1,7 @@
 program test_ui;
 {$mode objfpc}{$H+}
-uses Types, Interfaces, Forms, Controls, StdCtrls, SysUtils, Graphics, laserpcb_main, multisuite_controls;
-var F:TLaserPCBForm; DataDir:string;
+uses Types, Interfaces, Forms, Controls, StdCtrls, SysUtils, Graphics, laserpcb_main, laserpcb_project, multisuite_controls;
+var F:TLaserPCBForm; DataDir:string; N:Integer;
 procedure Check(Ok:Boolean; const Msg:string);
 begin if not Ok then raise Exception.Create(Msg);end;
 function FindButton(C:TWinControl; const Text:string):TSuiteButton;
@@ -80,7 +80,7 @@ begin
       X:=Origin.X+8;
       while X<Origin.X+F.Preview.ClientWidth-8 do
       begin
-        if ColorToRGB(Image.Canvas.Pixels[X,Y])=RGBToColor(190,124,55) then Inc(Count);
+        if ColorToRGB(Image.Canvas.Pixels[X,Y])=RGBToColor(205,72,62) then Inc(Count);
         Inc(X,8);
       end;
       Inc(Y,8);
@@ -102,8 +102,10 @@ begin
     F.OpenFile(DataDir+'demo-NPTH-slot.drl');
     SetField('Potencia calibrada (S)','250');SetField('Velocidade calibrada (mm/min)','600');
     SetField('Diametro calibrado do feixe (mm)','0.2');
-    Click('3  Processo');Click('Atualizar trajetorias');
-    Check(Length(F.Project.Paths)>0,'UI CAM not generated');
+    Click('3  Camadas');
+    Check(F.Project.OperationCount>=4,'UI default layers');
+    Click('Atualizar trajetorias');
+    Check(F.Project.Operation(0).Generated,'UI CAM not generated');
     Check(F.Project.CopperMask.CountSet>0,'UI copper preview empty');CheckCopperRendering;
     Snapshot('process');
     Click('Validar');Check(Badge='Trabalho valido','UI validation: '+Badge);Snapshot('validated');
@@ -121,15 +123,22 @@ begin
     SetField('Profundidade (mm, negativa)','1');Click('Conferir furacao');
     Check(Badge='Corrigir a furacao','UI accepted positive drill depth');
     SetField('Profundidade (mm, negativa)','-1.6');
-    Click('3  Processo');FindCombo('Marcar furos (laser)').ItemIndex:=4;
-    Click('Atualizar trajetorias');Check(Length(F.Project.Paths)=F.Project.Drills.HoleCount,'UI drill marks');
-    Snapshot('marks');FindCombo('Marcar furos (laser)').ItemIndex:=1;
+    Click('3  Camadas');FindCombo('Marcar furos (laser)').ItemIndex:=4;
+    Click('Atualizar trajetorias');
+    Check(F.Project.Operation(0).Mode=cmDrillMarks,'UI layer mode from editor');
+    Check(Length(F.Project.Operation(0).ItemPaths[0])=F.Project.Drills.HoleCount,'UI drill marks');
+    Snapshot('marks');FindCombo('Marcar furos (laser)').ItemIndex:=1;Click('Atualizar trajetorias');
+    Check(F.Project.Operation(0).Mode=cmIsolation,'UI layer back to isolation');
+    N:=F.Project.OperationCount;Click('Nova camada');
+    Check(F.Project.OperationCount=N+1,'UI new layer');
+    Check(F.Project.Operation(N).Power=0,'UI new layer uncalibrated');
+    Click('Excluir camada');Check(F.Project.OperationCount=N,'UI delete layer');
     F.Width:=1040;F.Height:=680;Application.ProcessMessages;
     Check(FindButton(F,'Gerar G-code').Left>=0,'export button offscreen');
     Check(FindButton(F,'Abrir no MultiCNC').BoundsRect.Right<=FindButton(F,'Abrir no MultiCNC').Parent.ClientWidth,'send button offscreen');
     Snapshot('minimum');
     SetField('Velocidade calibrada (mm/min)','0');Click('Validar');
     Check(Badge<>'Trabalho valido','UI accepted uncalibrated speed');
-    Writeln('PASS: native UI import, CAM, preview, validation, copies, rotation, drilling, marks, invalid parameters, minimum size');
+    Writeln('PASS: native UI import, layers, CAM, preview, validation, copies, rotation, drilling, marks, invalid parameters, minimum size');
   finally F.Free;end;
 end.

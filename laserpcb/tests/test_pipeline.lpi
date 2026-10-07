@@ -10,7 +10,7 @@
  <CompilerOptions>
   <Version Value="11"/>
   <Target><Filename Value="test_pipeline"/></Target>
-  <SearchPaths><OtherUnitFiles Value="../src/core;../src/import;../src/export;../src/layout;../src/geom;../src/cam;../src/drill;../src/ui;../src/app;../../src/shared;../../laserart/src/core;../../multisuite/src/core"/><UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)/test_pipeline"/></SearchPaths>
+  <SearchPaths><OtherUnitFiles Value="../src/core;../src/import;../src/export;../src/layout;../src/geom;../src/cam;../src/drill;../src/ui;../src/app;../../src/shared;../../laserart/src/core;../../laserart/src/ui;../../multisuite/src/core"/><UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)/test_pipeline"/></SearchPaths>
   <Parsing><SyntaxOptions><SyntaxMode Value="ObjFPC"/></SyntaxOptions></Parsing>
   <CodeGeneration><Checks><IOChecks Value="True"/><RangeChecks Value="True"/><OverflowChecks Value="True"/><StackChecks Value="True"/></Checks></CodeGeneration>
  </CompilerOptions>

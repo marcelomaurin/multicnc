@@ -17,7 +17,13 @@ type
     property Project: TLaserPCBProject read FProject write FProject;
   end;
 implementation
-uses laserpcb_gerber, laserpcb_drill;
+uses laserpcb_gerber, laserpcb_drill, laserart_model;
+
+{ cores de camada da placa (como LPKF/FlatCAM): Top vermelho, Bottom verde }
+function CopperColor(Side: TPCBLayerSide): TColor;
+begin
+  if Side = lsTop then Result := RGBToColor(205,72,62) else Result := RGBToColor(46,150,92);
+end;
 constructor TLaserPCBPreview.Create(AOwner: TComponent);
 begin inherited Create(AOwner); ShowCopper := True; ShowDrills := True; ShowPaths := True; end;
 procedure TLaserPCBPreview.DrawPaths(Item: TLaserLayoutItem; const Paths: TLPPaths; AColor: TColor);
@@ -66,7 +72,7 @@ begin
           begin
             C := RGBToColor(224,238,231);
             if ShowCopper and (FProject.CopperMask.Get(FProject.CopperMask.ColOf(LX),
-              FProject.CopperMask.RowOf(LY)) <> 0) then C := RGBToColor(190,124,55);
+              FProject.CopperMask.RowOf(LY)) <> 0) then C := CopperColor(FProject.Side);
             if (FProject.Mode = cmLayerHatch) and
               (FProject.ArtworkMask.Get(FProject.ArtworkMask.ColOf(LX),FProject.ArtworkMask.RowOf(LY)) <> 0) then
               C := RGBToColor(90,130,190);
@@ -79,11 +85,12 @@ begin
       Canvas.Draw(X0,Y0,Bitmap);
     finally Bitmap.Free; end;
   end
-  else if ShowCopper then DrawPaths(Item,FProject.ReferencePaths,RGBToColor(190,124,55));
+  else if ShowCopper then DrawPaths(Item,FProject.ReferencePaths,CopperColor(FProject.Side));
   DrawPaths(Item,FProject.OutlinePaths,RGBToColor(55,100,78));
 end;
 procedure TLaserPCBPreview.DrawOverlay;
 var I,J: Integer; P: TLPPaths; H: TLPPath; Diameter: Double; Item: TLaserLayoutItem;
+  Op: TLPOperation; Any: Boolean;
   Box: TLPRect; Pin: array[0..1] of TLPPoint; C,E: TPoint; R: Integer;
 begin
   if FProject = nil then Exit;
@@ -110,7 +117,22 @@ begin
   end;
   for I := 0 to Layout.Count-1 do
   begin
-    if ShowPaths then DrawPaths(Layout.Item(I),FProject.PathsForItem(Layout.Item(I)),RGBToColor(37,99,235));
+    if ShowPaths then
+    begin
+      Any := False;
+      { cada camada na sua cor; "Ver" desligado esconde a camada }
+      for J := 0 to FProject.OperationCount-1 do
+      begin
+        Op := FProject.Operation(J);
+        if Op.Generated then Any := True;
+        if Op.Show and Op.Generated then
+        begin
+          Canvas.Pen.Width := 1;
+          DrawPaths(Layout.Item(I),Op.PathsFor(I),LayerColor(Op.ColorIndex));
+        end;
+      end;
+      if not Any then DrawPaths(Layout.Item(I),FProject.PathsForItem(Layout.Item(I)),RGBToColor(37,99,235));
+    end;
     if ShowDrills then
     begin
       P := nil;
@@ -122,7 +144,7 @@ begin
           else H := LPCircle(X,Y,Diameter/2,0.02);
           LPAddPath(P,H);
         end;
-      DrawPaths(Layout.Item(I),P,RGBToColor(220,60,60));
+      DrawPaths(Layout.Item(I),P,RGBToColor(30,41,59));
     end;
   end;
 end;

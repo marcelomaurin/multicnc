@@ -3,7 +3,7 @@ unit laserpcb_main;
 interface
 uses Classes, SysUtils, Math, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls,
   Dialogs, Graphics, laserpcb_project, laserpcb_preview, laserpcb_layout,
-  laserpcb_types, multisuite_controls, multisuite_icons;
+  laserpcb_types, laserpcb_layertable, laserart_widgets, multisuite_controls, multisuite_icons;
 type
   TLaserPCBForm = class(TForm)
   private
@@ -15,7 +15,11 @@ type
     State: TSuiteBadge;
     Info, Summary, Status: TLabel;
     Log: TMemo;
-    ModeBox, SideBox, RoleBox, MarkKindBox: TComboBox;
+    ModeBox, SideBox, RoleBox, MarkKindBox, SourceBox: TComboBox;
+    Layers: TLPLayerTable;
+    Palette: TLAPalette;
+    LayerName: TEdit;
+    LayerTitle, Estimate: TLabel;
     Mirror, Copper, Holes, Paths, Locked: TCheckBox;
     Power, Feed, Spot, Passes, SMax, Res, Overlap: TEdit;
     BedW, BedH, Margin, Spacing, PosX, PosY, Rotation, ScaleX, ScaleY: TEdit;
@@ -28,6 +32,7 @@ type
     FooterPanel: TPanel;
     FUpdating: Boolean;
     FExportedFile: string;
+    FEditOp: TLPOperation;   { camada mostrada no editor }
     function Button(ParentControl: TWinControl; const AText: string; X,Y,W: Integer;
       AIcon: TSuiteIconKind; Handler: TNotifyEvent): TSuiteButton;
     function LabelAt(ParentControl: TWinControl; const AText: string; X,Y,W,H: Integer): TLabel;
@@ -64,6 +69,17 @@ type
     procedure LoadProfileClick(Sender: TObject);
     procedure AlignClick(Sender: TObject);
     procedure DrillChanged(Sender: TObject);
+    procedure LayerSelected(Sender: TObject; Index: Integer);
+    procedure LayerToggled(Sender: TObject; Index: Integer);
+    procedure PalettePicked(Sender: TObject; Index: Integer);
+    procedure AddLayerClick(Sender: TObject);
+    procedure DeleteLayerClick(Sender: TObject);
+    procedure LayerUpClick(Sender: TObject);
+    procedure LayerDownClick(Sender: TObject);
+    procedure LoadLayerEditor;
+    procedure CommitLayerEditor;
+    procedure RefreshLayerSources;
+    function SelectedOperation: TLPOperation;
     procedure DrillCheckClick(Sender: TObject);
     procedure DrillExportClick(Sender: TObject);
     function DrillField(ParentControl: TWinControl; const AText, Value: string; Y: Integer): TEdit;
@@ -99,9 +115,9 @@ begin
 end;
 function TLaserPCBForm.Field(ParentControl: TWinControl; const AText, Value: string; Y: Integer): TEdit;
 begin
-  LabelAt(ParentControl,AText,16,Y,260,18);
+  LabelAt(ParentControl,AText,16,Y,290,18);
   Result := TEdit.Create(Self); Result.Parent := ParentControl;
-  Result.SetBounds(16,Y+20,260,28); Result.Text := Value; Result.OnChange := @SettingsChanged;
+  Result.SetBounds(16,Y+20,290,28); Result.Text := Value; Result.OnChange := @SettingsChanged;
 end;
 function TLaserPCBForm.Check(ParentControl: TWinControl; const AText: string;
   X,Y: Integer; Value: Boolean): TCheckBox;
@@ -112,7 +128,7 @@ end;
 constructor TLaserPCBForm.Create(AOwner: TComponent);
 var Header: TSuiteHeader; Sidebar, Work, Bar, Footer: TPanel; Right: TPageControl;
   Page: TTabSheet; Scroll: TScrollBox; I: Integer; B: TSuiteButton; Role: TLPLayerRole;
-const Names: array[0..4] of string = ('1  Importar','2  Posicionar','3  Processo','4  Validar','5  Furar');
+const Names: array[0..4] of string = ('1  Importar','2  Posicionar','3  Camadas','4  Saida','5  Furar');
   Icons: array[0..4] of TSuiteIconKind = (sikLayers,sikMove,sikGear,sikTests,sikCNC);
 begin
   inherited CreateNew(AOwner,1);
@@ -148,7 +164,7 @@ begin
   Info := LabelAt(Sidebar,'Nenhuma placa importada',16,Sidebar.Height-132,184,88);
   Info.Align := alBottom; Info.BorderSpacing.Around := 12;
   Right := TPageControl.Create(Self); Right.Parent := Self; Right.Align := alRight;
-  Right.Width := 306; Right.ShowTabs := False; Pages := Right;
+  Right.Width := 336; Right.ShowTabs := False; Pages := Right;
   for I := 0 to 4 do
   begin
     Page := TTabSheet.Create(Self); Page.PageControl := Pages; Page.Caption := Names[I];
@@ -163,12 +179,12 @@ begin
           'Excellon: furos e rasgos como referencia.',16,58,260,110);
         LabelAt(Scroll,'Funcao da camada selecionada',16,180,260,20);
         RoleBox := TComboBox.Create(Self); RoleBox.Parent := Scroll;
-        RoleBox.SetBounds(16,206,260,30); RoleBox.Style := csDropDownList;
+        RoleBox.SetBounds(16,206,290,30); RoleBox.Style := csDropDownList;
         for Role := Low(TLPLayerRole) to High(TLPLayerRole) do RoleBox.Items.Add(LayerRoleName(Role));
         RoleBox.ItemIndex := 0; RoleBox.OnChange := @RoleChanged;
         LabelAt(Scroll,'Confira a funcao dos Gerbers sem atributo X2. O CAM precisa de um contorno fechado.',
           16,256,260,84);
-        Button(Scroll,'Abrir arquivos...',16,354,260,sikFolder,@OpenClick);
+        Button(Scroll,'Abrir arquivos...',16,354,290,sikFolder,@OpenClick);
       end;
       1:
       begin
@@ -178,59 +194,77 @@ begin
         Spacing := Field(Scroll,'Espaco entre placas (mm)','2',226);
         Button(Scroll,'Duplicar',16,288,124,sikCopy,@CopyClick);
         Button(Scroll,'Excluir',152,288,124,sikTrash,@RemoveClick);
-        Button(Scroll,'Distribuir placas',16,330,260,sikMove,@NestClick);
+        Button(Scroll,'Distribuir placas',16,330,290,sikMove,@NestClick);
         PosX := Field(Scroll,'Placa selecionada: X (mm)','5',386);
         PosY := Field(Scroll,'Placa selecionada: Y (mm)','5',442);
         Rotation := Field(Scroll,'Rotacao (graus)','0',498);
         ScaleX := Field(Scroll,'Escala X','1',554);
         ScaleY := Field(Scroll,'Escala Y','1',610);
         Locked := Check(Scroll,'Travar placa',16,670,False); Locked.OnChange := @SettingsChanged;
-        Button(Scroll,'Aplicar posicao',16,710,260,sikTarget,@ApplyClick);
-        Button(Scroll,'Girar 90 graus',16,752,260,sikMove,@RotateClick);
-        Button(Scroll,'Adicionar zona proibida',16,794,260,sikRect,@KeepOutClick);
-        Button(Scroll,'Alinhar 2 fiduciais',16,836,260,sikTarget,@AlignClick);
+        Button(Scroll,'Aplicar posicao',16,710,290,sikTarget,@ApplyClick);
+        Button(Scroll,'Girar 90 graus',16,752,290,sikMove,@RotateClick);
+        Button(Scroll,'Adicionar zona proibida',16,794,290,sikRect,@KeepOutClick);
+        Button(Scroll,'Alinhar 2 fiduciais',16,836,290,sikTarget,@AlignClick);
         LabelAt(Scroll,'Camera nao configurada. Informe as coordenadas medidas dos fiduciais.',
           16,886,260,70);
       end;
       2:
       begin
-        LabelAt(Scroll,'Processo',16,58,260,20);
-        ModeBox := TComboBox.Create(Self); ModeBox.Parent := Scroll; ModeBox.SetBounds(16,82,260,30);
+        { "Cortes / Camadas": cada camada e um processo do mesmo trabalho }
+        Layers := TLPLayerTable.Create(Self); Layers.Parent := Scroll;
+        Layers.SetBounds(12,52,296,200); Layers.Project := P;
+        Layers.OnSelectLayer := @LayerSelected; Layers.OnToggle := @LayerToggled;
+        Button(Scroll,'Nova camada',12,260,145,sikNew,@AddLayerClick);
+        Button(Scroll,'Excluir camada',163,260,145,sikTrash,@DeleteLayerClick);
+        Button(Scroll,'Subir',12,300,145,sikArrowUp,@LayerUpClick);
+        Button(Scroll,'Descer',163,300,145,sikArrowDown,@LayerDownClick);
+        LayerTitle := LabelAt(Scroll,'CAMADA SELECIONADA',16,348,260,18); LayerTitle.Font.Style := [fsBold];
+        LayerName := Field(Scroll,'Nome da camada','',372);
+        LabelAt(Scroll,'Processo',16,428,260,20);
+        ModeBox := TComboBox.Create(Self); ModeBox.Parent := Scroll; ModeBox.SetBounds(16,448,290,30);
         ModeBox.Style := csDropDownList;
         ModeBox.Items.Add('Vetores SVG'); ModeBox.Items.Add('Isolacao do cobre');
-        ModeBox.Items.Add('Remocao de cobre'); ModeBox.Items.Add('Preencher camada selecionada');
-        ModeBox.Items.Add('Marcar furos (laser)');
+        ModeBox.Items.Add('Remocao de cobre'); ModeBox.Items.Add('Preencher camada');
+        ModeBox.Items.Add('Marcar furos (laser)'); ModeBox.Items.Add('Contorno da placa (linha)');
         ModeBox.ItemIndex := Ord(P.Mode); ModeBox.OnChange := @SettingsChanged;
-        Mirror := Check(Scroll,'Espelhar Bottom',16,128,True); Mirror.OnChange := @SettingsChanged;
-        Spot := Field(Scroll,'Diametro calibrado do feixe (mm)','0.1',168);
-        Power := Field(Scroll,'Potencia calibrada (S)','0',224);
-        SMax := Field(Scroll,'S-max da maquina ($30)','1000',280);
-        Feed := Field(Scroll,'Velocidade calibrada (mm/min)','0',336);
-        Passes := Field(Scroll,'Passadas / aneis na isolacao','1',392);
-        Overlap := Field(Scroll,'Sobreposicao (%)','20',448);
-        Res := Field(Scroll,'Resolucao raster (mm/pixel)','0.05',504);
-        LabelAt(Scroll,'Marcacao de furos',16,560,260,18);
+        LabelAt(Scroll,'Camada a preencher',16,486,260,20);
+        SourceBox := TComboBox.Create(Self); SourceBox.Parent := Scroll; SourceBox.SetBounds(16,506,290,30);
+        SourceBox.Style := csDropDownList; SourceBox.OnChange := @SettingsChanged;
+        Power := Field(Scroll,'Potencia calibrada (S)','0',546);
+        Feed := Field(Scroll,'Velocidade calibrada (mm/min)','0',602);
+        Passes := Field(Scroll,'Passadas / aneis na isolacao','1',658);
+        Overlap := Field(Scroll,'Sobreposicao (%)','20',714);
+        LabelAt(Scroll,'Marcacao de furos',16,772,260,18);
         MarkKindBox := TComboBox.Create(Self); MarkKindBox.Parent := Scroll;
-        MarkKindBox.SetBounds(16,580,260,30); MarkKindBox.Style := csDropDownList;
+        MarkKindBox.SetBounds(16,792,290,30); MarkKindBox.Style := csDropDownList;
         MarkKindBox.Items.Add('Centro (guia para a broca)'); MarkKindBox.Items.Add('Contorno do furo');
         MarkKindBox.Items.Add('Cortar o furo (aneis)');
         MarkKindBox.ItemIndex := Ord(P.MarkKind); MarkKindBox.OnChange := @SettingsChanged;
-        MarkDia := Field(Scroll,'Diametro da marca de centro (mm)','0.4',620);
-        LabelAt(Scroll,'Na isolacao, passadas sao aneis. Nos outros processos, o G-code repete o percurso.',
-          16,684,260,68);
-        Button(Scroll,'Atualizar trajetorias',16,762,260,sikFlame,@GenerateClick);
-        Button(Scroll,'Salvar perfil',16,808,124,sikSave,@SaveProfileClick);
-        Button(Scroll,'Carregar',152,808,124,sikFolder,@LoadProfileClick);
+        MarkDia := Field(Scroll,'Diametro da marca de centro (mm)','0.4',832);
+        LabelAt(Scroll,'MAQUINA',16,898,260,18).Font.Style := [fsBold];
+        Spot := Field(Scroll,'Diametro calibrado do feixe (mm)','0.1',922);
+        SMax := Field(Scroll,'S-max da maquina ($30)','1000',978);
+        Res := Field(Scroll,'Resolucao raster (mm/pixel)','0.05',1034);
+        Mirror := Check(Scroll,'Espelhar Bottom',16,1094,True); Mirror.OnChange := @SettingsChanged;
+        LabelAt(Scroll,'Na isolacao, passadas sao aneis. Nos outros processos, o G-code repete o percurso da camada.',
+          16,1124,260,54);
+        Button(Scroll,'Atualizar trajetorias',16,1186,290,sikFlame,@GenerateClick);
+        Button(Scroll,'Salvar perfil',16,1232,140,sikSave,@SaveProfileClick);
+        Button(Scroll,'Carregar',166,1232,140,sikFolder,@LoadProfileClick);
       end;
       3:
       begin
         State := TSuiteBadge.Create(Self); State.Parent := Scroll; State.SetBounds(16,60,260,32);
         State.Caption := 'Aguardando validacao'; State.DotColor := clSuiteWarning;
-        Summary := LabelAt(Scroll,'Confira os parametros e gere a previa.',16,112,260,100);
-        Log := TMemo.Create(Self); Log.Parent := Scroll; Log.SetBounds(16,228,260,250);
+        LabelAt(Scroll,'CAMADAS COM SAIDA',16,104,260,18).Font.Style := [fsBold];
+        Summary := LabelAt(Scroll,'Atualize as trajetorias para ver o resumo.',16,126,260,130);
+        Estimate := LabelAt(Scroll,'',16,262,260,40); Estimate.Font.Style := [fsBold];
+        Log := TMemo.Create(Self); Log.Parent := Scroll; Log.SetBounds(16,308,260,190);
         Log.ReadOnly := True; Log.ScrollBars := ssAutoVertical;
-        LabelAt(Scroll,'A conexao, o enquadramento e a execucao ficam no MultiCNC.',16,504,260,60);
-        Button(Scroll,'Validar agora',16,580,260,sikTests,@ValidateClick);
+        LabelAt(Scroll,'A conexao, o enquadramento e a execucao ficam no MultiCNC. G-code em coordenadas absolutas da mesa.',
+          16,510,260,60);
+        Button(Scroll,'Validar agora',16,580,290,sikTests,@ValidateClick);
+        Button(Scroll,'Salvar G-code...',16,622,290,sikSave,@ExportClick);
       end;
       4:
       begin
@@ -255,8 +289,8 @@ begin
         RegPins := Check(Scroll,'Furar pinos de registro',16,864,False); RegPins.OnChange := @DrillChanged;
         RegOffset := DrillField(Scroll,'Afastamento dos pinos (mm)','5',894);
         RegDia := DrillField(Scroll,'Diametro dos pinos (mm)','3',950);
-        Button(Scroll,'Conferir furacao',16,1014,260,sikTests,@DrillCheckClick);
-        Button(Scroll,'Gerar furacao (Router)',16,1056,260,sikExport,@DrillExportClick).SetLook(sbsSolid,clSuitePrimary,sikExport);
+        Button(Scroll,'Conferir furacao',16,1014,290,sikTests,@DrillCheckClick);
+        Button(Scroll,'Gerar furacao (Router)',16,1056,290,sikExport,@DrillExportClick).SetLook(sbsSolid,clSuitePrimary,sikExport);
         DrillSummary := LabelAt(Scroll,'Importe o Excellon e confira a furacao.',16,1102,260,110);
         LabelAt(Scroll,'Zere Z na superficie da placa a cada broca. Use base de sacrificio. Os pinos ficam no eixo central de cada placa.',
           16,1218,260,70);
@@ -278,6 +312,9 @@ begin
   Holes := Check(Bar,'Furos',106,58,True); Holes.Width := 88;
   Paths := Check(Bar,'Trajetorias',200,58,True); Paths.Width := 128;
   Copper.OnChange := @ViewsChanged; Holes.OnChange := @ViewsChanged; Paths.OnChange := @ViewsChanged;
+  Palette := TLAPalette.Create(Self); Palette.Parent := Work; Palette.Align := alBottom;
+  Palette.Height := 34; Palette.Color := clSuiteCard; Palette.OnPick := @PalettePicked;
+  Palette.Hint := 'Cor da camada selecionada'; Palette.ShowHint := True;
   View := TLaserPCBPreview.Create(Self); View.Parent := Work; View.Align := alClient;
   View.Project := P; View.Layout := P.Layout; View.OnSelectionChanged := @RefreshSelection;
   View.OnLayoutChanged := @PlacementChanged;
@@ -306,6 +343,7 @@ end;
 procedure TLaserPCBForm.ReadSettings;
 var Item: TLaserLayoutItem; N: Integer; Profile: TLaserProfile;
   BW,BH,M,S,R,O,X,Y,Angle,SX,SY,MarkD,RO,RD: Double; Filter: TLPDrillFilter; Router: TLPRouterOptions;
+  Op: TLPOperation;
 begin
   { Ler e verificar tudo antes de alterar a geometria mostrada na tela. }
   Profile := P.Profile;
@@ -354,6 +392,16 @@ begin
   P.Profile := Profile; P.Resolution := R; P.Overlap := O;
   P.Side := TPCBLayerSide(SideBox.ItemIndex); P.MirrorBottom := Mirror.Checked;
   P.Mode := TLPCamMode(ModeBox.ItemIndex);
+  { o editor mostra sempre a camada selecionada: grava nela }
+  Op := SelectedOperation;
+  if (Op <> nil) and (Op = FEditOp) then
+  begin
+    Op.Name := Trim(LayerName.Text); if Op.Name = '' then Op.Name := CamModeName(Op.Mode);
+    Op.Mode := P.Mode; Op.Power := Profile.Power; Op.Feed := Profile.Feed;
+    Op.Passes := Profile.Passes; Op.Overlap := O; Op.MarkKind := TLPMarkKind(MarkKindBox.ItemIndex);
+    Op.MarkDiameter := MarkD; Op.SourceLayer := SourceBox.ItemIndex;
+    Layers.Invalidate;
+  end;
   P.MarkKind := TLPMarkKind(MarkKindBox.ItemIndex); P.MarkDiameter := MarkD;
   P.DrillFilter := Filter; P.Router := Router;
   P.RegistrationPins := RegPins.Checked; P.RegistrationOffset := RO; P.RegistrationDiameter := RD;
@@ -367,6 +415,7 @@ end;
 procedure TLaserPCBForm.SettingsChanged(Sender: TObject);
 begin
   if FUpdating then Exit;
+  CommitLayerEditor;
   FExportedFile := ''; SendButton.Enabled := False; P.InvalidateCAM; View.Invalidate;
   State.Caption := 'Alteracoes pendentes'; State.DotColor := clSuiteWarning;
   Status.Caption := 'Atualize as trajetorias e valide as alteracoes.';
@@ -413,18 +462,22 @@ begin
     [P.Width,P.Height,P.Layout.Count,P.Drills.HoleCount],InvariantFS);
   FUpdating := True;
   try
-    ModeBox.ItemIndex := Ord(P.Mode);
     if P.SelectedLayer >= 0 then RoleBox.ItemIndex := Ord(P.Source(P.SelectedLayer).Role);
   finally FUpdating := False; end;
+  try P.CreateDefaultOperations; except on E: Exception do Status.Caption := E.Message; end;
+  RefreshLayerSources;
+  if (Layers.Selected < 0) and (P.OperationCount > 0) then Layers.Selected := 0
+  else Layers.Selected := Layers.Selected;
+  LoadLayerEditor;
   FExportedFile := ''; SendButton.Enabled := False;
   View.SelectedIndex := 0; View.FitBoards;
 end;
 procedure TLaserPCBForm.NewClick(Sender: TObject);
-begin P.Clear; View.SelectedIndex := -1; RefreshSources; Log.Clear; View.FitBed; Status.Caption := 'Novo trabalho. Importe os arquivos da placa.'; end;
+begin FEditOp := nil; P.Clear; View.SelectedIndex := -1; RefreshSources; Log.Clear; View.FitBed; Status.Caption := 'Novo trabalho. Importe os arquivos da placa.'; end;
 procedure TLaserPCBForm.OpenFile(const FN: string);
 begin
   try
-    P.ImportFile(FN); RefreshSources;
+    FEditOp := nil; P.ImportFile(FN); RefreshSources;
     if not P.HasSVG then
       try P.RebuildMasks; except on E:Exception do Status.Caption := E.Message; end;
     Log.Lines.Assign(P.Warnings); View.Invalidate;
@@ -497,10 +550,22 @@ begin View.ZoomIn; end;
 procedure TLaserPCBForm.ZoomOutClick(Sender: TObject);
 begin View.ZoomOut; end;
 procedure TLaserPCBForm.Prepared;
+var I: Integer; Op: TLPOperation; S: string; Cut, Travel, Secs: Double;
 begin
-  ReadSettings; P.Generate; View.Invalidate;
-  Summary.Caption := Format('%d trajetorias'+#10+'%.2f mm por placa'+#10+'%d copias',
-    [Length(P.Paths),LPPathsLength(P.Paths),P.Layout.Count],InvariantFS);
+  ReadSettings; P.GenerateOperations; View.Invalidate; Layers.Invalidate;
+  S := '';
+  for I := 0 to P.OperationCount-1 do
+  begin
+    Op := P.Operation(I);
+    if not Op.Output then Continue;
+    if S <> '' then S := S+#10;
+    S := S+Format('%s %s: %.0f mm, %dx',[Op.Caption,Op.Name,Op.CutLength,Max(1,Op.Passes)],InvariantFS);
+  end;
+  if S = '' then S := 'Nenhuma camada com Saida ligada.';
+  Summary.Caption := S;
+  P.EstimateOperations(3000,Cut,Travel,Secs);
+  Estimate.Caption := Format('Tempo estimado %d:%.2d'+#10+'Corte %.0f mm  |  deslocamento %.0f mm',
+    [Trunc(Secs) div 60,Trunc(Secs) mod 60,Cut,Travel],InvariantFS);
 end;
 procedure TLaserPCBForm.GenerateClick(Sender: TObject);
 begin
@@ -513,7 +578,7 @@ begin
   FocusPage(3);
   try
     Prepared;
-    if P.Validate(Log.Lines,True) then
+    if P.ValidateOperations(Log.Lines,True) then
     begin Log.Lines.Add('Pronto para gerar G-code.'); State.Caption := 'Trabalho valido'; State.DotColor := clSuiteSuccess; Status.Caption := 'Geometria e parametros validados.'; end
     else begin State.Caption := 'Corrigir antes de exportar'; State.DotColor := clSuiteDanger; Status.Caption := Log.Lines[0]; end;
   except on E: Exception do ShowError(E); end;
@@ -523,13 +588,13 @@ var D: TSaveDialog; Job: TLaserPCBJob;
 begin
   try
     Prepared;
-    if not P.Validate(Log.Lines,True) then begin FocusPage(3); raise Exception.Create(Log.Lines.Text); end;
+    if not P.ValidateOperations(Log.Lines,True) then begin FocusPage(3); raise Exception.Create(Log.Lines.Text); end;
     D := TSaveDialog.Create(Self);
     try
       D.Filter := 'G-code|*.gcode'; D.DefaultExt := 'gcode'; D.Options := D.Options+[ofOverwritePrompt];
       if D.Execute then
       begin
-        Job := P.BuildJob;
+        Job := P.BuildOperationsJob;
         try TLaserGCodeExporter.ExportJob(Job,D.FileName); finally Job.Free; end;
         FExportedFile := ExpandFileName(D.FileName); SendButton.Enabled := True;
         State.Caption := 'G-code gerado'; State.DotColor := clSuiteSuccess;
@@ -613,6 +678,116 @@ begin
     PlacementChanged(Sender); View.FitBoards;
   except on E: Exception do ShowError(E); end;
   Values.Free;
+end;
+function TLaserPCBForm.SelectedOperation: TLPOperation;
+begin
+  if (Layers <> nil) and (Layers.Selected >= 0) and (Layers.Selected < P.OperationCount) then
+    Result := P.Operation(Layers.Selected)
+  else Result := nil;
+end;
+procedure TLaserPCBForm.CommitLayerEditor;
+var Op: TLPOperation; V: Double; N: Integer;
+begin
+  { grava o que for valido; campos incompletos ficam para o ReadSettings }
+  Op := FEditOp;
+  if (Op = nil) or (P.OperationCount = 0) or (Op <> SelectedOperation) then Exit;
+  if Trim(LayerName.Text) <> '' then Op.Name := Trim(LayerName.Text);
+  if ModeBox.ItemIndex >= 0 then Op.Mode := TLPCamMode(ModeBox.ItemIndex);
+  if SourceBox.ItemIndex >= 0 then Op.SourceLayer := SourceBox.ItemIndex;
+  if MarkKindBox.ItemIndex >= 0 then Op.MarkKind := TLPMarkKind(MarkKindBox.ItemIndex);
+  if TryParseFloat(Power.Text,V) and FiniteNumber(V) and (V >= 0) then Op.Power := V;
+  if TryParseFloat(Feed.Text,V) and FiniteNumber(V) and (V >= 0) then Op.Feed := V;
+  if TryStrToInt(Passes.Text,N) and (N >= 1) and (N <= 1000) then Op.Passes := N;
+  if TryParseFloat(Overlap.Text,V) and FiniteNumber(V) and (V >= 0) and (V <= 90) then Op.Overlap := V/100;
+  if TryParseFloat(MarkDia.Text,V) and FiniteNumber(V) and (V > 0) then Op.MarkDiameter := V;
+  LayerTitle.Caption := 'CAMADA '+Op.Caption+'  -  '+CamModeName(Op.Mode);
+  SourceBox.Enabled := Op.Mode = cmLayerHatch;
+  MarkKindBox.Enabled := Op.Mode = cmDrillMarks; MarkDia.Enabled := MarkKindBox.Enabled;
+  Layers.Invalidate;
+end;
+procedure TLaserPCBForm.RefreshLayerSources;
+var I, Keep: Integer;
+begin
+  Keep := SourceBox.ItemIndex;
+  SourceBox.Items.Clear;
+  for I := 0 to P.SourceCount-1 do
+    SourceBox.Items.Add(LayerRoleName(P.Source(I).Role)+' | '+ExtractFileName(P.Source(I).FileName));
+  if Keep < SourceBox.Items.Count then SourceBox.ItemIndex := Keep;
+end;
+procedure TLaserPCBForm.LoadLayerEditor;
+var Op: TLPOperation;
+begin
+  Op := SelectedOperation; FEditOp := Op;
+  FUpdating := True;
+  try
+    if Op = nil then
+    begin
+      LayerTitle.Caption := 'CAMADA SELECIONADA'; Palette.Current := -1; Palette.Invalidate; Exit;
+    end;
+    LayerTitle.Caption := 'CAMADA '+Op.Caption+'  -  '+CamModeName(Op.Mode);
+    LayerName.Text := Op.Name; ModeBox.ItemIndex := Ord(Op.Mode);
+    if Op.SourceLayer < SourceBox.Items.Count then SourceBox.ItemIndex := Op.SourceLayer;
+    SourceBox.Enabled := Op.Mode = cmLayerHatch;
+    Power.Text := FloatToStr(Op.Power,InvariantFS); Feed.Text := FloatToStr(Op.Feed,InvariantFS);
+    Passes.Text := IntToStr(Op.Passes); Overlap.Text := FloatToStr(Round(Op.Overlap*1000)/10,InvariantFS);
+    MarkKindBox.ItemIndex := Ord(Op.MarkKind); MarkKindBox.Enabled := Op.Mode = cmDrillMarks;
+    MarkDia.Text := FloatToStr(Op.MarkDiameter,InvariantFS); MarkDia.Enabled := Op.Mode = cmDrillMarks;
+    Palette.Current := Op.ColorIndex; Palette.Invalidate;
+  finally FUpdating := False; end;
+end;
+procedure TLaserPCBForm.LayerSelected(Sender: TObject; Index: Integer);
+begin
+  LoadLayerEditor;
+  if Pages.ActivePageIndex <> 2 then FocusPage(2);
+end;
+procedure TLaserPCBForm.LayerToggled(Sender: TObject; Index: Integer);
+begin
+  FExportedFile := ''; SendButton.Enabled := False; View.Invalidate;
+  State.Caption := 'Camadas alteradas'; State.DotColor := clSuiteWarning;
+  Status.Caption := 'Saida/Mostrar alterado. Atualize as trajetorias e valide.';
+end;
+procedure TLaserPCBForm.PalettePicked(Sender: TObject; Index: Integer);
+var Op: TLPOperation;
+begin
+  Op := SelectedOperation;
+  if Op = nil then begin Status.Caption := 'Selecione uma camada para mudar a cor.'; Exit; end;
+  Op.ColorIndex := Index; LoadLayerEditor; Layers.Invalidate; View.Invalidate;
+end;
+procedure TLaserPCBForm.AddLayerClick(Sender: TObject);
+var Op: TLPOperation; I, C: Integer; Used: Boolean;
+begin
+  try
+    ReadSettings;
+    { primeira cor da paleta ainda sem camada }
+    for C := 0 to 29 do
+    begin
+      Used := False;
+      for I := 0 to P.OperationCount-1 do if P.Operation(I).ColorIndex = C then Used := True;
+      if not Used then Break;
+    end;
+    if P.HasSVG then Op := P.AddOperation(cmVectors,'Nova camada',C)
+    else Op := P.AddOperation(cmIsolation,'Nova camada',C);
+    Layers.Selected := P.OperationCount-1; LoadLayerEditor; SettingsChanged(Sender);
+  except on E: Exception do ShowError(E); end;
+end;
+procedure TLaserPCBForm.DeleteLayerClick(Sender: TObject);
+var I: Integer;
+begin
+  I := Layers.Selected; if I < 0 then Exit;
+  FEditOp := nil; P.DeleteOperation(I); Layers.Selected := Min(I,P.OperationCount-1);
+  LoadLayerEditor; SettingsChanged(Sender);
+end;
+procedure TLaserPCBForm.LayerUpClick(Sender: TObject);
+var I: Integer;
+begin
+  I := Layers.Selected; if I <= 0 then Exit;
+  P.MoveOperation(I,-1); Layers.Selected := I-1; LoadLayerEditor; SettingsChanged(Sender);
+end;
+procedure TLaserPCBForm.LayerDownClick(Sender: TObject);
+var I: Integer;
+begin
+  I := Layers.Selected; if (I < 0) or (I >= P.OperationCount-1) then Exit;
+  P.MoveOperation(I,1); Layers.Selected := I+1; LoadLayerEditor; SettingsChanged(Sender);
 end;
 function TLaserPCBForm.DrillField(ParentControl: TWinControl; const AText, Value: string; Y: Integer): TEdit;
 begin

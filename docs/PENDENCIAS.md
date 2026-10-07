@@ -13,9 +13,12 @@ Lista do que ficou aberto. Detalhes do LaserArt em
 - Furacao (07/10): biblioteca `laserpcb/src/drill`, etapa "5 Furar" (CNC Router,
   um arquivo por broca, pinos de registro) e processo "Marcar furos (laser)".
   MultiCNC abre a furacao em CNC Router. Detalhes em laserpcb/docs/FURACAO.md.
-- Pendente: camera fisica, nesting por poligonos, persistencia completa da sessao,
-  camadas com processos diferentes no mesmo trabalho (estilo LightBurn) e
-  validacao do processo/material na maquina. Uso em laserpcb/README.md.
+- Camadas (07/10): tabela "Cortes / Camadas" estilo LightBurn com varios processos
+  no mesmo trabalho, paleta 00-29, previa colorida (Top vermelho, Bottom verde),
+  reguas em mm e painel Saida com tempo estimado.
+- Pendente: camera fisica, nesting por poligonos, persistencia completa da sessao
+  (camadas e posicionamento num arquivo de projeto), campos numericos com setas
+  e validacao do processo/material na maquina. Uso em laserpcb/README.md.
 
 ## LaserArt
 - **Nova versao pronta** e com pasta propria na raiz: `laserart/`

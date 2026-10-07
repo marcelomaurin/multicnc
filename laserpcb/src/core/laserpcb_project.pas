@@ -751,7 +751,7 @@ begin
   if ((FindRole(lrTopCopper) <> nil) or (FindRole(lrBottomCopper) <> nil)) and
     not HasMode(cmIsolation) then AddOperation(cmIsolation,'Isolacao do cobre',1);
   if (Drills.HoleCount > 0) and not HasMode(cmDrillMarks) then
-  begin Op := AddOperation(cmDrillMarks,'Marcar furos',2); Op.Output := False; end;
+  begin Op := AddOperation(cmDrillMarks,'Marcar furos',6); Op.Output := False; end;
   for I := 0 to SourceCount-1 do
     if (Source(I).Role in [lrTopMask,lrBottomMask,lrTopSilk,lrBottomSilk]) and not HasSource(I) then
     begin
@@ -762,6 +762,10 @@ begin
     end;
   if (FindRole(lrOutline) <> nil) and not HasMode(cmOutline) then
   begin Op := AddOperation(cmOutline,'Contorno da placa',0); Op.Output := False; end;
+  { o contorno solta a placa: deve ser a ultima camada a cortar }
+  for I := OperationCount-2 downto 0 do
+    if (Operation(I).Mode = cmOutline) and (Operation(I+1).Mode <> cmOutline) then
+      FOperations.Move(I,OperationCount-1);
 end;
 
 procedure TLaserPCBProject.ApplyOperation(Op: TLPOperation);

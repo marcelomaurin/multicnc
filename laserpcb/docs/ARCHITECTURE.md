@@ -3,6 +3,8 @@
 Arquivos -> importadores -> projeto em mm -> máscaras/CAM -> posicionamento -> prévia -> validação -> G-code -> MultiCNC.
 
 - laserpcb_project conecta SVG, camadas Gerber, Excellon, máscaras, processos e cópias na mesa.
+- Camadas de corte (TLPOperation, estilo LightBurn): cada camada guarda processo, origem, potência, velocidade, passadas, sobreposição, cor, Saída e Ver. GenerateOperations aplica cada camada ao motor de CAM único (Generate) e guarda as trajetórias por cópia; BuildOperationsJob junta as camadas com Saída num único trabalho, com potência/velocidade por ponto e passadas expandidas; ValidateOperations cita a camada em cada erro.
+- laserpcb_layertable desenha a tabela "Cortes / Camadas"; a paleta 00–29 reutiliza TLAPalette do LaserArt (laserart/src/ui).
 - laserpcb_svg adapta o parser do LaserArt, mantendo unidades, viewBox, curvas e coordenadas de PCB sem o deslocamento automático do editor.
 - laserpcb_raster compõe Gerber com polaridade e furos; o contorno da placa usa preenchimento par/ímpar para preservar recortes internos.
 - laserpcb_cam produz isolação, remoção e preenchimento. O recorte divide segmentos em cada cruzamento da grade, preservando furos e trechos externos.

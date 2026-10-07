@@ -43,6 +43,53 @@ type
     property OnLayoutChanged: TNotifyEvent read FOnLayoutChanged write FOnLayoutChanged;
   end;
 implementation
+const
+  { reguas em mm (estilo LightBurn/LaserArt) }
+  RULER_W = 34;
+  RULER_H = 20;
+procedure DrawRulers(C: TCanvas; W, H: Integer; Zoom, OX, OY, Step: Double);
+var V, First, Last: Double; P, I, Major: Integer; S: string;
+begin
+  C.Brush.Style := bsSolid; C.Brush.Color := RGBToColor(248,250,252);
+  C.Pen.Color := RGBToColor(203,213,225);
+  C.FillRect(0,0,W,RULER_H); C.FillRect(0,0,RULER_W,H);
+  C.Line(0,RULER_H-1,W,RULER_H-1); C.Line(RULER_W-1,0,RULER_W-1,H);
+  C.Font.Size := 7; C.Font.Color := RGBToColor(100,116,139); C.Brush.Style := bsClear;
+  { rotulos a cada 1, 2, 5 ou 10 divisoes, com pelo menos 44 px entre eles }
+  Major := 1;
+  while (Major < 1000) and (Major*Step*Zoom < 44) do
+    if Major = 1 then Major := 2 else if Major = 2 then Major := 5 else Major := Major*2;
+  { superior: X }
+  First := Floor(((RULER_W-OX)/Zoom)/Step); Last := Ceil(((W-OX)/Zoom)/Step);
+  for I := Round(First) to Round(Last) do
+  begin
+    V := I*Step; P := Round(OX+V*Zoom);
+    if P < RULER_W then Continue;
+    if I mod Major = 0 then
+    begin
+      C.Line(P,RULER_H-10,P,RULER_H);
+      S := FloatToStr(V); C.TextOut(P+2,1,S);
+    end
+    else C.Line(P,RULER_H-4,P,RULER_H);
+  end;
+  { esquerda: Y para cima }
+  First := Floor(((OY-H)/Zoom)/Step); Last := Ceil(((OY-RULER_H)/Zoom)/Step);
+  for I := Round(First) to Round(Last) do
+  begin
+    V := I*Step; P := Round(OY-V*Zoom);
+    if P < RULER_H then Continue;
+    if I mod Major = 0 then
+    begin
+      C.Line(RULER_W-10,P,RULER_W,P);
+      S := FloatToStr(V); C.TextOut(2,P-12,S);
+    end
+    else C.Line(RULER_W-4,P,RULER_W,P);
+  end;
+  C.Brush.Style := bsSolid; C.Brush.Color := RGBToColor(241,245,249);
+  C.FillRect(0,0,RULER_W-1,RULER_H-1);
+  C.Brush.Style := bsClear; C.TextOut(8,4,'mm');
+  C.Font.Size := 10;
+end;
 constructor TLaserBedCanvas.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
@@ -64,9 +111,9 @@ begin X := (PX-FOX)/FZoom; Y := (FOY-PY)/FZoom; end;
 procedure TLaserBedCanvas.FitRect(X, Y, W, H: Double);
 begin
   if not FiniteNumber(W) or not FiniteNumber(H) or (W <= 0) or (H <= 0) then Exit;
-  FZoom := EnsureRange(Min(Max(1,ClientWidth-64)/W, Max(1,ClientHeight-64)/H), 0.01, 100);
-  FOX := (ClientWidth-W*FZoom)/2-X*FZoom;
-  FOY := (ClientHeight+H*FZoom)/2+Y*FZoom;
+  FZoom := EnsureRange(Min(Max(1,ClientWidth-RULER_W-56)/W, Max(1,ClientHeight-RULER_H-64)/H), 0.01, 100);
+  FOX := RULER_W+(ClientWidth-RULER_W-W*FZoom)/2-X*FZoom;
+  FOY := RULER_H+(ClientHeight-RULER_H+H*FZoom)/2+Y*FZoom;
   Invalidate;
 end;
 procedure TLaserBedCanvas.FitBed;
@@ -163,9 +210,11 @@ begin
     if P.Locked then Canvas.TextOut(A.X+4,A.Y-18,P.Name+' [travada]')
     else Canvas.TextOut(A.X+4,A.Y-18,P.Name);
   end;
-  Canvas.Pen.Width := 1; Canvas.Brush.Style := bsSolid;
+  Canvas.Pen.Width := 1;
+  DrawRulers(Canvas,ClientWidth,ClientHeight,FZoom,FOX,FOY,Step);
+  Canvas.Brush.Style := bsSolid;
   Canvas.Font.Color := RGBToColor(100,116,139);
-  Canvas.TextOut(12,ClientHeight-22,'mm  |  X →   Y ↑  |  grade '+FloatToStr(Step)+' mm');
+  Canvas.TextOut(RULER_W+8,ClientHeight-22,'mm  |  X →   Y ↑  |  grade '+FloatToStr(Step)+' mm');
   if FLayout.Count = 0 then
   begin
     Canvas.Font.Size := 14; Canvas.Font.Color := RGBToColor(100,116,139);
