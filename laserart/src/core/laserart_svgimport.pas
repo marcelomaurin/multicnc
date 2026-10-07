@@ -34,9 +34,11 @@ type
 { Importa o arquivo e acrescenta ao documento um objeto vetorial por cor.
   DefaultLayer e usada quando a cor nao pode ser determinada. }
 function ImportSVGFile(Doc: TLADocument; const FileName: string;
-  DefaultLayer: Integer; Added: TList = nil): TLASvgResult;
+  DefaultLayer: Integer; Added: TList = nil; KeepCoordinates: Boolean = False;
+  ToleranceMM: Double = 0.25): TLASvgResult;
 function ImportSVGString(Doc: TLADocument; const SVG, BaseName: string;
-  DefaultLayer: Integer; Added: TList = nil): TLASvgResult;
+  DefaultLayer: Integer; Added: TList = nil; KeepCoordinates: Boolean = False;
+  ToleranceMM: Double = 0.25): TLASvgResult;
 { cor CSS/SVG -> TColor; False para "none" ou valor desconhecido }
 function ParseSvgColor(const S: string; out C: TColor): Boolean;
 function NearestLayer(C: TColor): Integer;
@@ -62,6 +64,7 @@ type
     FBuckets: array[0..LA_LAYER_COUNT - 1] of TLayerBucket;
     FPageH: Double;
     FDefaultLayer: Integer;
+    FKeepCoordinates: Boolean;
     FSkipped: Integer;
     FSkippedKinds: TStringList;
     FPathCount: Integer;
@@ -457,7 +460,7 @@ begin
     end;
     SetLength(FCur.Pts, FCurN);
     FCur.Closed := Closed and (FCurN >= 3);
-    FCur := SimplifyPath(FCur, 0.02);
+    FCur := SimplifyPath(FCur, Min(0.02, FTol));
     N := Length(FBuckets[Layer].Paths);
     SetLength(FBuckets[Layer].Paths, N + 1);
     FBuckets[Layer].Paths[N] := FCur;
@@ -853,6 +856,7 @@ var
   W, H: Double;
   B, All: TLABox;
   DX, DY: Double;
+  Aspect: string;
   Created: TList;
 begin
   FillChar(Result, SizeOf(Result), 0);
@@ -876,8 +880,20 @@ begin
     if not HasH then HMM := VH * 25.4 / 96;
     SX := WMM / VW;
     SY := HMM / VH;
-    S := Min(SX, SY);
-    M := MatOf(S, 0, 0, S, -VX * S + (WMM - VW * S) / 2, -VY * S + (HMM - VH * S) / 2);
+    Aspect := LowerCase(Trim(Root.GetAttribute('preserveAspectRatio')));
+    if Aspect = '' then Aspect := 'xmidymid meet';
+    if Aspect = 'none' then
+      M := MatOf(SX, 0, 0, SY, -VX * SX, -VY * SY)
+    else
+    begin
+      if Pos('slice', Aspect) > 0 then S := Max(SX, SY) else S := Min(SX, SY);
+      DX := (WMM - VW * S) / 2; DY := (HMM - VH * S) / 2;
+      if Pos('xmin', Aspect) > 0 then DX := 0;
+      if Pos('xmax', Aspect) > 0 then DX := WMM - VW * S;
+      if Pos('ymin', Aspect) > 0 then DY := 0;
+      if Pos('ymax', Aspect) > 0 then DY := HMM - VH * S;
+      M := MatOf(S, 0, 0, S, -VX * S + DX, -VY * S + DY);
+    end;
   end
   else
   begin
@@ -889,7 +905,6 @@ begin
   Result.WidthMM := WMM;
   Result.HeightMM := HMM;
   FPageH := HMM;
-  FTol := 0.25;
 
   St.Stroke := '';
   St.Fill := 'black';
@@ -923,7 +938,7 @@ begin
       Created.Add(Sh);
     end;
     { se a pagina nao cabe na mesa, traz o desenho para o canto (10, 10) }
-    if All.Valid and ((All.X1 < 0) or (All.Y1 < 0) or (All.X2 > Doc.BedW) or (All.Y2 > Doc.BedH)) then
+    if not FKeepCoordinates and All.Valid and ((All.X1 < 0) or (All.Y1 < 0) or (All.X2 > Doc.BedW) or (All.Y2 > Doc.BedH)) then
     begin
       DX := 10 - All.X1;
       DY := 10 - All.Y1;
@@ -953,7 +968,8 @@ begin
 end;
 
 function ImportSVGString(Doc: TLADocument; const SVG, BaseName: string;
-  DefaultLayer: Integer; Added: TList): TLASvgResult;
+  DefaultLayer: Integer; Added: TList; KeepCoordinates: Boolean;
+  ToleranceMM: Double): TLASvgResult;
 var
   XML: TXMLDocument;
   St: TStringStream;
@@ -965,6 +981,10 @@ begin
   try
     ReadXMLFile(XML, St);
     Imp.FDefaultLayer := EnsureRange(DefaultLayer, 0, LA_LAYER_COUNT - 1);
+    if IsNan(ToleranceMM) or IsInfinite(ToleranceMM) or (ToleranceMM <= 0) then
+      raise Exception.Create('Tolerancia SVG deve ser positiva e finita');
+    Imp.FKeepCoordinates := KeepCoordinates;
+    Imp.FTol := ToleranceMM;
     Result := Imp.Run(XML, Doc, BaseName, Added);
   finally
     XML.Free;
@@ -974,7 +994,8 @@ begin
 end;
 
 function ImportSVGFile(Doc: TLADocument; const FileName: string;
-  DefaultLayer: Integer; Added: TList): TLASvgResult;
+  DefaultLayer: Integer; Added: TList; KeepCoordinates: Boolean;
+  ToleranceMM: Double): TLASvgResult;
 var
   SL: TStringList;
 begin
@@ -982,7 +1003,7 @@ begin
   try
     SL.LoadFromFile(FileName);
     Result := ImportSVGString(Doc, SL.Text, ChangeFileExt(ExtractFileName(FileName), ''),
-      DefaultLayer, Added);
+      DefaultLayer, Added, KeepCoordinates, ToleranceMM);
   finally
     SL.Free;
   end;

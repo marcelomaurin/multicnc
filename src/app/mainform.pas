@@ -1727,7 +1727,7 @@ begin
     try
       SL.LoadFromFile(AFileName);
       for I := 0 to Min(SL.Count, 40) - 1 do
-        if Pos('; LaserArt', SL[I]) = 1 then
+        if (Pos('; LaserArt', SL[I]) = 1) or (Pos('; LaserPCB', SL[I]) = 1) then
         begin
           IsLaserArt := True;
           Break;
@@ -1748,7 +1748,7 @@ begin
     SpCutPasses.Value := 1;
     ChkOverrideSpeed.Checked := False;
     SyncLaserSettingsFromUI;
-    Log('Arquivo do LaserArt: maquina CNC Laser, Pass count = 1, override desligado (S e passadas vem do arquivo).');
+    Log('Arquivo de laser: maquina CNC Laser, Pass count = 1, override desligado (S e passadas vem do arquivo).');
   end;
   LoadProgram(AFileName);
 end;

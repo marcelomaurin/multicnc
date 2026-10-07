@@ -28,7 +28,7 @@
    <Filename Value="laserpcb" />
   </Target>
   <SearchPaths>
-   <OtherUnitFiles Value="../core;../layout;../camera;../import;../export;../ui;../../../src/shared" />
+   <OtherUnitFiles Value="../core;../layout;../camera;../import;../export;../ui;../geom;../cam;../../../src/shared;../../../laserart/src/core;../../../multisuite/src/core" />
    <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
   </SearchPaths>
   <Parsing>

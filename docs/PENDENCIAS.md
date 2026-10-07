@@ -3,6 +3,16 @@
 Lista do que ficou aberto. Detalhes do LaserArt em
 `laserart/docs/LASERART_PLANO.md`.
 
+## LaserPCB (07/10/2026)
+- Interface principal integrada com controles/icones da MultiSuite, camadas,
+  placa/cobre/furos/trajetorias, posicionamento, CAM e validacao.
+- SVG reutiliza o parser do LaserArt; Gerber/Excellon/raster/CAM conectados ao fluxo.
+- Corrigidos Bottom destrutivo, caixas apos rotacao, parametros de exportacao,
+  nesting com travas/keep-outs e recorte de CAM na placa. Compensacao apos escala.
+- Testes de regressao e da UI nativa adicionados a LaserPCB CI.
+- Pendente: camera fisica, nesting por poligonos, persistencia completa da sessao
+  e validacao do processo/material na maquina. Uso em laserpcb/README.md.
+
 ## LaserArt
 - **Nova versao pronta** e com pasta propria na raiz: `laserart/`
   (`src/core`, `src/ui`, `src/app`, `tests`, `docs`). Nao depende mais do

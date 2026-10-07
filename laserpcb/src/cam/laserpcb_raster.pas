@@ -28,7 +28,7 @@ type
   private
     FW, FH: Integer;
     FX0, FY0, FRes: Double;
-    procedure FillItem(const Paths: TLPPaths; Value: Byte; Target: TLPMask);
+    procedure FillItem(const Paths: TLPPaths; Value: Byte; Target: TLPMask; EvenOdd: Boolean = False);
   public
     Data: array of Byte;
     constructor Create(const Area: TLPRect; ARes: Double);
@@ -43,6 +43,7 @@ type
     function RowOf(Y: Double): Integer; inline;
     { preenche contornos (nao-zero) com Value }
     procedure FillPaths(const Paths: TLPPaths; Value: Byte = 1);
+    procedure FillPathsEvenOdd(const Paths: TLPPaths; Value: Byte = 1);
     { desenha um objeto Gerber respeitando a polaridade }
     procedure DrawShape(const S: TLPGShape);
     procedure DrawGerber(L: TLPGerberLayer);
@@ -54,6 +55,7 @@ type
     procedure AndNotMask(Other: TLPMask);
     function CountSet: Integer;
     function Area: TLPRect;
+    procedure RequireSameGrid(Other: TLPMask);
     property Width: Integer read FW;
     property Height: Integer read FH;
     property X0: Double read FX0;
@@ -88,7 +90,17 @@ const
 constructor TLPMask.Create(const Area: TLPRect; ARes: Double);
 begin
   inherited Create;
-  FRes := Max(ARes, 1e-4);
+  if not Area.Valid or IsNan(ARes) or IsInfinite(ARes) or (ARes < 1e-4) or
+    IsNan(Area.MinX) or IsInfinite(Area.MinX) or
+    IsNan(Area.MinY) or IsInfinite(Area.MinY) or
+    IsNan(Area.MaxX) or IsInfinite(Area.MaxX) or
+    IsNan(Area.MaxY) or IsInfinite(Area.MaxY) or
+    (LPRectWidth(Area) <= 0) or (LPRectHeight(Area) <= 0) then
+    raise Exception.Create('Area ou resolucao raster invalida');
+  if (LPRectWidth(Area) / ARes > 20000) or (LPRectHeight(Area) / ARes > 20000) or
+    (Ceil(LPRectWidth(Area) / ARes) * Double(Ceil(LPRectHeight(Area) / ARes)) > 16000000) then
+    raise Exception.Create('Raster excede 16 milhoes de pixels; aumente a resolucao em mm');
+  FRes := ARes;
   FX0 := Area.MinX;
   FY0 := Area.MinY;
   FW := Max(1, Ceil(LPRectWidth(Area) / FRes));
@@ -160,6 +172,14 @@ begin
   Result.Valid := True;
 end;
 
+procedure TLPMask.RequireSameGrid(Other: TLPMask);
+begin
+  if (Other = nil) or (FW <> Other.FW) or (FH <> Other.FH) or
+    (Abs(FX0 - Other.FX0) > 1e-9) or (Abs(FY0 - Other.FY0) > 1e-9) or
+    (Abs(FRes - Other.FRes) > 1e-12) then
+    raise Exception.Create('Mascaras usam grades diferentes');
+end;
+
 type
   TXing = record
     X: Double;
@@ -167,7 +187,7 @@ type
   end;
 
 { preenchimento por linhas de varredura, regra nao-zero; escreve em Target }
-procedure TLPMask.FillItem(const Paths: TLPPaths; Value: Byte; Target: TLPMask);
+procedure TLPMask.FillItem(const Paths: TLPPaths; Value: Byte; Target: TLPMask; EvenOdd: Boolean);
 var
   B: TLPRect;
   J0, J1, J, I, K, N, P, I0, I1, Wind, Cnt: Integer;
@@ -220,7 +240,7 @@ begin
     for K := 0 to Cnt - 2 do
     begin
       Wind := Wind + Xs[K].Dir;
-      if Wind = 0 then Continue;
+      if (Wind = 0) or (EvenOdd and not Odd(Wind)) then Continue;
       I0 := Max(0, Ceil((Xs[K].X - Target.FX0) / Target.FRes - 0.5));
       I1 := Min(Target.FW - 1, Ceil((Xs[K + 1].X - Target.FX0) / Target.FRes - 0.5) - 1);
       if I1 >= I0 then FillChar(Row[I0], I1 - I0 + 1, Value);
@@ -232,6 +252,9 @@ procedure TLPMask.FillPaths(const Paths: TLPPaths; Value: Byte);
 begin
   FillItem(Paths, Value, Self);
 end;
+
+procedure TLPMask.FillPathsEvenOdd(const Paths: TLPPaths; Value: Byte);
+begin FillItem(Paths, Value, Self, True); end;
 
 procedure TLPMask.DrawShape(const S: TLPGShape);
 var
@@ -317,6 +340,7 @@ procedure TLPMask.AndMask(Other: TLPMask);
 var
   I: Integer;
 begin
+  RequireSameGrid(Other);
   for I := 0 to Min(High(Data), High(Other.Data)) do
     if Other.Data[I] = 0 then Data[I] := 0;
 end;
@@ -325,6 +349,7 @@ procedure TLPMask.OrMask(Other: TLPMask);
 var
   I: Integer;
 begin
+  RequireSameGrid(Other);
   for I := 0 to Min(High(Data), High(Other.Data)) do
     if Other.Data[I] <> 0 then Data[I] := 1;
 end;
@@ -333,6 +358,7 @@ procedure TLPMask.AndNotMask(Other: TLPMask);
 var
   I: Integer;
 begin
+  RequireSameGrid(Other);
   for I := 0 to Min(High(Data), High(Other.Data)) do
     if Other.Data[I] <> 0 then Data[I] := 0;
 end;

@@ -1,0 +1,61 @@
+name: LaserPCB CI
+on:
+  workflow_dispatch:
+  push:
+    paths: ['laserpcb/**', 'laserart/src/core/**', 'multisuite/src/core/**', 'src/shared/**', '.github/workflows/laserpcb-ci.yml']
+  pull_request:
+    paths: ['laserpcb/**', 'laserart/src/core/**', 'multisuite/src/core/**', 'src/shared/**', '.github/workflows/laserpcb-ci.yml']
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y lazarus xvfb
+      - name: Regression tests
+        run: |
+          set -e
+          for test in test_job test_layout test_alignment test_pipeline; do
+            lazbuild --ws=nogui "laserpcb/tests/$test.lpi"
+            "./laserpcb/tests/$test"
+          done
+      - name: Build and exercise the native UI
+        run: |
+          set -e
+          lazbuild --ws=gtk2 laserpcb/src/app/laserpcb.lpi
+          lazbuild --ws=gtk2 laserpcb/tests/test_ui.lpi
+          xvfb-run -a ./laserpcb/tests/test_ui /tmp/laserpcb-ui
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LaserPCB-Linux-UI
+          path: /tmp/laserpcb-ui/*.bmp
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: choco install lazarus --no-progress -y
+      - name: Add Lazarus to PATH
+        shell: powershell
+        run: |
+          $laz = Get-ChildItem 'C:\lazarus*' -Directory | Select-Object -First 1
+          if (-not $laz) { throw 'Lazarus nao encontrado' }
+          $laz.FullName | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Test and build LaserPCB
+        shell: cmd
+        run: |
+          lazbuild laserpcb\tests\test_pipeline.lpi
+          if errorlevel 1 exit /b 1
+          laserpcb\tests\test_pipeline.exe
+          if errorlevel 1 exit /b 1
+          lazbuild laserpcb\src\app\laserpcb.lpi
+          if errorlevel 1 exit /b 1
+          lazbuild laserpcb\tests\test_ui.lpi
+          if errorlevel 1 exit /b 1
+          laserpcb\tests\test_ui.exe ui-captures
+          if errorlevel 1 exit /b 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LaserPCB-Windows
+          path: |
+            laserpcb/src/app/laserpcb.exe
+            ui-captures/*.bmp
+          if-no-files-found: error

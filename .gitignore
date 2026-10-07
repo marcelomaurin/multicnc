@@ -13,6 +13,9 @@ lib/
 /laserart/tests/test_laserart_output
 /laserpcb/tests/test_job
 /laserpcb/tests/test_layout
+/laserpcb/tests/test_pipeline
+/laserpcb/tests/test_ui
+/laserpcb/src/app/laserpcb
 /multicam/src/app/multicam_simulator
 /multicam/tests/test_pcb_heightmap
 /multicam/tests/test_pcb_outside_heightmap

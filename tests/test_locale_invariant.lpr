@@ -1,6 +1,6 @@
 program test_locale_invariant;
 { Regressao: com o Windows em portugues (virgula decimal), todo G-code, STL,
-  Excellon e SVG deve continuar usando ponto decimal. Roda sem LCL. }
+  Excellon e SVG deve continuar usando ponto decimal. O parser SVG usa unidades da LCL, sem criar janelas. }
 {$mode objfpc}{$H+}
 uses
   Classes, SysUtils, multisuite_numfmt,
@@ -124,7 +124,7 @@ begin
   finally J.Free; end;
   S := TStringList.Create; J := TLaserPCBJob.Create;
   try
-    S.Text := '<svg><line x1="1.5" y1="2.5" x2="10.25" y2="2.5"/></svg>';
+    S.Text := '<svg width="20mm" height="10mm" viewBox="0 0 20 10"><line x1="1.5" y1="2.5" x2="10.25" y2="2.5"/></svg>';
     S.SaveToFile(Dir + 'l.svg');
     Check(TSVGImporter.ImportFile(Dir + 'l.svg', J), 'SVG importado');
     Check((J.Count = 2) and (Abs(J.Point(1).X - 10.25) < 1e-9), 'SVG leu coordenadas decimais');

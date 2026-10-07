@@ -42,6 +42,8 @@ function DefaultTestCatalog:TTestDefinitions;begin SetLength(Result,0);
  Add(Result,'MultiCAM','CAM mecanico','multicam/tests/test_mechanical_cam.lpr','multicam/tests/test_mechanical_cam');Add(Result,'MultiCAM','Setup mecanico','multicam/tests/test_mechanical_setup.lpr','multicam/tests/test_mechanical_setup');Add(Result,'MultiCAM','Simulacao','multicam/tests/test_simulation.lpr','multicam/tests/test_simulation');Add(Result,'MultiCAM','Eletronica virtual','multicam/tests/test_electronics_simulation.lpr','multicam/tests/test_electronics_simulation');Add(Result,'MultiCAM','Pipeline demo','multicam/tests/test_demo_pipeline.lpr','multicam/tests/test_demo_pipeline');
  Add(Result,'MultiSlicer','Layout 3D','multislicer/tests/test_layout3d.lpr','multislicer/tests/test_layout3d');
  Add(Result,'LaserPCB','Job laser','laserpcb/tests/test_job.lpr','laserpcb/tests/test_job');Add(Result,'LaserPCB','Layout','laserpcb/tests/test_layout.lpr','laserpcb/tests/test_layout');Add(Result,'LaserPCB','Alinhamento','laserpcb/tests/test_alignment.lpr','laserpcb/tests/test_alignment');Add(Result,'LaserArt','Calibracao','laserart/tests/test_calibration_matrix.lpr','laserart/tests/test_calibration_matrix');Add(Result,'LaserArt','Saida G-code, SVG e imagem','laserart/tests/test_laserart_output.lpr','laserart/tests/test_laserart_output');
+ Add(Result,'LaserPCB','SVG, Gerber, Excellon e CAM','laserpcb/tests/test_pipeline.lpr','laserpcb/tests/test_pipeline');
+ Add(Result,'LaserPCB','Interface nativa','laserpcb/tests/test_ui.lpr','laserpcb/tests/test_ui');
  Add(Result,'MultiSuite','Registro','multisuite/tests/test_registry.lpr','multisuite/tests/test_registry');Add(Result,'MultiSuite','Workspace','multisuite/tests/test_workspace.lpr','multisuite/tests/test_workspace');
 end;
 end.

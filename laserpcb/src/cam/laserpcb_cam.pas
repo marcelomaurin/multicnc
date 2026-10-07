@@ -27,6 +27,8 @@ type
 function LPIsolation(Copper, Board: TLPMask; Spot: Double; Passes: Integer;
   Overlap: Double; Tol: Double): TLPPaths;
 
+function LPClipPathsToMask(const Paths: TLPPaths; Board: TLPMask): TLPPaths;
+
 { linhas de preenchimento dentro de Area (=1) recuadas Inset; Interval em mm }
 function LPHatch(Area: TLPMask; Interval, Inset: Double; Dir: TLPHatchDir;
   Bidirectional: Boolean): TLPPaths;
@@ -42,42 +44,118 @@ function LPAddTabs(const P: TLPPaths; Count: Integer; TabW: Double): TLPPaths;
 
 implementation
 
+function LPClipPathsToMask(const Paths: TLPPaths; Board: TLPMask): TLPPaths;
+var I, J, K, N, Col, Lo, Hi: Integer; A, B, Q, StartQ, EndQ: TLPPoint;
+  TS: array of Double; DX, DY, T, Mid, Eps: Double; Cur: TLPPath;
+  procedure Sort(L, R: Integer);
+  var X, V: Double; U, W: Integer;
+  begin
+    U := L; W := R; X := TS[(L + R) div 2];
+    repeat
+      while TS[U] < X do Inc(U);
+      while TS[W] > X do Dec(W);
+      if U <= W then begin V := TS[U]; TS[U] := TS[W]; TS[W] := V; Inc(U); Dec(W); end;
+    until U > W;
+    if L < W then Sort(L, W);
+    if U < R then Sort(U, R);
+  end;
+  procedure AddT(V: Double);
+  begin
+    if (V <= 0) or (V >= 1) then Exit;
+    if N = Length(TS) then SetLength(TS, Max(32, N * 2));
+    TS[N] := V; Inc(N);
+  end;
+  function At(V: Double): TLPPoint;
+  begin Result := LPPoint(A.X + V * DX, A.Y + V * DY); end;
+  function Inside(const P: TLPPoint): Boolean;
+  begin Result := Board.Get(Board.ColOf(P.X), Board.RowOf(P.Y)) <> 0; end;
+  procedure Put(const P: TLPPoint);
+  var M: Integer; U, V: TLPPoint;
+  begin
+    M := Length(Cur);
+    if (M > 0) and (LPDist(Cur[M-1], P) < 1e-10) then Exit;
+    if M >= 2 then
+    begin
+      U := Cur[M-2]; V := Cur[M-1];
+      if (Abs((V.X-U.X)*(P.Y-V.Y) - (V.Y-U.Y)*(P.X-V.X)) < 1e-12) and
+        ((V.X-U.X)*(P.X-V.X) + (V.Y-U.Y)*(P.Y-V.Y) >= 0) then
+      begin Cur[M-1] := P; Exit; end;
+    end;
+    LPAddPoint(Cur, P.X, P.Y);
+  end;
+  procedure Flush;
+  begin
+    if (Length(Cur) >= 2) and (LPPathLength(Cur) > 1e-8) then LPAddPath(Result, Cur);
+    Cur := nil;
+  end;
+begin
+  Result := nil;
+  if Board = nil then Exit(Paths);
+  for I := 0 to High(Paths) do
+  begin
+    Cur := nil;
+    for J := 1 to High(Paths[I]) do
+    begin
+      A := Paths[I][J-1]; B := Paths[I][J];
+      DX := B.X - A.X; DY := B.Y - A.Y;
+      if Hypot(DX, DY) < 1e-12 then Continue;
+      SetLength(TS, 32); TS[0] := 0; TS[1] := 1; N := 2;
+      { Todas as intersecoes da linha com a grade: nao salta furos estreitos.
+        A classificacao usa o interior de cada intervalo, sem aproximar a borda. }
+      if Abs(DX) > 1e-12 then
+      begin
+        Lo := Max(0, Ceil((Min(A.X,B.X)-Board.X0)/Board.Res));
+        Hi := Min(Board.Width, Floor((Max(A.X,B.X)-Board.X0)/Board.Res));
+        for Col := Lo to Hi do AddT((Board.X0 + Col*Board.Res - A.X)/DX);
+      end;
+      if Abs(DY) > 1e-12 then
+      begin
+        Lo := Max(0, Ceil((Min(A.Y,B.Y)-Board.Y0)/Board.Res));
+        Hi := Min(Board.Height, Floor((Max(A.Y,B.Y)-Board.Y0)/Board.Res));
+        for Col := Lo to Hi do AddT((Board.Y0 + Col*Board.Res - A.Y)/DY);
+      end;
+      Sort(0, N-1);
+      for K := 0 to N-2 do
+      begin
+        if TS[K+1] - TS[K] < 1e-14 then Continue;
+        Mid := (TS[K] + TS[K+1])/2; Q := At(Mid);
+        if not Inside(Q) then begin Flush; Continue; end;
+        Eps := Min((TS[K+1]-TS[K])*0.01, 1e-7/Hypot(DX,DY));
+        T := TS[K]; StartQ := At(T);
+        if not Inside(StartQ) then StartQ := At(T + Eps);
+        T := TS[K+1]; EndQ := At(T);
+        if not Inside(EndQ) then EndQ := At(T - Eps);
+        Put(StartQ); Put(EndQ);
+      end;
+    end;
+    Flush;
+  end;
+end;
+
+
 function LPIsolation(Copper, Board: TLPMask; Spot: Double; Passes: Integer;
   Overlap: Double; Tol: Double): TLPPaths;
 var
   F: TLPField;
-  K, I, J: Integer;
+  K: Integer;
   Level, Step: Double;
   C: TLPPaths;
-  Inside: Boolean;
-  Q: TLPPath;
 begin
   Result := nil;
-  if Passes < 1 then Passes := 1;
-  Step := Spot * (1 - EnsureRange(Overlap, 0, 0.9));
+  if (Copper = nil) or IsNan(Spot) or IsInfinite(Spot) or (Spot <= 0) or
+    (Passes < 1) or (Passes > 1000) or IsNan(Overlap) or IsInfinite(Overlap) or
+    (Overlap < 0) or (Overlap > 0.9) or IsNan(Tol) or IsInfinite(Tol) or (Tol < 0) then
+    raise Exception.Create('Parametros de isolacao invalidos');
+  if Board <> nil then Copper.RequireSameGrid(Board);
+  Step := Spot * (1 - Overlap);
   F := TLPField.Create(Copper, 1);
   try
     for K := 0 to Passes - 1 do
     begin
       Level := Spot / 2 + K * Step;
       C := LPIsoContours(F, Level, Tol);
-      for I := 0 to High(C) do
-      begin
-        Q := C[I];
-        { descarta contornos totalmente fora da placa }
-        if Board <> nil then
-        begin
-          Inside := False;
-          for J := 0 to High(Q) do
-            if Board.Get(Board.ColOf(Q[J].X), Board.RowOf(Q[J].Y)) <> 0 then
-            begin
-              Inside := True;
-              Break;
-            end;
-          if not Inside then Continue;
-        end;
-        LPAddPath(Result, Q);
-      end;
+      C := LPClipPathsToMask(C, Board);
+      LPAddPaths(Result, C);
     end;
   finally
     F.Free;
@@ -200,6 +278,9 @@ var
   F: TLPField;
   I: Integer;
 begin
+  if (Copper = nil) or IsNan(Clearance) or IsInfinite(Clearance) or (Clearance < 0) then
+    raise Exception.Create('Folga de cobre invalida');
+  if Board <> nil then Copper.RequireSameGrid(Board);
   Result := TLPMask.CreateLike(Copper);
   F := TLPField.Create(Copper, 1);
   try

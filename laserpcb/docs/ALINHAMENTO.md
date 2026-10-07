@@ -1,15 +1,13 @@
-# Alinhamento da mesa Laser
+# Alinhamento da placa
 
-## Fiduciais
-O núcleo suporta alinhamento 2D usando dois pontos conhecidos:
-- coordenada do ponto no desenho
-- coordenada medida/identificada na máquina
+Na etapa Posicionar, selecione e destrave a placa e use Alinhar 2 fiduciais. Informe oito coordenadas separadas por ponto e vírgula:
 
-O solver calcula escala uniforme, rotação e deslocamento X/Y.
+desenho X1; desenho Y1; medido X1; medido Y1; desenho X2; desenho Y2; medido X2; medido Y2
 
-## Câmera
-Foi criada uma interface ILaserCamera. A implementação padrão não simula uma câmera: retorna indisponível.
-Uma implementação física futura deve fornecer Open/Close/CaptureFrame e identificação do dispositivo.
+Use mm e coordenadas do arquivo original. O preparo desconta a origem da placa e considera o espelhamento Bottom. O solver calcula escala uniforme, rotação e translação; X/Y são ajustados para a caixa envolvente após rotação.
 
-## Segurança
-A imagem da câmera e o alinhamento alteram apenas a preparação geométrica. Nenhum movimento ou disparo do laser é feito pelo módulo de câmera.
+Fiduciais coincidentes ou coordenadas não finitas são rejeitados. O alinhamento invalida as trajetórias; atualize o CAM e valide antes de exportar.
+
+A interface ILaserCamera permanece disponível para uma implementação futura. TNoCamera retorna indisponível; a aplicação não simula aquisição de imagem.
+
+Alinhamento e câmera alteram somente a preparação geométrica. Conexão, movimentos e disparo do laser pertencem ao MultiCNC.
