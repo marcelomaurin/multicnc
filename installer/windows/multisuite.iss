@@ -51,6 +51,7 @@ Name: "tools\multiassembly"; Description: "MultiAssembly - Montagem Eletromecani
 Name: "tools\multiphysics"; Description: "MultiPhysics - Simulacao Fisica, Termica e Dinamica"; Types: full custom
 Name: "tools\multicam"; Description: "MultiCAM - CAM e Simulacao CNC Router"; Types: full custom
 Name: "tools\multislicer"; Description: "MultiSlicer - Fatiador para Impressao 3D"; Types: full custom
+Name: "tools\makepcb"; Description: "MakePCB - Projeto de Placas do Zero (Gerber/Excellon)"; Types: full custom
 Name: "tools\laserpcb"; Description: "LaserPCB - Preparacao e Gravacao de PCB a Laser"; Types: full custom
 Name: "tools\laserart"; Description: "LaserArt - Vetorizacao e Gravacao de Imagens a Laser"; Types: full custom
 Name: "tools\testcenter"; Description: "Central de Testes do MultiSuite"; Types: full custom
@@ -69,6 +70,7 @@ Source: "..\..\dist\app\multiassembly.exe"; DestDir: "{app}"; Components: tools\
 Source: "..\..\dist\app\multiphysics.exe"; DestDir: "{app}"; Components: tools\multiphysics; Flags: ignoreversion
 Source: "..\..\dist\app\multicam.exe"; DestDir: "{app}"; Components: tools\multicam; Flags: ignoreversion
 Source: "..\..\dist\app\multislicer.exe"; DestDir: "{app}"; Components: tools\multislicer; Flags: ignoreversion
+Source: "..\..\dist\app\makepcb.exe"; DestDir: "{app}"; Components: tools\makepcb; Flags: ignoreversion
 Source: "..\..\dist\app\laserpcb.exe"; DestDir: "{app}"; Components: tools\laserpcb; Flags: ignoreversion
 Source: "..\..\dist\app\laserart.exe"; DestDir: "{app}"; Components: tools\laserart; Flags: ignoreversion
 Source: "..\..\dist\app\multisuite_test_center.exe"; DestDir: "{app}"; Components: tools\testcenter; Flags: ignoreversion
@@ -89,6 +91,7 @@ Name: "{autoprograms}\MultiSuite\MultiAssembly"; Filename: "{app}\multiassembly.
 Name: "{autoprograms}\MultiSuite\MultiPhysics"; Filename: "{app}\multiphysics.exe"; Components: tools\multiphysics
 Name: "{autoprograms}\MultiSuite\MultiCAM"; Filename: "{app}\multicam.exe"; Components: tools\multicam
 Name: "{autoprograms}\MultiSuite\MultiSlicer"; Filename: "{app}\multislicer.exe"; Components: tools\multislicer
+Name: "{autoprograms}\MultiSuite\MakePCB"; Filename: "{app}\makepcb.exe"; Components: tools\makepcb
 Name: "{autoprograms}\MultiSuite\LaserPCB"; Filename: "{app}\laserpcb.exe"; Components: tools\laserpcb
 Name: "{autoprograms}\MultiSuite\LaserArt"; Filename: "{app}\laserart.exe"; Components: tools\laserart
 Name: "{autoprograms}\MultiSuite\Central de Testes"; Filename: "{app}\multisuite_test_center.exe"; Components: tools\testcenter

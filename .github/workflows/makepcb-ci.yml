@@ -1,0 +1,49 @@
+name: MakePCB CI
+on:
+  workflow_dispatch:
+  push:
+    paths: ['makepcb/**', 'laserpcb/src/**', 'laserart/src/core/**', 'multisuite/src/core/**', 'src/shared/**', '.github/workflows/makepcb-ci.yml']
+  pull_request:
+    paths: ['makepcb/**', 'laserpcb/src/**', 'laserart/src/core/**', 'multisuite/src/core/**', 'src/shared/**', '.github/workflows/makepcb-ci.yml']
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y lazarus xvfb
+      - name: Core tests (Gerber/Excellon -> LaserPCB, routing, DRC, BOM)
+        run: |
+          set -e
+          lazbuild --ws=nogui makepcb/tests/test_makepcb.lpi
+          ./makepcb/tests/test_makepcb
+      - name: Build and exercise the UI
+        run: |
+          set -e
+          lazbuild --ws=gtk2 makepcb/src/app/makepcb.lpi
+          lazbuild --ws=gtk2 makepcb/tests/test_makepcb_ui.lpi
+          xvfb-run -a ./makepcb/tests/test_makepcb_ui
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: choco install lazarus --no-progress -y
+      - name: Add Lazarus to PATH
+        shell: powershell
+        run: |
+          $laz = Get-ChildItem 'C:\lazarus*' -Directory | Select-Object -First 1
+          if (-not $laz) { throw 'Lazarus nao encontrado' }
+          $laz.FullName | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Test and build MakePCB
+        shell: cmd
+        run: |
+          lazbuild makepcb\tests\test_makepcb.lpi
+          if errorlevel 1 exit /b 1
+          makepcb\tests\test_makepcb.exe
+          if errorlevel 1 exit /b 1
+          lazbuild makepcb\src\app\makepcb.lpi
+          if errorlevel 1 exit /b 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MakePCB-Windows
+          path: makepcb/src/app/makepcb.exe
+          if-no-files-found: error

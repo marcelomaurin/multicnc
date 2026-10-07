@@ -3,6 +3,18 @@
 Lista do que ficou aberto. Detalhes do LaserArt em
 `laserart/docs/LASERART_PLANO.md`.
 
+## MakePCB (07/10/2026) - novo
+- Projeto de placas do zero no estilo PCB Wizard, na raiz: `makepcb/`.
+  Galeria de componentes, editor (trilhas 45 graus, ligacoes, textos, areas
+  de cobre, desfazer), vistas Normal / Mundo real / Sem componentes / Arte
+  final, autoroteamento + DRC, lista de materiais e exemplo 555.
+- Exporta Gerber + Excellon numa pasta `<nome>_gerber`; "Abrir no LaserPCB"
+  passa a pasta e o LaserPCB importa tudo (`ImportFolder`).
+- Registrado na suite (`stiMakePCB`), bandeja, instaladores e CI
+  (`.github/workflows/makepcb-ci.yml`). `bin\makepcb.exe` (x64).
+- Proximos: esquematico, selecao multipla, footprints SMD/editor de
+  footprint, impressao direta. Ver `makepcb/docs/ARCHITECTURE.md`.
+
 ## LaserPCB (07/10/2026)
 - Interface principal integrada com controles/icones da MultiSuite, camadas,
   placa/cobre/furos/trajetorias, posicionamento, CAM e validacao.

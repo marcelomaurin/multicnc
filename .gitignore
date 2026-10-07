@@ -43,3 +43,5 @@ lib/
 /test-*.log
 
 /makepcb/tests/test_makepcb
+/makepcb/tests/test_makepcb_ui
+/makepcb/src/app/makepcb

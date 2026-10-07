@@ -592,6 +592,7 @@ begin
         end;
       Check(HasBottom and HasEdge, 'pasta: cobre inferior e contorno reconhecidos');
       Check(not HasTop, 'face simples sem cobre superior');
+      Check(P.Side = lsBottom, 'pasta de face simples abre pelo lado Bottom');
       Check(P.Drills.HoleCount >= 25, 'furos do exemplo: ' + IntToStr(P.Drills.HoleCount));
       P.Side := lsBottom;
       P.Profile.SpotMM := 0.15; P.Profile.Power := 300; P.Profile.Feed := 600;

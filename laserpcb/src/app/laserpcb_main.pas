@@ -478,7 +478,15 @@ procedure TLaserPCBForm.OpenFile(const FN: string);
 begin
   try
     FEditOp := nil;
-    if DirectoryExists(FN) then P.ImportFolder(FN) else P.ImportFile(FN);
+    if DirectoryExists(FN) then
+    begin
+      P.ImportFolder(FN);
+      FUpdating := True;
+      try SideBox.ItemIndex := Ord(P.Side); finally FUpdating := False; end;
+      Status.Caption := 'Pasta importada: ' + IntToStr(P.SourceCount) + ' camadas e ' +
+        IntToStr(P.DrillFiles.Count) + ' arquivos de furos.';
+    end
+    else P.ImportFile(FN);
     RefreshSources;
     if not P.HasSVG then
       try P.RebuildMasks; except on E:Exception do Status.Caption := E.Message; end;

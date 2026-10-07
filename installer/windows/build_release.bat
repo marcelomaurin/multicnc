@@ -27,6 +27,7 @@ call :build multiassembly\src\app\multiassembly.lpi multiassembly\src\app\multia
 call :build multiphysics\src\app\multiphysics.lpi multiphysics\src\app\multiphysics.exe multiphysics.exe || exit /b 1
 call :build multicam\src\app\multicam.lpi multicam\src\app\multicam.exe multicam.exe || exit /b 1
 call :build multislicer\src\app\multislicer.lpi multislicer\src\app\multislicer.exe multislicer.exe || exit /b 1
+call :build makepcb\src\app\makepcb.lpi makepcb\src\app\makepcb.exe makepcb.exe || exit /b 1
 call :build laserpcb\src\app\laserpcb.lpi laserpcb\src\app\laserpcb.exe laserpcb.exe || exit /b 1
 call :build laserart\src\app\laserart.lpi laserart\src\app\laserart.exe laserart.exe || exit /b 1
 call :build src\app\multicnc.lpi src\app\multicnc.exe multicnc.exe || exit /b 1
@@ -52,4 +53,4 @@ if exist "%~2" del /q "%~2"
 lazbuild --build-mode=Default "%~1" || exit /b 1
 if not exist "%~2" (echo ERRO: executavel nao encontrado: %~2& exit /b 1)
 copy /y "%~2" "%APP%\%~3" >nul
-exit /b 0
+exit /b 0

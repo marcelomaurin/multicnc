@@ -403,6 +403,8 @@ begin
     { Gerber antes do Excellon (o furo precisa da placa) }
     for I := 0 to Gerbers.Count - 1 do begin ImportFile(Gerbers[I]); Inc(Result); end;
     for I := 0 to Drills_.Count - 1 do begin ImportFile(Drills_[I]); Inc(Result); end;
+    { placa de face simples (cobre so embaixo): ja abre pelo lado Bottom }
+    if (FindRole(lrTopCopper) = nil) and (FindRole(lrBottomCopper) <> nil) then Side := lsBottom;
   finally
     Gerbers.Free; Drills_.Free;
   end;
