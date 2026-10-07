@@ -1,6 +1,6 @@
 # LaserPCB
 
-Prepara placas para laser com SVG, Gerber e Excellon. A conexão, o Frame e a execução pertencem ao MultiCNC.
+Prepara placas para laser com SVG, Gerber e Excellon e gera a furação para CNC Router. A conexão, o Frame e a execução pertencem ao MultiCNC.
 
 ## Fluxo da interface
 
@@ -8,6 +8,7 @@ Prepara placas para laser com SVG, Gerber e Excellon. A conexão, o Frame e a ex
 2. **Posicionar:** configure mesa, margem e espaçamento. Arraste a placa, ajuste X/Y, rotação e escala, duplique, trave ou distribua as cópias. O botão Placas ajusta o zoom ao conjunto; Mesa mostra a área útil.
 3. **Processo:** selecione Top/Bottom e espelhamento, processo, diâmetro do feixe, potência S, S-max, velocidade, passadas, sobreposição e resolução. Atualizar trajetórias mostra a saída que será exportada.
 4. **Validar:** corrija os erros, gere G-code e use Abrir no MultiCNC. Alterações nos parâmetros ou posições invalidam o arquivo disponível para envio.
+5. **Furar:** filtre os furos (diâmetro, PTH/NPTH) e configure a broca: profundidade, bicada, Z, avanços, rotação e espera. Para dupla face, ative os pinos de registro. Use Conferir furação e Gerar furação. O padrão é um arquivo por broca. Abrir no MultiCNC carrega o arquivo em CNC Router. Detalhes em [docs/FURACAO.md](docs/FURACAO.md).
 
 ## Processos
 
@@ -17,7 +18,8 @@ Prepara placas para laser com SVG, Gerber e Excellon. A conexão, o Frame e a ex
 | Gerber / Isolação | Anéis ao redor do cobre, compensados pelo raio do feixe |
 | Gerber / Remoção | Varredura na área da placa sem cobre |
 | Gerber / Preencher camada | Varredura da camada selecionada, incluindo máscara ou serigrafia |
-| Excellon | Furos e rasgos na prévia e na máscara da placa; não gera perfuração física |
+| Excellon / Marcar furos (laser) | Centro, contorno ou corte de cada furo/rasgo pelo laser |
+| Excellon / Furar (CNC Router) | Programa GRBL por broca, com bicadas, rasgos e pinos de registro |
 
 Na isolação, passadas são anéis de offset; o G-code percorre cada anel uma vez. Nos demais processos, passadas repetem as trajetórias. A compensação é recalculada depois da escala, mantendo o diâmetro físico do feixe. O espelhamento Bottom não modifica a geometria importada.
 

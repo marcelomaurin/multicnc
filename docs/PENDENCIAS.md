@@ -10,8 +10,12 @@ Lista do que ficou aberto. Detalhes do LaserArt em
 - Corrigidos Bottom destrutivo, caixas apos rotacao, parametros de exportacao,
   nesting com travas/keep-outs e recorte de CAM na placa. Compensacao apos escala.
 - Testes de regressao e da UI nativa adicionados a LaserPCB CI.
-- Pendente: camera fisica, nesting por poligonos, persistencia completa da sessao
-  e validacao do processo/material na maquina. Uso em laserpcb/README.md.
+- Furacao (07/10): biblioteca `laserpcb/src/drill`, etapa "5 Furar" (CNC Router,
+  um arquivo por broca, pinos de registro) e processo "Marcar furos (laser)".
+  MultiCNC abre a furacao em CNC Router. Detalhes em laserpcb/docs/FURACAO.md.
+- Pendente: camera fisica, nesting por poligonos, persistencia completa da sessao,
+  camadas com processos diferentes no mesmo trabalho (estilo LightBurn) e
+  validacao do processo/material na maquina. Uso em laserpcb/README.md.
 
 ## LaserArt
 - **Nova versao pronta** e com pasta propria na raiz: `laserart/`
