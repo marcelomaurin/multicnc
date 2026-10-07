@@ -79,6 +79,9 @@ type
     procedure Clear;
     procedure InvalidateCAM;
     procedure ImportFile(const FileName: string);
+    { importa todos os Gerber/Excellon de uma pasta (ex.: exportacao do MakePCB);
+      devolve quantos arquivos entraram }
+    function ImportFolder(const Dir: string): Integer;
     function SourceCount: Integer;
     function Source(I: Integer): TLPSource;
     procedure SetLayerRole(I: Integer; Role: TLPLayerRole);
@@ -361,6 +364,48 @@ begin
     finally S.Free; end;
   end;
   InvalidateCAM; UpdateBoard;
+end;
+function TLaserPCBProject.ImportFolder(const Dir: string): Integer;
+const
+  GERBER_EXT: array[0..12] of string = ('.gbr', '.ger', '.gtl', '.gbl', '.gts', '.gbs', '.gto', '.gbo',
+    '.gm1', '.gko', '.gml', '.gtp', '.gbp');
+  DRILL_EXT: array[0..2] of string = ('.drl', '.xln', '.exc');
+var
+  SR: TSearchRec;
+  Gerbers, Drills_: TStringList;
+  E, Base: string;
+  I: Integer;
+  function InList(const X: string; const L: array of string): Boolean;
+  var K: Integer;
+  begin
+    Result := False;
+    for K := 0 to High(L) do if X = L[K] then Exit(True);
+  end;
+begin
+  Result := 0;
+  if not DirectoryExists(Dir) then raise Exception.Create('Pasta nao encontrada: ' + Dir);
+  Base := IncludeTrailingPathDelimiter(Dir);
+  Gerbers := TStringList.Create; Drills_ := TStringList.Create;
+  try
+    Gerbers.Sorted := True; Drills_.Sorted := True;
+    if FindFirst(Base + '*', faAnyFile, SR) = 0 then
+    try
+      repeat
+        if (SR.Attr and faDirectory) <> 0 then Continue;
+        E := LowerCase(ExtractFileExt(SR.Name));
+        if InList(E, GERBER_EXT) then Gerbers.Add(Base + SR.Name)
+        else if InList(E, DRILL_EXT) then Drills_.Add(Base + SR.Name);
+      until FindNext(SR) <> 0;
+    finally
+      FindClose(SR);
+    end;
+    if Gerbers.Count = 0 then raise Exception.Create('Nenhum Gerber na pasta: ' + Dir);
+    { Gerber antes do Excellon (o furo precisa da placa) }
+    for I := 0 to Gerbers.Count - 1 do begin ImportFile(Gerbers[I]); Inc(Result); end;
+    for I := 0 to Drills_.Count - 1 do begin ImportFile(Drills_[I]); Inc(Result); end;
+  finally
+    Gerbers.Free; Drills_.Free;
+  end;
 end;
 function TLaserPCBProject.AddCopy: TLaserLayoutItem;
 begin

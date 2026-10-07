@@ -477,7 +477,9 @@ begin FEditOp := nil; P.Clear; View.SelectedIndex := -1; RefreshSources; Log.Cle
 procedure TLaserPCBForm.OpenFile(const FN: string);
 begin
   try
-    FEditOp := nil; P.ImportFile(FN); RefreshSources;
+    FEditOp := nil;
+    if DirectoryExists(FN) then P.ImportFolder(FN) else P.ImportFile(FN);
+    RefreshSources;
     if not P.HasSVG then
       try P.RebuildMasks; except on E:Exception do Status.Caption := E.Message; end;
     Log.Lines.Assign(P.Warnings); View.Invalidate;

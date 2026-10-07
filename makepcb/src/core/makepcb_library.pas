@@ -244,7 +244,7 @@ begin
     F.AddPad(IntToStr(I + 1), X0 + I * P, 0, Shape, 2.6, 2.6, 1.3);
   end;
   F.AddRect(X0 - 2.54, -3.8, -X0 + 2.54, 3.8);
-  F.SetBody(bkTerminal, X0 - 2.54, -3.8, -X0 + 2.54, 3.8, $2E7D32);
+  F.SetBody(bkTerminal, X0 - 2.54, -3.8, -X0 + 2.54, 3.8, $2E6FD0);
 end;
 
 procedure TMPLibrary.SILPack(Pins: Integer);

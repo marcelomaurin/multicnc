@@ -8,7 +8,7 @@ program test_makepcb;
 
 uses
   Interfaces, Classes, SysUtils, Math, multisuite_numfmt,
-  makepcb_model, makepcb_library, makepcb_font, makepcb_gerber, makepcb_route, makepcb_drc,
+  makepcb_model, makepcb_library, makepcb_font, makepcb_gerber, makepcb_route, makepcb_drc, makepcb_bom,
   laserpcb_geom, laserpcb_gerber, laserpcb_excellon, laserpcb_raster,
   laserpcb_project, laserpcb_types;
 
@@ -529,6 +529,84 @@ begin
   end;
 end;
 
+{ lista de materiais, exemplo 555 e pasta exportada aberta no LaserPCB }
+procedure TestBOMAndExample;
+var
+  D: TMPDocument;
+  B: TMPBOM;
+  CSV: string;
+  I, Total: Integer;
+  R: TMPRouter;
+  Res: TMPRouteResult;
+  Files: TStringList;
+  P: TLaserPCBProject;
+  E: TStringList;
+  HasTop, HasBottom, HasEdge: Boolean;
+begin
+  D := TMPDocument.Create;
+  Files := TStringList.Create;
+  E := TStringList.Create;
+  try
+    MPAstableExample(D, Lib);
+    Check(D.ComponentCount = 11, 'exemplo: 11 componentes (8 + 3 furos)');
+    Check(D.WireCount = 15, 'exemplo: 15 ligacoes');
+    Check(D.ValidateBoard(E), 'exemplo cabe na placa: ' + E.Text);
+    B := MPBuildBOM(D);
+    Total := 0;
+    for I := 0 to High(B) do Inc(Total, B[I].Quantity);
+    Check(Total = 8, 'BOM sem furos de fixacao: ' + IntToStr(Total));
+    Check(Length(B) = 8, 'BOM agrupada: ' + IntToStr(Length(B)));
+    Check(B[0].Refs = 'C1', 'BOM em ordem natural: ' + B[0].Refs);
+    { dois resistores iguais viram uma linha }
+    D.FindComponent('R2').Value := '10K';
+    B := MPBuildBOM(D);
+    Check(Length(B) = 7, 'BOM agrupa valores iguais');
+    for I := 0 to High(B) do
+      if B[I].Value = '10K' then
+      begin
+        Check(B[I].Quantity = 2, 'quantidade dos 10K');
+        Check(B[I].Refs = 'R1, R2', 'referencias dos 10K: ' + B[I].Refs);
+      end;
+    CSV := MPBOMToCSV(B);
+    Check(Pos('Qtd;Valor;Componente;Referencias;Descricao', CSV) = 1, 'cabecalho do CSV');
+    Check(Pos('"R1, R2"', CSV) > 0, 'referencias no CSV');
+    { roteia, exporta para uma pasta e abre a pasta no LaserPCB }
+    R := TMPRouter.Create(D, D.TrackWidth, D.Clearance);
+    try
+      Res := R.RouteAll(-1, nil);
+    finally
+      R.Free;
+    end;
+    Check(Res.Failed = 0, 'exemplo roteado por completo');
+    Check(Length(MPCheckDesign(D)) = 0, 'exemplo sem erros de DRC');
+    MPExportFabrication(D, MPDefaultFabOptions(Dir + 'pasta555', '555'), Files);
+    P := TLaserPCBProject.Create;
+    try
+      Check(P.ImportFolder(Dir + 'pasta555') = Files.Count, 'LaserPCB importa a pasta inteira');
+      HasTop := False; HasBottom := False; HasEdge := False;
+      for I := 0 to P.SourceCount - 1 do
+        case P.Source(I).Role of
+          lrTopCopper: HasTop := True;
+          lrBottomCopper: HasBottom := True;
+          lrOutline: HasEdge := True;
+        end;
+      Check(HasBottom and HasEdge, 'pasta: cobre inferior e contorno reconhecidos');
+      Check(not HasTop, 'face simples sem cobre superior');
+      Check(P.Drills.HoleCount >= 25, 'furos do exemplo: ' + IntToStr(P.Drills.HoleCount));
+      P.Side := lsBottom;
+      P.Profile.SpotMM := 0.15; P.Profile.Power := 300; P.Profile.Feed := 600;
+      P.Generate;
+      Check(P.Validate(E, True), 'LaserPCB valida a pasta: ' + E.Text);
+    finally
+      P.Free;
+    end;
+  finally
+    E.Free;
+    Files.Free;
+    D.Free;
+  end;
+end;
+
 begin
   DefaultFormatSettings.DecimalSeparator := ',';
   DefaultFormatSettings.ThousandSeparator := '.';
@@ -540,5 +618,6 @@ begin
   TestFont;
   TestExport;
   TestRouting;
-  Writeln('PASS: ', Checks, ' checks (library, model, nets, file, font, Gerber/Excellon -> LaserPCB, routing, DRC)');
+  TestBOMAndExample;
+  Writeln('PASS: ', Checks, ' checks (library, model, nets, file, font, Gerber/Excellon -> LaserPCB, routing, DRC, BOM)');
 end.
