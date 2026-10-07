@@ -19,7 +19,10 @@ O projeto deve fornecer contexto compartilhado sem forcar todos os modulos a usa
 Ferramentas sao executaveis independentes. O launcher pode enviar --project <diretorio>. Cada aplicacao deve futuramente aceitar esse argumento.
 
 ## Ferramentas registradas
-MultiCAD, MultiPCB, MultiAssembly, MultiCAM, MultiSlicer, LaserPCB, LaserArt e MultiCNC.
+MultiCAD, MultiPCB, MultiAssembly, MultiPhysics, MultiCAM, MultiSlicer, LaserPCB, LaserArt, MultiCNC e MakePCB.
+
+Novas ferramentas entram no FIM de `TSuiteToolID` (`multisuite_types.pas`): o workspace `.msuite` grava o ordinal.
+Na bandeja (`multisuite_tray_form.pas`) cada ferramenta precisa de icone (`ToolIcon`), cor (`ToolAccent`) e grupo (`AddGroup`).
 
 ## Seguranca
 MultiSuite nunca envia diretamente movimento ou acionamento fisico. Execucao real continua exclusiva do MultiCNC.

@@ -289,7 +289,7 @@ var
 begin
   Header := TSuiteHeader.Create(Self);
   Header.Parent := Self; Header.Align := alTop; Header.Height := 72;
-  Header.Setup('MakePCB', 'Projeto de placas do zero  /  MultiSuite', sikPCB);
+  Header.Setup('MakePCB', 'Projeto de placas do zero  /  MultiSuite', sikMakePCB);
 
   { rodape }
   Footer := TPanel.Create(Self);

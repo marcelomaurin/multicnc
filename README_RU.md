@@ -23,7 +23,7 @@
 - **MultiCAD:** геометрия и проектирование
 - **MultiCAM:** подготовка траекторий
 - **MultiSlicer:** подготовка 3D-печати
-- **MultiPCB / LaserPCB:** проектирование и изготовление PCB
+- **MultiPCB / MakePCB / LaserPCB:** проектирование и изготовление PCB (MakePCB: плата с нуля в стиле PCB Wizard, Gerber + Excellon для LaserPCB)
 - **MultiAssembly:** интеграция механики и электроники
 - **MultiPhysics:** многодоменное физическое моделирование
 

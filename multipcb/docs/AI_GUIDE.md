@@ -20,7 +20,7 @@ Entrada: projeto eletronico e bibliotecas.
 Saida: placa, netlist, dados de componentes e arquivos de fabricacao.
 
 ## Integracao
-MultiAssembly pode incorporar a PCB como componente fisico e usar seus conectores/netlist. LaserPCB pode receber dados para fabricacao laser. MultiCAM pode preparar processos CNC de PCB. MultiCNC executa o trabalho fisico.
+MultiAssembly pode incorporar a PCB como componente fisico e usar seus conectores/netlist. LaserPCB pode receber dados para fabricacao laser. O MakePCB (`makepcb/`) e o editor de placa simples, estilo PCB Wizard, que gera Gerber + Excellon direto para o LaserPCB; os dois nao compartilham formato de arquivo. MultiCAM pode preparar processos CNC de PCB. MultiCNC executa o trabalho fisico.
 
 ## Nao pertence aqui
 Montagem completa da maquina, dinamica de motores, controle serial da CNC ou modelagem mecanica geral.

@@ -25,7 +25,7 @@ IDEA → DISEÑO → SIMULACIÓN → PREPARACIÓN → VALIDACIÓN → FABRICACI�
 - **MultiCAD:** diseño y preparación geométrica
 - **MultiCAM:** preparación de trayectorias
 - **MultiSlicer:** preparación para impresión 3D
-- **MultiPCB / LaserPCB:** diseño y fabricación de PCB
+- **MultiPCB / MakePCB / LaserPCB:** diseño y fabricación de PCB (MakePCB: placa desde cero, estilo PCB Wizard, Gerber + Excellon para LaserPCB)
 - **MultiAssembly:** integración mecánica y electrónica
 - **MultiPhysics:** simulación física multidominio
 

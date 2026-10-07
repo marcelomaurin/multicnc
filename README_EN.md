@@ -25,7 +25,7 @@ IDEA → DESIGN → SIMULATION → PREPARATION → VALIDATION → MANUFACTURING
 - **MultiCAD:** geometric design and preparation
 - **MultiCAM:** toolpath and manufacturing preparation
 - **MultiSlicer:** 3D-print preparation
-- **MultiPCB / LaserPCB:** PCB design and fabrication
+- **MultiPCB / MakePCB / LaserPCB:** PCB design and fabrication (MakePCB: board from scratch, PCB Wizard style, Gerber + Excellon for LaserPCB)
 - **MultiAssembly:** mechanical and electronic assembly integration
 - **MultiPhysics:** multidomain physical simulation
 

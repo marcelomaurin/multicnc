@@ -23,7 +23,7 @@
 - **MultiCAD:** التصميم والتحضير الهندسي
 - **MultiCAM:** إعداد مسارات التصنيع
 - **MultiSlicer:** التحضير للطباعة ثلاثية الأبعاد
-- **MultiPCB / LaserPCB:** تصميم وتصنيع لوحات PCB
+- **MultiPCB / MakePCB / LaserPCB:** تصميم وتصنيع لوحات PCB (MakePCB: تصميم اللوحة من الصفر بأسلوب PCB Wizard وتوليد Gerber + Excellon لـ LaserPCB)
 - **MultiAssembly:** دمج التجميع الميكانيكي والإلكتروني
 - **MultiPhysics:** محاكاة فيزيائية متعددة المجالات
 

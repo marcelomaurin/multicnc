@@ -23,7 +23,7 @@
 - **MultiCAD:** ज्यामिति और डिज़ाइन तैयारी
 - **MultiCAM:** टूलपाथ और निर्माण तैयारी
 - **MultiSlicer:** 3D प्रिंट तैयारी
-- **MultiPCB / LaserPCB:** PCB डिज़ाइन और निर्माण
+- **MultiPCB / MakePCB / LaserPCB:** PCB डिज़ाइन और निर्माण (MakePCB: PCB Wizard शैली में शुरू से बोर्ड, LaserPCB के लिए Gerber + Excellon)
 - **MultiAssembly:** मैकेनिकल और इलेक्ट्रॉनिक असेंबली एकीकरण
 - **MultiPhysics:** मल्टी-डोमेन भौतिक सिमुलेशन
 

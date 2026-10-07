@@ -13,6 +13,7 @@ Antes de escrever codigo, identifique qual ferramenta e dona da responsabilidade
 | MultiSuite | Gestor unificado, projetos e launcher das ferramentas |
 | MultiCAD | Criacao e edicao de geometria/pecas CAD |
 | MultiPCB | Esquematico, PCB, netlist, roteamento e arquivos de fabricacao de placas |
+| MakePCB | Placa do zero estilo PCB Wizard: esquema, componentes (furados e SMD), trilhas, autoroteamento, DRC, BOM, impressao 1:1 e Gerber + Excellon para o LaserPCB (pasta `makepcb/`) |
 | MultiAssembly | Montagem eletromecanica: une pecas, motores, placas, drivers, fontes, sensores e conexoes |
 | MultiCAM | Planejamento de usinagem CNC Router, toolpaths, simulacao de usinagem e G-code |
 | MultiSlicer | Fatiamento e posicionamento para impressao 3D |
@@ -23,6 +24,7 @@ Antes de escrever codigo, identifique qual ferramenta e dona da responsabilidade
 ## Fluxo conceitual
 MultiCAD -> MultiAssembly -> MultiCAM -> MultiCNC
 MultiPCB -> MultiAssembly e/ou LaserPCB/MultiCAM -> MultiCNC
+MakePCB -> (pasta Gerber + Excellon) -> LaserPCB -> MultiCNC
 MultiCAD/STL -> MultiSlicer -> MultiCNC
 Imagem/Vetor -> LaserArt -> MultiCNC
 

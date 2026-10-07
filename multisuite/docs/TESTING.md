@@ -25,6 +25,7 @@ MultiAssembly: modelo eletromecanico.
 MultiCAM: CAM mecanico, setup, simulacao, eletronica virtual e pipeline demo.
 MultiSlicer: layout 3D.
 LaserPCB: job, layout e alinhamento.
+MakePCB: nucleo (biblioteca, redes, Gerber/Excellon lidos pelo LaserPCB, roteamento, DRC, esquema, SMD, impressao) e interface.
 LaserArt: saida G-code (SVG, texto, imagem) e matriz de teste de material.
 MultiSuite: registro e workspace.
 

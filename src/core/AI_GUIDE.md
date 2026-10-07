@@ -31,7 +31,7 @@ GRBL e Marlin sao os iniciais. FluidNC/grblHAL podem ser adicionados sem alterar
 Abrir trabalho -> visualizar -> carregar perfil -> validar seguranca -> simular quando aplicavel -> conectar -> executar -> acompanhar respostas/estado -> finalizar.
 
 ## Integracao
-MultiCAM, MultiSlicer, LaserPCB e LaserArt preparam jobs. MultiAssembly descreve a composicao eletromecanica e futuramente pode gerar/auxiliar o perfil. MultiCNC executa.
+MultiCAM, MultiSlicer, LaserPCB e LaserArt preparam jobs (o MakePCB gera a placa que o LaserPCB prepara). MultiAssembly descreve a composicao eletromecanica e futuramente pode gerar/auxiliar o perfil. MultiCNC executa.
 
 ## Dependencia CHATGPT
 Reutilize a biblioteca Lazarus CHATGPT do autor, especialmente AISerial/TAISerialModem e componentes de comunicacao existentes. Nao crie uma segunda implementacao serial sem necessidade.

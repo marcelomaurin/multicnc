@@ -37,7 +37,7 @@ FABRICAÇÃO
 | **MultiCAD** | Projeto e preparação geométrica |
 | **MultiCAM** | Preparação de trajetórias e fabricação |
 | **MultiSlicer** | Preparação para impressão 3D |
-| **MultiPCB / LaserPCB** | Projeto e fabricação de placas eletrônicas |
+| **MultiPCB / MakePCB / LaserPCB** | Projeto e fabricação de placas eletrônicas |
 | **MultiAssembly** | Integração de mecânica e eletrônica em uma montagem |
 | **MultiPhysics** | Simulação física multidomínio |
 
@@ -76,6 +76,7 @@ O MultiCNC é **open source** e está em desenvolvimento contínuo. Os módulos 
 | **MultiPhysics** | Simulação física multidomínio | Estudar eletricidade, eletrônica, mecânica, térmica, magnetismo, materiais, sensores, motores, energia e falhas |
 | **Ferramentas de projeto mecânico** | Projeto e preparação de peças e conjuntos | Trabalhar com geometria, peças mecânicas, montagem e preparação para CNC Router |
 | **Ferramentas de PCB/eletrônica** | Projeto de circuitos e placas | Trabalhar com esquemas, componentes, conexões e PCB |
+| **MakePCB** | Placa do zero, no estilo PCB Wizard | Desenhar esquema e placa e gerar Gerber + Excellon para o LaserPCB |
 | **Ferramentas Laser** | Preparação de desenhos, imagens, logos e trabalhos para laser | Criar ou preparar arte para corte e gravação a laser |
 | **Ferramentas CNC Router/CAM** | Preparação de usinagem mecânica | Preparar operações, trajetórias e trabalhos para Router |
 | **Montagem eletromecânica** | Visualização conjunta de mecânica e eletrônica | Ver componentes mecânicos, placas, sensores, motores e conexões no mesmo projeto |
@@ -248,6 +249,29 @@ Os projetos eletrônicos podem posteriormente participar da montagem eletromecâ
 
 Use essas ferramentas quando estiver desenvolvendo **uma placa, circuito ou sistema eletrônico**.
 
+### MakePCB — placa do zero
+
+O **MakePCB** (`makepcb/`) cria a placa do zero, no estilo do PCB Wizard, e gera os arquivos que o
+**LaserPCB** consome:
+
+```text
+MakePCB (esquema + placa) --Gerber + Excellon--> LaserPCB (isolação a laser) --G-code--> MultiCNC
+```
+
+- **Etapas:** 1 Placa, 2 Esquema, 3 Componentes, 4 Trilhas, 5 Fabricar.
+- **Esquema** com símbolos, fios e GND/VCC; "Converter para a placa" cria os componentes e as ligações.
+- **Vistas** Normal, Mundo real, Sem componentes e Arte final.
+- Galeria de componentes (furados e **SMD**), editor de componentes, seleção múltipla e copiar/colar.
+- **Roteamento automático**, **DRC**, lista de materiais, impressão 1:1 da arte final e
+  exportação Gerber RS-274X + Excellon. "Abrir no LaserPCB" já leva a pasta exportada.
+
+| | |
+|---|---|
+| ![Esquema](imgs/Makepcb02.png) | ![Componentes SMD e arte final](imgs/Makepcb05.png) |
+| ![Seleção múltipla](imgs/Makepcb06.png) | ![Editor de componentes](imgs/Makepcb03.png) |
+
+Detalhes em [makepcb/README.md](makepcb/README.md).
+
 ---
 
 ## 6. Ferramentas Laser
@@ -313,6 +337,7 @@ Use a **Central de Testes** quando estiver desenvolvendo o projeto, procurando r
        |                    |                    |
        v                    v                    v
  Projeto mecânico      PCB / Eletrônica      Laser / CAM
+                    (MultiPCB, MakePCB)  (LaserPCB, LaserArt)
        |                    |                    |
        +--------------------+--------------------+
                             |

@@ -25,7 +25,7 @@ IDEE → ENTWURF → SIMULATION → VORBEREITUNG → VALIDIERUNG → FERTIGUNG
 - **MultiCAD:** Geometrie und Konstruktion
 - **MultiCAM:** Werkzeugweg- und Fertigungsvorbereitung
 - **MultiSlicer:** Vorbereitung für den 3D-Druck
-- **MultiPCB / LaserPCB:** Leiterplattenentwurf und -fertigung
+- **MultiPCB / MakePCB / LaserPCB:** Leiterplattenentwurf und -fertigung (MakePCB: Platine von Grund auf, im Stil von PCB Wizard, Gerber + Excellon für LaserPCB)
 - **MultiAssembly:** mechanisch-elektronische Integration
 - **MultiPhysics:** multidomänenübergreifende physikalische Simulation
 

@@ -611,7 +611,7 @@ begin
   case AID of
     stiMultiCAD:      Result := sikCAD;
     stiMultiPCB:      Result := sikPCB;
-    stiMakePCB:       Result := sikPCB;
+    stiMakePCB:       Result := sikMakePCB;
     stiMultiAssembly: Result := sikAssembly;
     stiMultiPhysics:  Result := sikPhysics;
     stiMultiCAM:      Result := sikCAM;

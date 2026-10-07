@@ -8,6 +8,14 @@ MakePCB  ──(Gerber + Excellon)──►  LaserPCB  ──(G-code)──►  
  desenho da placa                   isolacao a laser          execucao
 ```
 
+## Telas
+
+| | |
+|---|---|
+| ![Esquema e galeria de simbolos](../imgs/Makepcb02.png) | ![Selecao multipla na placa](../imgs/Makepcb06.png) |
+| ![SMD embaixo: vista normal e arte final](../imgs/Makepcb05.png) | ![Editor de componentes](../imgs/Makepcb03.png) |
+| ![Impressao 1:1 da arte final](../imgs/Makepcb01.png) | ![Editor de componentes (SOIC)](../imgs/Makepcb04.png) |
+
 ## Etapas (barra lateral)
 
 | Etapa | O que faz |

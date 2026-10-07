@@ -30,7 +30,9 @@ type
     { edicao grafica (LaserArt) }
     sikPointer, sikPen, sikRect, sikCircle, sikPolygon, sikText, sikImage,
     sikUndo, sikRedo, sikCopy, sikMirrorH, sikMirrorV, sikImport, sikEye,
-    sikWand, sikFit, sikLayers, sikExport, sikNew, sikZoomIn, sikZoomOut
+    sikWand, sikFit, sikLayers, sikExport, sikNew, sikZoomIn, sikZoomOut,
+    { ferramentas novas (no fim: os ordinais aparecem em caches) }
+    sikMakePCB
   );
 
   { sifNone    - apenas o glifo, ocupando toda a area
@@ -648,6 +650,20 @@ begin
 
     sikPointer:
       Pn.Poly([5, 3, 5, 19, 9.5, 14.5, 12.5, 21, 15.5, 19.5, 12.5, 13.5, 18.5, 13.5], True);
+
+    sikMakePCB:
+      begin
+        { placa com trilhas e pads + lapis: desenhar a placa }
+        Pn.RoundBox(2.5, 5.5, 17, 20.5, 2, False);
+        Pn.Dot(6.5, 9.5, 1.5);
+        Pn.Line(6.5, 9.5, 10, 9.5);
+        Pn.Line(10, 9.5, 13, 12.5);
+        Pn.Line(13, 12.5, 13, 16.5);
+        Pn.Dot(13, 16.5, 1.5);
+        Pn.Dot(6.5, 16.5, 1.5);
+        Pn.Line(6.5, 16.5, 9.5, 16.5);
+        Pn.Poly([18.5, 2.5, 21.5, 5.5, 14.5, 12.5, 11, 13.5, 12, 10], True);
+      end;
 
     sikPen:
       begin

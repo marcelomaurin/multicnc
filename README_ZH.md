@@ -23,7 +23,7 @@
 - **MultiCAD：** 几何设计与准备
 - **MultiCAM：** 刀路与制造准备
 - **MultiSlicer：** 3D 打印准备
-- **MultiPCB / LaserPCB：** PCB 设计与制造
+- **MultiPCB / MakePCB / LaserPCB：** PCB 设计与制造（MakePCB：从零设计电路板，PCB Wizard 风格，为 LaserPCB 生成 Gerber + Excellon）
 - **MultiAssembly：** 机械与电子装配集成
 - **MultiPhysics：** 多领域物理仿真
 
