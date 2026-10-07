@@ -3,7 +3,7 @@ program test_pipeline;
 uses Classes, SysUtils, Math, multisuite_numfmt, laserpcb_types, laserpcb_job,
   laserpcb_svg, laserpcb_gcode, laserpcb_profile, laserpcb_layout,
   laserpcb_nesting, laserpcb_transform, laserpcb_geom, laserpcb_gerber,
-  laserpcb_excellon, laserpcb_raster, laserpcb_cam, laserpcb_project,
+  laserpcb_excellon, laserpcb_raster, laserpcb_cam, laserpcb_project, laserpcb_drill,
   laserart_model, laserart_svgimport, laserart_geom;
 var Checks: Integer = 0; Dir,DataDir: string;
 procedure Check(Ok: Boolean; const Msg: string);
@@ -194,6 +194,65 @@ begin
   finally E.Free;P.Free;end;
 end;
 
+procedure TestDrillProject;
+var P:TLaserPCBProject; Plan:TLPDrillPlan; E,G:TStringList; I,J:Integer; H:TLPDrillHole;
+  A,B:TLPPoint; Found:Boolean;
+begin
+  P:=TLaserPCBProject.Create;E:=TStringList.Create;Plan:=TLPDrillPlan.Create;
+  try
+    P.ImportFile(DataDir+'demo-F_Cu.gtl');P.ImportFile(DataDir+'demo-Edge_Cuts.gm1');
+    P.ImportFile(DataDir+'demo-PTH.drl');P.ImportFile(DataDir+'demo-NPTH-slot.drl');
+    P.Profile.Power:=250;P.Profile.Feed:=600;P.Profile.SpotMM:=0.1;
+    { plano na mesa: mesma posicao das trajetorias do laser }
+    P.BuildDrillPlan(Plan);Check(Plan.HoleCount=P.Drills.HoleCount,'drill plan holes');
+    Check(Plan.SlotCount=1,'drill plan slot');
+    A:=P.WorldPoint(P.Layout.Item(0),LPPoint(5,5));Found:=False;
+    for I:=0 to Plan.GroupCount-1 do for J:=0 to High(Plan.Group(I).Holes) do
+    begin H:=Plan.Group(I).Holes[J];if LPDist(LPPoint(H.X,H.Y),A)<1e-6 then Found:=True;end;
+    Check(Found,'hole mapped with WorldPoint');
+    P.Side:=lsBottom;P.MirrorBottom:=True;P.BuildDrillPlan(Plan);
+    B:=P.WorldPoint(P.Layout.Item(0),LPPoint(5,5));Near(B.X,P.Layout.Item(0).X+35,'bottom drill mirrored');
+    Found:=False;
+    for I:=0 to Plan.GroupCount-1 do for J:=0 to High(Plan.Group(I).Holes) do
+    begin H:=Plan.Group(I).Holes[J];if LPDist(LPPoint(H.X,H.Y),B)<1e-6 then Found:=True;end;
+    Check(Found,'bottom drill at mirrored position');
+    { copias e filtro }
+    P.Side:=lsTop;P.AddCopy;Check(TLaserNesting.ArrangeRows(P.Layout),'drill copies nested');
+    P.BuildDrillPlan(Plan);Check(Plan.HoleCount=2*P.Drills.HoleCount,'holes of every copy');
+    P.DrillFilter.IncludeNonPlated:=False;P.BuildDrillPlan(Plan);
+    Check(Plan.HoleCount=2*9,'NPTH filtered');P.DrillFilter.IncludeNonPlated:=True;
+    { pinos de registro no eixo central de cada placa }
+    P.RegistrationPins:=True;P.RegistrationOffset:=4;P.RegistrationDiameter:=3;
+    P.Layout.Item(0).Y:=10;P.Layout.Item(1).Y:=10;
+    Check(P.ValidateDrilling(E),'drilling valid '+E.Text);
+    P.BuildDrillPlan(Plan);Check(Plan.HoleCount=2*P.Drills.HoleCount+4,'registration pins');
+    Found:=False;
+    for I:=0 to Plan.GroupCount-1 do if Abs(Plan.Group(I).Diameter-3)<1e-9 then
+      for J:=0 to High(Plan.Group(I).Holes) do
+        if Abs(Plan.Group(I).Holes[J].X-(P.Layout.Item(0).X+20))<1e-6 then Found:=True;
+    Check(Found,'pin on board axis');
+    G:=P.DrillProgram('teste');
+    try Check(G[0]=LP_ROUTER_HEADER,'router header');Check(G[G.Count-1]='M30','router end');
+      for I:=0 to G.Count-1 do
+      begin Check(Length(G[I])<127,'router line length');
+        if Copy(G[I],1,1)<>';' then Check(Pos(',',G[I])=0,'router invariant decimals');end;
+    finally G.Free;end;
+    P.Layout.Item(1).Rotation:=90;E.Clear;
+    Check(not P.ValidateDrilling(E),'pins require 0/180 rotation');
+    P.Layout.Item(1).Rotation:=0;P.Layout.Item(0).Y:=1;E.Clear;
+    Check(not P.ValidateDrilling(E),'pins outside bed rejected');
+    P.RegistrationPins:=False;P.Router.Depth:=1;E.Clear;
+    Check(not P.ValidateDrilling(E),'positive depth rejected');P.Router.Depth:=-1.6;
+    { marcacao a laser dos furos pelo fluxo normal do CAM }
+    E.Clear;P.Layout.Item(0).Y:=10;P.Mode:=cmDrillMarks;P.MarkKind:=mkCenter;P.MarkDiameter:=0.4;
+    P.Generate;Check(Length(P.Paths)=P.Drills.HoleCount,'one mark per hole');
+    Check(P.Validate(E,True),'drill marks valid '+E.Text);
+    P.MarkKind:=mkCutHole;P.Generate;Check(Length(P.Paths)>P.Drills.HoleCount,'cut holes rings');
+    P.DrillFilter.MinDiameter:=99;E.Clear;
+    try P.Generate;Check(False,'empty marks accepted');except on Ex:Exception do Check(True,'empty marks rejected');end;
+  finally Plan.Free;E.Free;P.Free;end;
+end;
+
 procedure TestPhysicalSpotAfterScale;
 const Header='%FSLAX46Y46*%%MOMM*%%LPD*%';
 var P:TLaserPCBProject; Paths:TLPPaths; I,J:Integer; B:TLPRect; Q:TLPPoint;
@@ -222,6 +281,6 @@ begin
   DefaultFormatSettings.DecimalSeparator:=',';DefaultFormatSettings.ThousandSeparator:='.';
   Dir:=IncludeTrailingPathDelimiter(GetTempDir)+'laserpcb_regressions_'+IntToStr(GetProcessID)+PathDelim;
   ForceDirectories(Dir);
-  TestSVG;TestMirrorExport;TestLayout;TestGerberAndCAM;TestProject;TestPhysicalSpotAfterScale;
-  Writeln('PASS: ',Checks,' checks (SVG, mirror, export, geometry, nesting, Gerber, Excellon, CAM)');
+  TestSVG;TestMirrorExport;TestLayout;TestGerberAndCAM;TestProject;TestDrillProject;TestPhysicalSpotAfterScale;
+  Writeln('PASS: ',Checks,' checks (SVG, mirror, export, geometry, nesting, Gerber, Excellon, CAM, drilling)');
 end.

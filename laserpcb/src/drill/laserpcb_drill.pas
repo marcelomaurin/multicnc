@@ -84,7 +84,11 @@ type
     function Bounds: TLPRect;
     { comprimento dos deslocamentos em XY, a partir de (StartX, StartY) }
     function TravelLength(StartX, StartY: Double): Double;
-    function RouterGCode(const O: TLPRouterOptions; const Title: string): TStringList;
+    { GroupIndex = -1: todas as brocas num arquivo (pausa M0 na troca se
+      O.ToolChange = tcPause); >= 0: so a broca indicada (um arquivo por
+      broca, sem pausa: troque a broca e zere o Z entre os arquivos). }
+    function RouterGCode(const O: TLPRouterOptions; const Title: string;
+      GroupIndex: Integer = -1): TStringList;
     function LaserMarks(Kind: TLPMarkKind; MarkDia, Spot, Tol: Double): TLPPaths;
   end;
 
@@ -459,13 +463,15 @@ begin
     end;
 end;
 
-function TLPDrillPlan.RouterGCode(const O: TLPRouterOptions; const Title: string): TStringList;
+function TLPDrillPlan.RouterGCode(const O: TLPRouterOptions; const Title: string;
+  GroupIndex: Integer): TStringList;
 var
   S: TStringList;
-  I, J: Integer;
+  I, J, First, Last, Holes, Slots: Integer;
   H: TLPDrillHole;
   Z: Double;
   Errors: TStringList;
+  Pause: Boolean;
 
   procedure DrillHole;
   begin
@@ -513,28 +519,46 @@ begin
     Errors.Free;
   end;
   if HoleCount = 0 then raise Exception.Create('Furacao: nenhum furo selecionado');
+  if GroupIndex >= GroupCount then raise Exception.Create('Furacao: broca inexistente');
+  if GroupIndex < 0 then
+  begin
+    First := 0;
+    Last := High(FGroups);
+  end
+  else
+  begin
+    First := GroupIndex;
+    Last := GroupIndex;
+  end;
+  Holes := 0;
+  Slots := 0;
+  for I := First to Last do
+    for J := 0 to High(FGroups[I].Holes) do
+      if FGroups[I].Holes[J].Slot then Inc(Slots) else Inc(Holes);
+  Pause := (O.ToolChange = tcPause) and (Last > First);
   S := TStringList.Create;
   try
     S.Add(LP_ROUTER_HEADER);
     if Title <> '' then S.Add('; ' + Copy(Title, 1, 100));
-    S.Add(Format('; %d furo(s), %d rasgo(s), %d broca(s)', [HoleCount - SlotCount, SlotCount, GroupCount]));
-    for I := 0 to High(FGroups) do
+    S.Add(Format('; %d furo(s), %d rasgo(s), %d broca(s)', [Holes, Slots, Last - First + 1]));
+    for I := First to Last do
       if FGroups[I].Plated then
         S.Add(Format('; T%d %s mm PTH  %d', [I + 1, F3(FGroups[I].Diameter), Length(FGroups[I].Holes)]))
       else
         S.Add(Format('; T%d %s mm NPTH %d', [I + 1, F3(FGroups[I].Diameter), Length(FGroups[I].Holes)]));
     S.Add('; Zere X/Y no mesmo zero do laser e Z na superficie da placa.');
+    if Pause then S.Add('; Na pausa (M0): troque a broca e retome. O Z deve ser o mesmo.');
     S.Add('; Profundidade ' + F3(O.Depth) + ' mm. Use uma base de sacrificio.');
     S.Add('G21');
     S.Add('G90');
     S.Add('G94');
     S.Add('M5');
     S.Add('G0 Z' + F3(O.SafeZ));
-    for I := 0 to High(FGroups) do
+    for I := First to Last do
     begin
       if Length(FGroups[I].Holes) = 0 then Continue;
       S.Add(Format('; T%d broca %s mm', [I + 1, F3(FGroups[I].Diameter)]));
-      if (O.ToolChange = tcPause) and (GroupCount > 1) then
+      if Pause then
       begin
         S.Add('M5');
         S.Add('G0 Z' + F3(O.SafeZ));
@@ -547,7 +571,8 @@ begin
       begin
         H := FGroups[I].Holes[J];
         S.Add('G0 X' + F3(H.X) + ' Y' + F3(H.Y));
-        S.Add('G0 Z' + F3(O.TravelZ));
+        { o primeiro furo da broca vem do Z seguro; os demais ja estao no Z de deslocamento }
+        if J = 0 then S.Add('G0 Z' + F3(O.TravelZ));
         if H.Slot then MillSlot else DrillHole;
         S.Add('G0 Z' + F3(O.TravelZ));
       end;

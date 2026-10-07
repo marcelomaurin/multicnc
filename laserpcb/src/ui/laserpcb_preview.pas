@@ -17,7 +17,7 @@ type
     property Project: TLaserPCBProject read FProject write FProject;
   end;
 implementation
-uses laserpcb_gerber;
+uses laserpcb_gerber, laserpcb_drill;
 constructor TLaserPCBPreview.Create(AOwner: TComponent);
 begin inherited Create(AOwner); ShowCopper := True; ShowDrills := True; ShowPaths := True; end;
 procedure TLaserPCBPreview.DrawPaths(Item: TLaserLayoutItem; const Paths: TLPPaths; AColor: TColor);
@@ -83,9 +83,31 @@ begin
   DrawPaths(Item,FProject.OutlinePaths,RGBToColor(55,100,78));
 end;
 procedure TLaserPCBPreview.DrawOverlay;
-var I,J: Integer; P: TLPPaths; H: TLPPath; Diameter: Double;
+var I,J: Integer; P: TLPPaths; H: TLPPath; Diameter: Double; Item: TLaserLayoutItem;
+  Box: TLPRect; Pin: array[0..1] of TLPPoint; C,E: TPoint; R: Integer;
 begin
   if FProject = nil then Exit;
+  if ShowDrills and FProject.RegistrationPins then
+  begin
+    { pinos de registro (coordenadas de mesa): eixo central de cada placa }
+    Canvas.Pen.Color := RGBToColor(124,58,237); Canvas.Pen.Width := 2; Canvas.Brush.Style := bsClear;
+    for I := 0 to Layout.Count-1 do
+    begin
+      Item := Layout.Item(I); Box := LPEmptyRect;
+      LPRectInclude(Box,Item.X,Item.Y); LPRectInclude(Box,Item.X+Item.PlacedWidth,Item.Y+Item.PlacedHeight);
+      LPRegistrationHoles(Box,Item.X+Item.PlacedWidth/2,FProject.RegistrationOffset,Pin[0],Pin[1]);
+      for J := 0 to 1 do
+      begin
+        C := ScreenPoint(Pin[J].X,Pin[J].Y);
+        E := ScreenPoint(Pin[J].X+FProject.RegistrationDiameter/2,Pin[J].Y);
+        R := Max(3,Abs(E.X-C.X));
+        Canvas.Ellipse(C.X-R,C.Y-R,C.X+R,C.Y+R);
+        Canvas.MoveTo(C.X-R-4,C.Y); Canvas.LineTo(C.X+R+5,C.Y);
+        Canvas.MoveTo(C.X,C.Y-R-4); Canvas.LineTo(C.X,C.Y+R+5);
+      end;
+    end;
+    Canvas.Pen.Width := 1;
+  end;
   for I := 0 to Layout.Count-1 do
   begin
     if ShowPaths then DrawPaths(Layout.Item(I),FProject.PathsForItem(Layout.Item(I)),RGBToColor(37,99,235));

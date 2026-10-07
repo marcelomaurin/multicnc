@@ -2,10 +2,11 @@ unit laserpcb_project;
 {$mode objfpc}{$H+}
 interface
 uses Classes, SysUtils, Math, laserpcb_types, laserpcb_job, laserpcb_layout,
-  laserpcb_geom, laserpcb_gerber, laserpcb_excellon, laserpcb_raster;
+  laserpcb_geom, laserpcb_gerber, laserpcb_excellon, laserpcb_raster, laserpcb_drill;
 
 type
-  TLPCamMode = (cmVectors, cmIsolation, cmRemoveCopper, cmLayerHatch);
+  { cmDrillMarks: marca a laser o lugar de cada furo (laserpcb_drill) }
+  TLPCamMode = (cmVectors, cmIsolation, cmRemoveCopper, cmLayerHatch, cmDrillMarks);
   TLPLayerRole = (lrUnknown, lrTopCopper, lrBottomCopper, lrOutline,
     lrTopMask, lrBottomMask, lrTopSilk, lrBottomSilk);
   TLPSource = class
@@ -30,6 +31,7 @@ type
     procedure FreeMasks;
     function FindRole(Role: TLPLayerRole): TLPGerberLayer;
     function SVGPaths: TLPPaths;
+    function DrillMarkPaths: TLPPaths;
   public
     Layout: TLaserBedLayout;
     Drills: TLPDrillFile;
@@ -40,6 +42,14 @@ type
     Mode: TLPCamMode;
     Resolution, Overlap: Double;
     SelectedLayer: Integer;
+    { furacao: filtro comum a marcacao e ao CNC Router }
+    DrillFilter: TLPDrillFilter;
+    MarkKind: TLPMarkKind;
+    MarkDiameter: Double;
+    Router: TLPRouterOptions;
+    { pinos de registro para dupla face (somente no programa do Router) }
+    RegistrationPins: Boolean;
+    RegistrationOffset, RegistrationDiameter: Double;
     constructor Create;
     destructor Destroy; override;
     procedure Clear;
@@ -62,6 +72,12 @@ type
     function Validate(Errors: TStrings; ForExport: Boolean): Boolean;
     function BuildJob: TLaserPCBJob;
     function PathsForItem(Item: TLaserLayoutItem): TLPPaths;
+    { furos de todas as copias, ja na mesa (mm), filtrados e ordenados }
+    procedure BuildDrillPlan(Plan: TLPDrillPlan);
+    function ValidateDrilling(Errors: TStrings): Boolean;
+    { programa de furacao para CNC Router; valida antes de gerar.
+      GroupIndex -1 = todas as brocas; >= 0 = so a broca indicada do plano }
+    function DrillProgram(const Title: string; GroupIndex: Integer = -1): TStringList;
     property BoardMask: TLPMask read FBoard;
     property CopperMask: TLPMask read FCopper;
     property ArtworkMask: TLPMask read FArtwork;
@@ -119,6 +135,9 @@ begin
   Side := lsTop; MirrorBottom := True; Mode := cmIsolation;
   Resolution := 0.05; Overlap := 0.2; SelectedLayer := -1;
   FBounds := LPEmptyRect;
+  DrillFilter := LPDefaultDrillFilter; MarkKind := mkCenter; MarkDiameter := 0.4;
+  Router := LPDefaultRouterOptions;
+  RegistrationPins := False; RegistrationOffset := 5; RegistrationDiameter := 3;
 end;
 destructor TLaserPCBProject.Destroy;
 begin
@@ -383,6 +402,16 @@ begin
     FPaths := SVGPaths; Exit;
   end;
   if Mode = cmVectors then raise Exception.Create('Selecione um processo CAM para o Gerber');
+  if Mode = cmDrillMarks then
+  begin
+    { A mascara so serve para a previa; marcas nao dependem do contorno. }
+    if FindRole(lrOutline) <> nil then RebuildMasks(Resolution);
+    FPaths := LPOrderPaths(DrillMarkPaths,OriginX,OriginY);
+    if Length(FPaths) = 0 then raise Exception.Create('Nenhum furo selecionado para marcar');
+    SetLength(FItemPaths,Layout.Count);
+    for I := 0 to Layout.Count-1 do FItemPaths[I] := FPaths;
+    Exit;
+  end;
   MaxScale := 1;
   for I := 0 to Layout.Count-1 do
   begin
@@ -402,6 +431,104 @@ begin
       else FItemPaths[I] := ScaledPaths(SX,SY);
     end;
   except FPaths := nil; FItemPaths := nil; raise; end;
+end;
+
+function TLaserPCBProject.DrillMarkPaths: TLPPaths;
+var Plan: TLPDrillPlan;
+begin
+  if Drills.HoleCount = 0 then raise Exception.Create('Importe um Excellon para marcar os furos');
+  Plan := TLPDrillPlan.Create;
+  try
+    Plan.AddFile(Drills,LPIdentity,DrillFilter);
+    Result := Plan.LaserMarks(MarkKind,MarkDiameter,Profile.SpotMM,Max(0.002,Resolution/4));
+  finally Plan.Free; end;
+end;
+
+procedure TLaserPCBProject.BuildDrillPlan(Plan: TLPDrillPlan);
+var I, J: Integer; H: TLPHole; T: TLPDrillTool; A, B, P1, P2: TLPPoint;
+  Item: TLaserLayoutItem; Box: TLPRect;
+begin
+  Plan.Clear;
+  for I := 0 to Layout.Count-1 do
+  begin
+    Item := Layout.Item(I);
+    for J := 0 to Drills.HoleCount-1 do
+    begin
+      H := Drills.Holes[J];
+      if (H.Tool < 0) or (H.Tool > High(Drills.Tools)) then Continue;
+      T := Drills.Tools[H.Tool];
+      if not LPDrillFilterAccepts(DrillFilter,T.Diameter,T.Plated) then Continue;
+      { mesmo mapeamento das trajetorias do laser: copia, rotacao, escala e espelho Bottom }
+      A := WorldPoint(Item,LPPoint(H.X,H.Y));
+      if H.Slot then
+      begin
+        B := WorldPoint(Item,LPPoint(H.X2,H.Y2));
+        Plan.AddSlot(A.X,A.Y,B.X,B.Y,T.Diameter,T.Plated);
+      end
+      else Plan.AddHole(A.X,A.Y,T.Diameter,T.Plated);
+    end;
+    if RegistrationPins then
+    begin
+      Box := LPEmptyRect;
+      LPRectInclude(Box,Item.X,Item.Y);
+      LPRectInclude(Box,Item.X+Item.PlacedWidth,Item.Y+Item.PlacedHeight);
+      { eixo vertical no centro da placa: virar a placa nesse eixo mantem os pinos }
+      LPRegistrationHoles(Box,Item.X+Item.PlacedWidth/2,RegistrationOffset,P1,P2);
+      Plan.AddHole(P1.X,P1.Y,RegistrationDiameter,False);
+      Plan.AddHole(P2.X,P2.Y,RegistrationDiameter,False);
+    end;
+  end;
+  Plan.Optimize(0,0);
+end;
+
+function TLaserPCBProject.ValidateDrilling(Errors: TStrings): Boolean;
+var N, I: Integer; Plan: TLPDrillPlan; B: TLPRect;
+begin
+  N := Errors.Count;
+  if HasSVG then Errors.Add('Furacao requer um projeto Gerber + Excellon');
+  if Drills.HoleCount = 0 then Errors.Add('Importe um arquivo Excellon');
+  Layout.Validate(Errors);
+  if Layout.Count = 0 then Errors.Add('Importe uma placa');
+  LPValidateRouterOptions(Router,Errors);
+  if RegistrationPins then
+  begin
+    if not (FiniteNumber(RegistrationOffset) and FiniteNumber(RegistrationDiameter)) or
+      (RegistrationDiameter <= 0) or (RegistrationOffset < RegistrationDiameter/2) then
+      Errors.Add('Pinos de registro: afastamento deve ser maior que o raio do pino');
+    for I := 0 to Layout.Count-1 do
+      if Abs(Frac(Layout.Item(I).Rotation/180)) > 1e-6 then
+        Errors.Add(Layout.Item(I).Name+': pinos de registro exigem rotacao 0 ou 180 graus');
+  end;
+  if Errors.Count = N then
+  begin
+    Plan := TLPDrillPlan.Create;
+    try
+      BuildDrillPlan(Plan);
+      if Plan.HoleCount = 0 then Errors.Add('Nenhum furo passa pelo filtro de diametro/tipo')
+      else
+      begin
+        B := Plan.Bounds;
+        if (B.MinX < -1e-6) or (B.MinY < -1e-6) or (B.MaxX > Layout.BedWidth+1e-6) or
+          (B.MaxY > Layout.BedHeight+1e-6) then
+          Errors.Add('Furos ou pinos de registro fora da mesa');
+      end;
+    finally Plan.Free; end;
+  end;
+  Result := Errors.Count = N;
+end;
+
+function TLaserPCBProject.DrillProgram(const Title: string; GroupIndex: Integer): TStringList;
+var Errors: TStringList; Plan: TLPDrillPlan;
+begin
+  Errors := TStringList.Create;
+  try
+    if not ValidateDrilling(Errors) then raise Exception.Create(Trim(Errors.Text));
+  finally Errors.Free; end;
+  Plan := TLPDrillPlan.Create;
+  try
+    BuildDrillPlan(Plan);
+    Result := Plan.RouterGCode(Router,Title,GroupIndex);
+  finally Plan.Free; end;
 end;
 
 function TLaserPCBProject.PathsForItem(Item: TLaserLayoutItem): TLPPaths;

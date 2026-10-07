@@ -203,6 +203,24 @@ begin
       G.Free;
     end;
 
+    { um arquivo por broca: so os furos daquela broca, sem pausa }
+    G := Plan.RouterGCode(O, 'T1', 0);
+    try
+      Check(G[0] = LP_ROUTER_HEADER, 'cabecalho no arquivo da broca');
+      Check(CountLines(G, 'M0') = 0, 'arquivo por broca sem pausa');
+      Check(CountLines(G, '; T1 ') = 2, 'so a broca 1 (lista e bloco)');
+      Check(CountLines(G, '; T2') = 0, 'sem a broca 2');
+      Check(CountLines(G, 'G0 X') = Length(Plan.Group(0).Holes), 'furos da broca 1');
+    finally
+      G.Free;
+    end;
+    try
+      Plan.RouterGCode(O, '', Plan.GroupCount).Free;
+      Check(False, 'broca inexistente aceita');
+    except
+      on E: Exception do Check(Pos('inexistente', E.Message) > 0, 'broca inexistente recusada');
+    end;
+
     O.ToolChange := tcNone;
     O.Peck := 0;
     O.SpindleRPM := 0;

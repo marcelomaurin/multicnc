@@ -11,14 +11,19 @@ type
     View: TLaserPCBPreview;
     LayerList: TListBox;
     Pages: TPageControl;
-    Nav: array[0..3] of TSuiteButton;
+    Nav: array[0..4] of TSuiteButton;
     State: TSuiteBadge;
     Info, Summary, Status: TLabel;
     Log: TMemo;
-    ModeBox, SideBox, RoleBox: TComboBox;
+    ModeBox, SideBox, RoleBox, MarkKindBox: TComboBox;
     Mirror, Copper, Holes, Paths, Locked: TCheckBox;
     Power, Feed, Spot, Passes, SMax, Res, Overlap: TEdit;
     BedW, BedH, Margin, Spacing, PosX, PosY, Rotation, ScaleX, ScaleY: TEdit;
+    { furacao }
+    MarkDia, DrillMin, DrillMax, DrillDepth, DrillPeck, DrillSafeZ, DrillTravelZ,
+    DrillPlunge, DrillSlotFeed, DrillRPM, DrillSpin, RegOffset, RegDia: TEdit;
+    DrillPTH, DrillNPTH, DrillPerTool, DrillPause, RegPins: TCheckBox;
+    DrillSummary: TLabel;
     ExportButton, SendButton, ValidateButton: TSuiteButton;
     FooterPanel: TPanel;
     FUpdating: Boolean;
@@ -58,6 +63,10 @@ type
     procedure SaveProfileClick(Sender: TObject);
     procedure LoadProfileClick(Sender: TObject);
     procedure AlignClick(Sender: TObject);
+    procedure DrillChanged(Sender: TObject);
+    procedure DrillCheckClick(Sender: TObject);
+    procedure DrillExportClick(Sender: TObject);
+    function DrillField(ParentControl: TWinControl; const AText, Value: string; Y: Integer): TEdit;
     procedure ShowError(E: Exception);
     procedure ResizeUI(Sender: TObject);
     procedure ShowUI(Sender: TObject);
@@ -71,7 +80,7 @@ type
   end;
 implementation
 uses laserpcb_job, laserpcb_gcode, laserpcb_profile, laserpcb_nesting,
-  laserpcb_geom, laserpcb_alignment, multisuite_numfmt, multisuite_registry,
+  laserpcb_geom, laserpcb_alignment, laserpcb_drill, multisuite_numfmt, multisuite_registry,
   multisuite_launcher, multisuite_types, multisuite_context;
 
 function TLaserPCBForm.Button(ParentControl: TWinControl; const AText: string;
@@ -103,8 +112,8 @@ end;
 constructor TLaserPCBForm.Create(AOwner: TComponent);
 var Header: TSuiteHeader; Sidebar, Work, Bar, Footer: TPanel; Right: TPageControl;
   Page: TTabSheet; Scroll: TScrollBox; I: Integer; B: TSuiteButton; Role: TLPLayerRole;
-const Names: array[0..3] of string = ('1  Importar','2  Posicionar','3  Processo','4  Validar');
-  Icons: array[0..3] of TSuiteIconKind = (sikLayers,sikMove,sikGear,sikTests);
+const Names: array[0..4] of string = ('1  Importar','2  Posicionar','3  Processo','4  Validar','5  Furar');
+  Icons: array[0..4] of TSuiteIconKind = (sikLayers,sikMove,sikGear,sikTests,sikCNC);
 begin
   inherited CreateNew(AOwner,1);
   Caption := 'LaserPCB • MultiSuite'; Width := 1240; Height := 850;
@@ -126,21 +135,21 @@ begin
   SendButton.Anchors := [akTop,akRight]; SendButton.Enabled := False;
   Sidebar := TPanel.Create(Self); Sidebar.Parent := Self; Sidebar.Align := alLeft;
   Sidebar.Width := 214; Sidebar.BevelOuter := bvNone; Sidebar.Color := clSuiteCard;
-  for I := 0 to 3 do
+  for I := 0 to 4 do
   begin
     Nav[I] := Button(Sidebar,Names[I],12,16+I*44,190,Icons[I],@NavClick); Nav[I].Tag := I;
   end;
-  Button(Sidebar,'Importar arquivos',12,208,190,sikImport,@OpenClick);
-  Button(Sidebar,'Novo trabalho',12,250,190,sikNew,@NewClick);
-  LabelAt(Sidebar,'CAMADAS E FUROS',16,304,180,20);
+  Button(Sidebar,'Importar arquivos',12,252,190,sikImport,@OpenClick);
+  Button(Sidebar,'Novo trabalho',12,294,190,sikNew,@NewClick);
+  LabelAt(Sidebar,'CAMADAS E FUROS',16,348,180,20);
   LayerList := TListBox.Create(Self); LayerList.Parent := Sidebar;
-  LayerList.SetBounds(12,330,190,Height-540); LayerList.Anchors := [akLeft,akTop,akRight,akBottom];
+  LayerList.SetBounds(12,374,190,Height-584); LayerList.Anchors := [akLeft,akTop,akRight,akBottom];
   LayerList.OnClick := @LayerClick;
   Info := LabelAt(Sidebar,'Nenhuma placa importada',16,Sidebar.Height-132,184,88);
   Info.Align := alBottom; Info.BorderSpacing.Around := 12;
   Right := TPageControl.Create(Self); Right.Parent := Self; Right.Align := alRight;
   Right.Width := 306; Right.ShowTabs := False; Pages := Right;
-  for I := 0 to 3 do
+  for I := 0 to 4 do
   begin
     Page := TTabSheet.Create(Self); Page.PageControl := Pages; Page.Caption := Names[I];
     Scroll := TScrollBox.Create(Self); Scroll.Parent := Page; Scroll.Align := alClient;
@@ -190,6 +199,7 @@ begin
         ModeBox.Style := csDropDownList;
         ModeBox.Items.Add('Vetores SVG'); ModeBox.Items.Add('Isolacao do cobre');
         ModeBox.Items.Add('Remocao de cobre'); ModeBox.Items.Add('Preencher camada selecionada');
+        ModeBox.Items.Add('Marcar furos (laser)');
         ModeBox.ItemIndex := Ord(P.Mode); ModeBox.OnChange := @SettingsChanged;
         Mirror := Check(Scroll,'Espelhar Bottom',16,128,True); Mirror.OnChange := @SettingsChanged;
         Spot := Field(Scroll,'Diametro calibrado do feixe (mm)','0.1',168);
@@ -199,11 +209,18 @@ begin
         Passes := Field(Scroll,'Passadas / aneis na isolacao','1',392);
         Overlap := Field(Scroll,'Sobreposicao (%)','20',448);
         Res := Field(Scroll,'Resolucao raster (mm/pixel)','0.05',504);
+        LabelAt(Scroll,'Marcacao de furos',16,560,260,18);
+        MarkKindBox := TComboBox.Create(Self); MarkKindBox.Parent := Scroll;
+        MarkKindBox.SetBounds(16,580,260,30); MarkKindBox.Style := csDropDownList;
+        MarkKindBox.Items.Add('Centro (guia para a broca)'); MarkKindBox.Items.Add('Contorno do furo');
+        MarkKindBox.Items.Add('Cortar o furo (aneis)');
+        MarkKindBox.ItemIndex := Ord(P.MarkKind); MarkKindBox.OnChange := @SettingsChanged;
+        MarkDia := Field(Scroll,'Diametro da marca de centro (mm)','0.4',620);
         LabelAt(Scroll,'Na isolacao, passadas sao aneis. Nos outros processos, o G-code repete o percurso.',
-          16,568,260,68);
-        Button(Scroll,'Atualizar trajetorias',16,646,260,sikFlame,@GenerateClick);
-        Button(Scroll,'Salvar perfil',16,692,124,sikSave,@SaveProfileClick);
-        Button(Scroll,'Carregar',152,692,124,sikFolder,@LoadProfileClick);
+          16,684,260,68);
+        Button(Scroll,'Atualizar trajetorias',16,762,260,sikFlame,@GenerateClick);
+        Button(Scroll,'Salvar perfil',16,808,124,sikSave,@SaveProfileClick);
+        Button(Scroll,'Carregar',152,808,124,sikFolder,@LoadProfileClick);
       end;
       3:
       begin
@@ -214,6 +231,35 @@ begin
         Log.ReadOnly := True; Log.ScrollBars := ssAutoVertical;
         LabelAt(Scroll,'A conexao, o enquadramento e a execucao ficam no MultiCNC.',16,504,260,60);
         Button(Scroll,'Validar agora',16,580,260,sikTests,@ValidateClick);
+      end;
+      4:
+      begin
+        LabelAt(Scroll,'Furacao com broca no CNC Router (MultiCNC). Mesmo zero X/Y do laser.',16,52,260,40);
+        LabelAt(Scroll,'FUROS',16,100,260,18).Font.Style := [fsBold];
+        DrillMin := DrillField(Scroll,'Diametro minimo (mm, 0 = todos)','0',124);
+        DrillMax := DrillField(Scroll,'Diametro maximo (mm, 0 = todos)','0',180);
+        DrillPTH := Check(Scroll,'Metalizados (PTH)',16,238,True); DrillPTH.OnChange := @DrillChanged;
+        DrillNPTH := Check(Scroll,'Nao metalizados (NPTH)',16,264,True); DrillNPTH.OnChange := @DrillChanged;
+        LabelAt(Scroll,'CNC ROUTER',16,302,260,18).Font.Style := [fsBold];
+        DrillDepth := DrillField(Scroll,'Profundidade (mm, negativa)','-1.8',326);
+        DrillPeck := DrillField(Scroll,'Bicada (mm, 0 = direto)','0',382);
+        DrillSafeZ := DrillField(Scroll,'Z seguro (mm)','5',438);
+        DrillTravelZ := DrillField(Scroll,'Z entre furos (mm)','2',494);
+        DrillPlunge := DrillField(Scroll,'Avanco de mergulho (mm/min)','60',550);
+        DrillSlotFeed := DrillField(Scroll,'Avanco nos rasgos (mm/min)','100',606);
+        DrillRPM := DrillField(Scroll,'Rotacao do spindle (RPM)','10000',662);
+        DrillSpin := DrillField(Scroll,'Espera do spindle (s)','2',718);
+        DrillPerTool := Check(Scroll,'Um arquivo por broca (recomendado)',16,776,True); DrillPerTool.OnChange := @DrillChanged;
+        DrillPause := Check(Scroll,'Arquivo unico: pausar na troca (M0)',16,802,True); DrillPause.OnChange := @DrillChanged;
+        LabelAt(Scroll,'DUPLA FACE',16,840,260,18).Font.Style := [fsBold];
+        RegPins := Check(Scroll,'Furar pinos de registro',16,864,False); RegPins.OnChange := @DrillChanged;
+        RegOffset := DrillField(Scroll,'Afastamento dos pinos (mm)','5',894);
+        RegDia := DrillField(Scroll,'Diametro dos pinos (mm)','3',950);
+        Button(Scroll,'Conferir furacao',16,1014,260,sikTests,@DrillCheckClick);
+        Button(Scroll,'Gerar furacao (Router)',16,1056,260,sikExport,@DrillExportClick).SetLook(sbsSolid,clSuitePrimary,sikExport);
+        DrillSummary := LabelAt(Scroll,'Importe o Excellon e confira a furacao.',16,1102,260,110);
+        LabelAt(Scroll,'Zere Z na superficie da placa a cada broca. Use base de sacrificio. Os pinos ficam no eixo central de cada placa.',
+          16,1218,260,70);
       end;
     end;
   end;
@@ -259,7 +305,7 @@ begin
 end;
 procedure TLaserPCBForm.ReadSettings;
 var Item: TLaserLayoutItem; N: Integer; Profile: TLaserProfile;
-  BW,BH,M,S,R,O,X,Y,Angle,SX,SY: Double;
+  BW,BH,M,S,R,O,X,Y,Angle,SX,SY,MarkD,RO,RD: Double; Filter: TLPDrillFilter; Router: TLPRouterOptions;
 begin
   { Ler e verificar tudo antes de alterar a geometria mostrada na tela. }
   Profile := P.Profile;
@@ -270,6 +316,18 @@ begin
   R := Number(Res,'Resolucao'); O := Number(Overlap,'Sobreposicao')/100;
   BW := Number(BedW,'Largura da mesa'); BH := Number(BedH,'Altura da mesa');
   M := Number(Margin,'Margem'); S := Number(Spacing,'Espacamento');
+  MarkD := Number(MarkDia,'Diametro da marca');
+  if MarkD <= 0 then raise Exception.Create('Diametro da marca deve ser positivo');
+  Filter := LPDefaultDrillFilter;
+  Filter.MinDiameter := Number(DrillMin,'Diametro minimo'); Filter.MaxDiameter := Number(DrillMax,'Diametro maximo');
+  Filter.IncludePlated := DrillPTH.Checked; Filter.IncludeNonPlated := DrillNPTH.Checked;
+  Router := LPDefaultRouterOptions;
+  Router.Depth := Number(DrillDepth,'Profundidade'); Router.Peck := Number(DrillPeck,'Bicada');
+  Router.SafeZ := Number(DrillSafeZ,'Z seguro'); Router.TravelZ := Number(DrillTravelZ,'Z entre furos');
+  Router.PlungeFeed := Number(DrillPlunge,'Avanco de mergulho'); Router.SlotFeed := Number(DrillSlotFeed,'Avanco nos rasgos');
+  Router.SpindleRPM := Number(DrillRPM,'Rotacao'); Router.SpinUpSeconds := Number(DrillSpin,'Espera do spindle');
+  if DrillPause.Checked then Router.ToolChange := tcPause else Router.ToolChange := tcNone;
+  RO := Number(RegOffset,'Afastamento dos pinos'); RD := Number(RegDia,'Diametro dos pinos');
   if (Profile.SpotMM <= 0) or (Profile.Power < 0) or (Profile.Feed < 0) or
     (Profile.SMax < 1) or (Profile.Power > Profile.SMax) or
     (R < 0.001) or (O < 0) or (O > 0.9) then raise Exception.Create('Parametros do processo invalidos');
@@ -296,6 +354,9 @@ begin
   P.Profile := Profile; P.Resolution := R; P.Overlap := O;
   P.Side := TPCBLayerSide(SideBox.ItemIndex); P.MirrorBottom := Mirror.Checked;
   P.Mode := TLPCamMode(ModeBox.ItemIndex);
+  P.MarkKind := TLPMarkKind(MarkKindBox.ItemIndex); P.MarkDiameter := MarkD;
+  P.DrillFilter := Filter; P.Router := Router;
+  P.RegistrationPins := RegPins.Checked; P.RegistrationOffset := RO; P.RegistrationDiameter := RD;
   P.Layout.BedWidth := BW; P.Layout.BedHeight := BH; P.Layout.Margin := M; P.Layout.Spacing := S;
   if Item <> nil then
   begin
@@ -337,7 +398,7 @@ procedure TLaserPCBForm.FocusPage(N: Integer);
 var I: Integer;
 begin
   Pages.ActivePageIndex := N;
-  for I := 0 to 3 do if I = N then Nav[I].SetLook(sbsSolid,clSuitePrimary)
+  for I := 0 to 4 do if I = N then Nav[I].SetLook(sbsSolid,clSuitePrimary)
   else Nav[I].SetLook(sbsSoft,clSuitePrimary);
 end;
 procedure TLaserPCBForm.RefreshSources;
@@ -552,6 +613,93 @@ begin
     PlacementChanged(Sender); View.FitBoards;
   except on E: Exception do ShowError(E); end;
   Values.Free;
+end;
+function TLaserPCBForm.DrillField(ParentControl: TWinControl; const AText, Value: string; Y: Integer): TEdit;
+begin
+  Result := Field(ParentControl,AText,Value,Y); Result.OnChange := @DrillChanged;
+end;
+procedure TLaserPCBForm.DrillChanged(Sender: TObject);
+var V: Double;
+begin
+  { Parametros de furacao nao invalidam o CAM do laser. }
+  if FUpdating then Exit;
+  { pinos visiveis na previa assim que marcados }
+  P.RegistrationPins := RegPins.Checked;
+  if TryParseFloat(RegOffset.Text,V) and FiniteNumber(V) then P.RegistrationOffset := V;
+  if TryParseFloat(RegDia.Text,V) and FiniteNumber(V) and (V > 0) then P.RegistrationDiameter := V;
+  View.Invalidate;
+  FExportedFile := ''; SendButton.Enabled := False;
+  DrillSummary.Caption := 'Parametros alterados. Confira a furacao.';
+end;
+procedure TLaserPCBForm.DrillCheckClick(Sender: TObject);
+var Errors: TStringList; Plan: TLPDrillPlan; I: Integer; B: TLPRect; S: string;
+begin
+  FocusPage(4);
+  Errors := TStringList.Create; Plan := TLPDrillPlan.Create;
+  try
+    try
+      ReadSettings;
+      if not P.ValidateDrilling(Errors) then
+      begin
+        DrillSummary.Caption := Errors[0]; Log.Lines.Assign(Errors);
+        State.Caption := 'Corrigir a furacao'; State.DotColor := clSuiteDanger;
+        Status.Caption := Errors[0]; Exit;
+      end;
+      P.BuildDrillPlan(Plan); B := Plan.Bounds;
+      S := Format('%d furos, %d rasgos, %d brocas'+#10+'Deslocamento %.0f mm'+#10+'Area X %.1f..%.1f  Y %.1f..%.1f mm',
+        [Plan.HoleCount-Plan.SlotCount,Plan.SlotCount,Plan.GroupCount,Plan.TravelLength(0,0),
+         B.MinX,B.MaxX,B.MinY,B.MaxY],InvariantFS);
+      for I := 0 to Min(Plan.GroupCount,4)-1 do
+        S := S+#10+Format('T%d  %.2f mm  x%d',[I+1,Plan.Group(I).Diameter,Length(Plan.Group(I).Holes)],InvariantFS);
+      DrillSummary.Caption := S;
+      Status.Caption := 'Furacao conferida. Gere o programa para o CNC Router.';
+    except on E: Exception do ShowError(E); end;
+  finally Plan.Free; Errors.Free; end;
+end;
+procedure TLaserPCBForm.DrillExportClick(Sender: TObject);
+var D: TSaveDialog; G, Errors: TStringList; Plan: TLPDrillPlan; I: Integer;
+  Title, Base, Ext, FN, First: string;
+begin
+  Errors := TStringList.Create; Plan := TLPDrillPlan.Create;
+  try
+    try
+      ReadSettings;
+      if not P.ValidateDrilling(Errors) then raise Exception.Create(Trim(Errors.Text));
+      P.BuildDrillPlan(Plan);
+      Title := 'Furacao de '+IntToStr(P.Layout.Count)+' placa(s)';
+      D := TSaveDialog.Create(Self);
+      try
+        D.Filter := 'G-code|*.gcode;*.nc'; D.DefaultExt := 'gcode'; D.FileName := 'furacao.gcode';
+        D.Options := D.Options+[ofOverwritePrompt];
+        if not D.Execute then Exit;
+        FN := D.FileName;
+      finally D.Free; end;
+      First := '';
+      if DrillPerTool.Checked and (Plan.GroupCount > 1) then
+      begin
+        { furacao_T1_0.80mm.gcode, furacao_T2_1.00mm.gcode ... na ordem de uso }
+        Base := ChangeFileExt(FN,''); Ext := ExtractFileExt(FN);
+        for I := 0 to Plan.GroupCount-1 do
+        begin
+          G := Plan.RouterGCode(P.Router,Title,I);
+          try
+            FN := Format('%s_T%d_%.2fmm%s',[Base,I+1,Plan.Group(I).Diameter,Ext],InvariantFS);
+            G.SaveToFile(FN);
+            if First = '' then First := FN;
+          finally G.Free; end;
+        end;
+        Status.Caption := Format('%d arquivos de furacao (um por broca). Abra o T1 no MultiCNC.',[Plan.GroupCount]);
+      end
+      else
+      begin
+        G := Plan.RouterGCode(P.Router,Title);
+        try G.SaveToFile(FN); First := FN; finally G.Free; end;
+        Status.Caption := 'Furacao gerada: '+ExtractFileName(FN)+'. Abra no MultiCNC (CNC Router).';
+      end;
+      FExportedFile := ExpandFileName(First); SendButton.Enabled := True;
+      State.Caption := 'Furacao gerada'; State.DotColor := clSuiteSuccess;
+    except on E: Exception do ShowError(E); end;
+  finally Plan.Free; Errors.Free; end;
 end;
 procedure TLaserPCBForm.ShowError(E: Exception);
 begin

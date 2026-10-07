@@ -1709,46 +1709,66 @@ begin
   UpdateControls;
 end;
 
-{ Abre um programa vindo da suite (ex.: LaserArt via --file).
-  Arquivos gerados pelo LaserArt trazem o cabecalho "; LaserArt": neles a
-  potencia (S) e as passadas ja estao no G-code, entao a maquina vai para
-  CNC Laser, Pass count = 1 e override de velocidade desligado.
+{ Abre um programa vindo da suite (LaserArt / LaserPCB via --file).
+  O cabecalho define a maquina:
+  - "; LaserPCB -> MultiCNC (CNC Router)": furacao do LaserPCB -> CNC Router;
+  - "; LaserArt" ou "; LaserPCB": laser. A potencia (S) e as passadas ja
+    estao no G-code, entao Pass count = 1 e override de velocidade desligado.
   Nada e enviado a maquina: o usuario conecta e inicia normalmente. }
 procedure TMainForm.OpenProgramFile(const AFileName: string);
+type
+  TSuiteOrigin = (soNone, soLaser, soRouter);
 var
   SL: TStringList;
   I: Integer;
-  IsLaserArt: Boolean;
+  Origin: TSuiteOrigin;
 begin
   if (AFileName = '') or not FileExists(AFileName) then Exit;
-  IsLaserArt := False;
+  Origin := soNone;
   SL := TStringList.Create;
   try
     try
       SL.LoadFromFile(AFileName);
       for I := 0 to Min(SL.Count, 40) - 1 do
-        if (Pos('; LaserArt', SL[I]) = 1) or (Pos('; LaserPCB', SL[I]) = 1) then
+        if Pos('; LaserPCB -> MultiCNC (CNC Router)', SL[I]) = 1 then
         begin
-          IsLaserArt := True;
+          Origin := soRouter;
+          Break;
+        end
+        else if (Pos('; LaserArt', SL[I]) = 1) or (Pos('; LaserPCB', SL[I]) = 1) then
+        begin
+          Origin := soLaser;
           Break;
         end;
     except
-      IsLaserArt := False;
+      Origin := soNone;
     end;
   finally
     SL.Free;
   end;
-  if IsLaserArt and not Session.Connected then
+  if (Origin <> soNone) and not Session.Connected then
   begin
-    if MachineType.ItemIndex <> 1 then
+    if Origin = soRouter then
     begin
-      MachineType.ItemIndex := 1;
-      SelectionChanged(MachineType);
+      if MachineType.ItemIndex <> 0 then
+      begin
+        MachineType.ItemIndex := 0;
+        SelectionChanged(MachineType);
+      end;
+      Log('Furacao do LaserPCB: maquina CNC Router. Zere X/Y como no laser e Z na superficie da placa.');
+    end
+    else
+    begin
+      if MachineType.ItemIndex <> 1 then
+      begin
+        MachineType.ItemIndex := 1;
+        SelectionChanged(MachineType);
+      end;
+      SpCutPasses.Value := 1;
+      ChkOverrideSpeed.Checked := False;
+      SyncLaserSettingsFromUI;
+      Log('Arquivo de laser: maquina CNC Laser, Pass count = 1, override desligado (S e passadas vem do arquivo).');
     end;
-    SpCutPasses.Value := 1;
-    ChkOverrideSpeed.Checked := False;
-    SyncLaserSettingsFromUI;
-    Log('Arquivo de laser: maquina CNC Laser, Pass count = 1, override desligado (S e passadas vem do arquivo).');
   end;
   LoadProgram(AFileName);
 end;

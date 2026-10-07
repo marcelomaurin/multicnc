@@ -32,6 +32,28 @@ begin
   end;
   raise Exception.Create('Field missing: '+LabelText);
 end;
+function FindCombo(const Item:string):TComboBox;
+var I:Integer;
+begin
+  Result:=nil;
+  for I:=0 to F.ComponentCount-1 do
+    if (F.Components[I] is TComboBox) and (TComboBox(F.Components[I]).Items.IndexOf(Item)>=0) then
+      Exit(TComboBox(F.Components[I]));
+end;
+function FindCheck(const Text:string):TCheckBox;
+var I:Integer;
+begin
+  for I:=0 to F.ComponentCount-1 do
+    if (F.Components[I] is TCheckBox) and (TCheckBox(F.Components[I]).Caption=Text) then Exit(TCheckBox(F.Components[I]));
+  raise Exception.Create('Check missing: '+Text);
+end;
+function LabelStarting(const Prefix:string):Boolean;
+var I:Integer;
+begin
+  Result:=False;
+  for I:=0 to F.ComponentCount-1 do
+    if (F.Components[I] is TLabel) and (Pos(Prefix,TLabel(F.Components[I]).Caption)=1) then Exit(True);
+end;
 function Badge:string;
 var I:Integer;
 begin
@@ -91,12 +113,23 @@ begin
     SetField('Escala X','0');Click('Aplicar posicao');
     Check(F.Project.Layout.Item(1).ScaleX=1,'invalid scale mutated model');
     SetField('Escala X','1');Snapshot('position');
+    Click('5  Furar');SetField('Profundidade (mm, negativa)','-1.6');Click('Conferir furacao');
+    Check(LabelStarting('20 furos, 2 rasgos'),'UI drill summary');
+    FindCheck('Furar pinos de registro').Checked:=True;Application.ProcessMessages;
+    Check(F.Project.RegistrationPins,'UI registration pins');Snapshot('drill');
+    FindCheck('Furar pinos de registro').Checked:=False;
+    SetField('Profundidade (mm, negativa)','1');Click('Conferir furacao');
+    Check(Badge='Corrigir a furacao','UI accepted positive drill depth');
+    SetField('Profundidade (mm, negativa)','-1.6');
+    Click('3  Processo');FindCombo('Marcar furos (laser)').ItemIndex:=4;
+    Click('Atualizar trajetorias');Check(Length(F.Project.Paths)=F.Project.Drills.HoleCount,'UI drill marks');
+    Snapshot('marks');FindCombo('Marcar furos (laser)').ItemIndex:=1;
     F.Width:=1040;F.Height:=680;Application.ProcessMessages;
     Check(FindButton(F,'Gerar G-code').Left>=0,'export button offscreen');
     Check(FindButton(F,'Abrir no MultiCNC').BoundsRect.Right<=FindButton(F,'Abrir no MultiCNC').Parent.ClientWidth,'send button offscreen');
     Snapshot('minimum');
     SetField('Velocidade calibrada (mm/min)','0');Click('Validar');
     Check(Badge<>'Trabalho valido','UI accepted uncalibrated speed');
-    Writeln('PASS: native UI import, CAM, preview, validation, copies, rotation, invalid parameters, minimum size');
+    Writeln('PASS: native UI import, CAM, preview, validation, copies, rotation, drilling, marks, invalid parameters, minimum size');
   finally F.Free;end;
 end.
