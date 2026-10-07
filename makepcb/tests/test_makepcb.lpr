@@ -8,7 +8,7 @@ program test_makepcb;
 
 uses
   Interfaces, Classes, SysUtils, Math, multisuite_numfmt,
-  makepcb_model, makepcb_library, makepcb_font, makepcb_gerber, makepcb_route, makepcb_drc, makepcb_bom,
+  makepcb_model, makepcb_library, makepcb_font, makepcb_gerber, makepcb_route, makepcb_drc, makepcb_bom, makepcb_select,
   laserpcb_geom, laserpcb_gerber, laserpcb_excellon, laserpcb_raster,
   laserpcb_project, laserpcb_types;
 
@@ -608,6 +608,94 @@ begin
   end;
 end;
 
+{ selecao multipla, mover/girar/apagar e copiar/colar }
+procedure TestSelection;
+var
+  D: TMPDocument;
+  S: TMPSelection;
+  R: TMPRect;
+  Clip: string;
+  N, W, I: Integer;
+  C: TMPComponent;
+  B: TMPRect;
+  X0, Y0: Double;
+  P0: TMPPoint;
+begin
+  D := TMPDocument.Create;
+  S := TMPSelection.Create;
+  try
+    MPAstableExample(D, Lib);
+    { retangulo em volta de R1 e R2 (canto superior esquerdo) }
+    R := MPEmptyRect;
+    MPRectInclude(R, 5, 20); MPRectInclude(R, 21, 36);
+    MPSelectInRect(D, R, S);
+    Check(S.CountOf(ikComponent) = 2, 'retangulo pega R1 e R2: ' + IntToStr(S.CountOf(ikComponent)));
+    Check(S.Contains(ikComponent, D.IndexOfComponent(D.FindComponent('R1'))), 'R1 selecionado');
+    { mover }
+    X0 := D.FindComponent('R1').X;
+    MPMoveSelection(D, S, 2.54, 0);
+    Near(D.FindComponent('R1').X, X0 + 2.54, 1e-9, 'mover selecao');
+    MPMoveSelection(D, S, -2.54, 0);
+    { girar um componente: no proprio lugar }
+    S.Clear; S.Add(ikComponent, D.IndexOfComponent(D.FindComponent('R3')));
+    C := D.FindComponent('R3'); X0 := C.X; Y0 := C.Y;
+    MPRotateSelection(D, S, D.Grid);
+    Check(C.Rotation = 90, 'giro de 90 graus');
+    Near(C.X, X0, 1e-9, 'gira no proprio lugar X');
+    Near(C.Y, Y0, 1e-9, 'gira no proprio lugar Y');
+    { girar grupo: gira em torno do centro; 4 giros voltam ao inicio }
+    MPSelectInRect(D, R, S);
+    X0 := D.FindComponent('R1').X; Y0 := D.FindComponent('R1').Y;
+    P0 := MPRotationCenter(D, S, D.Grid);
+    for I := 1 to 4 do MPRotateSelectionAbout(D, S, P0.X, P0.Y);
+    Near(D.FindComponent('R1').X, X0, 1e-6, '4 giros voltam X');
+    Near(D.FindComponent('R1').Y, Y0, 1e-6, '4 giros voltam Y');
+    Check(D.FindComponent('R1').Rotation = 0, '4 giros voltam rotacao');
+    { copiar/colar: CI + R1 com a ligacao entre eles }
+    S.Clear;
+    S.Add(ikComponent, D.IndexOfComponent(D.FindComponent('IC1')));
+    S.Add(ikComponent, D.IndexOfComponent(D.FindComponent('R1')));
+    Clip := MPCopySelection(D, S);
+    Check(MPIsClip(Clip), 'texto copiado reconhecido');
+    Check(not MPIsClip('{"type":"outro"}'), 'texto estranho rejeitado');
+    N := D.ComponentCount; W := D.WireCount;
+    MPPaste(D, Clip, 0, -40, @Lib.Resolve, S);
+    Check(D.ComponentCount = N + 2, 'colou 2 componentes');
+    Check(S.CountOf(ikComponent) = 2, 'selecao = itens colados');
+    { IC1.8-IC1.4, IC1.8-R1.1, R1.2-IC1.7 e IC1.6-IC1.2 }
+    Check(D.WireCount = W + 4, 'colou as 4 ligacoes internas: ' + IntToStr(D.WireCount - W));
+    Check(D.FindComponent('IC2') <> nil, 'referencia nova IC2');
+    Check(D.FindComponent('R4') <> nil, 'referencia nova R4');
+    Check(D.FindComponent('IC2').Value = 'NE555', 'valor copiado');
+    Near(D.FindComponent('IC2').Y, D.FindComponent('IC1').Y - 40, 1e-9, 'deslocamento ao colar');
+    { trilhas, textos e areas tambem }
+    S.Clear;
+    D.AddTrack(mlBottomCopper, 0.8).AddPoint(1, 1);
+    D.Track(D.TrackCount - 1).AddPoint(5, 1);
+    S.Add(ikTrack, D.TrackCount - 1);
+    S.Add(ikText, 0);
+    Clip := MPCopySelection(D, S);
+    N := D.TrackCount;
+    MPPaste(D, Clip, 1.27, 0, @Lib.Resolve, S);
+    Check(D.TrackCount = N + 1, 'colou trilha');
+    Near(D.Track(D.TrackCount - 1).Points[1].X, 6.27, 1e-9, 'trilha deslocada');
+    Check(D.TextCount = 2, 'colou texto');
+    { limites e apagar }
+    B := MPSelectionBounds(D, S);
+    Check(B.Valid, 'limites da selecao');
+    N := D.TrackCount;
+    MPDeleteSelection(D, S);
+    Check((D.TrackCount = N - 1) and (D.TextCount = 1) and (S.Count = 0), 'apagar selecao');
+    { apagar componentes em grupo mantem ligacoes coerentes }
+    MPSelectAll(D, S);
+    MPDeleteSelection(D, S);
+    Check((D.ComponentCount = 0) and (D.WireCount = 0) and (D.TrackCount = 0), 'apagar tudo');
+  finally
+    S.Free;
+    D.Free;
+  end;
+end;
+
 begin
   DefaultFormatSettings.DecimalSeparator := ',';
   DefaultFormatSettings.ThousandSeparator := '.';
@@ -620,5 +708,6 @@ begin
   TestExport;
   TestRouting;
   TestBOMAndExample;
-  Writeln('PASS: ', Checks, ' checks (library, model, nets, file, font, Gerber/Excellon -> LaserPCB, routing, DRC, BOM)');
+  TestSelection;
+  Writeln('PASS: ', Checks, ' checks (library, model, nets, file, font, Gerber/Excellon -> LaserPCB, routing, DRC, BOM, selection)');
 end.

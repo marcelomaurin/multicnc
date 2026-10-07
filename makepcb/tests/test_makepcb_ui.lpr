@@ -9,7 +9,7 @@ program test_makepcb_ui;
 uses
   {$IFDEF UNIX}cthreads,{$ENDIF}
   Interfaces, Classes, SysUtils, Forms, Process, makepcb_main, makepcb_render,
-  makepcb_route, makepcb_model;
+  makepcb_route, makepcb_model, makepcb_select;
 
 var
   F: TMakePCBForm;
@@ -19,6 +19,7 @@ var
   I: Integer;
   Files: TStringList;
   Outp: string;
+  N: Integer;
 
 procedure Check(Ok: Boolean; const Msg: string);
 begin
@@ -92,6 +93,21 @@ begin
   finally
     Files.Free;
   end;
+  { selecao multipla, copiar/colar e desfazer }
+  F.ShowStep(1);
+  N := F.Document.ComponentCount;
+  F.EditorControl.SelectAll;
+  Pump;
+  Check(F.EditorControl.Selection.Count > N, 'selecionar tudo');
+  Shot('08-selecao');
+  F.EditorControl.CopySelection;
+  F.EditorControl.PasteClipboard;
+  Pump;
+  Check(F.Document.ComponentCount = 2 * N, 'colar duplica os componentes');
+  Check(F.EditorControl.Selection.CountOf(ikComponent) = N, 'selecao = colados');
+  F.EditorControl.Undo;
+  Pump;
+  Check(F.Document.ComponentCount = N, 'desfazer a colagem');
   F.EditorControl.Undo;
   Pump;
   F.EditorControl.Modified := False;

@@ -16,7 +16,7 @@ interface
 uses
   Classes, SysUtils, Math, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls, Grids,
   Dialogs, Graphics, LCLType, makepcb_model, makepcb_library, makepcb_render,
-  makepcb_editor, makepcb_gallery, multisuite_controls, multisuite_icons;
+  makepcb_editor, makepcb_gallery, makepcb_select, multisuite_controls, multisuite_icons;
 
 type
   TMakePCBForm = class(TForm)
@@ -69,6 +69,8 @@ type
     procedure ApplyBoardClick(Sender: TObject);
     procedure ApplyCompClick(Sender: TObject);
     procedure RotateClick(Sender: TObject);
+    procedure CopyClick(Sender: TObject);
+    procedure PasteClick(Sender: TObject);
     procedure DeleteClick(Sender: TObject);
     procedure UndoClick(Sender: TObject);
     procedure RedoClick(Sender: TObject);
@@ -420,30 +422,32 @@ begin
   for T := Low(TMPTool) to High(TMPTool) do
   begin
     if T = etPlace then Continue;
-    Tools[T] := Button(Bar, '', X, 9, 40, TOOL_ICONS[T], @ToolClick);
+    Tools[T] := Button(Bar, '', X, 9, 36, TOOL_ICONS[T], @ToolClick);
     Tools[T].Tag := Ord(T);
     Tools[T].Hint := ToolName(T);
     Tools[T].ShowHint := True;
-    Inc(X, 44);
+    Inc(X, 40);
   end;
   Inc(X, 8);
   BarLayerBox := TComboBox.Create(Self);
-  BarLayerBox.Parent := Bar; BarLayerBox.SetBounds(X, 12, 120, 30);
+  BarLayerBox.Parent := Bar; BarLayerBox.SetBounds(X, 12, 104, 30);
   BarLayerBox.Style := csDropDownList;
   BarLayerBox.Items.Add('Bottom'); BarLayerBox.Items.Add('Top'); BarLayerBox.Items.Add('Serigrafia');
   BarLayerBox.ItemIndex := 0; BarLayerBox.OnChange := @LayerChanged;
   BarLayerBox.Hint := 'Face ativa (trilhas, areas e textos)'; BarLayerBox.ShowHint := True;
-  Inc(X, 130);
-  B := Button(Bar, '', X, 9, 40, sikUndo, @UndoClick); B.Hint := 'Desfazer (Ctrl+Z)'; B.ShowHint := True; Inc(X, 44);
-  B := Button(Bar, '', X, 9, 40, sikRedo, @RedoClick); B.Hint := 'Refazer (Ctrl+Y)'; B.ShowHint := True; Inc(X, 52);
-  B := Button(Bar, '', X, 9, 40, sikMove, @RotateClick); B.Hint := 'Girar 90 graus (R)'; B.ShowHint := True; Inc(X, 44);
-  B := Button(Bar, '', X, 9, 40, sikTrash, @DeleteClick); B.Hint := 'Excluir (Del)'; B.ShowHint := True; Inc(X, 52);
-  B := Button(Bar, '', X, 9, 40, sikFit, @FitClick); B.Hint := 'Ver a placa inteira'; B.ShowHint := True; Inc(X, 44);
-  B := Button(Bar, '', X, 9, 40, sikZoomIn, @ZoomInClick); B.Hint := 'Ampliar'; B.ShowHint := True; Inc(X, 44);
-  B := Button(Bar, '', X, 9, 40, sikZoomOut, @ZoomOutClick); B.Hint := 'Reduzir'; B.ShowHint := True; Inc(X, 52);
+  Inc(X, 112);
+  B := Button(Bar, '', X, 9, 36, sikUndo, @UndoClick); B.Hint := 'Desfazer (Ctrl+Z)'; B.ShowHint := True; Inc(X, 40);
+  B := Button(Bar, '', X, 9, 36, sikRedo, @RedoClick); B.Hint := 'Refazer (Ctrl+Y)'; B.ShowHint := True; Inc(X, 48);
+  B := Button(Bar, '', X, 9, 36, sikCopy, @CopyClick); B.Hint := 'Copiar (Ctrl+C)'; B.ShowHint := True; Inc(X, 40);
+  B := Button(Bar, '', X, 9, 36, sikImport, @PasteClick); B.Hint := 'Colar (Ctrl+V)'; B.ShowHint := True; Inc(X, 40);
+  B := Button(Bar, '', X, 9, 36, sikMove, @RotateClick); B.Hint := 'Girar 90 graus (R)'; B.ShowHint := True; Inc(X, 40);
+  B := Button(Bar, '', X, 9, 36, sikTrash, @DeleteClick); B.Hint := 'Excluir (Del)'; B.ShowHint := True; Inc(X, 48);
+  B := Button(Bar, '', X, 9, 36, sikFit, @FitClick); B.Hint := 'Ver a placa inteira'; B.ShowHint := True; Inc(X, 40);
+  B := Button(Bar, '', X, 9, 36, sikZoomIn, @ZoomInClick); B.Hint := 'Ampliar'; B.ShowHint := True; Inc(X, 40);
+  B := Button(Bar, '', X, 9, 36, sikZoomOut, @ZoomOutClick); B.Hint := 'Reduzir'; B.ShowHint := True;
   MirrorBox := TCheckBox.Create(Self);
-  MirrorBox.Parent := Bar; MirrorBox.SetBounds(X, 14, 110, 24);
-  MirrorBox.Caption := 'Espelhar';
+  MirrorBox.Parent := Sidebar; MirrorBox.SetBounds(16, 532, 186, 24);
+  MirrorBox.Caption := 'Espelhar a arte final';
   MirrorBox.Hint := 'Arte final espelhada (transferencia termica da face de cima)';
   MirrorBox.ShowHint := True;
   MirrorBox.OnChange := @MirrorChanged;
@@ -620,6 +624,13 @@ begin
       CompX.Text := FmtNum(C.X, 3);
       CompY.Text := FmtNum(C.Y, 3);
     end
+    else if Editor.Selection.Count > 1 then
+    begin
+      SelTitle.Caption := Format('%d ITENS SELECIONADOS', [Editor.Selection.Count]);
+      CompRef.Text := ''; CompValue.Text := ''; CompX.Text := ''; CompY.Text := '';
+      Status.Caption := Format('%d itens selecionados (%d componentes). Arraste, R gira, Del apaga, Ctrl+C copia, Ctrl+D duplica.',
+        [Editor.Selection.Count, Editor.Selection.CountOf(ikComponent)]);
+    end
     else
     begin
       SelTitle.Caption := 'COMPONENTE SELECIONADO';
@@ -738,6 +749,19 @@ end;
 procedure TMakePCBForm.RotateClick(Sender: TObject);
 begin
   Editor.RotateSelection;
+end;
+
+procedure TMakePCBForm.CopyClick(Sender: TObject);
+begin
+  Editor.CopySelection;
+end;
+
+procedure TMakePCBForm.PasteClick(Sender: TObject);
+begin
+  if Editor.ViewMode <> vmNormal then SetViewMode(vmNormal);
+  Editor.Tool := etSelect;
+  SyncTools;
+  Editor.PasteClipboard;
 end;
 
 procedure TMakePCBForm.DeleteClick(Sender: TObject);
@@ -1220,6 +1244,15 @@ end;
 
 procedure TMakePCBForm.FormKey(Sender: TObject; var Key: Word; Shift: TShiftState);
 begin
+  { copiar/colar so quando o foco esta na placa (nos campos e texto normal) }
+  if (ssCtrl in Shift) and (ActiveControl = Editor) then
+    case Key of
+      VK_C: begin Editor.CopySelection; Key := 0; Exit; end;
+      VK_X: begin Editor.CutSelection; Key := 0; Exit; end;
+      VK_V: begin PasteClick(nil); Key := 0; Exit; end;
+      VK_D: begin Editor.DuplicateSelection; Key := 0; Exit; end;
+      VK_A: begin Editor.SelectAll; Key := 0; Exit; end;
+    end;
   if ssCtrl in Shift then
     case Key of
       VK_Z: begin UndoClick(nil); Key := 0; end;

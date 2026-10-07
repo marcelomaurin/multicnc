@@ -23,7 +23,7 @@ interface
 
 uses
   Classes, SysUtils, Math, Types, Controls, Graphics, Forms, Dialogs, LCLType,
-  makepcb_model, makepcb_library, makepcb_render, makepcb_drc;
+  makepcb_model, makepcb_library, makepcb_render, makepcb_drc, makepcb_select;
 
 type
   TMPTool = (etSelect, etPlace, etTrack, etWire, etText, etArea);
@@ -48,8 +48,6 @@ type
     FPanOrigin: TMPViewport;
     FDragging, FDragMoved: Boolean;
     FDragStart: TMPPoint;
-    FDragOrigX, FDragOrigY: Double;
-    FDragTrack: TMPPoints;
     FPoints: TMPPoints;         { trilha / area em construcao }
     FWireFrom: TMPPadRef;
     FHasWireFrom: Boolean;
@@ -58,6 +56,16 @@ type
     FOnStatus: TMPStatusEvent;
     FModified: Boolean;
     FFree45: Boolean;
+    FSel: TMPSelection;
+    FBanding: Boolean;
+    FBandStart, FBandEnd: TPoint;
+    FApplied: TMPPoint;          { deslocamento ja aplicado no arraste }
+    FVertexTrack, FVertexIndex: Integer;
+    FRotCenter: TMPPoint;
+    FRotValid: Boolean;          { centro de giro fixo enquanto a selecao nao muda }
+    function SelToItem(K: TMPSelKind; out IK: TMPItemKind): Boolean;
+    procedure SyncPrimary;
+    function VertexAt(const P: TMPPoint; out T, V: Integer): Boolean;
     procedure SetDoc(AValue: TMPDocument);
     procedure SetTool(AValue: TMPTool);
     procedure SetMode(AValue: TMPViewMode);
@@ -101,6 +109,14 @@ type
     procedure CancelOperation;
     procedure SetIssues(const AIssues: TMPDrcIssues);
     procedure SetPlaceFootprint(FP: TMPFootprint);
+    { selecao multipla e area de transferencia }
+    procedure SelectAll;
+    procedure CopySelection;
+    procedure CutSelection;
+    procedure PasteClipboard;
+    procedure DuplicateSelection;
+    procedure NudgeSelection(DX, DY: Double);
+    property Selection: TMPSelection read FSel;
     procedure Changed;
     property Doc: TMPDocument read FDoc write SetDoc;
     property Lib: TMPLibrary read FLib write FLib;
@@ -124,7 +140,7 @@ function ToolName(T: TMPTool): string;
 
 implementation
 
-uses makepcb_route, makepcb_font, multisuite_controls;
+uses Clipbrd, makepcb_route, makepcb_font, multisuite_controls;
 
 const
   MAX_UNDO = 60;
@@ -147,6 +163,9 @@ begin
   FR := TMPRenderer.Create;
   FUndo := TStringList.Create;
   FRedo := TStringList.Create;
+  FSel := TMPSelection.Create;
+  FR.Selection := FSel;
+  FVertexTrack := -1;
   FView.Scale := 8;
   FTool := etSelect;
   FActiveLayer := mlBottomCopper;
@@ -159,6 +178,7 @@ destructor TMPEditor.Destroy;
 begin
   FGhost.Free;
   FR.Free;
+  FSel.Free;
   FUndo.Free;
   FRedo.Free;
   inherited Destroy;
@@ -169,6 +189,7 @@ begin
   FDoc := AValue;
   FR.Doc := AValue;
   FR.SelKind := selNone; FR.SelIndex := -1;
+  FSel.Clear;
   FFitted := False;
   Invalidate;
 end;
@@ -434,8 +455,49 @@ begin
     begin Kind := selArea; Index := I; Exit; end;
 end;
 
-procedure TMPEditor.Select(Kind: TMPSelKind; Index: Integer);
+function TMPEditor.SelToItem(K: TMPSelKind; out IK: TMPItemKind): Boolean;
 begin
+  Result := True;
+  case K of
+    selComponent: IK := ikComponent;
+    selTrack: IK := ikTrack;
+    selText: IK := ikText;
+    selArea: IK := ikArea;
+  else
+    begin IK := ikComponent; Result := False; end;
+  end;
+end;
+
+{ o item "principal" (painel de propriedades) e o unico selecionado }
+procedure TMPEditor.SyncPrimary;
+const
+  KINDS: array[TMPItemKind] of TMPSelKind = (selComponent, selTrack, selText, selArea);
+begin
+  FRotValid := False;
+  if FSel.Count = 1 then
+  begin
+    FR.SelKind := KINDS[FSel[0].Kind];
+    FR.SelIndex := FSel[0].Index;
+  end
+  else
+  begin
+    FR.SelKind := selNone;
+    FR.SelIndex := -1;
+  end;
+  FR.HighlightNet := -1;
+  if (FDoc <> nil) and (FR.SelKind = selTrack) and (FR.SelIndex >= 0) then
+    FR.HighlightNet := FDoc.TrackNet(FR.SelIndex);
+  Invalidate;
+  if Assigned(FOnSelect) then FOnSelect(Self);
+end;
+
+procedure TMPEditor.Select(Kind: TMPSelKind; Index: Integer);
+var
+  IK: TMPItemKind;
+begin
+  FSel.Clear;
+  FRotValid := False;
+  if SelToItem(Kind, IK) and (Index >= 0) then FSel.Add(IK, Index);
   FR.SelKind := Kind;
   FR.SelIndex := Index;
   FR.HighlightNet := -1;
@@ -447,17 +509,116 @@ end;
 
 procedure TMPEditor.DeleteSelection;
 begin
-  if (FDoc = nil) or (FR.SelIndex < 0) then Exit;
+  if (FDoc = nil) or (FSel.Count = 0) then Exit;
   Snapshot;
-  case FR.SelKind of
-    selComponent: FDoc.DeleteComponent(FR.SelIndex);
-    selTrack: FDoc.DeleteTrack(FR.SelIndex);
-    selText: FDoc.DeleteText(FR.SelIndex);
-    selArea: FDoc.DeleteArea(FR.SelIndex);
-  else Exit;
-  end;
+  MPDeleteSelection(FDoc, FSel);
   Select(selNone, -1);
   DoChanged;
+end;
+
+procedure TMPEditor.SelectAll;
+begin
+  if FDoc = nil then Exit;
+  MPSelectAll(FDoc, FSel);
+  SyncPrimary;
+end;
+
+procedure TMPEditor.CopySelection;
+begin
+  if (FDoc = nil) or (FSel.Count = 0) then Exit;
+  Clipboard.AsText := MPCopySelection(FDoc, FSel);
+  Status(Format('%d itens copiados.', [FSel.Count]));
+end;
+
+procedure TMPEditor.CutSelection;
+begin
+  CopySelection;
+  DeleteSelection;
+end;
+
+procedure TMPEditor.PasteClipboard;
+var
+  S: string;
+  B: TMPRect;
+  DX, DY, G: Double;
+  Tmp: TMPDocument;
+  TmpSel: TMPSelection;
+begin
+  if FDoc = nil then Exit;
+  S := Clipboard.AsText;
+  if not MPIsClip(S) then
+  begin
+    Status('A area de transferencia nao tem itens do MakePCB.');
+    Exit;
+  end;
+  { mede o que sera colado para centralizar no cursor (ou deslocar 2 passos) }
+  Tmp := TMPDocument.Create;
+  TmpSel := TMPSelection.Create;
+  try
+    MPPaste(Tmp, S, 0, 0, @FLib.Resolve, TmpSel);
+    B := MPSelectionBounds(Tmp, TmpSel);
+  finally
+    TmpSel.Free;
+    Tmp.Free;
+  end;
+  G := FDoc.Grid;
+  if G <= 0 then G := MP_GRID;
+  if B.Valid and (FMouse.X >= 0) and (FMouse.X <= FDoc.BoardW) and (FMouse.Y >= 0) and (FMouse.Y <= FDoc.BoardH) then
+  begin
+    DX := Round((FMouse.X - (B.MinX + B.MaxX) / 2) / G) * G;
+    DY := Round((FMouse.Y - (B.MinY + B.MaxY) / 2) / G) * G;
+  end
+  else
+  begin
+    DX := 2 * G; DY := -2 * G;
+  end;
+  Snapshot;
+  MPPaste(FDoc, S, DX, DY, @FLib.Resolve, FSel);
+  SyncPrimary;
+  DoChanged;
+  Status(Format('%d itens colados. Arraste para posicionar.', [FSel.Count]));
+end;
+
+procedure TMPEditor.DuplicateSelection;
+var
+  S: string;
+  G: Double;
+begin
+  if (FDoc = nil) or (FSel.Count = 0) then Exit;
+  G := FDoc.Grid;
+  if G <= 0 then G := MP_GRID;
+  S := MPCopySelection(FDoc, FSel);
+  Snapshot;
+  MPPaste(FDoc, S, 2 * G, -2 * G, @FLib.Resolve, FSel);
+  SyncPrimary;
+  DoChanged;
+end;
+
+procedure TMPEditor.NudgeSelection(DX, DY: Double);
+begin
+  if (FDoc = nil) or (FSel.Count = 0) then Exit;
+  Snapshot;
+  MPMoveSelection(FDoc, FSel, DX, DY);
+  DoChanged;
+end;
+
+function TMPEditor.VertexAt(const P: TMPPoint; out T, V: Integer): Boolean;
+var
+  I, J: Integer;
+  Tol: Double;
+begin
+  Result := False;
+  T := -1; V := -1;
+  if FDoc = nil then Exit;
+  Tol := Max(0.4, 6 / FView.Scale);
+  for I := FDoc.TrackCount - 1 downto 0 do
+    if FSel.Contains(ikTrack, I) then
+      for J := 0 to High(FDoc.Track(I).Points) do
+        if MPDist(P, FDoc.Track(I).Points[J]) <= Tol then
+        begin
+          T := I; V := J;
+          Exit(True);
+        end;
 end;
 
 procedure TMPEditor.RotateSelection;
@@ -468,10 +629,18 @@ begin
     Invalidate;
     Exit;
   end;
-  if (FDoc = nil) or (FR.SelKind <> selComponent) or (FR.SelIndex < 0) then Exit;
+  if (FDoc = nil) or (FSel.Count = 0) then Exit;
   Snapshot;
-  with FDoc.Component(FR.SelIndex) do Rotation := (Rotation + 90) mod 360;
-  DoChanged;
+  if not FRotValid then
+  begin
+    FRotCenter := MPRotationCenter(FDoc, FSel, FDoc.Grid);
+    FRotValid := True;
+  end;
+  MPRotateSelectionAbout(FDoc, FSel, FRotCenter.X, FRotCenter.Y);
+  FModified := True;
+  FDoc.Changed;
+  Invalidate;
+  if Assigned(FOnChange) then FOnChange(Self);
 end;
 
 procedure TMPEditor.CancelOperation;
@@ -556,6 +725,7 @@ var
   C: TMPComponent;
   S: string;
   L: TMPLayer;
+  IK: TMPItemKind;
 begin
   inherited MouseDown(Button, Shift, X, Y);
   SetFocus;
@@ -586,18 +756,37 @@ begin
   case FTool of
     etSelect:
       begin
-        HitTest(P, K, Idx);
-        Select(K, Idx);
-        if K in [selComponent, selText, selTrack] then
+        { vertice de uma trilha selecionada: arrasta so o ponto }
+        if (not (ssShift in Shift)) and VertexAt(P, FVertexTrack, FVertexIndex) then
         begin
           FDragging := True; FDragMoved := False;
           FDragStart := Snap(P);
-          case K of
-            selComponent: begin FDragOrigX := FDoc.Component(Idx).X; FDragOrigY := FDoc.Component(Idx).Y; end;
-            selText: begin FDragOrigX := FDoc.Text(Idx).X; FDragOrigY := FDoc.Text(Idx).Y; end;
-            selTrack: FDragTrack := Copy(FDoc.Track(Idx).Points);
-          end;
           Snapshot;
+          Exit;
+        end;
+        FVertexTrack := -1;
+        HitTest(P, K, Idx);
+        if (K <> selNone) and SelToItem(K, IK) then
+        begin
+          if ssShift in Shift then
+          begin
+            FSel.Toggle(IK, Idx);
+            SyncPrimary;
+            Exit;
+          end;
+          if not FSel.Contains(IK, Idx) then Select(K, Idx);
+          FDragging := True; FDragMoved := False;
+          FDragStart := Snap(P);
+          FApplied := MPPoint(0, 0);
+          Snapshot;
+        end
+        else
+        begin
+          { retangulo de selecao }
+          if not (ssShift in Shift) then Select(selNone, -1);
+          FBanding := True;
+          FBandStart := Point(X, Y);
+          FBandEnd := FBandStart;
         end;
       end;
     etPlace:
@@ -691,24 +880,35 @@ begin
   FMouse := Snap(P);
   if (FTool = etTrack) and SnapPad(P, Ref) then FMouse := FDoc.PadPoint(Ref);
   if FGhost <> nil then begin FGhost.X := FMouse.X; FGhost.Y := FMouse.Y; end;
-  if FDragging and (FR.SelIndex >= 0) then
+  if FBanding then
   begin
-    D.X := FMouse.X - FDragStart.X; D.Y := FMouse.Y - FDragStart.Y;
-    if (Abs(D.X) > 1e-9) or (Abs(D.Y) > 1e-9) then FDragMoved := True;
-    case FR.SelKind of
-      selComponent:
-        with FDoc.Component(FR.SelIndex) do begin X := FDragOrigX + D.X; Y := FDragOrigY + D.Y; end;
-      selText:
-        with FDoc.Text(FR.SelIndex) do begin X := FDragOrigX + D.X; Y := FDragOrigY + D.Y; end;
-      selTrack:
-        with FDoc.Track(FR.SelIndex) do
-          for I := 0 to High(Points) do
-          begin
-            Points[I].X := FDragTrack[I].X + D.X;
-            Points[I].Y := FDragTrack[I].Y + D.Y;
-          end;
-    end;
+    FBandEnd := Point(X, Y);
+    Invalidate;
+  end
+  else if FDragging and (FVertexTrack >= 0) and (FVertexTrack < FDoc.TrackCount) then
+  begin
+    I := FVertexIndex;
+    with FDoc.Track(FVertexTrack) do
+      if I <= High(Points) then
+      begin
+        if SnapPad(P, Ref) then Points[I] := FDoc.PadPoint(Ref)
+        else Points[I] := FMouse;
+        FDragMoved := True;
+      end;
     FDoc.Changed;
+  end
+  else if FDragging and (FSel.Count > 0) then
+  begin
+    D.X := FMouse.X - FDragStart.X - FApplied.X;
+    D.Y := FMouse.Y - FDragStart.Y - FApplied.Y;
+    if (Abs(D.X) > 1e-9) or (Abs(D.Y) > 1e-9) then
+    begin
+      MPMoveSelection(FDoc, FSel, D.X, D.Y);
+      FRotValid := False;
+      FApplied.X := FApplied.X + D.X;
+      FApplied.Y := FApplied.Y + D.Y;
+      FDragMoved := True;
+    end;
   end;
   FS := DefaultFormatSettings; FS.DecimalSeparator := ',';
   S := Format('X %.2f  Y %.2f mm  (%.0f  %.0f mil)', [P.X, P.Y, P.X / MP_MIL, P.Y / MP_MIL], FS);
@@ -717,12 +917,34 @@ begin
 end;
 
 procedure TMPEditor.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+var
+  A, B: TMPPoint;
+  R: TMPRect;
 begin
   inherited MouseUp(Button, Shift, X, Y);
   if FPanning then begin FPanning := False; Exit; end;
+  if FBanding then
+  begin
+    FBanding := False;
+    if (Abs(FBandEnd.X - FBandStart.X) > 3) or (Abs(FBandEnd.Y - FBandStart.Y) > 3) then
+    begin
+      A := MPToBoard(FView, Min(FBandStart.X, FBandEnd.X), Max(FBandStart.Y, FBandEnd.Y));
+      B := MPToBoard(FView, Max(FBandStart.X, FBandEnd.X), Min(FBandStart.Y, FBandEnd.Y));
+      R := MPEmptyRect;
+      MPRectInclude(R, A.X, A.Y);
+      MPRectInclude(R, B.X, B.Y);
+      MPSelectInRect(FDoc, R, FSel, ssShift in Shift);
+      SyncPrimary;
+      if FSel.Count > 1 then
+        Status(Format('%d itens selecionados: arraste, R gira, Del apaga, Ctrl+C copia.', [FSel.Count]));
+    end;
+    Invalidate;
+    Exit;
+  end;
   if FDragging then
   begin
     FDragging := False;
+    FVertexTrack := -1;
     if FDragMoved then DoChanged
     else if FUndo.Count > 0 then FUndo.Delete(FUndo.Count - 1);   { clique sem mover }
   end;
@@ -769,6 +991,17 @@ begin
         Key := 0;
       end;
     VK_DELETE: begin DeleteSelection; Key := 0; end;
+    VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN:
+      if (FSel.Count > 0) and (FDoc <> nil) then
+      begin
+        case Key of
+          VK_LEFT: NudgeSelection(-FDoc.Grid, 0);
+          VK_RIGHT: NudgeSelection(FDoc.Grid, 0);
+          VK_UP: NudgeSelection(0, FDoc.Grid);
+          VK_DOWN: NudgeSelection(0, -FDoc.Grid);
+        end;
+        Key := 0;
+      end;
     VK_R: begin RotateSelection; Key := 0; end;
     VK_BACK:
       if Length(FPoints) > 0 then
@@ -919,6 +1152,24 @@ begin
       Canvas.Line(A.X, A.Y - 8, A.X, A.Y + 9);
     end;
   end;
+  if FBanding then
+  begin
+    Canvas.Brush.Style := bsClear;
+    Canvas.Pen.Color := MP_SELECT_COLOR; Canvas.Pen.Width := 1; Canvas.Pen.Style := psDash;
+    Canvas.Rectangle(Min(FBandStart.X, FBandEnd.X), Min(FBandStart.Y, FBandEnd.Y),
+      Max(FBandStart.X, FBandEnd.X), Max(FBandStart.Y, FBandEnd.Y));
+    Canvas.Pen.Style := psSolid; Canvas.Brush.Style := bsSolid;
+  end;
+  { vertices da trilha selecionada (alcas) }
+  if (FR.Mode = vmNormal) and (FTool = etSelect) then
+    for I := 0 to FDoc.TrackCount - 1 do
+      if FSel.Contains(ikTrack, I) and (FSel.Count <= 3) then
+        for W := 0 to High(FDoc.Track(I).Points) do
+        begin
+          A := MPToScreen(FView, FDoc.Track(I).Points[W].X, FDoc.Track(I).Points[W].Y);
+          Canvas.Brush.Color := clWhite; Canvas.Pen.Color := MP_SELECT_COLOR; Canvas.Pen.Width := 1;
+          Canvas.Rectangle(A.X - 4, A.Y - 4, A.X + 5, A.Y + 5);
+        end;
   DrawRulers;
 end;
 

@@ -21,7 +21,7 @@ interface
 
 uses
   Classes, SysUtils, Math, Graphics, Types, makepcb_model, makepcb_font,
-  makepcb_route, makepcb_drc, makepcb_gerber;
+  makepcb_route, makepcb_drc, makepcb_gerber, makepcb_select;
 
 type
   TMPViewMode = (vmNormal, vmRealWorld, vmUnpopulated, vmArtwork);
@@ -63,8 +63,10 @@ type
     SelKind: TMPSelKind;
     SelIndex: Integer;
     HighlightNet: Integer;         { -1 = nenhuma }
+    Selection: TMPSelection;       { selecao multipla (opcional) }
     Issues: TMPDrcIssues;
     constructor Create;
+    function IsSel(K: TMPItemKind; I: Integer): Boolean;
     procedure Paint(ACanvas: TCanvas; const AView: TMPViewport; const ARect: TRect);
     { footprint isolado centrado no retangulo (galeria) }
     procedure PaintFootprint(ACanvas: TCanvas; FP: TMPFootprint; const ARect: TRect;
@@ -137,6 +139,19 @@ begin
   ArtworkMirror := False;
   SelKind := selNone; SelIndex := -1;
   HighlightNet := -1;
+end;
+
+function TMPRenderer.IsSel(K: TMPItemKind; I: Integer): Boolean;
+begin
+  if Selection <> nil then Exit(Selection.Contains(K, I));
+  case K of
+    ikComponent: Result := SelKind = selComponent;
+    ikTrack: Result := SelKind = selTrack;
+    ikText: Result := SelKind = selText;
+    ikArea: Result := SelKind = selArea;
+  else Result := False;
+  end;
+  Result := Result and (SelIndex = I);
 end;
 
 function TMPRenderer.SX(X: Double): Integer;
@@ -328,7 +343,7 @@ begin
         Strokes(MPTextStrokes(Tx.Text, Tx.X, Tx.Y, Tx.Height, L = mlBottomCopper),
           MPTextStrokeWidth(Tx.Height) + 2 * Clr, Bg);
       end;
-    if (SelKind = selArea) and (SelIndex = K) then
+    if IsSel(ikArea, K) then
     begin
       Polyline(Ar.Points, 0, MP_SELECT_COLOR);
       if Length(Ar.Points) > 1 then
@@ -348,7 +363,7 @@ begin
     end;
     W := T.Width;
     Polyline(T.Points, W, TC);
-    if (SelKind = selTrack) and (SelIndex = I) and (Mode = vmNormal) then
+    if IsSel(ikTrack, I) and (Mode = vmNormal) then
       Polyline(T.Points, Max(W * 0.35, 1 / FV.Scale), MP_SELECT_COLOR);
   end;
   { textos no cobre }
@@ -357,7 +372,7 @@ begin
     Tx := Doc.Text(I);
     if Tx.Layer <> L then Continue;
     TC := C;
-    if (SelKind = selText) and (SelIndex = I) and (Mode = vmNormal) then TC := MP_SELECT_COLOR;
+    if IsSel(ikText, I) and (Mode = vmNormal) then TC := MP_SELECT_COLOR;
     Strokes(MPTextStrokes(Tx.Text, Tx.X, Tx.Y, Tx.Height, L = mlBottomCopper),
       MPTextStrokeWidth(Tx.Height), TC);
   end;
@@ -585,7 +600,7 @@ procedure TMPRenderer.Paint(ACanvas: TCanvas; const AView: TMPViewport; const AR
 var
   BoardRect: TRect;
   Bg, Board, Mask, Silk, PadC, HoleC: TColor;
-  I, J: Integer;
+  I, J, SelI: Integer;
   Comp: TMPComponent;
   Pend: TMPConnections;
   B: TMPRect;
@@ -702,7 +717,7 @@ begin
       for I := 0 to Doc.TextCount - 1 do
         if Doc.Text(I).Layer = mlTopSilk then
         begin
-          if (SelKind = selText) and (SelIndex = I) and (Mode = vmNormal) then
+          if IsSel(ikText, I) and (Mode = vmNormal) then
             Strokes(MPTextStrokes(Doc.Text(I).Text, Doc.Text(I).X, Doc.Text(I).Y, Doc.Text(I).Height),
               MPTextStrokeWidth(Doc.Text(I).Height), MP_SELECT_COLOR)
           else
@@ -727,9 +742,10 @@ begin
     end;
   end;
   { componente selecionado }
-  if (SelKind = selComponent) and (SelIndex >= 0) and (SelIndex < Doc.ComponentCount) then
+  for SelI := 0 to Doc.ComponentCount - 1 do
+  if IsSel(ikComponent, SelI) then
   begin
-    B := Doc.Component(SelIndex).Bounds;
+    B := Doc.Component(SelI).Bounds;
     FCanvas.Brush.Style := bsClear;
     FCanvas.Pen.Color := MP_SELECT_COLOR; FCanvas.Pen.Width := 2; FCanvas.Pen.Style := psDot;
     FCanvas.Rectangle(Min(SX(B.MinX), SX(B.MaxX)) - 4, SY(B.MaxY) - 4, Max(SX(B.MinX), SX(B.MaxX)) + 5, SY(B.MinY) + 5);
@@ -772,11 +788,12 @@ var
   OldMode: TMPViewMode;
   OldGrid, OldRats: Boolean;
   OldSel: TMPSelKind;
+  OldSelection: TMPSelection;
 begin
   B := FP.Bounds;
   if not B.Valid then Exit;
   Tmp := TMPDocument.Create;
-  OldDoc := Doc; OldMode := Mode; OldGrid := ShowGrid; OldRats := ShowRatsnest; OldSel := SelKind;
+  OldDoc := Doc; OldMode := Mode; OldGrid := ShowGrid; OldRats := ShowRatsnest; OldSel := SelKind; OldSelection := Selection;
   try
     Tmp.BoardW := B.MaxX - B.MinX + 2;
     Tmp.BoardH := B.MaxY - B.MinY + 2;
@@ -787,13 +804,13 @@ begin
     V.Scale := S;
     V.OX := (ARect.Left + ARect.Right) / 2 - Tmp.BoardW * S / 2;
     V.OY := (ARect.Top + ARect.Bottom) / 2 + Tmp.BoardH * S / 2;
-    Doc := Tmp; Mode := AMode; ShowGrid := False; ShowRatsnest := False; SelKind := selNone;
+    Doc := Tmp; Mode := AMode; ShowGrid := False; ShowRatsnest := False; SelKind := selNone; Selection := nil;
     FCanvas := ACanvas; FV := V;
     FBare := True;
     Paint(ACanvas, V, ARect);
   finally
     FBare := False;
-    Doc := OldDoc; Mode := OldMode; ShowGrid := OldGrid; ShowRatsnest := OldRats; SelKind := OldSel;
+    Doc := OldDoc; Mode := OldMode; ShowGrid := OldGrid; ShowRatsnest := OldRats; SelKind := OldSel; Selection := OldSelection;
     Tmp.Free;
   end;
 end;
