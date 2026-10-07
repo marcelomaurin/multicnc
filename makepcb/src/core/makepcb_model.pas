@@ -736,7 +736,7 @@ var
   Parent: array of Integer;
   Base: array of Integer;
   NPads, I, J, K, T, Root: Integer;
-  Map: array of Integer;
+  Map, Number: array of Integer;
   W, H, R: Double;
   Trk, Other: TMPTrack;
 
@@ -815,35 +815,37 @@ begin
       if TracksTouch(Trk, Other) then Union(NPads + T, NPads + K);
     end;
   end;
-  { numera as raizes: so redes com mais de um no recebem numero >= 0 }
+  { numera as redes na ordem do primeiro pad (estavel: trilhas novas da
+    mesma rede nao mudam a numeracao). So conjuntos com mais de um no. }
   SetLength(Map, System.Length(Parent));
   for I := 0 to High(Map) do Map[I] := 0;
   for I := 0 to High(Parent) do Inc(Map[Find(I)]);
+  SetLength(Number, System.Length(Parent));
+  for I := 0 to High(Number) do Number[I] := -1;
   FNetCount := 0;
-  for I := 0 to High(Map) do
-    if Map[I] > 1 then
+  for I := 0 to High(Parent) do
+  begin
+    Root := Find(I);
+    if (Map[Root] > 1) and (Number[Root] < 0) then
     begin
-      Map[I] := -(FNetCount + 2);   { marca com o numero da rede }
+      Number[Root] := FNetCount;
       Inc(FNetCount);
-    end
-    else Map[I] := 0;
+    end;
+  end;
   SetLength(FPadNet, ComponentCount + 1);
   for I := 0 to ComponentCount - 1 do
   begin
     SetLength(FPadNet[I], Component(I).PadCount);
     for J := 0 to Component(I).PadCount - 1 do
     begin
-      Root := Find(PadIndex(I, J));
-      if Map[Root] < 0 then FPadNet[I][J] := -Map[Root] - 2 else FPadNet[I][J] := -1;
+      FPadNet[I][J] := Number[Find(PadIndex(I, J))];
     end;
   end;
   { trilhas: ultima linha }
   SetLength(FPadNet[ComponentCount], TrackCount);
   for T := 0 to TrackCount - 1 do
   begin
-    Root := Find(NPads + T);
-    if Map[Root] < 0 then FPadNet[ComponentCount][T] := -Map[Root] - 2
-    else FPadNet[ComponentCount][T] := -1;
+    FPadNet[ComponentCount][T] := Number[Find(NPads + T)];
   end;
   FNetsValid := True;
 end;

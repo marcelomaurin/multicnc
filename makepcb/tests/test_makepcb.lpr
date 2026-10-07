@@ -8,7 +8,7 @@ program test_makepcb;
 
 uses
   Interfaces, Classes, SysUtils, Math, multisuite_numfmt,
-  makepcb_model, makepcb_library, makepcb_font, makepcb_gerber,
+  makepcb_model, makepcb_library, makepcb_font, makepcb_gerber, makepcb_route, makepcb_drc,
   laserpcb_geom, laserpcb_gerber, laserpcb_excellon, laserpcb_raster,
   laserpcb_project, laserpcb_types;
 
@@ -78,6 +78,9 @@ var
   I, J: Integer;
   F: TMPFootprint;
   L: TList;
+  Doc: TMPDocument;
+  C: TMPComponent;
+  Issues: TMPDrcIssues;
 begin
   Check(Lib.Count >= 50, 'biblioteca com pelo menos 50 footprints');
   Check(Lib.Categories.IndexOf('Resistores') >= 0, 'categoria resistores');
@@ -92,6 +95,20 @@ begin
       Check(F.Pads[J].Drill <= Min(F.Pads[J].W, F.Pads[J].H) + 1e-9, F.Name + ': furo maior que o pad');
     end;
     Check(F.Bounds.Valid, F.Name + ': caixa');
+  end;
+  { folga entre os pads do proprio footprint (isolacao a laser) }
+  Doc := TMPDocument.Create;
+  try
+    for I := 0 to Lib.Count - 1 do
+    begin
+      C := Doc.AddComponent(Lib.Item(I), 50, 50);
+      Issues := MPCheckDesign(Doc);
+      for J := 0 to High(Issues) do
+        Check(Issues[J].Kind <> dkClearance, Lib.Item(I).Name + ': ' + Issues[J].Text);
+      Doc.DeleteComponent(Doc.IndexOfComponent(C));
+    end;
+  finally
+    Doc.Free;
   end;
   F := Lib.Find('DIL-14 0.3');
   Check((F <> nil) and (Length(F.Pads) = 14), 'DIL-14');
@@ -345,6 +362,173 @@ begin
   end;
 end;
 
+{ circuito do 555 em astavel (como no exemplo do PCB Wizard) }
+function AstableBoard: TMPDocument;
+var
+  D: TMPDocument;
+  IC, R1, R2, R3, C1, C2, D1, TB: Integer;
+
+  function Put(const FP: string; X, Y: Double; Rot: Integer = 0): Integer;
+  var
+    C: TMPComponent;
+  begin
+    C := D.AddComponent(Lib.Find(FP), X, Y);
+    C.Rotation := Rot;
+    Result := D.IndexOfComponent(C);
+  end;
+
+begin
+  D := TMPDocument.Create;
+  D.BoardW := 50.8;
+  D.BoardH := 38.1;
+  D.TrackWidth := 0.8;
+  D.Clearance := 0.5;
+  IC := Put('DIL-8 0.3', 25.4, 19.05);
+  R1 := Put('Resistor 0.4 pol', 12.7, 31.75);
+  R2 := Put('Resistor 0.4 pol', 12.7, 24.13);
+  R3 := Put('Resistor 0.4 pol', 38.1, 13.97);  { saida perto do pino 3 }
+  C1 := Put('Eletrolitico 5 mm', 12.7, 8.89);
+  C2 := Put('Ceramico 0.1 pol', 38.1, 8.89);
+  D1 := Put('LED 5 mm', 43.18, 22.86);
+  TB := Put('Borne 2 vias', 7.62, 16.51, 90);
+  { VCC: TB.1, IC.8 (pad 7), IC.4 (pad 3), R1.1 }
+  D.AddWire(TB, 0, IC, 7);
+  D.AddWire(IC, 7, IC, 3);
+  D.AddWire(IC, 7, R1, 0);
+  { R1.2 - IC.7 (pad 6) - R2.1 }
+  D.AddWire(R1, 1, IC, 6);
+  D.AddWire(R2, 0, IC, 6);
+  { R2.2 - IC.6 (pad 5) - IC.2 (pad 1) - C1.+ }
+  D.AddWire(R2, 1, IC, 5);
+  D.AddWire(IC, 5, IC, 1);
+  D.AddWire(C1, 0, IC, 1);
+  { saida IC.3 (pad 2) - R3.1, R3.2 - LED.A(2) }
+  D.AddWire(IC, 2, R3, 0);
+  D.AddWire(R3, 1, D1, 1);
+  { GND: TB.2, IC.1 (pad 0), C1.-, C2.2, LED.K }
+  D.AddWire(TB, 1, IC, 0);
+  D.AddWire(IC, 0, C1, 1);
+  D.AddWire(C1, 1, C2, 1);
+  D.AddWire(C2, 1, D1, 0);
+  { IC.5 (pad 4) - C2.1 }
+  D.AddWire(IC, 4, C2, 0);
+  Result := D;
+end;
+
+procedure TestRouting;
+var
+  D: TMPDocument;
+  R: TMPRouter;
+  Res: TMPRouteResult;
+  Issues: TMPDrcIssues;
+  I, Pending: Integer;
+  Failed, Files, E: TStringList;
+  A: TMPArea;
+  T: TMPTrack;
+  P: TLaserPCBProject;
+begin
+  D := AstableBoard;
+  Failed := TStringList.Create;
+  Files := TStringList.Create;
+  E := TStringList.Create;
+  try
+    Pending := Length(MPPendingConnections(D));
+    Check(Pending = 15, 'ligacoes pendentes do 555: ' + IntToStr(Pending));
+    Issues := MPCheckDesign(D);
+    for I := 0 to High(Issues) do if Issues[I].Kind <> dkUnrouted then Writeln('  DRC: ', Issues[I].Text);
+    Check(Length(Issues) = Pending, 'DRC lista as ligacoes nao roteadas');
+    R := TMPRouter.Create(D, D.TrackWidth, D.Clearance);
+    try
+      Res := R.RouteAll(-1, Failed);
+    finally
+      R.Free;
+    end;
+    Check(Res.Failed = 0, 'roteamento completo em face simples: ' + Failed.Text);
+    Check(Res.Routed = Pending, 'todas as ligacoes roteadas');
+    Check(Res.Vias = 0, 'face simples sem vias');
+    Check(Length(MPPendingConnections(D)) = 0, 'nada pendente depois de rotear');
+    for I := 0 to D.TrackCount - 1 do Check(D.Track(I).Layer = mlBottomCopper, 'trilhas no cobre inferior');
+    Issues := MPCheckDesign(D);
+    for I := 0 to High(Issues) do Writeln('  DRC: ', Issues[I].Text);
+    Check(Length(Issues) = 0, 'DRC limpo depois do roteamento');
+    { exporta e valida no LaserPCB }
+    MPExportFabrication(D, MPDefaultFabOptions(Dir + 'astable', 'astable'), Files);
+    P := TLaserPCBProject.Create;
+    try
+      for I := 0 to Files.Count - 1 do P.ImportFile(Files[I]);
+      P.Side := lsBottom;
+      P.Profile.SpotMM := 0.15; P.Profile.Power := 300; P.Profile.Feed := 600;
+      P.Generate;
+      Check(P.Validate(E, True), 'LaserPCB valida a placa roteada: ' + E.Text);
+    finally
+      P.Free;
+    end;
+    { desfazer o roteamento }
+    MPRipUp(D);
+    Check(D.TrackCount = 0, 'trilhas apagadas');
+    Check(Length(MPPendingConnections(D)) = Pending, 'ligacoes voltam a ficar pendentes');
+
+    { faixa de cobre isolada atravessando a placa: face simples nao passa }
+    A := D.AddArea(mlBottomCopper);
+    SetLength(A.Points, 4);
+    A.Points[0] := MPPoint(19.5, 0); A.Points[1] := MPPoint(20.5, 0);
+    A.Points[2] := MPPoint(20.5, 38.1); A.Points[3] := MPPoint(19.5, 38.1);
+    R := TMPRouter.Create(D, D.TrackWidth, D.Clearance);
+    try
+      Failed.Clear;
+      Res := R.RouteAll(-1, Failed);
+    finally
+      R.Free;
+    end;
+    Check(Res.Failed > 0, 'bloqueio detectado em face simples');
+    Check(Pos('Sem caminho', Failed.Text) > 0, 'ligacao sem caminho informada');
+    { dupla face: passa por cima com vias }
+    MPRipUp(D);
+    D.DoubleSided := True;
+    R := TMPRouter.Create(D, D.TrackWidth, D.Clearance);
+    try
+      Failed.Clear;
+      Res := R.RouteAll(-1, Failed);
+    finally
+      R.Free;
+    end;
+    Check(Res.Failed = 0, 'dupla face roteia tudo: ' + Failed.Text);
+    { pads PTH existem nas duas faces: o roteador pode atravessar pelo cobre
+      superior so com trilhas, ou com vias; o essencial e usar a face de cima }
+    Pending := 0;
+    for I := 0 to D.TrackCount - 1 do if D.Track(I).Layer = mlTopCopper then Inc(Pending);
+    Check(Pending > 0, 'trilhas no cobre superior atravessam o bloqueio');
+    Issues := MPCheckDesign(D);
+    for I := 0 to High(Issues) do Writeln('  DRC: ', Issues[I].Text);
+    Check(Length(Issues) = 0, 'DRC limpo em dupla face');
+
+    { trilha manual encostada num pad de outra rede }
+    T := D.AddTrack(mlBottomCopper, 0.8);
+    T.AddPoint(D.Component(1).PadPos(0).X, D.Component(1).PadPos(0).Y + 1.6);
+    T.AddPoint(D.Component(1).PadPos(1).X, D.Component(1).PadPos(1).Y + 1.6);
+    Issues := MPCheckDesign(D);
+    Check(Length(Issues) > 0, 'DRC acusa folga');
+    Check(Issues[0].Kind = dkClearance, 'tipo folga');
+    { encostada: une R1.1 (VCC) e R1.2 (rede do pino 7) = curto }
+    T.Points[0].Y := D.Component(1).PadPos(0).Y + 0.5;
+    T.Points[1].Y := D.Component(1).PadPos(1).Y + 0.5;
+    Issues := MPCheckDesign(D);
+    Pending := 0;
+    for I := 0 to High(Issues) do if Issues[I].Kind = dkShort then Inc(Pending);
+    Check(Pending > 0, 'DRC acusa curto entre redes do esquema');
+    T.Width := 0.2;
+    Issues := MPCheckDesign(D);
+    Pending := 0;
+    for I := 0 to High(Issues) do if Issues[I].Kind = dkWidth then Inc(Pending);
+    Check(Pending = 1, 'DRC acusa trilha fina');
+  finally
+    E.Free;
+    Files.Free;
+    Failed.Free;
+    D.Free;
+  end;
+end;
+
 begin
   DefaultFormatSettings.DecimalSeparator := ',';
   DefaultFormatSettings.ThousandSeparator := '.';
@@ -355,5 +539,6 @@ begin
   TestModel;
   TestFont;
   TestExport;
-  Writeln('PASS: ', Checks, ' checks (library, model, nets, file, font, Gerber/Excellon -> LaserPCB)');
+  TestRouting;
+  Writeln('PASS: ', Checks, ' checks (library, model, nets, file, font, Gerber/Excellon -> LaserPCB, routing, DRC)');
 end.

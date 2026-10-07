@@ -153,13 +153,16 @@ procedure TMPLibrary.Radial(const AName, ADesc: string; Pitch, BodyD: Double; Ki
   Color: LongWord; const Prefix, Value, Category: string; Polarized: Boolean);
 var
   F: TMPFootprint;
+  Pad: Double;
 begin
   F := Add(AName, Category, ADesc, Prefix, Value);
+  { passo curto: pad menor para manter 0,6 mm entre os pads (isolacao) }
+  Pad := Max(1.3, Min(MP_PAD, Pitch - 0.6));
   if Polarized then
-    F.AddPad('1', -Pitch / 2, 0, psSquare, MP_PAD, MP_PAD, MP_DRILL)
+    F.AddPad('1', -Pitch / 2, 0, psSquare, Pad, Pad, MP_DRILL)
   else
-    F.AddPad('1', -Pitch / 2, 0, psRound, MP_PAD, MP_PAD, MP_DRILL);
-  F.AddPad('2', Pitch / 2, 0, psRound, MP_PAD, MP_PAD, MP_DRILL);
+    F.AddPad('1', -Pitch / 2, 0, psRound, Pad, Pad, MP_DRILL);
+  F.AddPad('2', Pitch / 2, 0, psRound, Pad, Pad, MP_DRILL);
   F.AddCircle(0, 0, BodyD / 2);
   if Polarized then
   begin
