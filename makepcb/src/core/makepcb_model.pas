@@ -163,6 +163,8 @@ type
     DoubleSided: Boolean;
     TrackWidth, Clearance, Grid: Double;
     Wires: array of TMPWire;
+    { esquema (makepcb_schematic) guardado como JSON dentro do .mpcb }
+    SchematicJSON: string;
     constructor Create;
     destructor Destroy; override;
     procedure Clear;
@@ -641,6 +643,7 @@ begin
   FreeItems(FTexts);
   SetLength(Wires, 0);
   Name := 'Nova placa';
+  SchematicJSON := '';
   BoardW := 80;
   BoardH := 50;
   DoubleSided := False;
@@ -1166,6 +1169,8 @@ begin
       Used.Free;
     end;
     Root.Add('footprints', A);
+    if Trim(SchematicJSON) <> '' then
+      Root.Add('schematic', GetJSON(SchematicJSON));
     A := TJSONArray.Create;
     for I := 0 to TrackCount - 1 do
     begin
@@ -1247,6 +1252,7 @@ begin
           FP.UserDefined := True;
           if FP.Name <> '' then FOwnFP.Add(FP) else FP.Free;
         end;
+    if Root.Find('schematic') <> nil then SchematicJSON := Root.Find('schematic').AsJSON;
     O := Root.Get('board', TJSONObject(nil));
     if O <> nil then
     begin

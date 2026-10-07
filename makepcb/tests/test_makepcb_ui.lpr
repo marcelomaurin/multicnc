@@ -9,7 +9,7 @@ program test_makepcb_ui;
 uses
   {$IFDEF UNIX}cthreads,{$ENDIF}
   Interfaces, Classes, SysUtils, Forms, Process, makepcb_main, makepcb_render,
-  makepcb_route, makepcb_model, makepcb_select, makepcb_library, makepcb_fpeditor;
+  makepcb_route, makepcb_model, makepcb_select, makepcb_library, makepcb_fpeditor, makepcb_schematic;
 
 var
   F: TMakePCBForm;
@@ -66,8 +66,16 @@ begin
   Pump;
   Check(F.Document.ComponentCount = 11, 'exemplo com 11 componentes');
   Check(Length(MPPendingConnections(F.Document)) = 15, 'exemplo com 15 ligacoes pendentes');
-  F.ShowStep(2);
-  Shot('02-ligacoes');
+  { esquema do exemplo: mesmas redes da placa }
+  F.ShowStep(1);
+  Check(F.Schematic.PartCount = 8, 'exemplo traz o esquema');
+  Check(Length(MPSchNets(F.Schematic)) = 7, 'esquema com 7 redes');
+  F.SchematicEditor.ZoomToFit;
+  Shot('02-esquema');
+  F.ConvertSchematic;
+  Pump;
+  Check(F.Document.ComponentCount = 11, 'converter nao duplica componentes');
+  Check(Length(MPPendingConnections(F.Document)) = 15, 'converter refaz as 15 ligacoes');
   F.AutoRoute;
   Pump;
   Check(Length(MPPendingConnections(F.Document)) = 0, 'roteamento completo do exemplo');
@@ -81,7 +89,7 @@ begin
     Shot('04-vista-' + IntToStr(Ord(M)));
   end;
   F.ShowView(vmNormal);
-  F.ShowStep(1);
+  F.ShowStep(2);
   Shot('05-galeria');
   F.ShowStep(4);
   Shot('06-fabricar');
@@ -96,7 +104,7 @@ begin
     Files.Free;
   end;
   { selecao multipla, copiar/colar e desfazer }
-  F.ShowStep(1);
+  F.ShowStep(2);
   N := F.Document.ComponentCount;
   F.EditorControl.SelectAll;
   Pump;

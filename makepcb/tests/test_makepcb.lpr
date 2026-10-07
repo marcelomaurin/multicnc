@@ -8,7 +8,7 @@ program test_makepcb;
 
 uses
   Interfaces, Classes, SysUtils, Math, StrUtils, multisuite_numfmt,
-  makepcb_model, makepcb_library, makepcb_font, makepcb_gerber, makepcb_route, makepcb_drc, makepcb_bom, makepcb_select,
+  makepcb_model, makepcb_library, makepcb_font, makepcb_gerber, makepcb_route, makepcb_drc, makepcb_bom, makepcb_select, makepcb_schematic,
   laserpcb_geom, laserpcb_gerber, laserpcb_excellon, laserpcb_raster,
   laserpcb_project, laserpcb_types;
 
@@ -871,6 +871,137 @@ begin
   end;
 end;
 
+{ esquematico: simbolos, redes, juncoes, rotulos, conversao para a placa }
+procedure TestSchematic;
+var
+  Sch, Sch2: TMPSchematic;
+  Nets: TMPSchNets;
+  Ref, D: TMPDocument;
+  I, J, K, L: Integer;
+  Rep: TStringList;
+  S: TMPSymbol;
+  FP: TMPFootprint;
+  P1, P2: TMPPart;
+  W: TMPPoints;
+
+  function SameNet(Doc: TMPDocument; const R1: string; Pad1: Integer; const R2: string; Pad2: Integer): Boolean;
+  var
+    A, B: Integer;
+  begin
+    A := Doc.PadNet(Doc.IndexOfComponent(Doc.FindComponent(R1)), Pad1);
+    B := Doc.PadNet(Doc.IndexOfComponent(Doc.FindComponent(R2)), Pad2);
+    Result := (A >= 0) and (A = B);
+  end;
+
+begin
+  { todo simbolo de parte aponta para um footprint existente com pads suficientes }
+  for I := 0 to MPSymbols.Count - 1 do
+  begin
+    S := MPSymbols.Item(I);
+    if S.Kind <> symPart then Continue;
+    FP := Lib.Find(S.DefaultFootprint);
+    Check(FP <> nil, S.Name + ': footprint ' + S.DefaultFootprint);
+    for J := 0 to High(S.Pins) do
+    begin
+      Check((S.Pins[J].Pad >= 0) and (S.Pins[J].Pad < Length(FP.Pads)), S.Name + ': pad do pino ' + S.Pins[J].Name);
+      { pinos na grade de 2,54 mm }
+      Near(Frac(Abs(S.Pins[J].X) / MP_SCH_GRID + 1e-9), 0, 1e-6, S.Name + ': pino X na grade');
+      Near(Frac(Abs(S.Pins[J].Y) / MP_SCH_GRID + 1e-9), 0, 1e-6, S.Name + ': pino Y na grade');
+      for K := J + 1 to High(S.Pins) do
+        Check(S.Pins[J].Pad <> S.Pins[K].Pad, S.Name + ': pinos em pads diferentes');
+    end;
+  end;
+  Sch := TMPSchematic.Create;
+  Ref := TMPDocument.Create;
+  D := TMPDocument.Create;
+  Rep := TStringList.Create;
+  try
+    { juncao em T e rotulos }
+    P1 := Sch.AddPart(MPSymbols.Find('Resistor'), 0, 0);
+    P2 := Sch.AddPart(MPSymbols.Find('Resistor'), 0, -10.16);
+    SetLength(W, 2); W[0] := MPPoint(5.08, 0); W[1] := MPPoint(10.16, 0);
+    Sch.AddWire(W);
+    W[0] := MPPoint(10.16, 5.08); W[1] := MPPoint(10.16, -10.16);   { passa pela ponta do fio 1 }
+    Sch.AddWire(W);
+    W[0] := MPPoint(5.08, -10.16); W[1] := MPPoint(10.16, -10.16);
+    Sch.AddWire(W);
+    Nets := MPSchNets(Sch);
+    Check(Length(Nets) = 1, 'juncao em T liga R1.2 e R2.2: ' + IntToStr(Length(Nets)));
+    Sch.AddLabel('GND', -5.08, 0, symGround);
+    Sch.AddLabel('GND', -5.08, -10.16, symGround);
+    Nets := MPSchNets(Sch);
+    Check(Length(Nets) = 2, 'rotulos iguais juntam R1.1 e R2.1');
+    for I := 0 to High(Nets) do
+      if Nets[I].Name = 'GND' then Check(Length(Nets[I].Pins) = 2, 'rede GND com 2 pinos');
+    Check(MPSchUnconnected(Sch) = 0, 'nenhum pino solto');
+    { cruzamento sem ponta nao liga }
+    Sch.Clear;
+    Sch.AddPart(MPSymbols.Find('Resistor'), 0, 0);
+    Sch.AddPart(MPSymbols.Find('Resistor'), 20, 0).Rotation := 90;
+    W[0] := MPPoint(-5.08, 0); W[1] := MPPoint(30, 0);
+    Sch.AddWire(W);
+    Nets := MPSchNets(Sch);
+    Check(Length(Nets) = 1, 'fio por cima do pino liga');
+    { exemplo 555: mesmas redes do exemplo da placa }
+    MPAstableSchematic(Sch);
+    Check(Sch.PartCount = 8, 'esquema 555 com 8 partes');
+    Nets := MPSchNets(Sch);
+    Check(Length(Nets) = 7, 'esquema 555 com 7 redes: ' + IntToStr(Length(Nets)));
+    Check(MPSchUnconnected(Sch) = 0, 'esquema 555 sem pino solto: ' + IntToStr(MPSchUnconnected(Sch)));
+    MPAstableExample(Ref, Lib);
+    MPAstableExample(D, Lib);
+    SetLength(D.Wires, 0);
+    D.Changed;
+    Check(MPConvertToPCB(Sch, D, Lib, Rep), 'converte o 555: ' + Rep.Text);
+    Check(D.ComponentCount = Ref.ComponentCount, 'nao duplica componentes ja na placa');
+    { todo par de pads tem a mesma relacao de rede nas duas placas }
+    Ref.ComputeNets; D.ComputeNets;
+    for I := 0 to Ref.ComponentCount - 1 do
+      for J := 0 to Ref.Component(I).PadCount - 1 do
+        for K := 0 to Ref.ComponentCount - 1 do
+          for L := 0 to Ref.Component(K).PadCount - 1 do
+            if (Ref.Component(I).Ref <> '') and (Ref.Component(K).Ref <> '') and
+               not Ref.Component(I).IsPadOnly and not Ref.Component(K).IsPadOnly and
+               (Ref.Component(I).Footprint.Pads[J].Plated) and (Ref.Component(K).Footprint.Pads[L].Plated) then
+              Check(SameNet(Ref, Ref.Component(I).Ref, J, Ref.Component(K).Ref, L) =
+                SameNet(D, Ref.Component(I).Ref, J, Ref.Component(K).Ref, L),
+                Format('rede %s.%d x %s.%d', [Ref.Component(I).Ref, J + 1, Ref.Component(K).Ref, L + 1]));
+    { placa vazia: cria os componentes }
+    D.Clear;
+    Rep.Clear;
+    Check(MPConvertToPCB(Sch, D, Lib, Rep), 'converte em placa vazia');
+    Check(D.ComponentCount = 8, 'criou 8 componentes');
+    Check(D.FindComponent('IC1').Value = 'NE555', 'valor vem do esquema');
+    Check(Length(MPPendingConnections(D)) = 15, 'ligacoes pendentes do 555: ' + IntToStr(Length(MPPendingConnections(D))));
+    { trocar o footprint no esquema troca na placa, mantendo a posicao }
+    Sch.FindPart('R1').Footprint := '0805';
+    D.FindComponent('R1').X := 30;
+    MPConvertToPCB(Sch, D, Lib, Rep);
+    Check(D.FindComponent('R1').Footprint.Name = '0805', 'footprint trocado');
+    Near(D.FindComponent('R1').X, 30, 1e-9, 'posicao mantida');
+    { arquivo: esquema dentro do .mpcb }
+    D.SchematicJSON := Sch.ToJSON;
+    D.SaveToFile(Dir + 'sch.mpcb');
+    Ref.LoadFromFile(Dir + 'sch.mpcb', @Lib.Resolve);
+    Sch2 := TMPSchematic.Create;
+    try
+      Sch2.FromJSON(Ref.SchematicJSON);
+      Check(Sch2.PartCount = Sch.PartCount, 'partes lidas do arquivo');
+      Check(Sch2.WireCount = Sch.WireCount, 'fios lidos do arquivo');
+      Check(Sch2.LabelCount = Sch.LabelCount, 'rotulos lidos do arquivo');
+      Check(Sch2.FindPart('R1').Footprint = '0805', 'footprint da parte lido');
+      Check(Length(MPSchNets(Sch2)) = 7, 'redes iguais depois de ler');
+    finally
+      Sch2.Free;
+    end;
+  finally
+    Rep.Free;
+    D.Free;
+    Ref.Free;
+    Sch.Free;
+  end;
+end;
+
 begin
   DefaultFormatSettings.DecimalSeparator := ',';
   DefaultFormatSettings.ThousandSeparator := '.';
@@ -885,5 +1016,6 @@ begin
   TestBOMAndExample;
   TestSelection;
   TestSMD;
-  Writeln('PASS: ', Checks, ' checks (library, model, nets, file, font, Gerber/Excellon -> LaserPCB, routing, DRC, BOM, selection, SMD)');
+  TestSchematic;
+  Writeln('PASS: ', Checks, ' checks (library, model, nets, file, font, Gerber/Excellon -> LaserPCB, routing, DRC, BOM, selection, SMD, schematic)');
 end.

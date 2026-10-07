@@ -16,7 +16,8 @@ interface
 uses
   Classes, SysUtils, Math, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls, Grids,
   Dialogs, Graphics, LCLType, makepcb_model, makepcb_library, makepcb_render,
-  makepcb_editor, makepcb_gallery, makepcb_select, makepcb_fpeditor, multisuite_controls, multisuite_icons;
+  makepcb_editor, makepcb_gallery, makepcb_select, makepcb_fpeditor, makepcb_schematic,
+  makepcb_schedit, multisuite_controls, multisuite_icons;
 
 type
   TMakePCBForm = class(TForm)
@@ -24,6 +25,17 @@ type
     Doc: TMPDocument;
     Lib: TMPLibrary;
     Editor: TMPEditor;
+    Sch: TMPSchematic;
+    SchEditor: TMPSchematicEditor;
+    SchPanel, BoardBar: TPanel;
+    SchTools: array[TMPSchTool] of TSuiteButton;
+    SymGallery: TMPSymbolGallery;
+    SymBox: TScrollBox;
+    SymCatBox: TComboBox;
+    PartTitle: TLabel;
+    PartRef, PartValue: TEdit;
+    PartFP: TComboBox;
+    SchLog: TMemo;
     Gallery: TMPGallery;
     GalleryBox: TScrollBox;
     Pages: TPageControl;
@@ -42,6 +54,25 @@ type
     CheckButton, ExportButton, OpenLaserButton: TSuiteButton;
     FFileName, FExportDir: string;
     FUpdating: Boolean;
+    FFocusReason: string;
+    procedure SchToolClick(Sender: TObject);
+    procedure SchUndoClick(Sender: TObject);
+    procedure SchRedoClick(Sender: TObject);
+    procedure SchRotateClick(Sender: TObject);
+    procedure SchDeleteClick(Sender: TObject);
+    procedure SchFitClick(Sender: TObject);
+    procedure SchZoomInClick(Sender: TObject);
+    procedure SchZoomOutClick(Sender: TObject);
+    procedure SchChanged(Sender: TObject);
+    procedure SchSelect(Sender: TObject);
+    procedure SymCategoryChanged(Sender: TObject);
+    procedure SymbolPick(Sender: TObject; S: TMPSymbol);
+    procedure ApplyPartClick(Sender: TObject);
+    procedure ConvertClick(Sender: TObject);
+    procedure PadWireClick(Sender: TObject);
+    procedure SyncSchTools;
+    procedure LoadSchematicFromDoc;
+    procedure StoreSchematic;
     function Button(ParentControl: TWinControl; const AText: string; X, Y, W: Integer;
       AIcon: TSuiteIconKind; Handler: TNotifyEvent): TSuiteButton;
     function LabelAt(ParentControl: TWinControl; const AText: string; X, Y, W, H: Integer): TLabel;
@@ -114,6 +145,9 @@ type
     procedure RunDRC;
     procedure ShowStep(N: Integer);
     procedure ShowView(M: TMPViewMode);
+    procedure ConvertSchematic;
+    property Schematic: TMPSchematic read Sch;
+    property SchematicEditor: TMPSchematicEditor read SchEditor;
     property Document: TMPDocument read Doc;
     property EditorControl: TMPEditor read Editor;
   end;
@@ -139,8 +173,11 @@ begin
 end;
 
 const
-  STEP_NAMES: array[0..4] of string = ('1  Placa', '2  Componentes', '3  Ligacoes', '4  Trilhas', '5  Fabricar');
-  STEP_ICONS: array[0..4] of TSuiteIconKind = (sikFrame, sikLayers, sikPlug, sikPen, sikExport);
+  STEP_NAMES: array[0..4] of string = ('1  Placa', '2  Esquema', '3  Componentes', '4  Trilhas', '5  Fabricar');
+  STEP_ICONS: array[0..4] of TSuiteIconKind = (sikFrame, sikPlug, sikLayers, sikPen, sikExport);
+  STEP_SCHEMATIC = 1;
+  SCH_TOOL_ICONS: array[TMPSchTool] of TSuiteIconKind = (sikPointer, sikImport, sikPen, sikText);
+  SCH_TOOL_NAMES: array[TMPSchTool] of string = ('Selecionar', 'Colocar', 'Fio', 'Rotulo de rede');
   VIEW_ICONS: array[TMPViewMode] of TSuiteIconKind = (sikPCB, sikEye, sikRect, sikImage);
   TOOL_ICONS: array[TMPTool] of TSuiteIconKind = (sikPointer, sikImport, sikPen, sikPlug, sikText, sikPolygon);
   GRID_MM: array[0..4] of Double = (1.27, 2.54, 0.635, 1.0, 0.5);
@@ -217,6 +254,7 @@ begin
     { biblioteca pessoal corrompida nao impede abrir o programa }
   end;
   Doc := TMPDocument.Create;
+  Sch := TMPSchematic.Create;
   FUpdating := True;
   BuildUI;
   Editor.Doc := Doc;
@@ -230,6 +268,8 @@ end;
 destructor TMakePCBForm.Destroy;
 begin
   if Editor <> nil then Editor.Doc := nil;
+  if SchEditor <> nil then SchEditor.SetSchematic(nil);
+  Sch.Free;
   Doc.Free;
   inherited Destroy;
 end;
@@ -238,6 +278,7 @@ procedure TMakePCBForm.BuildUI;
 var
   Header: TSuiteHeader;
   Sidebar, Work, Bar, Footer: TPanel;
+  ST: TMPSchTool;
   Page: TTabSheet;
   Scroll: TScrollBox;
   I, X: Integer;
@@ -326,6 +367,42 @@ begin
         end;
       1:
         begin
+          SymCatBox := Combo(Scroll, 'Simbolos', 52);
+          SymCatBox.Items.Add('Todos');
+          for X := 0 to MPSymbols.Categories.Count - 1 do SymCatBox.Items.Add(MPSymbols.Categories[X]);
+          SymCatBox.ItemIndex := 0;
+          SymCatBox.OnChange := @SymCategoryChanged;
+          SymBox := TScrollBox.Create(Self);
+          SymBox.Parent := Scroll; SymBox.SetBounds(12, 110, 298, 300);
+          SymBox.BorderStyle := bsNone; SymBox.Color := clSuiteCard;
+          SymBox.HorzScrollBar.Visible := False;
+          SymBox.VertScrollBar.Increment := 40;
+          SymGallery := TMPSymbolGallery.Create(Self);
+          SymGallery.Parent := SymBox; SymGallery.Left := 0; SymGallery.Top := 0;
+          SymGallery.Width := 280;
+          SymGallery.OnPick := @SymbolPick;
+          PartTitle := LabelAt(Scroll, 'PARTE SELECIONADA', 16, 420, 290, 18);
+          PartTitle.Font.Style := [fsBold];
+          PartRef := Field(Scroll, 'Referencia', '', 442);
+          PartValue := Field(Scroll, 'Valor', '', 498);
+          PartFP := Combo(Scroll, 'Footprint na placa', 554);
+          PartFP.Style := csDropDown;
+          Button(Scroll, 'Aplicar', 16, 610, 290, sikTarget, @ApplyPartClick);
+          B := Button(Scroll, 'Converter para a placa', 16, 660, 290, sikPCB, @ConvertClick);
+          B.SetLook(sbsSolid, clSuitePrimary, sikPCB);
+          SchLog := TMemo.Create(Self);
+          SchLog.Parent := Scroll; SchLog.SetBounds(16, 702, 290, 110);
+          SchLog.ReadOnly := True; SchLog.ScrollBars := ssAutoVertical;
+          LabelAt(Scroll, 'SEM ESQUEMA', 16, 826, 290, 18).Font.Style := [fsBold];
+          LabelAt(Scroll, 'Tambem da para ligar pad a pad direto na placa (as ligacoes ficam tracejadas ate virarem trilhas).',
+            16, 848, 290, 54);
+          Button(Scroll, 'Ligacao pad a pad', 16, 906, 290, sikPlug, @PadWireClick);
+          Button(Scroll, 'Apagar todas as ligacoes', 16, 948, 290, sikTrash, @ClearWiresClick);
+          NetSummary := LabelAt(Scroll, '', 16, 994, 290, 70);
+          NetSummary.WordWrap := False;
+        end;
+      2:
+        begin
           CategoryBox := Combo(Scroll, 'Galeria de componentes', 52);
           CategoryBox.Items.Add('Todos');
           for X := 0 to Lib.Categories.Count - 1 do CategoryBox.Items.Add(Lib.Categories[X]);
@@ -363,18 +440,6 @@ begin
           B := Button(Scroll, 'Virar', 115, 896, 92, sikMirrorH, @FlipClick);
           B.Hint := 'Montar embaixo/em cima (F) - SMD em face simples vai embaixo'; B.ShowHint := True;
           Button(Scroll, 'Excluir', 214, 896, 92, sikTrash, @DeleteClick);
-        end;
-      2:
-        begin
-          LabelAt(Scroll, 'Ligue os pads que devem ficar no mesmo circuito (como as linhas do esquema). As ligacoes aparecem tracejadas ate virarem trilhas.',
-            16, 52, 290, 74);
-          Button(Scroll, 'Ferramenta Ligacao', 16, 130, 290, sikPlug, @ToolClick).Tag := Ord(etWire);
-          Button(Scroll, 'Apagar todas as ligacoes', 16, 172, 290, sikTrash, @ClearWiresClick);
-          LabelAt(Scroll, 'RESUMO', 16, 224, 290, 18).Font.Style := [fsBold];
-          NetSummary := LabelAt(Scroll, '', 16, 246, 290, 120);
-          NetSummary.WordWrap := False;
-          LabelAt(Scroll, 'Dica: clique num pad, depois no outro. Esc cancela. Uma trilha desenhada que liga dois pads tambem forma o circuito.',
-            16, 372, 290, 74);
         end;
       3:
         begin
@@ -470,6 +535,39 @@ begin
   MirrorBox.Hint := 'Arte final espelhada (transferencia termica da face de cima)';
   MirrorBox.ShowHint := True;
   MirrorBox.OnChange := @MirrorChanged;
+  BoardBar := Bar;
+  { esquema: barra propria e editor no lugar da placa }
+  SchPanel := TPanel.Create(Self);
+  SchPanel.Parent := Work; SchPanel.Align := alClient; SchPanel.BevelOuter := bvNone;
+  SchPanel.Color := clSuiteSurface; SchPanel.Visible := False;
+  Bar := TPanel.Create(Self);
+  Bar.Parent := SchPanel; Bar.Align := alTop; Bar.Height := 52; Bar.BevelOuter := bvNone; Bar.Color := clSuiteSurface;
+  X := 10;
+  for ST := Low(TMPSchTool) to High(TMPSchTool) do
+  begin
+    if ST = stPlace then Continue;
+    SchTools[ST] := Button(Bar, '', X, 9, 36, SCH_TOOL_ICONS[ST], @SchToolClick);
+    SchTools[ST].Tag := Ord(ST);
+    SchTools[ST].Hint := SCH_TOOL_NAMES[ST];
+    SchTools[ST].ShowHint := True;
+    Inc(X, 40);
+  end;
+  Inc(X, 8);
+  B := Button(Bar, '', X, 9, 36, sikUndo, @SchUndoClick); B.Hint := 'Desfazer (Ctrl+Z)'; B.ShowHint := True; Inc(X, 40);
+  B := Button(Bar, '', X, 9, 36, sikRedo, @SchRedoClick); B.Hint := 'Refazer (Ctrl+Y)'; B.ShowHint := True; Inc(X, 48);
+  B := Button(Bar, '', X, 9, 36, sikMove, @SchRotateClick); B.Hint := 'Girar 90 graus (R)'; B.ShowHint := True; Inc(X, 40);
+  B := Button(Bar, '', X, 9, 36, sikTrash, @SchDeleteClick); B.Hint := 'Excluir (Del)'; B.ShowHint := True; Inc(X, 48);
+  B := Button(Bar, '', X, 9, 36, sikFit, @SchFitClick); B.Hint := 'Ver o esquema inteiro'; B.ShowHint := True; Inc(X, 40);
+  B := Button(Bar, '', X, 9, 36, sikZoomIn, @SchZoomInClick); B.Hint := 'Ampliar'; B.ShowHint := True; Inc(X, 40);
+  B := Button(Bar, '', X, 9, 36, sikZoomOut, @SchZoomOutClick); B.Hint := 'Reduzir'; B.ShowHint := True; Inc(X, 48);
+  B := Button(Bar, 'Converter', X, 9, 130, sikPCB, @ConvertClick);
+  B.SetLook(sbsSolid, clSuitePrimary, sikPCB); B.Hint := 'Converter o esquema para a placa'; B.ShowHint := True;
+  SchEditor := TMPSchematicEditor.Create(Self);
+  SchEditor.Parent := SchPanel; SchEditor.Align := alClient;
+  SchEditor.OnChange := @SchChanged;
+  SchEditor.OnSelect := @SchSelect;
+  SchEditor.OnStatus := @EditorStatus;
+  SchEditor.SetSchematic(Sch);
   Editor := TMPEditor.Create(Self);
   Editor.Parent := Work; Editor.Align := alClient;
   Editor.Lib := Lib;
@@ -500,18 +598,24 @@ end;
 procedure TMakePCBForm.FocusPage(N: Integer);
 var
   I: Integer;
+  Sender_: string;
 begin
+  Sender_ := FFocusReason;
+  FFocusReason := '';
   Pages.ActivePageIndex := N;
   for I := 0 to 4 do
     if I = N then Nav[I].SetLook(sbsSolid, clSuitePrimary, STEP_ICONS[I])
     else Nav[I].SetLook(sbsSoft, clSuitePrimary, STEP_ICONS[I]);
+  { o esquema ocupa o lugar da placa }
+  SchPanel.Visible := N = STEP_SCHEMATIC;
+  Editor.Visible := N <> STEP_SCHEMATIC;
+  BoardBar.Visible := N <> STEP_SCHEMATIC;
   case N of
-    1: if Editor.ViewMode = vmArtwork then SetViewMode(vmNormal);
-    2: Editor.Tool := etWire;
+    STEP_SCHEMATIC: SyncSchTools;
+    2: if Editor.ViewMode = vmArtwork then SetViewMode(vmNormal);
     4: RefreshBOM;
   end;
-  if N <> 2 then
-    if Editor.Tool = etWire then Editor.Tool := etSelect;
+  if (N <> STEP_SCHEMATIC) and (Editor.Tool = etWire) and (Sender_ <> 'wire') then Editor.Tool := etSelect;
   SyncTools;
 end;
 
@@ -539,6 +643,7 @@ end;
 
 procedure TMakePCBForm.ViewClick(Sender: TObject);
 begin
+  if Pages.ActivePageIndex = STEP_SCHEMATIC then FocusPage(2);
   SetViewMode(TMPViewMode(TComponent(Sender).Tag));
 end;
 
@@ -938,7 +1043,7 @@ var
   R: Integer;
 begin
   Result := True;
-  if not Editor.Modified then Exit;
+  if not (Editor.Modified or SchEditor.Modified) then Exit;
   R := MessageDlg('MakePCB', 'Salvar as alteracoes de "' + Doc.Name + '"?', mtConfirmation,
     [mbYes, mbNo, mbCancel], 0);
   if R = mrCancel then Exit(False);
@@ -959,6 +1064,7 @@ begin
   Editor.Select(selNone, -1);
   Editor.Modified := False;
   Editor.ZoomToBoard;
+  LoadSchematicFromDoc;
   RefreshAll;
   FocusPage(0);
   Status.Caption := 'Nova placa. Ajuste o tamanho e passe para os componentes.';
@@ -968,15 +1074,18 @@ procedure TMakePCBForm.ExampleClick(Sender: TObject);
 begin
   if not ConfirmDiscard then Exit;
   MPAstableExample(Doc, Lib);
+  MPAstableSchematic(Sch);
+  Doc.SchematicJSON := Sch.ToJSON;
   FFileName := ''; FExportDir := '';
   OpenLaserButton.Enabled := False;
   Editor.ClearHistory;
   Editor.Select(selNone, -1);
   Editor.Modified := True;
   Editor.ZoomToBoard;
+  LoadSchematicFromDoc;
   RefreshAll;
   FocusPage(3);
-  Status.Caption := 'Exemplo 555 carregado com as ligacoes. Clique em "Rotear automaticamente".';
+  Status.Caption := 'Exemplo 555 (esquema e placa) carregado. Clique em "Rotear automaticamente".';
 end;
 
 procedure TMakePCBForm.OpenFile(const FN: string);
@@ -990,6 +1099,7 @@ begin
     Editor.Modified := False;
     Editor.Doc := Doc;
     Editor.ZoomToBoard;
+    LoadSchematicFromDoc;
     RefreshAll;
     Status.Caption := 'Aberto: ' + FN;
   except
@@ -1040,8 +1150,10 @@ begin
     Exit;
   end;
   try
+    StoreSchematic;
     Doc.SaveToFile(FFileName);
     Editor.Modified := False;
+    SchEditor.Modified := False;
     RefreshInfo;
     Status.Caption := 'Salvo: ' + FFileName;
   except
@@ -1339,15 +1451,207 @@ begin
   FocusPage(N);
 end;
 
+procedure TMakePCBForm.ConvertSchematic;
+begin
+  ConvertClick(nil);
+end;
+
 procedure TMakePCBForm.ShowView(M: TMPViewMode);
 begin
   SetViewMode(M);
+end;
+
+{ ---------------- esquema ---------------- }
+
+procedure TMakePCBForm.LoadSchematicFromDoc;
+begin
+  try
+    Sch.FromJSON(Doc.SchematicJSON);
+  except
+    on E: Exception do
+    begin
+      Sch.Clear;
+      Status.Caption := 'Esquema ilegivel no arquivo: ' + E.Message;
+    end;
+  end;
+  SchEditor.ClearHistory;
+  SchEditor.Modified := False;
+  SchEditor.SetSchematic(Sch);
+  SchLog.Lines.Clear;
+  SchSelect(nil);
+end;
+
+procedure TMakePCBForm.StoreSchematic;
+begin
+  if Sch.IsEmpty then Doc.SchematicJSON := ''
+  else Doc.SchematicJSON := Sch.ToJSON;
+end;
+
+procedure TMakePCBForm.SyncSchTools;
+var
+  T: TMPSchTool;
+begin
+  for T := Low(TMPSchTool) to High(TMPSchTool) do
+    if SchTools[T] <> nil then
+      if T = SchEditor.Tool then SchTools[T].SetLook(sbsSolid, clSuitePrimary, SCH_TOOL_ICONS[T])
+      else SchTools[T].SetLook(sbsSoft, clSuitePrimary, SCH_TOOL_ICONS[T]);
+end;
+
+procedure TMakePCBForm.SchToolClick(Sender: TObject);
+begin
+  SchEditor.SetTool(TMPSchTool(TComponent(Sender).Tag));
+  SymGallery.ClearSelection;
+  SyncSchTools;
+  SchEditor.SetFocus;
+end;
+
+procedure TMakePCBForm.SchUndoClick(Sender: TObject); begin SchEditor.Undo; end;
+procedure TMakePCBForm.SchRedoClick(Sender: TObject); begin SchEditor.Redo; end;
+procedure TMakePCBForm.SchRotateClick(Sender: TObject); begin SchEditor.RotateSelection; end;
+procedure TMakePCBForm.SchDeleteClick(Sender: TObject); begin SchEditor.DeleteSelection; end;
+procedure TMakePCBForm.SchFitClick(Sender: TObject); begin SchEditor.ZoomToFit; end;
+procedure TMakePCBForm.SchZoomInClick(Sender: TObject); begin SchEditor.ZoomBy(1.25); end;
+procedure TMakePCBForm.SchZoomOutClick(Sender: TObject); begin SchEditor.ZoomBy(0.8); end;
+
+procedure TMakePCBForm.SchChanged(Sender: TObject);
+var
+  N: Integer;
+begin
+  SyncSchTools;
+  SchSelect(nil);
+  N := MPSchUnconnected(Sch);
+  if N > 0 then
+    Coords.Caption := Format('Esquema: %d partes, %d redes, %d pinos sem ligacao',
+      [Sch.PartCount, Length(MPSchNets(Sch)), N])
+  else
+    Coords.Caption := Format('Esquema: %d partes, %d redes', [Sch.PartCount, Length(MPSchNets(Sch))]);
+  RefreshInfo;
+end;
+
+procedure TMakePCBForm.SchSelect(Sender: TObject);
+var
+  P: TMPPart;
+  I: Integer;
+  On_: Boolean;
+begin
+  On_ := (SchEditor.SelKind = ssPart) and (SchEditor.SelIndex >= 0) and (SchEditor.SelIndex < Sch.PartCount);
+  PartRef.Enabled := On_; PartValue.Enabled := On_; PartFP.Enabled := On_;
+  FUpdating := True;
+  try
+    if On_ then
+    begin
+      P := Sch.Part(SchEditor.SelIndex);
+      PartTitle.Caption := 'PARTE: ' + UpperCase(P.Symbol.Name);
+      PartRef.Text := P.Ref;
+      PartValue.Text := P.Value;
+      PartFP.Items.BeginUpdate;
+      try
+        PartFP.Items.Clear;
+        { footprints com pads suficientes para os pinos do simbolo }
+        for I := 0 to Lib.Count - 1 do
+          if Length(Lib.Item(I).Pads) >= Length(P.Symbol.Pins) then PartFP.Items.Add(Lib.Item(I).Name);
+      finally
+        PartFP.Items.EndUpdate;
+      end;
+      PartFP.Text := P.Footprint;
+    end
+    else
+    begin
+      PartTitle.Caption := 'PARTE SELECIONADA';
+      PartRef.Text := ''; PartValue.Text := ''; PartFP.Text := '';
+    end;
+  finally
+    FUpdating := False;
+  end;
+end;
+
+procedure TMakePCBForm.SymCategoryChanged(Sender: TObject);
+begin
+  if SymCatBox.ItemIndex <= 0 then SymGallery.Category := ''
+  else SymGallery.Category := SymCatBox.Items[SymCatBox.ItemIndex];
+  SymBox.VertScrollBar.Position := 0;
+end;
+
+procedure TMakePCBForm.SymbolPick(Sender: TObject; S: TMPSymbol);
+begin
+  SchEditor.SetPlaceSymbol(S);
+  SyncSchTools;
+  SchEditor.SetFocus;
+end;
+
+procedure TMakePCBForm.ApplyPartClick(Sender: TObject);
+var
+  P: TMPPart;
+  FP: TMPFootprint;
+begin
+  if (SchEditor.SelKind <> ssPart) or (SchEditor.SelIndex < 0) then Exit;
+  P := Sch.Part(SchEditor.SelIndex);
+  if (Trim(PartRef.Text) <> P.Ref) and (Sch.FindPart(Trim(PartRef.Text)) <> nil) then
+  begin
+    ShowError(Exception.Create('Ja existe uma parte ' + Trim(PartRef.Text) + ' no esquema.'));
+    Exit;
+  end;
+  FP := Lib.Find(Trim(PartFP.Text));
+  if FP = nil then
+  begin
+    ShowError(Exception.Create('Footprint "' + PartFP.Text + '" nao existe na biblioteca.'));
+    Exit;
+  end;
+  if Length(FP.Pads) < Length(P.Symbol.Pins) then
+  begin
+    ShowError(Exception.CreateFmt('%s tem %d pads; o simbolo precisa de %d.',
+      [FP.Name, Length(FP.Pads), Length(P.Symbol.Pins)]));
+    Exit;
+  end;
+  SchEditor.Snapshot;
+  P.Ref := UpperCase(Trim(PartRef.Text));
+  P.Value := Trim(PartValue.Text);
+  P.Footprint := FP.Name;
+  SchEditor.Changed;
+end;
+
+procedure TMakePCBForm.ConvertClick(Sender: TObject);
+var
+  Ok: Boolean;
+begin
+  if Sch.PartCount = 0 then
+  begin
+    Status.Caption := 'Desenhe o esquema primeiro (simbolos da galeria e fios).';
+    Exit;
+  end;
+  SchLog.Lines.Clear;
+  Editor.Snapshot;
+  Ok := MPConvertToPCB(Sch, Doc, Lib, SchLog.Lines);
+  StoreSchematic;
+  Editor.Changed;
+  if Ok then
+  begin
+    FocusPage(2);
+    Editor.ZoomToBoard;
+    Status.Caption := 'Esquema convertido: posicione os componentes na placa e depois roteie (etapa 4).';
+  end
+  else
+    Status.Caption := 'Conversao com avisos: veja a lista na etapa Esquema.';
+end;
+
+procedure TMakePCBForm.PadWireClick(Sender: TObject);
+begin
+  FFocusReason := 'wire';
+  FocusPage(2);
+  Editor.Tool := etWire;
+  SyncTools;
+  Editor.SetFocus;
 end;
 
 { ---------------- teclado / fechar ---------------- }
 
 procedure TMakePCBForm.FormKey(Sender: TObject; var Key: Word; Shift: TShiftState);
 begin
+  if (ssCtrl in Shift) and (ActiveControl = SchEditor) then
+    case Key of
+      VK_Z: begin SchEditor.Undo; Key := 0; Exit; end;
+      VK_Y: begin SchEditor.Redo; Key := 0; Exit; end;
+    end;
   { copiar/colar so quando o foco esta na placa (nos campos e texto normal) }
   if (ssCtrl in Shift) and (ActiveControl = Editor) then
     case Key of
