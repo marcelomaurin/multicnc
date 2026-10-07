@@ -28,10 +28,13 @@
     <IsPartOfProject Value="True" />
    </Unit0>
   </Units>
-  <RequiredPackages Count="1">
+  <RequiredPackages Count="2">
    <Item1>
-    <PackageName Value="LCL" />
+    <PackageName Value="Printer4Lazarus" />
    </Item1>
+   <Item2>
+    <PackageName Value="LCL" />
+   </Item2>
   </RequiredPackages>
  </ProjectOptions>
  <CompilerOptions>

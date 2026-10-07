@@ -64,6 +64,7 @@ type
     SelIndex: Integer;
     HighlightNet: Integer;         { -1 = nenhuma }
     Selection: TMPSelection;       { selecao multipla (opcional) }
+    ShowOutline: Boolean;          { contorno da placa (arte final) }
     Issues: TMPDrcIssues;
     constructor Create;
     function IsSel(K: TMPItemKind; I: Integer): Boolean;
@@ -137,6 +138,7 @@ begin
   ShowRatsnest := True;
   ArtworkLayer := mlBottomCopper;
   ArtworkMirror := False;
+  ShowOutline := True;
   SelKind := selNone; SelIndex := -1;
   HighlightNet := -1;
 end;
@@ -669,7 +671,18 @@ begin
 
   ShowB := ShowBottom; ShowT := ShowTop and (Doc.DoubleSided or (Mode <> vmArtwork));
   Populated := Mode = vmRealWorld;
-  if Mode = vmArtwork then
+  if (Mode = vmArtwork) and (ArtworkLayer = mlTopSilk) then
+  begin
+    { arte da serigrafia: contornos, referencias e textos em preto }
+    for I := 0 to Doc.ComponentCount - 1 do
+      if not Doc.Component(I).Flipped then DrawSilkOf(Doc.Component(I), clBlack, 0.18);
+    DrawRefs(clBlack);
+    for I := 0 to Doc.TextCount - 1 do
+      if Doc.Text(I).Layer = mlTopSilk then
+        Strokes(MPTextStrokes(Doc.Text(I).Text, Doc.Text(I).X, Doc.Text(I).Y, Doc.Text(I).Height),
+          MPTextStrokeWidth(Doc.Text(I).Height), clBlack);
+  end
+  else if Mode = vmArtwork then
   begin
     DrawLayerCopper(ArtworkLayer, clBlack, clWhite);
     for I := 0 to Doc.ComponentCount - 1 do
@@ -811,7 +824,7 @@ begin
       FCanvas.Brush.Style := bsSolid;
     end;
   { contorno da placa }
-  if FBare then Exit;
+  if FBare or ((Mode = vmArtwork) and not ShowOutline) then Exit;
   FCanvas.Brush.Style := bsClear;
   FCanvas.Pen.Width := 1;
   if Mode = vmArtwork then FCanvas.Pen.Color := clBlack

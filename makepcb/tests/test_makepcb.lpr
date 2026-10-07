@@ -8,7 +8,7 @@ program test_makepcb;
 
 uses
   Interfaces, Classes, SysUtils, Math, StrUtils, multisuite_numfmt,
-  makepcb_model, makepcb_library, makepcb_font, makepcb_gerber, makepcb_route, makepcb_drc, makepcb_bom, makepcb_select, makepcb_schematic,
+  makepcb_model, makepcb_library, makepcb_font, makepcb_gerber, makepcb_route, makepcb_drc, makepcb_bom, makepcb_select, makepcb_schematic, makepcb_printlayout,
   laserpcb_geom, laserpcb_gerber, laserpcb_excellon, laserpcb_raster,
   laserpcb_project, laserpcb_types;
 
@@ -1002,6 +1002,33 @@ begin
   end;
 end;
 
+{ copias da arte final na folha (impressao 1:1) }
+procedure TestPrintLayout;
+var
+  O: TMPPrintOptions;
+  T: TMPTiles;
+  I: Integer;
+begin
+  O := MPDefaultPrintOptions;
+  T := MPTileCopies(210, 297, 50.8, 38.1, O);
+  Check(Length(T) = 1, 'uma copia por padrao');
+  Near(T[0].Left, 5, 1e-9, 'margem esquerda');
+  Near(T[0].Top, 5, 1e-9, 'margem de cima');
+  O.Copies := 0;
+  T := MPTileCopies(210, 297, 50.8, 38.1, O);
+  { A4 com 5 mm de margem e 5 mm entre copias: 3 colunas x 6 linhas }
+  Check(Length(T) = 18, 'encher a folha: ' + IntToStr(Length(T)));
+  for I := 0 to High(T) do
+  begin
+    Check(T[I].Left + 50.8 <= 210 - 5 + 1e-9, 'copia dentro da folha (largura)');
+    Check(T[I].Top + 38.1 <= 297 - 5 + 1e-9, 'copia dentro da folha (altura)');
+  end;
+  Near(T[1].Left - T[0].Left, 50.8 + 5, 1e-9, 'espaco entre copias');
+  O.Copies := 4;
+  Check(Length(MPTileCopies(210, 297, 50.8, 38.1, O)) = 4, 'quatro copias');
+  Check(Length(MPTileCopies(210, 297, 300, 38.1, O)) = 0, 'placa maior que a folha');
+end;
+
 begin
   DefaultFormatSettings.DecimalSeparator := ',';
   DefaultFormatSettings.ThousandSeparator := '.';
@@ -1017,5 +1044,6 @@ begin
   TestSelection;
   TestSMD;
   TestSchematic;
-  Writeln('PASS: ', Checks, ' checks (library, model, nets, file, font, Gerber/Excellon -> LaserPCB, routing, DRC, BOM, selection, SMD, schematic)');
+  TestPrintLayout;
+  Writeln('PASS: ', Checks, ' checks (library, model, nets, file, font, Gerber/Excellon -> LaserPCB, routing, DRC, BOM, selection, SMD, schematic, print)');
 end.

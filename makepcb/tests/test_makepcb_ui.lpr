@@ -9,7 +9,7 @@ program test_makepcb_ui;
 uses
   {$IFDEF UNIX}cthreads,{$ENDIF}
   Interfaces, Classes, SysUtils, Forms, Process, makepcb_main, makepcb_render,
-  makepcb_route, makepcb_model, makepcb_select, makepcb_library, makepcb_fpeditor, makepcb_schematic;
+  makepcb_route, makepcb_model, makepcb_select, makepcb_library, makepcb_fpeditor, makepcb_schematic, makepcb_print;
 
 var
   F: TMakePCBForm;
@@ -22,6 +22,7 @@ var
   N: Integer;
   C, C2: TMPComponent;
   Ed: TMPFootprintEditor;
+  PF: TMPPrintForm;
 
 procedure Check(Ok: Boolean; const Msg: string);
 begin
@@ -151,6 +152,16 @@ begin
     Ed.Close;
   finally
     Ed.Free;
+  end;
+  { dialogo de impressao (sem imprimir) }
+  PF := TMPPrintForm.CreateFor(nil, F.Document, mlBottomCopper, False);
+  try
+    PF.Show;
+    Pump;
+    Shot('12-imprimir');
+    PF.Close;
+  finally
+    PF.Free;
   end;
   Writeln('PASS: ', Checks, ' checks (MakePCB UI)');
   F.Free;

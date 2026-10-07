@@ -17,7 +17,7 @@ uses
   Classes, SysUtils, Math, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls, Grids,
   Dialogs, Graphics, LCLType, makepcb_model, makepcb_library, makepcb_render,
   makepcb_editor, makepcb_gallery, makepcb_select, makepcb_fpeditor, makepcb_schematic,
-  makepcb_schedit, multisuite_controls, multisuite_icons;
+  makepcb_schedit, makepcb_print, multisuite_controls, multisuite_icons;
 
 type
   TMakePCBForm = class(TForm)
@@ -127,6 +127,7 @@ type
     procedure OpenLaserClick(Sender: TObject);
     procedure SaveBOMClick(Sender: TObject);
     procedure SaveArtworkClick(Sender: TObject);
+    procedure PrintClick(Sender: TObject);
     function ConfirmDiscard: Boolean;
     function BaseName: string;
     procedure ShowError(E: Exception);
@@ -490,8 +491,9 @@ begin
           B := Button(Scroll, 'Exportar Gerber + Excellon', 16, 518, 290, sikExport, @ExportClick);
           B.SetLook(sbsSolid, clSuitePrimary, sikExport);
           Button(Scroll, 'Abrir no LaserPCB', 16, 560, 290, sikLaserPCB, @OpenLaserClick);
-          Button(Scroll, 'Salvar arte final (PNG 600 dpi)', 16, 602, 290, sikImage, @SaveArtworkClick);
-          FabSummary := LabelAt(Scroll, '', 16, 646, 290, 140);
+          Button(Scroll, 'Imprimir arte final (1:1)...', 16, 602, 290, sikImage, @PrintClick);
+          Button(Scroll, 'Salvar arte final (PNG 600 dpi)', 16, 644, 290, sikSave, @SaveArtworkClick);
+          FabSummary := LabelAt(Scroll, '', 16, 690, 290, 140);
           FabSummary.WordWrap := False;
         end;
     end;
@@ -1383,6 +1385,18 @@ begin
   finally
     S.Free;
     D.Free;
+  end;
+end;
+
+procedure TMakePCBForm.PrintClick(Sender: TObject);
+var
+  F: TMPPrintForm;
+begin
+  F := TMPPrintForm.CreateFor(Self, Doc, Editor.Renderer.ArtworkLayer, MirrorBox.Checked);
+  try
+    F.ShowModal;
+  finally
+    F.Free;
   end;
 end;
 

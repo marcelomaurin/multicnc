@@ -12,8 +12,11 @@ Lista do que ficou aberto. Detalhes do LaserArt em
   passa a pasta e o LaserPCB importa tudo (`ImportFolder`).
 - Registrado na suite (`stiMakePCB`), bandeja, instaladores e CI
   (`.github/workflows/makepcb-ci.yml`). `bin\makepcb.exe` (x64).
-- Proximos: esquematico, selecao multipla, footprints SMD/editor de
-  footprint, impressao direta. Ver `makepcb/docs/ARCHITECTURE.md`.
+- 07/10 (tarde): esquematico com "Converter para a placa", selecao multipla e
+  copiar/colar, SMD (montagem embaixo em face simples), editor de componentes
+  com biblioteca pessoal e impressao 1:1 da arte final.
+- Proximos: simbolos do usuario, anotacao reversa, biblioteca do MultiPCB.
+  Ver `makepcb/docs/ARCHITECTURE.md`.
 
 ## LaserPCB (07/10/2026)
 - Interface principal integrada com controles/icones da MultiSuite, camadas,

@@ -13,10 +13,27 @@ MakePCB  ──(Gerber + Excellon)──►  LaserPCB  ──(G-code)──►  
 | Etapa | O que faz |
 |---|---|
 | 1 Placa | nome, tamanho, face simples/dupla, largura de trilha, folga, grade |
-| 2 Componentes | galeria com miniaturas (resistores, capacitores, diodos/LEDs, transistores, CIs DIL, conectores, diversos, pads e vias), busca e propriedades do selecionado |
-| 3 Ligacoes | ligacoes pad a pad (ratsnest), resumo de redes |
+| 2 Esquema | desenho do circuito com simbolos (passivos, diodos/LEDs, transistores, 78xx, 555, CIs DIL, conectores, GND/VCC e rotulos de rede), fios com juncoes e **Converter para a placa** (cria/atualiza os componentes e as ligacoes) |
+| 3 Componentes | galeria com miniaturas (inclusive SMD e "Meus componentes"), busca, editor de componentes, propriedades, girar e virar (montar embaixo) |
 | 4 Trilhas | trilha manual (45 graus), area de cobre, texto, **roteamento automatico** e **DRC** |
-| 5 Fabricar | lista de materiais (CSV), exportacao Gerber + Excellon, arte final PNG 600 dpi, abrir no LaserPCB |
+| 5 Fabricar | lista de materiais (CSV), Gerber + Excellon, **impressao 1:1** da arte final (varias copias por folha), PNG 600 dpi, abrir no LaserPCB |
+
+Sem esquema, tambem da para ligar pad a pad direto na placa (etapa 2, "Ligacao pad a pad").
+
+## Edicao
+
+- Selecao por retangulo ou Shift+clique; arrastar move o grupo; setas movem um passo da grade.
+- Ctrl+C / Ctrl+X / Ctrl+V / Ctrl+D (duplicar) / Ctrl+A, com o foco na placa. Colar leva as ligacoes internas e cria referencias novas.
+- Trilha selecionada mostra alcas nos vertices: arraste para ajustar (encaixa em pad).
+
+## SMD e componentes proprios
+
+- Pad sem furo = SMD, so na face do componente. Em placa de face simples o SMD vai automaticamente
+  embaixo (lado do cobre, espelhado). **F** ou o botao Virar troca a face.
+- Biblioteca SMD: 0805, 1206, LED 1206, SOD-123, SOT-23, SOIC-8/14/16 (pads maiores que o IPC, para a isolacao a laser).
+- Editor de componentes: pads em tabela (furo 0 = SMD), fileiras, contorno e corpo automaticos, previa ao vivo.
+  Fica em "Meus componentes" (`makepcb_componentes.json` na pasta de configuracao do usuario) e vai
+  embutido em cada `.mpcb` que o usar, para abrir em outra maquina.
 
 ## Vistas (como as abas do PCB Wizard)
 
@@ -30,6 +47,8 @@ MakePCB  ──(Gerber + Excellon)──►  LaserPCB  ──(G-code)──►  
 | Tecla | Acao |
 |---|---|
 | R | gira 90 graus (selecao ou componente a colocar) |
+| F | vira o componente (em cima / embaixo) |
+| Setas | movem a selecao um passo da grade |
 | Del | apaga a selecao |
 | Esc | cancela / volta para Selecionar |
 | Backspace | desfaz o ultimo ponto da trilha/area |
@@ -40,7 +59,7 @@ MakePCB  ──(Gerber + Excellon)──►  LaserPCB  ──(G-code)──►  
 
 ## Arquivos
 
-- Projeto: `.mpcb` (JSON; footprints referenciados pelo nome da biblioteca).
+- Projeto: `.mpcb` (JSON): placa, esquema e os componentes do usuario usados.
 - Exportacao em `<pasta do projeto>/<nome>_gerber/`:
 
 | Arquivo | Conteudo |
@@ -54,6 +73,12 @@ MakePCB  ──(Gerber + Excellon)──►  LaserPCB  ──(G-code)──►  
 
 "Abrir no LaserPCB" chama `laserpcb --file <pasta>`; o LaserPCB importa a pasta
 inteira e, em face simples, ja abre pelo lado Bottom.
+
+## Impressao (transferencia termica / fotolito)
+
+"Imprimir arte final (1:1)" usa os DPI da impressora. Escolha a face, espelhamento e quantas copias
+por folha (0 = encher). O cobre de baixo sai como visto de cima (sem espelhar); o de cima, espelhado.
+Confira a medida impressa com um paquimetro.
 
 ## Compilar
 
