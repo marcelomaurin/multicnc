@@ -5,8 +5,9 @@ uses Classes, SysUtils, Math, laserpcb_types, laserpcb_job, laserpcb_layout,
   laserpcb_geom, laserpcb_gerber, laserpcb_excellon, laserpcb_raster, laserpcb_drill;
 
 type
-  { cmDrillMarks: marca a laser o lugar de cada furo (laserpcb_drill) }
-  TLPCamMode = (cmVectors, cmIsolation, cmRemoveCopper, cmLayerHatch, cmDrillMarks);
+  { cmDrillMarks: marca a laser o lugar de cada furo (laserpcb_drill)
+    cmOutline:    percorre o contorno da placa (linha, sem compensacao) }
+  TLPCamMode = (cmVectors, cmIsolation, cmRemoveCopper, cmLayerHatch, cmDrillMarks, cmOutline);
   TLPLayerRole = (lrUnknown, lrTopCopper, lrBottomCopper, lrOutline,
     lrTopMask, lrBottomMask, lrTopSilk, lrBottomSilk);
   TLPSource = class
@@ -16,8 +17,31 @@ type
     constructor Create;
     destructor Destroy; override;
   end;
+  { Camada de corte (estilo "Cuts / Layers" do LightBurn): um processo com
+    seus parametros. O trabalho junta as camadas com Saida ligada, na ordem
+    da lista. Feixe, S-max e resolucao sao da maquina (Profile do projeto). }
+  TLPOperation = class
+  public
+    Name: string;
+    ColorIndex: Integer;       { paleta 00..29 }
+    Mode: TLPCamMode;
+    SourceLayer: Integer;      { cmLayerHatch: indice da camada importada }
+    Power, Feed, Overlap: Double;
+    Passes: Integer;
+    MarkKind: TLPMarkKind;
+    MarkDiameter: Double;
+    Output, Show: Boolean;
+    ItemPaths: array of TLPPaths;   { trajetorias por copia (Generate) }
+    constructor Create;
+    function Caption: string;
+    function Generated: Boolean;
+    function PathsFor(Index: Integer): TLPPaths;
+    function CutLength: Double;
+  end;
+
   TLaserPCBProject = class
   private
+    FOperations: TList;
     FSources: TList;
     FSVG: TLaserPCBJob;
     FBoard, FCopper, FArtwork: TLPMask;
@@ -83,11 +107,69 @@ type
     property ArtworkMask: TLPMask read FArtwork;
     property Paths: TLPPaths read FPaths;
     property SVGFile: string read FSVGFile;
+  public
+    { ---- camadas de corte ---- }
+    function OperationCount: Integer;
+    function Operation(I: Integer): TLPOperation;
+    function AddOperation(AMode: TLPCamMode; const AName: string; AColor: Integer): TLPOperation;
+    procedure DeleteOperation(I: Integer);
+    procedure MoveOperation(I, Delta: Integer);
+    procedure ClearOperations;
+    { cria as camadas tipicas para o que foi importado (so se nao houver camadas) }
+    procedure CreateDefaultOperations;
+    { copia os parametros da camada para os campos do processo unico }
+    procedure ApplyOperation(Op: TLPOperation);
+    { gera as camadas com Saida ou Mostrar ligado; erro cita a camada }
+    procedure GenerateOperations;
+    procedure InvalidateOperations;
+    function ValidateOperations(Errors: TStrings; ForExport: Boolean): Boolean;
+    { trabalho unico com potencia/velocidade por camada; passadas expandidas }
+    function BuildOperationsJob: TLaserPCBJob;
+    { comprimento de corte e tempo estimado das camadas com Saida }
+    procedure EstimateOperations(RapidFeed: Double; out CutMM, TravelMM, Seconds: Double);
   end;
 function LayerRoleName(Role: TLPLayerRole): string;
+function CamModeName(Mode: TLPCamMode): string;
 function DetectLayerRole(const FileName, FileFunction: string): TLPLayerRole;
 implementation
 uses laserpcb_svg, laserpcb_profile, laserpcb_cam, laserpcb_gcode;
+
+function CamModeName(Mode: TLPCamMode): string;
+begin
+  case Mode of
+    cmVectors: Result := 'Vetores';
+    cmIsolation: Result := 'Isolacao';
+    cmRemoveCopper: Result := 'Remocao';
+    cmLayerHatch: Result := 'Preencher';
+    cmDrillMarks: Result := 'Furos';
+    cmOutline: Result := 'Contorno';
+  else Result := '?'; end;
+end;
+
+{ ---------------- TLPOperation ---------------- }
+
+constructor TLPOperation.Create;
+begin
+  inherited Create;
+  SourceLayer := -1; Overlap := 0.2; Passes := 1;
+  MarkKind := mkCenter; MarkDiameter := 0.4;
+  Output := True; Show := True;
+  { Potencia e velocidade comecam zeradas: dependem de calibracao. }
+end;
+function TLPOperation.Caption: string;
+begin Result := 'C' + Format('%.2d', [ColorIndex]); end;
+function TLPOperation.Generated: Boolean;
+begin Result := Length(ItemPaths) > 0; end;
+function TLPOperation.PathsFor(Index: Integer): TLPPaths;
+begin
+  if (Index >= 0) and (Index < Length(ItemPaths)) then Result := ItemPaths[Index] else Result := nil;
+end;
+function TLPOperation.CutLength: Double;
+var I: Integer;
+begin
+  Result := 0;
+  for I := 0 to High(ItemPaths) do Result := Result + LPPathsLength(ItemPaths[I]);
+end;
 
 function LayerRoleName(Role: TLPLayerRole): string;
 begin
@@ -128,7 +210,7 @@ begin Layer.Free; inherited Destroy; end;
 constructor TLaserPCBProject.Create;
 begin
   inherited Create;
-  FSources := TList.Create; FSVG := TLaserPCBJob.Create;
+  FSources := TList.Create; FSVG := TLaserPCBJob.Create; FOperations := TList.Create;
   Layout := TLaserBedLayout.Create; Drills := TLPDrillFile.Create;
   DrillFiles := TStringList.Create; Warnings := TStringList.Create;
   Profile := DefaultLaserProfile;
@@ -141,17 +223,17 @@ begin
 end;
 destructor TLaserPCBProject.Destroy;
 begin
-  Clear; FSources.Free; FSVG.Free; Layout.Free; Drills.Free;
+  Clear; FOperations.Free; FSources.Free; FSVG.Free; Layout.Free; Drills.Free;
   DrillFiles.Free; Warnings.Free; inherited Destroy;
 end;
 procedure TLaserPCBProject.FreeMasks;
 begin FreeAndNil(FBoard); FreeAndNil(FCopper); FreeAndNil(FArtwork); end;
 procedure TLaserPCBProject.InvalidateCAM;
-begin FPaths := nil; FItemPaths := nil; FreeMasks; end;
+begin FPaths := nil; FItemPaths := nil; FreeMasks; InvalidateOperations; end;
 procedure TLaserPCBProject.Clear;
 var I: Integer;
 begin
-  InvalidateCAM;
+  InvalidateCAM; ClearOperations;
   for I := 0 to FSources.Count - 1 do TObject(FSources[I]).Free;
   FSources.Clear; FSVG.Clear; FSVGFile := ''; FBounds := LPEmptyRect; Mode := cmIsolation;
   Layout.Clear; Drills.Clear; DrillFiles.Clear; Warnings.Clear; SelectedLayer := -1;
@@ -402,6 +484,14 @@ begin
     FPaths := SVGPaths; Exit;
   end;
   if Mode = cmVectors then raise Exception.Create('Selecione um processo CAM para o Gerber');
+  if Mode = cmOutline then
+  begin
+    RebuildMasks(Resolution);
+    FPaths := LPOrderPaths(OutlinePaths,OriginX,OriginY);
+    SetLength(FItemPaths,Layout.Count);
+    for I := 0 to Layout.Count-1 do FItemPaths[I] := FPaths;
+    Exit;
+  end;
   if Mode = cmDrillMarks then
   begin
     { A mascara so serve para a previa; marcas nao dependem do contorno. }
@@ -594,5 +684,223 @@ begin
         end;
     end;
   except Result.Free; raise; end;
+end;
+
+{ ---------------- camadas de corte ---------------- }
+
+function TLaserPCBProject.OperationCount: Integer;
+begin Result := FOperations.Count; end;
+function TLaserPCBProject.Operation(I: Integer): TLPOperation;
+begin Result := TLPOperation(FOperations[I]); end;
+function TLaserPCBProject.AddOperation(AMode: TLPCamMode; const AName: string; AColor: Integer): TLPOperation;
+begin
+  Result := TLPOperation.Create;
+  Result.Mode := AMode; Result.Name := AName; Result.ColorIndex := EnsureRange(AColor,0,29);
+  if AMode = cmLayerHatch then Result.SourceLayer := SelectedLayer;
+  FOperations.Add(Result);
+end;
+procedure TLaserPCBProject.DeleteOperation(I: Integer);
+begin Operation(I).Free; FOperations.Delete(I); end;
+procedure TLaserPCBProject.MoveOperation(I, Delta: Integer);
+var J: Integer;
+begin
+  J := I + Delta;
+  if (I < 0) or (I >= OperationCount) or (J < 0) or (J >= OperationCount) then Exit;
+  FOperations.Exchange(I,J);
+end;
+procedure TLaserPCBProject.ClearOperations;
+var I: Integer;
+begin
+  for I := 0 to FOperations.Count-1 do TObject(FOperations[I]).Free;
+  FOperations.Clear;
+end;
+procedure TLaserPCBProject.InvalidateOperations;
+var I: Integer;
+begin
+  if FOperations = nil then Exit;
+  for I := 0 to OperationCount-1 do Operation(I).ItemPaths := nil;
+end;
+
+procedure TLaserPCBProject.CreateDefaultOperations;
+var I: Integer; Op: TLPOperation;
+
+  function HasMode(M: TLPCamMode): Boolean;
+  var K: Integer;
+  begin
+    Result := False;
+    for K := 0 to OperationCount-1 do if Operation(K).Mode = M then Exit(True);
+  end;
+
+  function HasSource(Index: Integer): Boolean;
+  var K: Integer;
+  begin
+    Result := False;
+    for K := 0 to OperationCount-1 do
+      if (Operation(K).Mode = cmLayerHatch) and (Operation(K).SourceLayer = Index) then Exit(True);
+  end;
+
+begin
+  { Acrescenta as camadas tipicas do que ja foi importado e ainda nao tem
+    camada. Ordem de trabalho: isolar o cobre, marcar furos, mascara,
+    serigrafia e por ultimo o contorno. Camadas extras comecam sem Saida. }
+  if HasSVG then
+  begin
+    if not HasMode(cmVectors) then AddOperation(cmVectors,'Vetores',0);
+    Exit;
+  end;
+  if ((FindRole(lrTopCopper) <> nil) or (FindRole(lrBottomCopper) <> nil)) and
+    not HasMode(cmIsolation) then AddOperation(cmIsolation,'Isolacao do cobre',1);
+  if (Drills.HoleCount > 0) and not HasMode(cmDrillMarks) then
+  begin Op := AddOperation(cmDrillMarks,'Marcar furos',2); Op.Output := False; end;
+  for I := 0 to SourceCount-1 do
+    if (Source(I).Role in [lrTopMask,lrBottomMask,lrTopSilk,lrBottomSilk]) and not HasSource(I) then
+    begin
+      if Source(I).Role in [lrTopMask,lrBottomMask] then
+        Op := AddOperation(cmLayerHatch,LayerRoleName(Source(I).Role),3)
+      else Op := AddOperation(cmLayerHatch,LayerRoleName(Source(I).Role),5);
+      Op.SourceLayer := I; Op.Output := False;
+    end;
+  if (FindRole(lrOutline) <> nil) and not HasMode(cmOutline) then
+  begin Op := AddOperation(cmOutline,'Contorno da placa',0); Op.Output := False; end;
+end;
+
+procedure TLaserPCBProject.ApplyOperation(Op: TLPOperation);
+begin
+  Mode := Op.Mode;
+  Profile.Power := Op.Power; Profile.Feed := Op.Feed; Profile.Passes := Op.Passes;
+  Overlap := Op.Overlap; MarkKind := Op.MarkKind; MarkDiameter := Op.MarkDiameter;
+  if Op.Mode = cmLayerHatch then SelectedLayer := Op.SourceLayer;
+end;
+
+procedure TLaserPCBProject.GenerateOperations;
+var I, J, Count: Integer; Op: TLPOperation; SavedMode: TLPCamMode; SavedProfile: TLaserProfile;
+  SavedOverlap, SavedMarkDia: Double; SavedSelected: Integer; SavedMark: TLPMarkKind;
+begin
+  SavedMode := Mode; SavedProfile := Profile; SavedOverlap := Overlap;
+  SavedSelected := SelectedLayer; SavedMark := MarkKind; SavedMarkDia := MarkDiameter;
+  InvalidateOperations; Count := 0;
+  try
+    for I := 0 to OperationCount-1 do
+    begin
+      Op := Operation(I);
+      if not (Op.Output or Op.Show) then Continue;
+      if (Op.Mode = cmLayerHatch) and ((Op.SourceLayer < 0) or (Op.SourceLayer >= SourceCount)) then
+        raise Exception.Create(Op.Caption+' '+Op.Name+': escolha a camada a preencher');
+      ApplyOperation(Op);
+      { Potencia/velocidade nao alteram a geometria; passadas = aneis na isolacao. }
+      if Op.Passes < 1 then Profile.Passes := 1;
+      try Generate;
+      except on E: Exception do raise Exception.Create(Op.Caption+' '+Op.Name+': '+E.Message); end;
+      SetLength(Op.ItemPaths,Layout.Count);
+      for J := 0 to Layout.Count-1 do Op.ItemPaths[J] := PathsForItem(Layout.Item(J));
+      Inc(Count);
+    end;
+    if Count = 0 then raise Exception.Create('Ligue a Saida ou Mostrar de pelo menos uma camada');
+  finally
+    { o processo unico volta ao estado anterior; a previa usa as camadas }
+    Mode := SavedMode; Profile := SavedProfile; Overlap := SavedOverlap;
+    SelectedLayer := SavedSelected; MarkKind := SavedMark; MarkDiameter := SavedMarkDia;
+  end;
+end;
+
+function TLaserPCBProject.ValidateOperations(Errors: TStrings; ForExport: Boolean): Boolean;
+var I, J, K, L, N, Outputs: Integer; Op: TLPOperation; B: TLPRect; Q: TLPPoint;
+  Item: TLaserLayoutItem; P: TLPPaths; Job: TLaserPCBJob; Name: string;
+begin
+  N := Errors.Count;
+  Layout.Validate(Errors);
+  if Layout.Count = 0 then Errors.Add('Importe uma placa');
+  Errors.AddStrings(Warnings);
+  if not FiniteNumber(Profile.SMax) or (Profile.SMax < 1) then Errors.Add('S-max da maquina invalido');
+  Outputs := 0;
+  for I := 0 to OperationCount-1 do
+  begin
+    Op := Operation(I);
+    if not Op.Output then Continue;
+    Inc(Outputs); Name := Op.Caption+' '+Op.Name+': ';
+    if not FiniteNumber(Op.Power) or (Op.Power <= 0) then Errors.Add(Name+'potencia nao calibrada')
+    else if Op.Power > Profile.SMax then Errors.Add(Name+'potencia maior que o S-max')
+    else if Round(Op.Power) < 1 then Errors.Add(Name+'potencia seria arredondada para S0');
+    if not FiniteNumber(Op.Feed) or (Op.Feed < 0.001) then Errors.Add(Name+'velocidade nao calibrada');
+    if (Op.Passes < 1) or (Op.Passes > 1000) then Errors.Add(Name+'use 1 a 1000 passadas');
+    if not Op.Generated then begin Errors.Add(Name+'atualize as trajetorias'); Continue; end;
+    for J := 0 to Min(Layout.Count,Length(Op.ItemPaths))-1 do
+    begin
+      Item := Layout.Item(J); P := Op.ItemPaths[J]; B := LPEmptyRect;
+      for K := 0 to High(P) do
+        for L := 0 to High(P[K]) do
+        begin Q := WorldPoint(Item,P[K][L]); LPRectInclude(B,Q.X,Q.Y); end;
+      if B.Valid and ((B.MinX < Item.X-1e-6) or (B.MinY < Item.Y-1e-6) or
+        (B.MaxX > Item.X+Item.PlacedWidth+1e-6) or (B.MaxY > Item.Y+Item.PlacedHeight+1e-6)) then
+        Errors.Add(Name+Item.Name+': trajetorias fora da placa');
+    end;
+  end;
+  if Outputs = 0 then Errors.Add('Nenhuma camada com Saida ligada');
+  if ForExport and (Errors.Count = N) then
+  begin
+    Job := BuildOperationsJob;
+    try
+      try TLaserGCodeExporter.ValidateJob(Job);
+      except on E: Exception do Errors.Add(E.Message); end;
+    finally Job.Free; end;
+  end;
+  Result := Errors.Count = N;
+end;
+
+function TLaserPCBProject.BuildOperationsJob: TLaserPCBJob;
+var I, J, K, L, R, Repeats: Integer; Op: TLPOperation; Q: TLPPoint; P: TLPPaths;
+begin
+  Result := TLaserPCBJob.Create;
+  try
+    Result.Profile := Profile; Result.Profile.Passes := 1; Result.Profile.Power := 0; Result.Profile.Feed := 0;
+    Result.Width := Layout.BedWidth; Result.Height := Layout.BedHeight; Result.Side := Side;
+    for I := 0 to OperationCount-1 do
+    begin
+      Op := Operation(I);
+      if not (Op.Output and Op.Generated) then Continue;
+      { Na isolacao as passadas ja sao aneis de offset. }
+      if Op.Mode = cmIsolation then Repeats := 1 else Repeats := Max(1,Op.Passes);
+      for R := 1 to Repeats do
+        for J := 0 to Min(Layout.Count,Length(Op.ItemPaths))-1 do
+        begin
+          P := Op.ItemPaths[J];
+          for K := 0 to High(P) do
+            for L := 0 to High(P[K]) do
+            begin
+              Q := WorldPoint(Layout.Item(J),P[K][L]);
+              Result.AddPointWithParams(Q.X,Q.Y,L > 0,Op.Power,Op.Feed);
+            end;
+        end;
+    end;
+  except Result.Free; raise; end;
+end;
+
+procedure TLaserPCBProject.EstimateOperations(RapidFeed: Double; out CutMM, TravelMM, Seconds: Double);
+var I, J, K, R, Repeats: Integer; Op: TLPOperation; P: TLPPaths; Last, A: TLPPoint; Len: Double;
+begin
+  CutMM := 0; TravelMM := 0; Seconds := 0; Last := LPPoint(0,0);
+  if RapidFeed <= 0 then RapidFeed := 3000;
+  for I := 0 to OperationCount-1 do
+  begin
+    Op := Operation(I);
+    if not (Op.Output and Op.Generated) then Continue;
+    if Op.Mode = cmIsolation then Repeats := 1 else Repeats := Max(1,Op.Passes);
+    for R := 1 to Repeats do
+      for J := 0 to Min(Layout.Count,Length(Op.ItemPaths))-1 do
+      begin
+        P := Op.ItemPaths[J];
+        for K := 0 to High(P) do
+        begin
+          if Length(P[K]) = 0 then Continue;
+          A := WorldPoint(Layout.Item(J),P[K][0]);
+          TravelMM := TravelMM + LPDist(Last,A);
+          Len := LPPathLength(P[K]);
+          CutMM := CutMM + Len;
+          if Op.Feed > 0 then Seconds := Seconds + Len/Op.Feed*60;
+          Last := WorldPoint(Layout.Item(J),P[K][High(P[K])]);
+        end;
+      end;
+  end;
+  Seconds := Seconds + TravelMM/RapidFeed*60;
 end;
 end.

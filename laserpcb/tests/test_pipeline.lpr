@@ -253,6 +253,63 @@ begin
   finally Plan.Free;E.Free;P.Free;end;
 end;
 
+procedure TestOperations;
+var P:TLaserPCBProject; E:TStringList; J:TLaserPCBJob; I,Iso,Outline,Before:Integer;
+  Cut,Travel,Secs:Double; Has800,Has300:Boolean;
+begin
+  P:=TLaserPCBProject.Create;E:=TStringList.Create;
+  try
+    P.ImportFile(DataDir+'demo-F_Cu.gtl');P.ImportFile(DataDir+'demo-Edge_Cuts.gm1');
+    P.ImportFile(DataDir+'demo-F_Mask.gts');P.ImportFile(DataDir+'demo-F_Silkscreen.gto');
+    P.ImportFile(DataDir+'demo-PTH.drl');
+    P.CreateDefaultOperations;
+    Check(P.OperationCount=5,'default layers: '+IntToStr(P.OperationCount));
+    Check(P.Operation(0).Mode=cmIsolation,'isolation first');
+    Check(P.Operation(P.OperationCount-1).Mode=cmOutline,'outline last');
+    Check(P.Operation(0).Output and not P.Operation(1).Output,'only isolation outputs by default');
+    Check(P.Operation(0).Power=0,'new layer uncalibrated');
+    P.CreateDefaultOperations;Check(P.OperationCount=5,'defaults not duplicated');
+    P.Profile.SpotMM:=0.2;P.GenerateOperations;
+    Check(P.Operation(0).Generated,'isolation generated');
+    Check(not P.ValidateOperations(E,True),'uncalibrated layer blocked');
+    Check(Pos('C01',E.Text)>0,'error cites layer: '+E.Text);
+    Iso:=0;Outline:=P.OperationCount-1;
+    P.Operation(Iso).Power:=300;P.Operation(Iso).Feed:=600;E.Clear;
+    Check(P.ValidateOperations(E,True),'calibrated isolation valid '+E.Text);
+    J:=P.BuildOperationsJob;try Before:=J.Count;finally J.Free;end;
+    P.Operation(Outline).Output:=True;P.Operation(Outline).Power:=800;P.Operation(Outline).Feed:=300;
+    P.Operation(Outline).Passes:=2;P.GenerateOperations;E.Clear;
+    Check(P.ValidateOperations(E,True),'two layers valid '+E.Text);
+    J:=P.BuildOperationsJob;
+    try
+      Check(J.Profile.Passes=1,'layers expand passes in the job');
+      Check(J.Count=Before+2*Length(P.Operation(Outline).ItemPaths[0][0]),'outline repeated per pass');
+      Has800:=False;Has300:=False;
+      for I:=0 to J.Count-1 do if J.Point(I).LaserOn then
+      begin
+        if (J.Point(I).Power=800) and (J.Point(I).Feed=300) then Has800:=True;
+        if (J.Point(I).Power=300) and (J.Point(I).Feed=600) then Has300:=True;
+      end;
+      Check(Has800 and Has300,'power and feed per layer');
+      Check(not J.Point(J.Count-1).LaserOn or (J.Point(J.Count-1).Power=800),'outline cut last');
+      TLaserGCodeExporter.ExportJob(J,Dir+'layers.gcode');
+    finally J.Free;end;
+    P.EstimateOperations(3000,Cut,Travel,Secs);
+    Check((Cut>0) and (Secs>Cut/600*60),'estimate');
+    P.Operation(2).Output:=True;P.GenerateOperations;E.Clear;
+    Check(not P.ValidateOperations(E,True),'mask layer without power blocked');
+    Check(Pos('C03',E.Text)>0,'mask error cites C03');
+    P.Operation(2).Output:=False;
+    P.MoveOperation(Outline,-1);Check(P.Operation(Outline-1).Mode=cmOutline,'move layer up');
+    P.MoveOperation(0,-1);Check(P.Operation(0).Mode=cmIsolation,'move out of range ignored');
+    P.DeleteOperation(Outline-1);Check(P.OperationCount=4,'delete layer');
+    P.Profile.SpotMM:=0.3;P.InvalidateCAM;Check(not P.Operation(0).Generated,'invalidate clears layers');
+    for I:=0 to P.OperationCount-1 do begin P.Operation(I).Output:=False;P.Operation(I).Show:=False;end;
+    try P.GenerateOperations;Check(False,'no layer accepted');
+    except on Ex:Exception do Check(Pos('Saida',Ex.Message)>0,'no layer rejected');end;
+  finally E.Free;P.Free;end;
+end;
+
 procedure TestPhysicalSpotAfterScale;
 const Header='%FSLAX46Y46*%%MOMM*%%LPD*%';
 var P:TLaserPCBProject; Paths:TLPPaths; I,J:Integer; B:TLPRect; Q:TLPPoint;
@@ -281,6 +338,6 @@ begin
   DefaultFormatSettings.DecimalSeparator:=',';DefaultFormatSettings.ThousandSeparator:='.';
   Dir:=IncludeTrailingPathDelimiter(GetTempDir)+'laserpcb_regressions_'+IntToStr(GetProcessID)+PathDelim;
   ForceDirectories(Dir);
-  TestSVG;TestMirrorExport;TestLayout;TestGerberAndCAM;TestProject;TestDrillProject;TestPhysicalSpotAfterScale;
-  Writeln('PASS: ',Checks,' checks (SVG, mirror, export, geometry, nesting, Gerber, Excellon, CAM, drilling)');
+  TestSVG;TestMirrorExport;TestLayout;TestGerberAndCAM;TestProject;TestDrillProject;TestOperations;TestPhysicalSpotAfterScale;
+  Writeln('PASS: ',Checks,' checks (SVG, mirror, export, geometry, nesting, Gerber, Excellon, CAM, drilling, layers)');
 end.
