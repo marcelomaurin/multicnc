@@ -14,7 +14,7 @@ jobs:
       - name: Regression tests
         run: |
           set -e
-          for test in test_job test_layout test_alignment test_pipeline; do
+          for test in test_job test_layout test_alignment test_pipeline test_drill; do
             lazbuild --ws=nogui "laserpcb/tests/$test.lpi"
             "./laserpcb/tests/$test"
           done
@@ -45,6 +45,10 @@ jobs:
           lazbuild laserpcb\tests\test_pipeline.lpi
           if errorlevel 1 exit /b 1
           laserpcb\tests\test_pipeline.exe
+          if errorlevel 1 exit /b 1
+          lazbuild laserpcb\tests\test_drill.lpi
+          if errorlevel 1 exit /b 1
+          laserpcb\tests\test_drill.exe
           if errorlevel 1 exit /b 1
           lazbuild laserpcb\src\app\laserpcb.lpi
           if errorlevel 1 exit /b 1

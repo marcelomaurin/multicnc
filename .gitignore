@@ -9,6 +9,7 @@ lib/
 /dist/
 /laserpcb/src/app/laserpcb_layout
 /laserpcb/tests/test_alignment
+/laserpcb/tests/test_drill
 /laserart/tests/test_calibration_matrix
 /laserart/tests/test_laserart_output
 /laserpcb/tests/test_job
