@@ -22,6 +22,11 @@ uses
   Menus, LCLType, LazUTF8, Types,
   multisuite_types, multisuite_registry, multisuite_launcher, multisuite_icons;
 
+const
+  { instancia unica e pedido "mostrar painel" vindo de uma segunda execucao }
+  TRAY_MUTEX_NAME = 'Maurinsoft.MultiSuite.Tray';
+  TRAY_SHOW_EVENT_NAME = 'Maurinsoft.MultiSuite.Tray.Show';
+
 type
   TSuiteTileStyle = (tsList, tsPrimary);
   TSuiteNavigateEvent = procedure(Sender: TObject; ADelta: Integer) of object;
@@ -132,6 +137,10 @@ type
     FCloseRect: TRect;
     FFade: TTimer;
     FStartup: TTimer;
+    FShowWatch: TTimer;
+    {$IFDEF WINDOWS}
+    FShowEvent: THandle;
+    {$ENDIF}
     FTargetTop: Integer;
     FLastHide: QWord;
     FContentHeight: Integer;
@@ -169,6 +178,7 @@ type
     procedure TrayClick(Sender: TObject);
     procedure FadeTick(Sender: TObject);
     procedure StartupTick(Sender: TObject);
+    procedure ShowWatchTick(Sender: TObject);
     procedure MenuShowPanel(Sender: TObject);
     procedure MenuOpenSuite(Sender: TObject);
     procedure MenuAutoStart(Sender: TObject);
@@ -752,6 +762,14 @@ begin
   FStartup.Interval := 250;
   FStartup.OnTimer := @StartupTick;
   FStartup.Enabled := True;
+  {$IFDEF WINDOWS}
+  { outra execucao do exe sinaliza este evento para mostrar o painel }
+  FShowEvent := CreateEvent(nil, False, False, TRAY_SHOW_EVENT_NAME);
+  {$ENDIF}
+  FShowWatch := TTimer.Create(Self);
+  FShowWatch.Interval := 300;
+  FShowWatch.OnTimer := @ShowWatchTick;
+  FShowWatch.Enabled := True;
 
   Application.OnDeactivate := @AppDeactivate;
 end;
@@ -1079,6 +1097,14 @@ begin
     Top := FTargetTop;
     AlphaBlend := False;
   end;
+end;
+
+procedure TTrayForm.ShowWatchTick(Sender: TObject);
+begin
+  {$IFDEF WINDOWS}
+  if (FShowEvent <> 0) and (WaitForSingleObject(FShowEvent, 0) = WAIT_OBJECT_0) then
+    ShowPanel;
+  {$ENDIF}
 end;
 
 procedure TTrayForm.StartupTick(Sender: TObject);
