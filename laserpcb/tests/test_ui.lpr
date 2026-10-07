@@ -1,6 +1,6 @@
 program test_ui;
 {$mode objfpc}{$H+}
-uses Interfaces, Forms, Controls, StdCtrls, SysUtils, Graphics, laserpcb_main, multisuite_controls;
+uses Types, Interfaces, Forms, Controls, StdCtrls, SysUtils, Graphics, laserpcb_main, multisuite_controls;
 var F:TLaserPCBForm; DataDir:string;
 procedure Check(Ok:Boolean; const Msg:string);
 begin if not Ok then raise Exception.Create(Msg);end;
