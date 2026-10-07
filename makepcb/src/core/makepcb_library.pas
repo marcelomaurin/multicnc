@@ -21,6 +21,7 @@ type
   TMPLibrary = class
   private
     FItems: TList;
+    FRemoved: TList;     { removidos da galeria, mas ainda podem estar na placa }
     FCategories: TStringList;
     function Add(const AName, ACategory, ADesc, APrefix, AValue: string): TMPFootprint;
     procedure Build;
@@ -32,6 +33,9 @@ type
     procedure Header(Cols, Rows: Integer);
     procedure Terminal(Ways: Integer);
     procedure SILPack(Pins: Integer);
+    procedure Chip(const AName, ADesc: string; PadW, PadH, Span: Double; Kind: TMPBodyKind;
+      BodyL, BodyW: Double; Color: LongWord; const Prefix, Value: string);
+    procedure SOIC(Pins: Integer);
   public
     constructor Create;
     destructor Destroy; override;
@@ -43,16 +47,32 @@ type
     property Categories: TStringList read FCategories;
     { footprints de uma categoria, na ordem da galeria }
     procedure ListCategory(const ACategory: string; Into: TList);
+    { biblioteca do usuario ("Meus componentes") }
+    procedure AddUser(FP: TMPFootprint);
+    procedure RemoveUser(const AName: string);
+    function UserCount: Integer;
+    procedure LoadUserFile(const FileName: string);
+    procedure SaveUserFile(const FileName: string);
   end;
 
 const
+  MP_USER_CATEGORY = 'Meus componentes';
   MP_PAD = 1.8;
   MP_DRILL = 0.8;
   MP_PITCH = 2.54;
 
 function MakePCBLibrary: TMPLibrary;
+{ arquivo padrao da biblioteca do usuario }
+function MPUserLibraryFile: string;
 
 implementation
+
+uses fpjson, jsonparser;
+
+function MPUserLibraryFile: string;
+begin
+  Result := IncludeTrailingPathDelimiter(GetAppConfigDir(False)) + 'makepcb_componentes.json';
+end;
 
 var
   GLibrary: TMPLibrary = nil;
@@ -67,6 +87,7 @@ constructor TMPLibrary.Create;
 begin
   inherited Create;
   FItems := TList.Create;
+  FRemoved := TList.Create;
   FCategories := TStringList.Create;
   Build;
 end;
@@ -77,6 +98,8 @@ var
 begin
   for I := 0 to FItems.Count - 1 do TObject(FItems[I]).Free;
   FItems.Free;
+  for I := 0 to FRemoved.Count - 1 do TObject(FRemoved[I]).Free;
+  FRemoved.Free;
   FCategories.Free;
   inherited Destroy;
 end;
@@ -266,6 +289,156 @@ begin
   F.SetBody(bkIC, X0 - 1.27, -1.3, -X0 + 1.27, 1.3, $243B7A);
 end;
 
+procedure TMPLibrary.Chip(const AName, ADesc: string; PadW, PadH, Span: Double; Kind: TMPBodyKind;
+  BodyL, BodyW: Double; Color: LongWord; const Prefix, Value: string);
+var
+  F: TMPFootprint;
+begin
+  { 2 pads SMD; Span = distancia entre centros }
+  F := Add(AName, 'SMD', ADesc, Prefix, Value);
+  F.AddPad('1', -Span / 2, 0, psSquare, PadW, PadH, 0);
+  F.AddPad('2', Span / 2, 0, psSquare, PadW, PadH, 0);
+  F.AddRect(-Span / 2 - PadW / 2 - 0.3, -PadH / 2 - 0.3, Span / 2 + PadW / 2 + 0.3, PadH / 2 + 0.3);
+  if Kind in [bkDiode, bkLED] then
+    F.AddLine(-Span / 2 - PadW / 2 - 0.6, -PadH / 2, -Span / 2 - PadW / 2 - 0.6, PadH / 2);
+  F.SetBody(Kind, -BodyL / 2, -BodyW / 2, BodyL / 2, BodyW / 2, Color);
+end;
+
+procedure TMPLibrary.SOIC(Pins: Integer);
+var
+  F: TMPFootprint;
+  N, I: Integer;
+  X0, X, L: Double;
+const
+  PITCH = 1.27;
+  ROW = 5.4;      { centro a centro das fileiras }
+begin
+  N := Pins div 2;
+  F := Add('SOIC-' + IntToStr(Pins), 'SMD', Format('CI SMD %d pinos, passo 1,27 mm', [Pins]), 'IC', '');
+  X0 := -(N - 1) * PITCH / 2;
+  for I := 0 to N - 1 do
+  begin
+    X := X0 + I * PITCH;
+    F.AddPad(IntToStr(I + 1), X, -ROW / 2, psSquare, 0.65, 1.8, 0);
+  end;
+  for I := 0 to N - 1 do
+  begin
+    X := X0 + (N - 1 - I) * PITCH;
+    F.AddPad(IntToStr(N + I + 1), X, ROW / 2, psSquare, 0.65, 1.8, 0);
+  end;
+  L := N * PITCH + 0.2;
+  F.AddRect(-L / 2, -1.95, L / 2, 1.95);
+  F.AddCircle(-L / 2 + 0.7, -1.2, 0.3);
+  F.SetBody(bkIC, -L / 2, -1.95, L / 2, 1.95, $2D2D2D);
+end;
+
+procedure TMPLibrary.AddUser(FP: TMPFootprint);
+var
+  Old: TMPFootprint;
+begin
+  FP.UserDefined := True;
+  if FP.Category = '' then FP.Category := MP_USER_CATEGORY;
+  Old := Find(FP.Name);
+  if (Old <> nil) and not Old.UserDefined then
+    raise Exception.Create('Ja existe um componente da biblioteca com o nome ' + FP.Name);
+  if Old <> nil then
+  begin
+    { atualiza no lugar: componentes ja colocados continuam apontando para ele }
+    Old.Assign(FP);
+    FP.Free;
+    Exit;
+  end;
+  FItems.Add(FP);
+  if FCategories.IndexOf(FP.Category) < 0 then FCategories.Add(FP.Category);
+end;
+
+procedure TMPLibrary.RemoveUser(const AName: string);
+var
+  I: Integer;
+begin
+  for I := FItems.Count - 1 downto 0 do
+    if Item(I).UserDefined and SameText(Item(I).Name, AName) then
+    begin
+      { mantido em memoria: pode estar em uso na placa aberta }
+      FRemoved.Add(Item(I));
+      FItems.Delete(I);
+    end;
+end;
+
+function TMPLibrary.UserCount: Integer;
+var
+  I: Integer;
+begin
+  Result := 0;
+  for I := 0 to Count - 1 do
+    if Item(I).UserDefined then Inc(Result);
+end;
+
+procedure TMPLibrary.LoadUserFile(const FileName: string);
+var
+  D: TJSONData;
+  A: TJSONArray;
+  I: Integer;
+  FP: TMPFootprint;
+  S: TStringList;
+begin
+  if not FileExists(FileName) then Exit;
+  S := TStringList.Create;
+  try
+    S.LoadFromFile(FileName);
+    D := GetJSON(S.Text);
+  finally
+    S.Free;
+  end;
+  try
+    if not (D is TJSONObject) then Exit;
+    A := TJSONObject(D).Get('footprints', TJSONArray(nil));
+    if A = nil then Exit;
+    for I := 0 to A.Count - 1 do
+      if A.Items[I] is TJSONObject then
+      begin
+        FP := TMPFootprint.Create;
+        FP.LoadFromJSON(A.Objects[I]);
+        if (FP.Name = '') or ((Find(FP.Name) <> nil) and not Find(FP.Name).UserDefined) then
+          FP.Free
+        else
+          AddUser(FP);
+      end;
+  finally
+    D.Free;
+  end;
+end;
+
+procedure TMPLibrary.SaveUserFile(const FileName: string);
+var
+  Root, O: TJSONObject;
+  A: TJSONArray;
+  I: Integer;
+  S: TStringList;
+begin
+  Root := TJSONObject.Create;
+  S := TStringList.Create;
+  try
+    Root.Add('format', 'makepcb-library');
+    Root.Add('version', 1);
+    A := TJSONArray.Create;
+    for I := 0 to Count - 1 do
+      if Item(I).UserDefined then
+      begin
+        O := TJSONObject.Create;
+        Item(I).SaveToJSON(O);
+        A.Add(O);
+      end;
+    Root.Add('footprints', A);
+    S.Text := Root.FormatJSON;
+    ForceDirectories(ExtractFileDir(FileName));
+    S.SaveToFile(FileName);
+  finally
+    S.Free;
+    Root.Free;
+  end;
+end;
+
 procedure TMPLibrary.Build;
 var
   F: TMPFootprint;
@@ -402,6 +575,21 @@ begin
   F.AddPad('1', 0, 0, psRound, 3.2, 3.2, 3.2, False);
   F.AddCircle(0, 0, 3.0);
   F.SetBody(bkPad, -1.6, -1.6, 1.6, 1.6, $9E9E9E);
+
+  { ---------- SMD (pads maiores que o IPC, para isolacao a laser) ---------- }
+  Chip('0805', 'Resistor/capacitor SMD 0805', 1.2, 1.4, 2.0, bkChip, 2.0, 1.25, $1E1E1E, 'R', '1K');
+  Chip('1206', 'Resistor/capacitor SMD 1206', 1.6, 1.8, 3.0, bkChip, 3.2, 1.6, $1E1E1E, 'R', '1K');
+  Chip('LED 1206', 'LED SMD 1206 (catodo no pad 1)', 1.6, 1.8, 3.0, bkLED, 3.2, 1.6, $43A047, 'D', 'Verde');
+  Chip('SOD-123', 'Diodo SMD SOD-123 (catodo no pad 1)', 1.2, 1.4, 3.3, bkDiode, 2.7, 1.6, $222222, 'D', '1N4148W');
+  F := Add('SOT-23', 'SMD', 'Transistor SMD SOT-23 (1 B, 2 E, 3 C)', 'Q', 'BC847');
+  F.AddPad('1', -0.95, -1.1, psSquare, 0.9, 1.3, 0);
+  F.AddPad('2', 0.95, -1.1, psSquare, 0.9, 1.3, 0);
+  F.AddPad('3', 0, 1.1, psSquare, 0.9, 1.3, 0);
+  F.AddRect(-1.6, -0.75, 1.6, 0.75);
+  F.SetBody(bkTransistor, -1.5, -0.7, 1.5, 0.7, $222222);
+  SOIC(8);
+  SOIC(14);
+  SOIC(16);
 
   { ---------- Pads e vias ---------- }
   F := Add('Pad redondo', 'Pads e vias', 'Pad avulso 1,8 mm / furo 0,8 mm', '', '');

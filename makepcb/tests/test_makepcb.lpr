@@ -7,7 +7,7 @@ program test_makepcb;
 {$mode objfpc}{$H+}
 
 uses
-  Interfaces, Classes, SysUtils, Math, multisuite_numfmt,
+  Interfaces, Classes, SysUtils, Math, StrUtils, multisuite_numfmt,
   makepcb_model, makepcb_library, makepcb_font, makepcb_gerber, makepcb_route, makepcb_drc, makepcb_bom, makepcb_select,
   laserpcb_geom, laserpcb_gerber, laserpcb_excellon, laserpcb_raster,
   laserpcb_project, laserpcb_types;
@@ -91,7 +91,10 @@ begin
     Check(Length(F.Pads) > 0, F.Name + ': pads');
     for J := 0 to High(F.Pads) do
     begin
-      Check(F.Pads[J].Drill > 0, F.Name + ': furo');
+      if F.Category = 'SMD' then
+        Check(F.Pads[J].Drill = 0, F.Name + ': SMD sem furo')
+      else
+        Check(F.Pads[J].Drill > 0, F.Name + ': furo');
       Check(F.Pads[J].Drill <= Min(F.Pads[J].W, F.Pads[J].H) + 1e-9, F.Name + ': furo maior que o pad');
     end;
     Check(F.Bounds.Valid, F.Name + ': caixa');
@@ -696,6 +699,178 @@ begin
   end;
 end;
 
+function MaskSideText(const FN: string): string;
+var
+  S: TStringList;
+begin
+  S := TStringList.Create;
+  try
+    S.LoadFromFile(FN);
+    Result := S.Text;
+  finally
+    S.Free;
+  end;
+end;
+
+function CountFlashes(const S: string): Integer;
+var
+  I: Integer;
+begin
+  Result := 0;
+  I := PosEx('D03*', S, 1);
+  while I > 0 do
+  begin
+    Inc(Result);
+    I := PosEx('D03*', S, I + 4);
+  end;
+end;
+
+{ SMD: pads numa face so, componente virado, exportacao, roteamento, DRC,
+  footprint do usuario embutido no .mpcb e biblioteca pessoal }
+procedure TestSMD;
+var
+  D, D2: TMPDocument;
+  R1, R2, IC: TMPComponent;
+  Top, Bot, Drl, MaskT, MaskB: string;
+  Holes, I, Before: Integer;
+  Rt: TMPRouter;
+  Res: TMPRouteResult;
+  Issues: TMPDrcIssues;
+  FP, FP2: TMPFootprint;
+  L2: TMPLibrary;
+  FN: string;
+  P: TMPPoint;
+  Fab: TStringList;
+begin
+  Check(Lib.Find('0805') <> nil, 'biblioteca tem 0805');
+  Check(Lib.Find('SOIC-8') <> nil, 'biblioteca tem SOIC-8');
+  Check(Lib.Find('SOT-23') <> nil, 'biblioteca tem SOT-23');
+  Check(Lib.Find('0805').HasSMD and not Lib.Find('DIL-8 0.3').HasSMD, 'HasSMD');
+  D := TMPDocument.Create;
+  try
+    D.BoardW := 40; D.BoardH := 25;
+    R1 := D.AddComponent(Lib.Find('0805'), 10, 12.7);
+    R2 := D.AddComponent(Lib.Find('1206'), 30, 12.7);
+    { face simples: SMD vai embaixo, espelhado }
+    R1.Flipped := True; R2.Flipped := True;
+    Check(R1.SMDLayer = mlBottomCopper, 'virado = cobre de baixo');
+    Check(R1.PadOnLayer(0, mlBottomCopper) and not R1.PadOnLayer(0, mlTopCopper), 'pad SMD numa face so');
+    { espelhamento: pad 1 vai para a direita }
+    Check(R1.PadPos(0).X > R1.X, 'componente virado espelha X');
+    D.AddWire(0, 1, 1, 0);
+    Rt := TMPRouter.Create(D, 0.8, 0.5);
+    try
+      Res := Rt.RouteAll(-1, nil);
+    finally
+      Rt.Free;
+    end;
+    Check(Res.Failed = 0, 'roteia SMD em face simples');
+    Check(D.Track(0).Layer = mlBottomCopper, 'trilha na face do SMD');
+    Issues := MPCheckDesign(D);
+    Check(Length(Issues) = 0, 'DRC limpo com SMD: ' + IntToStr(Length(Issues)));
+    Bot := MPCopperGerber(D, mlBottomCopper);
+    Top := MPCopperGerber(D, mlTopCopper);
+    Check(Pos('D03*', Bot) > 0, 'pads SMD no cobre de baixo');
+    Check(Pos('D03*', Top) = 0, 'nada no cobre de cima');
+    Drl := MPDrillFile(D, True, Holes);
+    Check(Holes = 0, 'SMD nao gera furo');
+    { componente em cima numa placa dupla: pads no Top e mascara so em cima }
+    IC := D.AddComponent(Lib.Find('SOIC-8'), 20, 5);
+    D.DoubleSided := True;
+    Top := MPCopperGerber(D, mlTopCopper);
+    Check(Pos('D03*', Top) > 0, 'SOIC em cima: pads no Top');
+    { trilha de baixo sob o SOIC nao toca os pads de cima }
+    D.AddTrack(mlBottomCopper, 0.6).AddPoint(IC.PadPos(0).X, IC.PadPos(0).Y);
+    D.Track(D.TrackCount - 1).AddPoint(IC.PadPos(1).X, IC.PadPos(1).Y);
+    D.ComputeNets;
+    Check((D.PadNet(D.IndexOfComponent(IC), 0) < 0) and (D.PadNet(D.IndexOfComponent(IC), 1) < 0),
+      'trilha na outra face nao une pads SMD');
+    { a mesma trilha em cima une }
+    D.Track(D.TrackCount - 1).Layer := mlTopCopper;
+    D.Changed;
+    Check((D.PadNet(D.IndexOfComponent(IC), 0) >= 0) and
+      (D.PadNet(D.IndexOfComponent(IC), 0) = D.PadNet(D.IndexOfComponent(IC), 1)),
+      'trilha na face do SMD une os pads');
+    D.Track(D.TrackCount - 1).Layer := mlBottomCopper;
+    D.Changed;
+    Issues := MPCheckDesign(D);
+    Before := 0;
+    for I := 0 to High(Issues) do if Issues[I].Kind = dkShort then Inc(Before);
+    Check(Before = 0, 'sem curto entre faces opostas');
+    D.DeleteTrack(D.TrackCount - 1);
+    Fab := TStringList.Create;
+    try
+      MPExportFabrication(D, MPDefaultFabOptions(Dir + 'smd', 'smd'), Fab);
+    finally
+      Fab.Free;
+    end;
+    Check(FileExists(Dir + 'smd' + PathDelim + 'smd-F_Cu.gtl'), 'exporta cobre de cima com SMD');
+    MaskT := MaskSideText(Dir + 'smd' + PathDelim + 'smd-F_Mask.gts');
+    MaskB := MaskSideText(Dir + 'smd' + PathDelim + 'smd-B_Mask.gbs');
+    Check(CountFlashes(MaskT) = 8, 'mascara de cima: so os 8 pads do SOIC: ' + IntToStr(CountFlashes(MaskT)));
+    Check(CountFlashes(MaskB) = 4, 'mascara de baixo: os 4 pads dos chips: ' + IntToStr(CountFlashes(MaskB)));
+    { footprint do usuario vai embutido no arquivo }
+    FP := TMPFootprint.Create;
+    FP.Name := 'Meu sensor'; FP.Category := MP_USER_CATEGORY; FP.RefPrefix := 'U';
+    FP.AddPad('1', -2.54, 0, psSquare, 1.8, 1.8, 0.8);
+    FP.AddPad('2', 0, 0, psRound, 1.8, 1.8, 0.8);
+    FP.AddPad('3', 2.54, 0, psRound, 1.8, 1.8, 0.8);
+    FP.AddRect(-4, -2, 4, 2);
+    FP.SetBody(bkIC, -4, -2, 4, 2, $224466);
+    FP.UserDefined := True;
+    D.AddComponent(FP, 20, 20);
+    FN := Dir + 'smd.mpcb';
+    D.SaveToFile(FN);
+    D2 := TMPDocument.Create;
+    try
+      { a biblioteca nao conhece "Meu sensor": usa o embutido }
+      D2.LoadFromFile(FN, @Lib.Resolve);
+      Check(D2.ComponentCount = D.ComponentCount, 'abre com footprint embutido');
+      Check(D2.FindComponent('U1') <> nil, 'U1 lido');
+      Check(D2.FindComponent('U1').PadCount = 3, 'pads do embutido');
+      Check(D2.FindComponent('R1').Flipped, 'flipped salvo no arquivo');
+      P := D2.FindComponent('R1').PadPos(0);
+      Near(P.X, R1.PadPos(0).X, 1e-9, 'posicao do pad virado lida');
+    finally
+      D2.Free;
+    end;
+    { biblioteca pessoal: salva e le de volta }
+    L2 := TMPLibrary.Create;
+    try
+      FP2 := TMPFootprint.Create;
+      FP2.Assign(FP);
+      L2.AddUser(FP2);
+      Check(L2.UserCount = 1, 'biblioteca do usuario com 1 item');
+      Check(L2.Categories.IndexOf(MP_USER_CATEGORY) >= 0, 'categoria Meus componentes');
+      L2.SaveUserFile(Dir + 'lib.json');
+    finally
+      L2.Free;
+    end;
+    L2 := TMPLibrary.Create;
+    try
+      L2.LoadUserFile(Dir + 'lib.json');
+      Check(L2.Find('Meu sensor') <> nil, 'biblioteca pessoal lida');
+      Check(Length(L2.Find('Meu sensor').Pads) = 3, 'pads da biblioteca pessoal');
+      Check(L2.Find('Meu sensor').UserDefined, 'marcado como do usuario');
+      FP2 := TMPFootprint.Create;
+      FP2.Name := 'DIL-8 0.3';
+      try
+        L2.AddUser(FP2);
+        Check(False, 'nao pode sobrescrever componente da biblioteca');
+      except
+        on E: Exception do
+          if Pos('Ja existe', E.Message) = 0 then raise else FP2.Free;
+      end;
+      L2.RemoveUser('Meu sensor');
+      Check(L2.Find('Meu sensor') = nil, 'remove da biblioteca pessoal');
+    finally
+      L2.Free;
+    end;
+  finally
+    D.Free;
+  end;
+end;
+
 begin
   DefaultFormatSettings.DecimalSeparator := ',';
   DefaultFormatSettings.ThousandSeparator := '.';
@@ -709,5 +884,6 @@ begin
   TestRouting;
   TestBOMAndExample;
   TestSelection;
-  Writeln('PASS: ', Checks, ' checks (library, model, nets, file, font, Gerber/Excellon -> LaserPCB, routing, DRC, BOM, selection)');
+  TestSMD;
+  Writeln('PASS: ', Checks, ' checks (library, model, nets, file, font, Gerber/Excellon -> LaserPCB, routing, DRC, BOM, selection, SMD)');
 end.

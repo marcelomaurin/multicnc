@@ -70,7 +70,7 @@ type
     procedure Paint(ACanvas: TCanvas; const AView: TMPViewport; const ARect: TRect);
     { footprint isolado centrado no retangulo (galeria) }
     procedure PaintFootprint(ACanvas: TCanvas; FP: TMPFootprint; const ARect: TRect;
-      AMode: TMPViewMode);
+      AMode: TMPViewMode; AMaxScale: Double = 9);
     { componente "fantasma" seguindo o mouse }
     procedure PaintGhost(ACanvas: TCanvas; const AView: TMPViewport; Comp: TMPComponent);
   end;
@@ -257,6 +257,7 @@ var
   R: Integer;
 begin
   P := SP(Comp.PadPos(I));
+  if Comp.Footprint.Pads[I].Drill <= 0 then Exit;   { SMD }
   R := Max(1, Round(Comp.Footprint.Pads[I].Drill * FV.Scale / 2));
   FCanvas.Pen.Style := psClear;
   FCanvas.Brush.Style := bsSolid;
@@ -424,6 +425,7 @@ begin
   begin
     Comp := Doc.Component(I);
     if (Comp.Ref = '') or Comp.IsPadOnly then Continue;
+    if Comp.Flipped and (Mode <> vmNormal) then Continue;
     P := MPRefPosition(Comp);
     Strokes(MPTextStrokes(Comp.Ref, P.X, P.Y, 1.2), MPTextStrokeWidth(1.2), C);
   end;
@@ -439,6 +441,7 @@ var
   I, W, H, Rad, K: Integer;
   Horizontal: Boolean;
   P1, P2: TMPPoint;
+  BK: TMPBodyKind;
 
   procedure Box(ARect: TRect; Fill, Edge: TColor; Round_: Integer);
   begin
@@ -459,7 +462,7 @@ const
   Bands: array[0..3] of TColor = (TColor($2A4A8B), clBlack, TColor($1E1EC8), TColor($1C9CD4));
 begin
   FP := Comp.Footprint;
-  if FP.Body in [bkNone, bkPad] then Exit;
+  if (FP.Body in [bkNone, bkPad]) or Comp.Flipped then Exit;
   A := Comp.LocalToWorld(FP.BodyX1, FP.BodyY1);
   B := Comp.LocalToWorld(FP.BodyX2, FP.BodyY2);
   R := Rect(Min(SX(A.X), SX(B.X)), Min(SY(A.Y), SY(B.Y)), Max(SX(A.X), SX(B.X)), Max(SY(A.Y), SY(B.Y)));
@@ -479,7 +482,10 @@ begin
   if (FP.Body = bkCapElectrolytic) and (Length(FP.Pads) = 2) and
      (Abs(FP.Pads[1].X - FP.Pads[0].X) > Abs(FP.BodyX2 - FP.BodyX1)) then
     ThickLine(Comp.PadPos(0), Comp.PadPos(1), 0.6, TColor($B4B4B4));
-  case FP.Body of
+  { LED SMD: retangulo colorido como um chip }
+  BK := FP.Body;
+  if (BK = bkLED) and FP.HasSMD then BK := bkChip;
+  case BK of
     bkResistor:
       begin
         Box(R, BodyC, Dark, Min(W, H));
@@ -587,6 +593,23 @@ begin
         FCanvas.Line(SP(Cn).X - Rad div 2, SP(Cn).Y, SP(Cn).X + Rad div 2, SP(Cn).Y);
       end;
     bkCrystal: Box(R, BodyC, Dark, Min(W, H));
+    bkChip:
+      begin
+        { resistor/capacitor SMD: corpo escuro com terminais estanhados }
+        Box(R, BodyC, TColor($101010), 1);
+        FCanvas.Brush.Color := TColor($C8CDCF); FCanvas.Pen.Style := psClear;
+        if Horizontal then
+        begin
+          FCanvas.Rectangle(R.Left, R.Top, R.Left + Max(2, W div 5), R.Bottom);
+          FCanvas.Rectangle(R.Right - Max(2, W div 5), R.Top, R.Right, R.Bottom);
+        end
+        else
+        begin
+          FCanvas.Rectangle(R.Left, R.Top, R.Right, R.Top + Max(2, H div 5));
+          FCanvas.Rectangle(R.Left, R.Bottom - Max(2, H div 5), R.Right, R.Bottom);
+        end;
+        FCanvas.Pen.Style := psSolid;
+      end;
     bkSwitch:
       begin
         Box(R, BodyC, TColor($101010), 2);
@@ -651,11 +674,13 @@ begin
     DrawLayerCopper(ArtworkLayer, clBlack, clWhite);
     for I := 0 to Doc.ComponentCount - 1 do
       for J := 0 to Doc.Component(I).PadCount - 1 do
-        if Doc.Component(I).Footprint.Pads[J].Plated then
+        if Doc.Component(I).Footprint.Pads[J].Plated and
+           Doc.Component(I).PadOnLayer(J, ArtworkLayer) then
           PadShape(Doc.Component(I), J, 0, clBlack);
     for I := 0 to Doc.ComponentCount - 1 do
       for J := 0 to Doc.Component(I).PadCount - 1 do
-        Hole(Doc.Component(I), J, clWhite);
+        if not Doc.Component(I).IsSMD(J) then
+          Hole(Doc.Component(I), J, clWhite);
   end
   else
   begin
@@ -688,6 +713,22 @@ begin
       Comp := Doc.Component(I);
       for J := 0 to Comp.PadCount - 1 do
       begin
+        if Comp.IsSMD(J) then
+        begin
+          { SMD: so na face do componente; do lado de cima nao se ve o de baixo }
+          if Mode = vmNormal then
+          begin
+            if ((Comp.SMDLayer = mlTopCopper) and not ShowT) or
+               ((Comp.SMDLayer = mlBottomCopper) and not ShowB) then Continue;
+            if (HighlightNet >= 0) and (Doc.PadNet(I, J) = HighlightNet) then
+              PadShape(Comp, J, 0, MP_SELECT_COLOR)
+            else
+              PadShape(Comp, J, 0, CopperColor(Comp.SMDLayer));
+          end
+          else if not Comp.Flipped then
+            PadShape(Comp, J, 0, PadC);
+          Continue;
+        end;
         if Comp.Footprint.Pads[J].Plated then
         begin
           if (Mode = vmNormal) and (HighlightNet >= 0) and (Doc.PadNet(I, J) = HighlightNet) then
@@ -710,7 +751,12 @@ begin
       for I := 0 to Doc.ComponentCount - 1 do
       begin
         Comp := Doc.Component(I);
-        if Populated then DrawBody(Comp)
+        if Comp.Flipped then
+        begin
+          { montado embaixo: na edicao aparece apagado; visto de cima, some }
+          if Mode = vmNormal then DrawSilkOf(Comp, TColor($B4AAA0), 0.14);
+        end
+        else if Populated then DrawBody(Comp)
         else DrawSilkOf(Comp, Silk, 0.18);
       end;
       if not Populated then DrawRefs(Silk);
@@ -777,7 +823,7 @@ begin
 end;
 
 procedure TMPRenderer.PaintFootprint(ACanvas: TCanvas; FP: TMPFootprint; const ARect: TRect;
-  AMode: TMPViewMode);
+  AMode: TMPViewMode; AMaxScale: Double);
 var
   Tmp: TMPDocument;
   Comp: TMPComponent;
@@ -800,7 +846,7 @@ begin
     Comp := Tmp.AddComponent(FP, 1 - B.MinX, 1 - B.MinY);
     Comp.Ref := '';
     S := Min((ARect.Right - ARect.Left - 8) / Tmp.BoardW, (ARect.Bottom - ARect.Top - 8) / Tmp.BoardH);
-    S := Min(S, 9);
+    S := Min(S, AMaxScale);
     V.Scale := S;
     V.OX := (ARect.Left + ARect.Right) / 2 - Tmp.BoardW * S / 2;
     V.OY := (ARect.Top + ARect.Bottom) / 2 + Tmp.BoardH * S / 2;

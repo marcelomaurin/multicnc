@@ -46,6 +46,8 @@ type
     destructor Destroy; override;
     function NeededHeight: Integer;
     procedure ClearSelection;
+    { refaz miniaturas e lista (footprint editado ou biblioteca mudou) }
+    procedure Reload;
     property Lib: TMPLibrary read FLib write SetLib;
     property Category: string read FCategory write SetCategory;
     property Filter: string read FFilter write SetFilter;
@@ -263,6 +265,16 @@ begin
   inherited MouseLeave;
   FHot := -1;
   Invalidate;
+end;
+
+procedure TMPGallery.Reload;
+var
+  I: Integer;
+begin
+  for I := 0 to High(FCache) do FCache[I].Free;
+  SetLength(FCache, 0);
+  FCacheFP.Clear;
+  Rebuild;
 end;
 
 procedure TMPGallery.ClearSelection;

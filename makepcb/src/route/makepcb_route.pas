@@ -133,6 +133,7 @@ var
     Q: Integer;
     Pp: TMPPoint;
   begin
+    if not Doc.Component(C).PadOnLayer(Pd, Tr.Layer) then Exit(False);
     Pp := Doc.Component(C).PadPos(Pd);
     Doc.Component(C).PadSize(Pd, W, H);
     R := Min(W, H) / 2 + Tr.Width / 2;
@@ -345,6 +346,7 @@ begin
     Exit;
   end;
   for L := 0 to FLayers - 1 do
+    if Comp.PadOnLayer(P, LayerOf(L)) then
     case Comp.Footprint.Pads[P].Shape of
       psSquare:
         begin
@@ -638,7 +640,8 @@ const
     for JJ := J0 to J1 do
       for II := I0 to I1 do
         if Hypot(CellX(II) - Pp.X, CellY(JJ) - Pp.Y) <= Rad + 1e-9 then
-          for LL := 0 to FLayers - 1 do SeedCell(II, JJ, LL, Pp, Seed);
+          for LL := 0 to FLayers - 1 do
+            if FDoc.Component(C).PadOnLayer(P, LayerOf(LL)) then SeedCell(II, JJ, LL, Pp, Seed);
   end;
 
   procedure SeedTrack(T: Integer; Seed: Boolean);
@@ -688,6 +691,7 @@ const
     Pp: TMPPoint;
     R: Double;
   begin
+    if not FDoc.Component(C).PadOnLayer(Pd, Tr.Layer) then Exit(False);
     Pp := FDoc.Component(C).PadPos(Pd);
     FDoc.Component(C).PadSize(Pd, W, Hh);
     R := Min(W, Hh) / 2 + Tr.Width / 2;

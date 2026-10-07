@@ -252,6 +252,7 @@ var
       Cm := Doc.Component(CI);
       for PI2 := 0 to Cm.PadCount - 1 do
       begin
+        if not Cm.PadOnLayer(PI2, Layer) then Continue;
         if (AreaIndex >= 0) and Doc.PadInArea(AreaIndex, CI, PI2) then Continue;
         { furo sem metalizacao sem cobre: so a folga }
         if (AreaIndex < 0) and not Cm.Footprint.Pads[PI2].Plated then Continue;
@@ -315,6 +316,8 @@ begin
       C := Doc.Component(I);
       for J := 0 to C.PadCount - 1 do
       begin
+        if Top and not C.PadOnLayer(J, mlTopCopper) then Continue;
+        if (not Top) and not C.PadOnLayer(J, mlBottomCopper) then Continue;
         P := C.PadPos(J);
         G.Flash(PadAperture(G, C, J, MP_MASK_EXPANSION), P.X, P.Y);
       end;
@@ -340,6 +343,8 @@ begin
     for I := 0 to Doc.ComponentCount - 1 do
     begin
       C := Doc.Component(I);
+      { componente virado fica embaixo: sem serigrafia em cima }
+      if C.Flipped then Continue;
       for J := 0 to High(C.Footprint.Silk) do
       begin
         S := C.Footprint.Silk[J];
@@ -531,6 +536,8 @@ begin
   for I := 0 to Doc.TrackCount - 1 do if Doc.Track(I).Layer = mlTopCopper then HasTop := True;
   for I := 0 to Doc.AreaCount - 1 do if Doc.Area(I).Layer = mlTopCopper then HasTop := True;
   for I := 0 to Doc.TextCount - 1 do if Doc.Text(I).Layer = mlTopCopper then HasTop := True;
+  for I := 0 to Doc.ComponentCount - 1 do
+    if Doc.Component(I).HasSMD and not Doc.Component(I).Flipped then HasTop := True;
   Save('-B_Cu.gbl', MPCopperGerber(Doc, mlBottomCopper));
   if HasTop then Save('-F_Cu.gtl', MPCopperGerber(Doc, mlTopCopper));
   if O.SolderMask then

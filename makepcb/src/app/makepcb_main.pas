@@ -16,7 +16,7 @@ interface
 uses
   Classes, SysUtils, Math, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls, Grids,
   Dialogs, Graphics, LCLType, makepcb_model, makepcb_library, makepcb_render,
-  makepcb_editor, makepcb_gallery, makepcb_select, multisuite_controls, multisuite_icons;
+  makepcb_editor, makepcb_gallery, makepcb_select, makepcb_fpeditor, multisuite_controls, multisuite_icons;
 
 type
   TMakePCBForm = class(TForm)
@@ -69,6 +69,12 @@ type
     procedure ApplyBoardClick(Sender: TObject);
     procedure ApplyCompClick(Sender: TObject);
     procedure RotateClick(Sender: TObject);
+    procedure FlipClick(Sender: TObject);
+    procedure NewFootprintClick(Sender: TObject);
+    procedure EditFootprintClick(Sender: TObject);
+    procedure DeleteFootprintClick(Sender: TObject);
+    procedure RunFootprintEditor(Template: TMPFootprint);
+    procedure RefreshCategories;
     procedure CopyClick(Sender: TObject);
     procedure PasteClick(Sender: TObject);
     procedure DeleteClick(Sender: TObject);
@@ -205,6 +211,11 @@ begin
   Color := clSuiteSurface;
   KeyPreview := True;
   Lib := MakePCBLibrary;
+  try
+    if Lib.UserCount = 0 then Lib.LoadUserFile(MPUserLibraryFile);
+  except
+    { biblioteca pessoal corrompida nao impede abrir o programa }
+  end;
   Doc := TMPDocument.Create;
   FUpdating := True;
   BuildUI;
@@ -335,15 +346,23 @@ begin
           Gallery.Lib := Lib;
           Gallery.OnPick := @GalleryPick;
           Gallery.ShowHint := True;
-          SelTitle := LabelAt(Scroll, 'COMPONENTE SELECIONADO', 16, 560, 290, 18);
+          B := Button(Scroll, 'Novo', 16, 554, 92, sikNew, @NewFootprintClick);
+          B.Hint := 'Criar um componente (editor de componentes)'; B.ShowHint := True;
+          B := Button(Scroll, 'Editar', 115, 554, 92, sikPen, @EditFootprintClick);
+          B.Hint := 'Editar o componente escolhido na galeria (os da biblioteca viram uma copia sua)'; B.ShowHint := True;
+          B := Button(Scroll, 'Apagar', 214, 554, 92, sikTrash, @DeleteFootprintClick);
+          B.Hint := 'Apagar um componente de "Meus componentes"'; B.ShowHint := True;
+          SelTitle := LabelAt(Scroll, 'COMPONENTE SELECIONADO', 16, 604, 290, 18);
           SelTitle.Font.Style := [fsBold];
-          CompRef := Field(Scroll, 'Referencia', '', 582);
-          CompValue := Field(Scroll, 'Valor', '', 638);
-          CompX := Field(Scroll, 'X (mm)', '', 694);
-          CompY := Field(Scroll, 'Y (mm)', '', 750);
-          Button(Scroll, 'Aplicar', 16, 810, 290, sikTarget, @ApplyCompClick);
-          Button(Scroll, 'Girar 90', 16, 852, 140, sikMove, @RotateClick);
-          Button(Scroll, 'Excluir', 166, 852, 140, sikTrash, @DeleteClick);
+          CompRef := Field(Scroll, 'Referencia', '', 626);
+          CompValue := Field(Scroll, 'Valor', '', 682);
+          CompX := Field(Scroll, 'X (mm)', '', 738);
+          CompY := Field(Scroll, 'Y (mm)', '', 794);
+          Button(Scroll, 'Aplicar', 16, 854, 290, sikTarget, @ApplyCompClick);
+          Button(Scroll, 'Girar', 16, 896, 92, sikMove, @RotateClick).Hint := 'Girar 90 graus (R)';
+          B := Button(Scroll, 'Virar', 115, 896, 92, sikMirrorH, @FlipClick);
+          B.Hint := 'Montar embaixo/em cima (F) - SMD em face simples vai embaixo'; B.ShowHint := True;
+          Button(Scroll, 'Excluir', 214, 896, 92, sikTrash, @DeleteClick);
         end;
       2:
         begin
@@ -514,8 +533,7 @@ begin
   begin
     if Doc.DoubleSided and (Editor.ActiveLayer = mlTopCopper) then Editor.Renderer.ArtworkLayer := mlTopCopper
     else Editor.Renderer.ArtworkLayer := mlBottomCopper;
-    Status.Caption := 'Arte final da face ' + LayerName(Editor.Renderer.ArtworkLayer) +
-      ', vista de cima. Para transferencia termica da face de cima, marque "Espelhar arte".';
+    Status.Caption := 'Arte final: ' + LayerName(Editor.Renderer.ArtworkLayer) + ', vista de cima.';
   end;
 end;
 
@@ -749,6 +767,92 @@ end;
 procedure TMakePCBForm.RotateClick(Sender: TObject);
 begin
   Editor.RotateSelection;
+end;
+
+procedure TMakePCBForm.FlipClick(Sender: TObject);
+begin
+  Editor.FlipSelection;
+end;
+
+procedure TMakePCBForm.RefreshCategories;
+var
+  Cur: string;
+  I: Integer;
+begin
+  Cur := CategoryBox.Text;
+  CategoryBox.Items.Clear;
+  CategoryBox.Items.Add('Todos');
+  for I := 0 to Lib.Categories.Count - 1 do CategoryBox.Items.Add(Lib.Categories[I]);
+  CategoryBox.ItemIndex := Max(0, CategoryBox.Items.IndexOf(Cur));
+end;
+
+procedure TMakePCBForm.RunFootprintEditor(Template: TMPFootprint);
+var
+  Ed: TMPFootprintEditor;
+  FP: TMPFootprint;
+  Name_: string;
+begin
+  Ed := TMPFootprintEditor.CreateFor(Self, Template);
+  try
+    FP := Ed.Execute;
+  finally
+    Ed.Free;
+  end;
+  if FP = nil then Exit;
+  try
+    Name_ := FP.Name;
+    Lib.AddUser(FP);   { substitui no lugar se ja existir }
+    Lib.SaveUserFile(MPUserLibraryFile);
+    RefreshCategories;
+    CategoryBox.ItemIndex := Max(0, CategoryBox.Items.IndexOf(MP_USER_CATEGORY));
+    CategoryChanged(nil);
+    Gallery.Reload;
+    Editor.Invalidate;
+    Status.Caption := '"' + Name_ + '" salvo em Meus componentes. Clique nele na galeria para colocar.';
+  except
+    on E: Exception do ShowError(E);
+  end;
+end;
+
+procedure TMakePCBForm.NewFootprintClick(Sender: TObject);
+begin
+  RunFootprintEditor(nil);
+end;
+
+procedure TMakePCBForm.EditFootprintClick(Sender: TObject);
+begin
+  if Gallery.SelectedFootprint = nil then
+  begin
+    Status.Caption := 'Escolha um componente na galeria para editar (ou use Novo).';
+    Exit;
+  end;
+  RunFootprintEditor(Gallery.SelectedFootprint);
+end;
+
+procedure TMakePCBForm.DeleteFootprintClick(Sender: TObject);
+var
+  FP: TMPFootprint;
+  I: Integer;
+begin
+  FP := Gallery.SelectedFootprint;
+  if (FP = nil) or not FP.UserDefined then
+  begin
+    Status.Caption := 'So componentes de "Meus componentes" podem ser apagados.';
+    Exit;
+  end;
+  for I := 0 to Doc.ComponentCount - 1 do
+    if Doc.Component(I).Footprint = FP then
+    begin
+      Status.Caption := '"' + FP.Name + '" esta em uso na placa (' + Doc.Component(I).Ref + '). Apague da placa primeiro.';
+      Exit;
+    end;
+  if MessageDlg('MakePCB', 'Apagar "' + FP.Name + '" de Meus componentes?', mtConfirmation, [mbYes, mbNo], 0) <> mrYes then Exit;
+  Editor.SetPlaceFootprint(nil);
+  Editor.Tool := etSelect;
+  Lib.RemoveUser(FP.Name);
+  Lib.SaveUserFile(MPUserLibraryFile);
+  Gallery.Reload;
+  SyncTools;
 end;
 
 procedure TMakePCBForm.CopyClick(Sender: TObject);

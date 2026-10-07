@@ -15,8 +15,11 @@ unit makepcb_model;
   - TMPText: texto no cobre ou na serigrafia.
   - TMPDocument: placa, listas acima, redes e arquivo .mpcb (JSON).
 
-  Todos os pads sao passantes (aparecem nas duas faces); Plated = False
-  marca furos sem metalizacao (fixacao). }
+  Pads com furo sao passantes (aparecem nas duas faces); Plated = False
+  marca furos sem metalizacao (fixacao). Pad sem furo (Drill = 0) e SMD:
+  fica so na face do componente - Top, ou Bottom quando o componente esta
+  virado (Flipped, espelhado), como nas placas de face simples feitas em
+  casa, em que o SMD vai soldado do lado do cobre. }
 
 {$mode objfpc}{$H+}
 
@@ -65,7 +68,7 @@ type
   { corpo usado na visao "Mundo real" }
   TMPBodyKind = (bkNone, bkResistor, bkCapCeramic, bkCapFilm, bkCapElectrolytic,
     bkDiode, bkLED, bkTransistor, bkPower, bkIC, bkHeader, bkTerminal, bkPot,
-    bkCrystal, bkSwitch, bkBuzzer, bkLDR, bkPad);
+    bkCrystal, bkSwitch, bkBuzzer, bkLDR, bkPad, bkChip);
 
   TMPFootprint = class
   public
@@ -75,6 +78,7 @@ type
     Body: TMPBodyKind;
     BodyX1, BodyY1, BodyX2, BodyY2: Double;   { caixa do corpo (mundo real) }
     BodyColor: LongWord;                      { RGB }
+    UserDefined: Boolean;                     { criado no editor (vai embutido no .mpcb) }
     procedure AddPad(const AName: string; AX, AY: Double; AShape: TMPPadShape;
       AW, AH, ADrill: Double; APlated: Boolean = True);
     procedure AddLine(X1, Y1, X2, Y2: Double);
@@ -82,6 +86,11 @@ type
     procedure AddRect(X1, Y1, X2, Y2: Double);
     procedure SetBody(AKind: TMPBodyKind; X1, Y1, X2, Y2: Double; AColor: LongWord);
     function Bounds: TMPRect;
+    function HasSMD: Boolean;
+    { definicao completa em JSON (biblioteca do usuario e .mpcb) }
+    procedure SaveToJSON(O: TJSONObject);
+    procedure LoadFromJSON(O: TJSONObject);
+    procedure Assign(Src: TMPFootprint);
   end;
 
   TMPComponent = class
@@ -90,6 +99,7 @@ type
     Ref, Value: string;
     X, Y: Double;
     Rotation: Integer;        { 0, 90, 180, 270 }
+    Flipped: Boolean;         { montado embaixo (espelhado em X antes de girar) }
     function LocalToWorld(LX, LY: Double): TMPPoint;
     function PadCount: Integer;
     function PadPos(I: Integer): TMPPoint;
@@ -97,6 +107,12 @@ type
     procedure PadSize(I: Integer; out W, H: Double);
     function Bounds: TMPRect;
     function IsPadOnly: Boolean;
+    function IsSMD(I: Integer): Boolean;
+    function HasSMD: Boolean;
+    { face dos pads SMD do componente }
+    function SMDLayer: TMPLayer;
+    { o pad tem cobre nesta face? (passante: sempre) }
+    function PadOnLayer(I: Integer; L: TMPLayer): Boolean;
   end;
 
   TMPPadRef = record
@@ -137,6 +153,7 @@ type
   TMPDocument = class
   private
     FComponents, FTracks, FAreas, FTexts: TList;
+    FOwnFP: TList;                        { footprints embutidos lidos do arquivo }
     FPadNet: array of array of Integer;   { [comp][pad] -> rede }
     FNetCount: Integer;
     FNetsValid: Boolean;
@@ -196,6 +213,8 @@ type
     procedure FromJSON(const S: string; Resolver: TMPFootprintResolver);
     procedure SaveToFile(const FileName: string);
     procedure LoadFromFile(const FileName: string; Resolver: TMPFootprintResolver);
+    { footprint embutido no arquivo aberto (nil se nao houver) }
+    function OwnFootprint(const AName: string): TMPFootprint;
   end;
 
 function MPPoint(AX, AY: Double): TMPPoint; inline;
@@ -349,6 +368,103 @@ begin
   BodyColor := AColor;
 end;
 
+function TMPFootprint.HasSMD: Boolean;
+var
+  I: Integer;
+begin
+  for I := 0 to High(Pads) do
+    if Pads[I].Drill <= 0 then Exit(True);
+  Result := False;
+end;
+
+procedure TMPFootprint.SaveToJSON(O: TJSONObject);
+var
+  A: TJSONArray;
+  P: TJSONObject;
+  I: Integer;
+begin
+  O.Add('name', Name);
+  O.Add('category', Category);
+  O.Add('description', Description);
+  O.Add('prefix', RefPrefix);
+  O.Add('value', DefaultValue);
+  O.Add('body', Ord(Body));
+  O.Add('body_box', TJSONArray.Create([BodyX1, BodyY1, BodyX2, BodyY2]));
+  O.Add('body_color', Int64(BodyColor));
+  A := TJSONArray.Create;
+  for I := 0 to High(Pads) do
+  begin
+    P := TJSONObject.Create;
+    P.Add('name', Pads[I].Name);
+    P.Add('x', Pads[I].X); P.Add('y', Pads[I].Y);
+    P.Add('shape', Ord(Pads[I].Shape));
+    P.Add('w', Pads[I].W); P.Add('h', Pads[I].H);
+    P.Add('drill', Pads[I].Drill);
+    P.Add('plated', Pads[I].Plated);
+    A.Add(P);
+  end;
+  O.Add('pads', A);
+  A := TJSONArray.Create;
+  for I := 0 to High(Silk) do
+    A.Add(TJSONArray.Create([Ord(Silk[I].Kind), Silk[I].X1, Silk[I].Y1, Silk[I].X2, Silk[I].Y2, Silk[I].R]));
+  O.Add('silk', A);
+end;
+
+procedure TMPFootprint.LoadFromJSON(O: TJSONObject);
+var
+  A, B: TJSONArray;
+  P: TJSONObject;
+  I: Integer;
+begin
+  Name := O.Get('name', '');
+  Category := O.Get('category', 'Meus componentes');
+  Description := O.Get('description', '');
+  RefPrefix := O.Get('prefix', 'U');
+  DefaultValue := O.Get('value', '');
+  Body := TMPBodyKind(EnsureRange(O.Get('body', 0), 0, Ord(High(TMPBodyKind))));
+  B := O.Get('body_box', TJSONArray(nil));
+  if (B <> nil) and (B.Count = 4) then
+  begin
+    BodyX1 := B.Floats[0]; BodyY1 := B.Floats[1]; BodyX2 := B.Floats[2]; BodyY2 := B.Floats[3];
+  end;
+  BodyColor := LongWord(O.Get('body_color', Int64($2D2D2D)));
+  SetLength(Pads, 0);
+  A := O.Get('pads', TJSONArray(nil));
+  if A <> nil then
+    for I := 0 to A.Count - 1 do
+    begin
+      P := A.Objects[I];
+      AddPad(P.Get('name', IntToStr(I + 1)), P.Get('x', 0.0), P.Get('y', 0.0),
+        TMPPadShape(EnsureRange(P.Get('shape', 0), 0, Ord(High(TMPPadShape)))),
+        P.Get('w', 1.8), P.Get('h', 1.8), P.Get('drill', 0.0), P.Get('plated', True));
+    end;
+  SetLength(Silk, 0);
+  A := O.Get('silk', TJSONArray(nil));
+  if A <> nil then
+    for I := 0 to A.Count - 1 do
+    begin
+      B := A.Arrays[I];
+      if B.Count < 6 then Continue;
+      SetLength(Silk, Length(Silk) + 1);
+      with Silk[High(Silk)] do
+      begin
+        Kind := TMPSilkKind(EnsureRange(B.Integers[0], 0, Ord(High(TMPSilkKind))));
+        X1 := B.Floats[1]; Y1 := B.Floats[2]; X2 := B.Floats[3]; Y2 := B.Floats[4]; R := B.Floats[5];
+      end;
+    end;
+end;
+
+procedure TMPFootprint.Assign(Src: TMPFootprint);
+begin
+  Name := Src.Name; Category := Src.Category; Description := Src.Description;
+  RefPrefix := Src.RefPrefix; DefaultValue := Src.DefaultValue;
+  Pads := Copy(Src.Pads); Silk := Copy(Src.Silk);
+  Body := Src.Body;
+  BodyX1 := Src.BodyX1; BodyY1 := Src.BodyY1; BodyX2 := Src.BodyX2; BodyY2 := Src.BodyY2;
+  BodyColor := Src.BodyColor;
+  UserDefined := Src.UserDefined;
+end;
+
 function TMPFootprint.Bounds: TMPRect;
 var
   I: Integer;
@@ -383,6 +499,7 @@ end;
 
 function TMPComponent.LocalToWorld(LX, LY: Double): TMPPoint;
 begin
+  if Flipped then LX := -LX;
   case ((Rotation mod 360) + 360) mod 360 of
     90: Result := MPPoint(X - LY, Y + LX);
     180: Result := MPPoint(X - LX, Y - LY);
@@ -431,6 +548,31 @@ begin
   P := LocalToWorld(B.MaxX, B.MaxY); MPRectInclude(Result, P.X, P.Y);
 end;
 
+function TMPComponent.IsSMD(I: Integer): Boolean;
+begin
+  Result := Footprint.Pads[I].Drill <= 0;
+end;
+
+function TMPComponent.HasSMD: Boolean;
+var
+  I: Integer;
+begin
+  for I := 0 to PadCount - 1 do
+    if IsSMD(I) then Exit(True);
+  Result := False;
+end;
+
+function TMPComponent.SMDLayer: TMPLayer;
+begin
+  if Flipped then Result := mlBottomCopper else Result := mlTopCopper;
+end;
+
+function TMPComponent.PadOnLayer(I: Integer; L: TMPLayer): Boolean;
+begin
+  if L = mlTopSilk then Exit(False);
+  Result := (not IsSMD(I)) or (L = SMDLayer);
+end;
+
 function TMPComponent.IsPadOnly: Boolean;
 begin
   Result := Footprint.Body = bkPad;
@@ -465,16 +607,21 @@ begin
   FTracks := TList.Create;
   FAreas := TList.Create;
   FTexts := TList.Create;
+  FOwnFP := TList.Create;
   Clear;
 end;
 
 destructor TMPDocument.Destroy;
+var
+  I: Integer;
 begin
   Clear;
   FComponents.Free;
   FTracks.Free;
   FAreas.Free;
   FTexts.Free;
+  for I := 0 to FOwnFP.Count - 1 do TObject(FOwnFP[I]).Free;
+  FOwnFP.Free;
   inherited Destroy;
 end;
 
@@ -767,6 +914,7 @@ var
     S: Integer;
     Pp: TMPPoint;
   begin
+    if not Component(C).PadOnLayer(Pd, Tr.Layer) then Exit(False);
     Pp := Component(C).PadPos(Pd);
     Component(C).PadSize(Pd, W, H);
     R := Min(W, H) / 2 + Tr.Width / 2;
@@ -884,6 +1032,7 @@ var
   N: Integer;
 begin
   A := Area(AreaIndex);
+  if not Component(C).PadOnLayer(P, A.Layer) then Exit(False);
   if (A.NetComp = C) and (A.NetPad = P) then Exit(True);
   N := AreaNet(AreaIndex);
   Result := (N >= 0) and (PadNet(C, P) = N);
@@ -971,6 +1120,7 @@ var
   A: TJSONArray;
   I: Integer;
   C: TMPComponent;
+  Used: TList;
 begin
   Root := TJSONObject.Create;
   try
@@ -996,9 +1146,26 @@ begin
       O.Add('x', C.X);
       O.Add('y', C.Y);
       O.Add('rotation', C.Rotation);
+      if C.Flipped then O.Add('flipped', True);
       A.Add(O);
     end;
     Root.Add('components', A);
+    { footprints criados pelo usuario vao junto, para abrir em outra maquina }
+    A := TJSONArray.Create;
+    Used := TList.Create;
+    try
+      for I := 0 to ComponentCount - 1 do
+        if Component(I).Footprint.UserDefined and (Used.IndexOf(Component(I).Footprint) < 0) then
+        begin
+          Used.Add(Component(I).Footprint);
+          O := TJSONObject.Create;
+          Component(I).Footprint.SaveToJSON(O);
+          A.Add(O);
+        end;
+    finally
+      Used.Free;
+    end;
+    Root.Add('footprints', A);
     A := TJSONArray.Create;
     for I := 0 to TrackCount - 1 do
     begin
@@ -1067,6 +1234,19 @@ begin
     Root := TJSONObject(D);
     if Root.Get('format', '') <> 'makepcb' then raise Exception.Create('Arquivo nao e do MakePCB');
     Clear;
+    { footprints embutidos: usados se a biblioteca nao tiver o nome }
+    for I := 0 to FOwnFP.Count - 1 do TObject(FOwnFP[I]).Free;
+    FOwnFP.Clear;
+    A := Root.Get('footprints', TJSONArray(nil));
+    if A <> nil then
+      for I := 0 to A.Count - 1 do
+        if A.Items[I] is TJSONObject then
+        begin
+          FP := TMPFootprint.Create;
+          FP.LoadFromJSON(A.Objects[I]);
+          FP.UserDefined := True;
+          if FP.Name <> '' then FOwnFP.Add(FP) else FP.Free;
+        end;
     O := Root.Get('board', TJSONObject(nil));
     if O <> nil then
     begin
@@ -1084,6 +1264,7 @@ begin
       begin
         O := A.Objects[I];
         FP := Resolver(O.Get('footprint', ''));
+        if FP = nil then FP := OwnFootprint(O.Get('footprint', ''));
         if FP = nil then raise Exception.Create('Footprint desconhecido: ' + O.Get('footprint', ''));
         C := TMPComponent.Create;
         C.Footprint := FP;
@@ -1092,6 +1273,7 @@ begin
         C.X := O.Get('x', 0.0);
         C.Y := O.Get('y', 0.0);
         C.Rotation := O.Get('rotation', 0);
+        C.Flipped := O.Get('flipped', False);
         FComponents.Add(C);
       end;
     A := Root.Get('tracks', TJSONArray(nil));
@@ -1132,6 +1314,15 @@ begin
   finally
     D.Free;
   end;
+end;
+
+function TMPDocument.OwnFootprint(const AName: string): TMPFootprint;
+var
+  I: Integer;
+begin
+  for I := 0 to FOwnFP.Count - 1 do
+    if SameText(TMPFootprint(FOwnFP[I]).Name, AName) then Exit(TMPFootprint(FOwnFP[I]));
+  Result := nil;
 end;
 
 procedure TMPDocument.SaveToFile(const FileName: string);

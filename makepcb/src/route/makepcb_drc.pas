@@ -228,6 +228,9 @@ begin
         begin
           if (K = I) and (L <= J) then Continue;
           if not Different(Nets[I][J], Nets[K][L]) then Continue;
+          { SMD em faces opostas nao se tocam }
+          if not ((CA.PadOnLayer(J, mlTopCopper) and CB.PadOnLayer(L, mlTopCopper)) or
+                  (CA.PadOnLayer(J, mlBottomCopper) and CB.PadOnLayer(L, mlBottomCopper))) then Continue;
           D := PolyPolyDist(Outlines[I][J], Outlines[K][L]);
           if D < Clr - 1e-6 then
           begin
@@ -253,6 +256,7 @@ begin
         for J := 0 to Doc.Component(I).PadCount - 1 do
         begin
           if not Different(NetA, Nets[I][J]) then Continue;
+          if not Doc.Component(I).PadOnLayer(J, TA.Layer) then Continue;
           D := SegPolyDist(TA.Points[S - 1], TA.Points[S], Outlines[I][J]) - TA.Width / 2;
           if D < Clr - 1e-6 then
           begin

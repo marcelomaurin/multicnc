@@ -56,6 +56,8 @@ function MPRotationCenter(Doc: TMPDocument; Sel: TMPSelection; Grid: Double): TM
 { giro em torno de um centro fixo: 4 giros voltam ao inicio }
 procedure MPRotateSelectionAbout(Doc: TMPDocument; Sel: TMPSelection; CX, CY: Double);
 procedure MPDeleteSelection(Doc: TMPDocument; Sel: TMPSelection);
+{ vira os componentes selecionados (montagem em cima/embaixo) }
+procedure MPFlipSelection(Doc: TMPDocument; Sel: TMPSelection);
 function MPCopySelection(Doc: TMPDocument; Sel: TMPSelection): string;
 function MPIsClip(const S: string): Boolean;
 { cola deslocado de (DX, DY); a selecao passa a ser os itens colados }
@@ -366,6 +368,16 @@ begin
   Doc.Changed;
 end;
 
+procedure MPFlipSelection(Doc: TMPDocument; Sel: TMPSelection);
+var
+  I: Integer;
+begin
+  for I := 0 to Sel.Count - 1 do
+    if Sel[I].Kind = ikComponent then
+      with Doc.Component(Sel[I].Index) do Flipped := not Flipped;
+  Doc.Changed;
+end;
+
 { ---------------- area de transferencia ---------------- }
 
 function PointsJSON(const P: TMPPoints): TJSONArray;
@@ -419,6 +431,7 @@ begin
         O.Add('value', C.Value);
         O.Add('x', C.X); O.Add('y', C.Y);
         O.Add('rot', C.Rotation);
+        O.Add('flipped', C.Flipped);
         Comps.Add(O);
         LocalOf[I] := N; Inc(N);
       end;
@@ -510,6 +523,7 @@ begin
       if FP = nil then Continue;
       C := Doc.AddComponent(FP, O.Floats['x'] + DX, O.Floats['y'] + DY);
       C.Rotation := O.Integers['rot'];
+      C.Flipped := O.Get('flipped', False);
       C.Value := O.Strings['value'];
       Ref := O.Strings['ref'];
       { referencia nova so se ja existir }

@@ -9,7 +9,7 @@ program test_makepcb_ui;
 uses
   {$IFDEF UNIX}cthreads,{$ENDIF}
   Interfaces, Classes, SysUtils, Forms, Process, makepcb_main, makepcb_render,
-  makepcb_route, makepcb_model, makepcb_select;
+  makepcb_route, makepcb_model, makepcb_select, makepcb_library, makepcb_fpeditor;
 
 var
   F: TMakePCBForm;
@@ -20,6 +20,8 @@ var
   Files: TStringList;
   Outp: string;
   N: Integer;
+  C, C2: TMPComponent;
+  Ed: TMPFootprintEditor;
 
 procedure Check(Ok: Boolean; const Msg: string);
 begin
@@ -111,6 +113,37 @@ begin
   F.EditorControl.Undo;
   Pump;
   F.EditorControl.Modified := False;
+  { SMD numa placa de face simples: vai embaixo, roteia e aparece na arte }
+  F.Document.BoardH := 50.8;
+  C := F.Document.AddComponent(MakePCBLibrary.Find('SOIC-8'), 20.32, 44.45);
+  C.Flipped := True;
+  C2 := F.Document.AddComponent(MakePCBLibrary.Find('0805'), 33.02, 44.45);
+  C2.Flipped := True;
+  F.Document.AddWire(F.Document.IndexOfComponent(C), 4, F.Document.IndexOfComponent(C2), 0);
+  F.EditorControl.Changed;
+  F.EditorControl.ZoomToBoard;
+  F.AutoRoute;
+  Pump;
+  Check(Length(MPPendingConnections(F.Document)) = 0, 'roteia o SMD: ' +
+    IntToStr(Length(MPPendingConnections(F.Document))));
+  F.ShowStep(3);
+  Shot('09-smd');
+  F.ShowView(vmArtwork);
+  Shot('10-smd-arte');
+  F.ShowView(vmNormal);
+  { editor de componentes a partir do SOIC-8 }
+  Ed := TMPFootprintEditor.CreateFor(nil, MakePCBLibrary.Find('SOIC-8'));
+  try
+    Ed.Show;
+    Pump;
+    Check(Length(Ed.Footprint.Pads) = 8, 'editor carrega os pads do modelo');
+    Check(Ed.Footprint.UserDefined, 'copia vira componente do usuario');
+    Check(Pos('(meu)', Ed.Footprint.Name) > 0, 'nome da copia');
+    Shot('11-editor-componente');
+    Ed.Close;
+  finally
+    Ed.Free;
+  end;
   Writeln('PASS: ', Checks, ' checks (MakePCB UI)');
   F.Free;
 end.

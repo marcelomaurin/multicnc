@@ -106,6 +106,8 @@ type
     procedure Select(Kind: TMPSelKind; Index: Integer);
     procedure DeleteSelection;
     procedure RotateSelection;
+    { vira os componentes selecionados (em cima/embaixo) }
+    procedure FlipSelection;
     procedure CancelOperation;
     procedure SetIssues(const AIssues: TMPDrcIssues);
     procedure SetPlaceFootprint(FP: TMPFootprint);
@@ -255,6 +257,8 @@ begin
   FGhost := TMPComponent.Create;
   FGhost.Footprint := FPlaceFP;
   FGhost.Rotation := Rot;
+  { SMD em face simples vai do lado do cobre (embaixo, espelhado) }
+  FGhost.Flipped := FPlaceFP.HasSMD and (FDoc <> nil) and not FDoc.DoubleSided;
   FGhost.X := FMouse.X; FGhost.Y := FMouse.Y;
 end;
 
@@ -643,6 +647,28 @@ begin
   if Assigned(FOnChange) then FOnChange(Self);
 end;
 
+procedure TMPEditor.FlipSelection;
+var
+  I: Integer;
+begin
+  if (FTool = etPlace) and (FGhost <> nil) then
+  begin
+    FGhost.Flipped := not FGhost.Flipped;
+    Invalidate;
+    Exit;
+  end;
+  if (FDoc = nil) or (FSel.CountOf(ikComponent) = 0) then Exit;
+  Snapshot;
+  MPFlipSelection(FDoc, FSel);
+  DoChanged;
+  I := 0;
+  while (I < FSel.Count - 1) and (FSel[I].Kind <> ikComponent) do Inc(I);
+  if FDoc.Component(FSel[I].Index).Flipped then
+    Status('Componente embaixo (lado da solda), espelhado.')
+  else
+    Status('Componente em cima (lado dos componentes).');
+end;
+
 procedure TMPEditor.CancelOperation;
 begin
   SetLength(FPoints, 0);
@@ -795,7 +821,11 @@ begin
         Snapshot;
         Q := Snap(P);
         C := FDoc.AddComponent(FPlaceFP, Q.X, Q.Y);
-        if FGhost <> nil then C.Rotation := FGhost.Rotation;
+        if FGhost <> nil then
+        begin
+          C.Rotation := FGhost.Rotation;
+          C.Flipped := FGhost.Flipped;
+        end;
         DoChanged;
         Select(selComponent, FDoc.ComponentCount - 1);
         Status(C.Ref + ' colocado. Clique para outro; Esc termina.');
@@ -1003,6 +1033,7 @@ begin
         Key := 0;
       end;
     VK_R: begin RotateSelection; Key := 0; end;
+    VK_F: if Shift = [] then begin FlipSelection; Key := 0; end;
     VK_BACK:
       if Length(FPoints) > 0 then
       begin
