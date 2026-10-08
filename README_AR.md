@@ -25,6 +25,7 @@
 - **MultiSlicer:** التحضير للطباعة ثلاثية الأبعاد
 - **MultiPCB / MakePCB / LaserPCB:** تصميم وتصنيع لوحات PCB (MakePCB: تصميم اللوحة من الصفر بأسلوب PCB Wizard وتوليد Gerber + Excellon لـ LaserPCB)
 - **RouterPCB:** تفريز لوحات PCB على CNC Router (عزل المسارات بلقمة V، الثقب، قص حواف اللوحة مع جسور تثبيت، تسوية بالمجس) انطلاقاً من مجلد Gerber + Excellon الخاص بـ MakePCB. انظر [routerpcb/README.md](routerpcb/README.md)
+- **MakeRouter** *(قيد التطوير)*: تصميم وتشغيل القطع الخشبية على CNC Router (رسم، نقش بارز، مسارات، محاكاة) بأسلوب Aspire؛ G-code بنقطة صفر افتراضية يحددها MultiCNC. انظر [makerouter/README.md](makerouter/README.md)
 - **MultiAssembly:** دمج التجميع الميكانيكي والإلكتروني
 - **MultiPhysics:** محاكاة فيزيائية متعددة المجالات
 

@@ -15,7 +15,7 @@ Antes de escrever codigo, identifique qual ferramenta e dona da responsabilidade
 | MultiPCB | Esquematico, PCB, netlist, roteamento e arquivos de fabricacao de placas |
 | MakePCB | Placa do zero estilo PCB Wizard: esquema, componentes (furados e SMD), trilhas, autoroteamento, DRC, BOM, impressao 1:1 e Gerber + Excellon para o LaserPCB (pasta `makepcb/`) |
 | RouterPCB | Fresagem de PCB na CNC Router: isolacao com fresa V, furacao por broca, recorte com pontes e nivelamento por sondagem, a partir do Gerber + Excellon (pasta `routerpcb/`, andamento em `routerpcb/docs/TAREFA.md`) |
-| MakeRouter | (em analise) Projeto e usinagem de madeira na CNC Router: desenho, relevo, percursos, simulacao e G-code com zero virtual (pasta `makerouter/`, decisoes em `makerouter/docs/TAREFA.md`) |
+| MakeRouter | (em analise; tela provisoria na suite) Projeto e usinagem de madeira na CNC Router: desenho, relevo, percursos, simulacao e G-code com zero virtual (pasta `makerouter/`, decisoes em `makerouter/docs/TAREFA.md`) |
 | MultiAssembly | Montagem eletromecanica: une pecas, motores, placas, drivers, fontes, sensores e conexoes |
 | MultiCAM | Planejamento de usinagem CNC Router, toolpaths, simulacao de usinagem e G-code |
 | MultiSlicer | Fatiamento e posicionamento para impressao 3D |
@@ -31,7 +31,7 @@ MultiCAD -> MultiAssembly -> MultiCAM -> MultiCNC
 MultiPCB -> MultiAssembly e/ou LaserPCB/MultiCAM -> MultiCNC
 MakePCB -> (pasta Gerber + Excellon) -> LaserPCB -> MultiCNC (CNC Laser)
 MakePCB -> (pasta Gerber + Excellon) -> RouterPCB -> MultiCNC (CNC Router)
-MakeRouter (desenho + percursos) -> MultiCNC (CNC Router)   [em analise]
+MakeRouter (desenho + percursos) -> MultiCNC (CNC Router)   [em desenvolvimento]
 MultiAssembly -> MultiPhysics (simulacao)
 MultiCAD/STL -> MultiSlicer -> MultiCNC
 Imagem/Vetor -> LaserArt -> MultiCNC

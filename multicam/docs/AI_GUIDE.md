@@ -23,6 +23,9 @@ A simulacao atual inclui cinemática, eletronica virtual, dinamica simplificada 
 ## Integracao
 MultiCAD fornece geometria. MultiAssembly pode fornecer perfil eletromecanico da maquina. MultiCAM produz o trabalho. MultiCNC e responsavel por executar fisicamente.
 
+## Limite com o MakeRouter
+Pecas de madeira, letreiros, moveis e entalhe (desenho + relevo + percursos) ficam no MakeRouter (`makerouter/`, em desenvolvimento). Proposta D1 em `makerouter/docs/TAREFA.md`: MultiCAM fica com a simulacao da maquina e o CAM de pecas mecanicas do MultiCAD; o que for util vira biblioteca comum, sem duplicar.
+
 ## Nao pertence aqui
 Abrir porta serial, controlar GRBL/Marlin diretamente ou substituir MultiCNC.
 

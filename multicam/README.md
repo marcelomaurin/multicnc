@@ -15,6 +15,9 @@ Modelo/contorno -> stock -> ferramenta -> operações -> passes Z -> toolpath ->
 - 2.5D por camadas
 - relevo 3D (evolução)
 
+## Relação com o MakeRouter
+Peças de madeira, letreiros e móveis (desenho, relevo e percursos no mesmo programa) ficam no **MakeRouter** (`makerouter/`, em desenvolvimento). Ver `makerouter/docs/TAREFA.md`, decisão D1.
+
 ## Segurança
 MultiCAM prepara trajetórias; MultiCNC controla a máquina. Dimensões, origem, ferramenta, profundidades, spindle e feeds devem ser conferidos antes da execução física.
 

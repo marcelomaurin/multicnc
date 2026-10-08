@@ -5,7 +5,9 @@ Projeto e usinagem de pecas de madeira (e acrilico/MDF/compensado) na CNC Router
 2D, relevo (mapa de alturas), percursos (perfil, bolsao, furacao, gravacao, V-Carve, 3D),
 simulacao e G-code para o MultiCNC.
 
-Estado: em analise. Nenhum codigo ainda. Leia `TAREFA.md` (decisoes D1-D6) antes de comecar.
+Estado: em analise. So existe a tela provisoria `src/app/makerouter_main.pas` (etapas
+descritivas, botoes desabilitados) registrada na suite como `stiMakeRouter`. Leia `TAREFA.md`
+(decisoes D1-D6) antes de comecar; a interface real substitui a provisoria na fase 4.
 
 ## Regras
 1. Projeto em mm, origem no canto inferior esquerdo do material, Z = 0 no topo do material.
