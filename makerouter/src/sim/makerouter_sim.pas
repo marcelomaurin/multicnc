@@ -160,7 +160,7 @@ begin
 end;
 
 function TMRStock.Render(AWidth, AHeight: Integer; WoodIndex: Integer): TMRPixels;
-var X, Y, C, R: Integer; Sx, Sy, Zc, Zx, Zy, NX, NY, NZ, L, Lam, Depth, Grain: Double;
+var X, Y, C, R, K, MaxK, Stp: Integer; Sx, Sy, Zc, Zx, Zy, NX, NY, NZ, L, Lam, Depth, Grain, Sh: Double;
   Light, Dark, Col: LongWord;
 begin
   Result := nil;
@@ -169,6 +169,9 @@ begin
   WoodIndex := EnsureRange(WoodIndex, 0, High(MR_WOODS));
   Light := MR_WOOD_LIGHT[WoodIndex]; Dark := MR_WOOD_DARK[WoodIndex];
   Sx := FCols / AWidth; Sy := FRows / AHeight;
+  { sombra: procura ate 10 mm na direcao da luz, em passos de ~0,5 mm }
+  MaxK := Max(1, Round(Min(10, FT) / FCell));
+  Stp := Max(1, Round(0.5 / FCell));
   for Y := 0 to AHeight - 1 do
   begin
     R := EnsureRange(Trunc((AHeight - 1 - Y) * Sy), 0, FRows - 1);  { Y para cima }
@@ -185,9 +188,22 @@ begin
       Lam := (NX * -0.45 + NY * 0.55 + NZ * 0.70) / L;
       Depth := EnsureRange(-Zc / FT, 0, 1);
       Grain := 0.06 * Sin((R * FCell) * 0.9 + Sin((C * FCell) * 0.05) * 3);
-      Col := Mix(Light, Dark, Depth * 0.8 + Grain + 0.06);
+      Col := Mix(Light, Dark, Depth * 1.6 + Grain + 0.06);
       if Zc < -FT - 0.01 then Col := $3C3CC8;   { abaixo da base: vermelho }
-      Result[Y * AWidth + X] := Shade(Col, 0.55 + 0.6 * Max(0, Lam));
+      { sombra projetada pela luz (vem de cima/esquerda) }
+      Sh := 1;
+      K := Stp;
+      while K <= MaxK do
+      begin
+        if (C - K < 0) or (R + K >= FRows) then Break;
+        if Self.Z[(R + K) * FCols + C - K] > Zc + K * FCell * 1.0 + 0.2 then
+        begin
+          Sh := 0.7;
+          Break;
+        end;
+        Inc(K, Stp);
+      end;
+      Result[Y * AWidth + X] := Shade(Col, (0.55 + 0.6 * Max(0, Lam)) * Sh);
     end;
   end;
 end;

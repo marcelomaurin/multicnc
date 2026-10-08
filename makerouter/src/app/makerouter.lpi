@@ -40,7 +40,7 @@
    <Filename Value="makerouter" />
   </Target>
   <SearchPaths>
-   <OtherUnitFiles Value="../../../src/shared;../../../multisuite/src/core" />
+   <OtherUnitFiles Value="../core;../geom;../cam;../sim;../export;../ui;../../../laserpcb/src/geom;../../../makepcb/src/core;../../../src/shared;../../../src/shared/clipper2;../../../multisuite/src/core" />
    <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
   </SearchPaths>
   <Parsing>

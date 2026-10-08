@@ -8,7 +8,7 @@ uses Classes, SysUtils, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls,
   Dialogs, Graphics, Spin, Math, StrUtils, LazUTF8, LCLType, multisuite_numfmt,
   multicnc_types, multicnc_session, multicnc_gcode_analyzer, multicnc_laser_config,
   multicnc_printer_profiles, multicnc_router_profiles, ailistserialdevices, multisuite_icons,
-  multisuite_controls;
+  multisuite_controls, multisuite_gcode_writer;
 
 type
   TMainForm = class(TForm)
@@ -1947,7 +1947,9 @@ end;
 
 { Abre um programa vindo da suite (LaserArt / LaserPCB via --file).
   O cabecalho define a maquina:
-  - "; RouterPCB -> MultiCNC (CNC Router)": fresagem de PCB do RouterPCB -> CNC Router;
+  - "; <Ferramenta> -> MultiCNC (CNC Router)" (RouterPCB, MakeRouter, furacao do
+    LaserPCB) -> CNC Router. Se houver as linhas "; MS-..." do contrato
+    (docs/CONTRATO_GCODE.md), o log mostra o ponto de zero, o material e a caixa;
   - "; LaserPCB -> MultiCNC (CNC Router)": furacao do LaserPCB -> CNC Router;
   - "; LaserArt" ou "; LaserPCB": laser. A potencia (S) e as passadas ja
     estao no G-code, entao Pass count = 1 e override de velocidade desligado.
@@ -1959,16 +1961,20 @@ var
   SL: TStringList;
   I: Integer;
   Origin: TSuiteOrigin;
+  HasContract: Boolean;
+  H: TSuiteGCodeHeader;
+  HB: TSuiteBounds;
 begin
+  HasContract := False;
   if (AFileName = '') or not FileExists(AFileName) then Exit;
   Origin := soNone;
   SL := TStringList.Create;
   try
     try
       SL.LoadFromFile(AFileName);
+      HasContract := SuiteParseHeader(SL, H, HB);
       for I := 0 to Min(SL.Count, 40) - 1 do
-        if (Pos('; RouterPCB -> MultiCNC (CNC Router)', SL[I]) = 1) or
-           (Pos('; LaserPCB -> MultiCNC (CNC Router)', SL[I]) = 1) then
+        if (Pos(';', SL[I]) = 1) and (Pos(' -> MultiCNC (CNC Router)', SL[I]) > 0) then
         begin
           Origin := soRouter;
           Break;
@@ -1993,7 +1999,20 @@ begin
         MachineType.ItemIndex := 0;
         SelectionChanged(MachineType);
       end;
-      Log('Programa de PCB (RouterPCB/LaserPCB): maquina CNC Router. Zere X/Y no canto da placa e Z na superficie do cobre.');
+      if HasContract then
+      begin
+        Log(Format('Programa do %s: maquina CNC Router. Zero XY=%s Z=%s (%s).',
+          [H.Origin, H.DatumXY, H.DatumZ,
+           IfThen(H.DatumZ = 'TABLE', 'Z na mesa', 'Z no topo do material')], InvariantFS));
+        if (H.StockW > 0) and (H.StockH > 0) then
+          Log(Format('Material %.1f x %.1f x %.1f mm. Leve a fresa ao ponto de zero, use Zero Workpiece e confira com Frame (Test).',
+            [H.StockW, H.StockH, H.StockT], InvariantFS));
+        if HB.Valid then
+          Log(Format('Caixa do trabalho (com a fresa): X %.1f..%.1f  Y %.1f..%.1f  Z %.1f..%.1f mm.',
+            [HB.X0, HB.X1, HB.Y0, HB.Y1, HB.Z0, HB.Z1], InvariantFS));
+      end
+      else
+        Log('Programa de PCB (RouterPCB/LaserPCB): maquina CNC Router. Zere X/Y no canto da placa e Z na superficie do cobre.');
     end
     else
     begin
