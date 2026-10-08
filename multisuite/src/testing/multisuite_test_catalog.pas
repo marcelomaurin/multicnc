@@ -44,6 +44,7 @@ function DefaultTestCatalog:TTestDefinitions;begin SetLength(Result,0);
  Add(Result,'LaserPCB','Job laser','laserpcb/tests/test_job.lpr','laserpcb/tests/test_job');Add(Result,'LaserPCB','Layout','laserpcb/tests/test_layout.lpr','laserpcb/tests/test_layout');Add(Result,'LaserPCB','Alinhamento','laserpcb/tests/test_alignment.lpr','laserpcb/tests/test_alignment');Add(Result,'LaserArt','Calibracao','laserart/tests/test_calibration_matrix.lpr','laserart/tests/test_calibration_matrix');Add(Result,'LaserArt','Saida G-code, SVG e imagem','laserart/tests/test_laserart_output.lpr','laserart/tests/test_laserart_output');
  Add(Result,'LaserPCB','SVG, Gerber, Excellon e CAM','laserpcb/tests/test_pipeline.lpr','laserpcb/tests/test_pipeline');Add(Result,'LaserPCB','Furacao (CNC Router e marcacao)','laserpcb/tests/test_drill.lpr','laserpcb/tests/test_drill');
  Add(Result,'LaserPCB','Interface nativa','laserpcb/tests/test_ui.lpr','laserpcb/tests/test_ui');
+ Add(Result,'RouterPCB','Isolacao, furacao, recorte, nivelamento e G-code','routerpcb/tests/test_routerpcb.lpr','routerpcb/tests/test_routerpcb');Add(Result,'RouterPCB','Interface nativa','routerpcb/tests/test_routerpcb_ui.lpr','routerpcb/tests/test_routerpcb_ui');
  Add(Result,'MultiSuite','Registro','multisuite/tests/test_registry.lpr','multisuite/tests/test_registry');Add(Result,'MultiSuite','Workspace','multisuite/tests/test_workspace.lpr','multisuite/tests/test_workspace');
 end;
 end.

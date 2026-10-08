@@ -16,7 +16,7 @@
 | 1 Nucleo | concluida (08/10) | `routerpcb_types`, `routerpcb_project`, `cam/routerpcb_isolation`, `cam/routerpcb_drillmap`, `cam/routerpcb_cutout`; `tests/test_routerpcb.lpr`: 96 checks passando (Linux). |
 | 2 Nivelamento e G-code | concluida (08/10) | `level/routerpcb_heightmap`, `export/routerpcb_gcode`. 246 checks: regras do G-code, validador `TSafetyValidator` e analisador do MultiCNC aceitam todas as linhas. Exemplo 555: isolacao 1310 mm (~9 min), 2 brocas, recorte com 4 pontes e 3 furos fresados. |
 | 3 Interface | concluida (08/10) | `ui/routerpcb_preview`, `app/routerpcb_main` (6 etapas), icone `sikRouterPCB`, `routerpcb.lpi`. `tests/test_routerpcb_ui.lpr`: 22 checks no Linux (GTK2) e no Win64 (Wine). `bin/routerpcb.exe` (x64). Capturas em `imgs/Routerpcb01..04.png`. |
-| 4 Integracao na suite | pendente | |
+| 4 Integracao na suite | concluida (08/10) | registro (`stiRouterPCB`, 11 ferramentas), icone, bandeja (grupo Preparar), MultiSuite (secao Preparar), catalogo da Central de Testes e `routerpcb-ci.yml`. Bandeja conferida na tela e `bin\multisuite_tray.exe` (x64) atualizado. |
 | 5 MakePCB / MultiCNC | pendente | |
 | 6 Entrega | pendente | |
 
@@ -134,19 +134,20 @@ Regras do projeto, que valem para todas as fases:
 
 ## Fase 4: integração na suíte (≈ 1 h)
 
-- [ ] `multisuite/src/core/multisuite_types.pas`: acrescentar `stiRouterPCB` **no fim** do enum,
+- [x] `multisuite/src/core/multisuite_types.pas`: acrescentar `stiRouterPCB` **no fim** do enum,
       porque o `.msuite` grava ordinais.
-- [ ] `multisuite_registry.pas`: `Add(stiRouterPCB,'RouterPCB','Fresagem de PCB na CNC Router','routerpcb','routerpcb/src/app/routerpcb.lpi')`.
-- [ ] `multisuite/tests/test_registry.lpr`: Count = 11 e `Find(stiRouterPCB)`.
-- [ ] `multisuite_icons.pas`: `sikRouterPCB` no fim do enum (ord 64) e desenho de placa + fresa.
-- [ ] Bandeja (`multisuite_tray_form.pas`):
+- [x] `multisuite_registry.pas`: `Add(stiRouterPCB,'RouterPCB','Fresagem de PCB na CNC Router','routerpcb','routerpcb/src/app/routerpcb.lpi')`.
+- [x] `multisuite/tests/test_registry.lpr`: Count = 11 e `Find(stiRouterPCB)` (passa: "tools=11").
+- [x] `multisuite_icons.pas`: `sikRouterPCB` no fim do enum (ord 64) e desenho de fresa sobre a placa.
+- [x] Bandeja (`multisuite_tray_form.pas`):
   - `ToolIcon` → `sikRouterPCB`;
-  - `ToolAccent`, por exemplo `C(217,119,6)`;
+  - `ToolAccent` = `C(180,83,9)` (o `C(217,119,6)` ja e do MultiCAM);
   - `AddGroup('PREPARAR', [stiMultiCAM, stiRouterPCB, stiMultiSlicer])`.
-- [ ] `multisuite/src/app/multisuite_main.pas` (linha ~388): incluir na categoria certa.
-- [ ] `multisuite/src/testing/multisuite_test_catalog.pas`: os dois testes do RouterPCB.
-- [ ] `.github/workflows/routerpcb-ci.yml`, copiado do `makepcb-ci.yml`.
-- [ ] Commit: "Suite: RouterPCB no registro, bandeja, catalogo de testes e CI".
+- [x] `multisuite/src/app/multisuite_main.pas` (linha ~388): na secao Preparar, ao lado do MultiCAM.
+- [x] `multisuite/src/testing/multisuite_test_catalog.pas`: os dois testes do RouterPCB.
+- [x] `.github/workflows/routerpcb-ci.yml`, copiado do `makepcb-ci.yml`.
+- [x] Conferir a bandeja na tela (`imgs/Routerpcb_bandeja.png`) e atualizar `bin\multisuite_tray.exe` (x64).
+- [x] Commit: "Suite: RouterPCB no registro, bandeja, catalogo de testes e CI".
 
 ## Fase 5: ligações com MakePCB e MultiCNC (≈ 45 min)
 

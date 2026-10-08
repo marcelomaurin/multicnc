@@ -19,7 +19,7 @@ A tela principal foi reorganizada como um hub visual. O menu lateral permanece d
 - **Visao geral:** apresenta a proposta da suite, fluxo de fabricacao e atalhos.
 - **Projeto atual:** mostra artefatos e o estado das etapas do workspace.
 - **Projetar:** MultiCAD, MultiPCB, MakePCB, LaserPCB e LaserArt.
-- **Preparar:** MultiCAM e MultiSlicer.
+- **Preparar:** MultiCAM, RouterPCB e MultiSlicer.
 - **Simular:** MultiPhysics e MultiAssembly.
 - **Fabricar:** MultiCNC.
 - **Ferramentas:** acesso direto a todos os modulos e a Central de Testes.
@@ -60,7 +60,7 @@ O formato `.msuite` persiste o contexto global sem substituir os formatos de cad
 - **MultiCAM:** CAM e simulacao CNC Router.
 - **MultiSlicer:** fatiamento para impressao 3D.
 - **LaserPCB:** preparacao de PCB para laser.
-- **RouterPCB** (planejado): fresagem de PCB na CNC Router a partir do Gerber + Excellon do MakePCB (`routerpcb/docs/TAREFA.md`). Entrara no grupo Preparar.
+- **RouterPCB:** fresagem de PCB na CNC Router (isolacao, furacao, recorte e nivelamento) a partir do Gerber + Excellon do MakePCB. Grupo Preparar.
 - **LaserArt:** imagem, vetor e arte para laser.
 - **MultiCNC:** controle e execucao da maquina fisica.
 

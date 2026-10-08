@@ -387,7 +387,7 @@ begin
     SEC_DESIGN:
       Result := AID in [stiMultiCAD, stiMultiPCB, stiMakePCB, stiLaserPCB, stiLaserArt];
     SEC_PREPARE:
-      Result := AID in [stiMultiCAM, stiMultiSlicer];
+      Result := AID in [stiMultiCAM, stiRouterPCB, stiMultiSlicer];
     SEC_SIMULATE:
       Result := AID in [stiMultiPhysics, stiMultiAssembly];
     SEC_MANUFACTURE:
