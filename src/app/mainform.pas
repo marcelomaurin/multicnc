@@ -7,7 +7,7 @@ interface
 uses Classes, SysUtils, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls,
   Dialogs, Graphics, Spin, Math, StrUtils, LazUTF8, LCLType, multisuite_numfmt,
   multicnc_types, multicnc_session, multicnc_gcode_analyzer, multicnc_laser_config,
-  multicnc_printer_profiles, ailistserialdevices, multisuite_icons,
+  multicnc_printer_profiles, multicnc_router_profiles, ailistserialdevices, multisuite_icons,
   multisuite_controls;
 
 type
@@ -50,6 +50,10 @@ type
     PrinterBrandCombo, PrinterModelCombo: TComboBox;
     PrinterSpecsLabel: TLabel;
     GbPrinterTemps: TGroupBox;
+    GbRouterProfile: TGroupBox;
+    RouterBrandCombo, RouterModelCombo: TComboBox;
+    RouterSpecsLabel: TLabel;
+    SpRouterX, SpRouterY, SpRouterZ: TFloatSpinEdit;
     SpConfigHotendTemp, SpConfigBedTemp: TSpinEdit;
     BtnApplyTemps, BtnCooldownTemps: TSuiteButton;
     LblConfigRealTemps: TLabel;
@@ -118,6 +122,10 @@ type
     procedure PrinterBrandChanged(Sender: TObject);
     procedure PrinterModelChanged(Sender: TObject);
     procedure TempConfigChanged(Sender: TObject);
+    procedure RouterBrandChanged(Sender: TObject);
+    procedure RouterModelChanged(Sender: TObject);
+    procedure RouterTravelChanged(Sender: TObject);
+    function NewTravelSpin(AParent: TWinControl; AIndex: Integer; const AHint: string): TFloatSpinEdit;
     procedure ApplyTempsClick(Sender: TObject);
     procedure CooldownTempsClick(Sender: TObject);
   public
@@ -670,6 +678,52 @@ begin
 
   CommunicationChanged(Self);
 
+  { CNC Router Brand & Model Profile Group }
+  GbRouterProfile := TGroupBox.Create(Self);
+  GbRouterProfile.Parent := ConfigScrollBox;
+  GbRouterProfile.Caption := 'CNC Router Brand && Model Profile';
+  GbRouterProfile.SetBounds(15, 120, 715, 290);
+  GbRouterProfile.Visible := False;
+
+  LabelAt(GbRouterProfile, 'Brand:', 15, 8);
+  RouterBrandCombo := TComboBox.Create(Self);
+  RouterBrandCombo.Parent := GbRouterProfile;
+  RouterBrandCombo.SetBounds(15, 30, 220, 30);
+  RouterBrandCombo.Style := csDropDownList;
+  RouterBrandCombo.OnChange := @RouterBrandChanged;
+
+  LabelAt(GbRouterProfile, 'Model:', 250, 8);
+  RouterModelCombo := TComboBox.Create(Self);
+  RouterModelCombo.Parent := GbRouterProfile;
+  RouterModelCombo.SetBounds(250, 30, 300, 30);
+  RouterModelCombo.Style := csDropDownList;
+  RouterModelCombo.OnChange := @RouterModelChanged;
+
+  LabelAt(GbRouterProfile, 'Machine travel X / Y / Z (mm) - filled by the profile, adjust to your machine:', 15, 68);
+  SpRouterX := NewTravelSpin(GbRouterProfile, 0, 'X travel (mm)');
+  SpRouterY := NewTravelSpin(GbRouterProfile, 1, 'Y travel (mm)');
+  SpRouterZ := NewTravelSpin(GbRouterProfile, 2, 'Z travel (mm)');
+
+  LabelAt(GbRouterProfile, 'Standard Factory Specifications:', 15, 130);
+  RouterSpecsLabel := TLabel.Create(Self);
+  RouterSpecsLabel.Parent := GbRouterProfile;
+  RouterSpecsLabel.SetBounds(15, 154, 680, 110);
+  RouterSpecsLabel.AutoSize := False;
+  RouterSpecsLabel.ShowAccelChar := False;
+  RouterSpecsLabel.WordWrap := True;
+  RouterSpecsLabel.Font.Name := 'Consolas';
+  RouterSpecsLabel.Font.Size := 9;
+  RouterSpecsLabel.Font.Color := $00442200;
+
+  GetRouterBrands(RouterBrandCombo.Items);
+  if RouterBrandCombo.Items.Count > 0 then
+  begin
+    RouterBrandCombo.ItemIndex := 0;
+    GetRouterModels(RouterBrandCombo.Text, RouterModelCombo.Items);
+    if RouterModelCombo.Items.Count > 0 then
+      RouterModelCombo.ItemIndex := 0;
+  end;
+
   { 3D Printer Profile & Specifications Group }
   GbPrinterProfile := TGroupBox.Create(Self);
   GbPrinterProfile.Parent := ConfigScrollBox;
@@ -1114,6 +1168,73 @@ begin
   RefreshSerialPorts;
 end;
 
+function TMainForm.NewTravelSpin(AParent: TWinControl; AIndex: Integer;
+  const AHint: string): TFloatSpinEdit;
+begin
+  Result := TFloatSpinEdit.Create(Self);
+  Result.Parent := AParent;
+  Result.SetBounds(15 + AIndex * 130, 92, 120, 28);
+  Result.DecimalPlaces := 1;
+  Result.Increment := 1;
+  Result.MinValue := 1;
+  Result.MaxValue := 3000;
+  Result.Hint := AHint + ': useful travel that limits jog and moves.';
+  Result.ShowHint := True;
+  Result.OnChange := @RouterTravelChanged;
+end;
+
+procedure TMainForm.RouterBrandChanged(Sender: TObject);
+begin
+  GetRouterModels(RouterBrandCombo.Text, RouterModelCombo.Items);
+  if RouterModelCombo.Items.Count > 0 then
+  begin
+    RouterModelCombo.ItemIndex := 0;
+    RouterModelChanged(nil);
+  end
+  else
+    RouterSpecsLabel.Caption := 'No models available for selected brand.';
+end;
+
+procedure TMainForm.RouterModelChanged(Sender: TObject);
+var
+  Prof: TRouterProfile;
+begin
+  if not FindRouterProfile(RouterBrandCombo.Text, RouterModelCombo.Text, Prof) then
+  begin
+    RouterSpecsLabel.Caption := 'Profile not found.';
+    Exit;
+  end;
+  BaudCombo.Text := IntToStr(Prof.BaudRate);
+  { Preenche o curso sem disparar tres atualizacoes parciais do envelope. }
+  SpRouterX.OnChange := nil; SpRouterY.OnChange := nil; SpRouterZ.OnChange := nil;
+  try
+    SpRouterX.Value := Prof.WorkX;
+    SpRouterY.Value := Prof.WorkY;
+    SpRouterZ.Value := Prof.WorkZ;
+  finally
+    SpRouterX.OnChange := @RouterTravelChanged;
+    SpRouterY.OnChange := @RouterTravelChanged;
+    SpRouterZ.OnChange := @RouterTravelChanged;
+  end;
+  Session.SetWorkEnvelope(SpRouterX.Value, SpRouterY.Value, SpRouterZ.Value);
+  RouterSpecsLabel.Caption := Format(
+    'Brand & Model: %s %s' + LineEnding +
+    'Work Area (X x Y x Z): %.1f x %.1f x %.1f mm' + LineEnding +
+    'Default Baud: %d | Protocol / Firmware: %s' + LineEnding +
+    'Spindle: %s' + LineEnding +
+    'Notes: %s',
+    [Prof.Brand, Prof.Model, Prof.WorkX, Prof.WorkY, Prof.WorkZ,
+     Prof.BaudRate, Prof.Firmware, SpindleText(Prof), Prof.Notes], InvariantFS);
+  Log(Format('CNC Router profile applied: %s %s (Table: %.1fx%.1fx%.1f mm, Baud: %d)',
+    [Prof.Brand, Prof.Model, Prof.WorkX, Prof.WorkY, Prof.WorkZ, Prof.BaudRate], InvariantFS));
+end;
+
+procedure TMainForm.RouterTravelChanged(Sender: TObject);
+begin
+  if MachineType.ItemIndex <> 0 then Exit;
+  Session.SetWorkEnvelope(SpRouterX.Value, SpRouterY.Value, SpRouterZ.Value);
+end;
+
 procedure TMainForm.PrinterBrandChanged(Sender: TObject);
 begin
   GetPrinterModels(PrinterBrandCombo.Text, PrinterModelCombo.Items);
@@ -1450,6 +1571,14 @@ begin
   BaudCombo.Enabled := not Session.Connected;
   if Assigned(PrinterBrandCombo) then PrinterBrandCombo.Enabled := not Session.Connected;
   if Assigned(PrinterModelCombo) then PrinterModelCombo.Enabled := not Session.Connected;
+  if Assigned(RouterBrandCombo) then
+  begin
+    RouterBrandCombo.Enabled := not Session.Connected;
+    RouterModelCombo.Enabled := not Session.Connected;
+    SpRouterX.Enabled := not Session.Connected;
+    SpRouterY.Enabled := not Session.Connected;
+    SpRouterZ.Enabled := not Session.Connected;
+  end;
 
   if Session.Connected then
   begin
@@ -1591,6 +1720,7 @@ begin
   BtnFraming.Visible := MachineType.ItemIndex = 1;
   LaserContainer.Visible := MachineType.ItemIndex = 1;
   GbPrinterProfile.Visible := MachineType.ItemIndex = 2;
+  GbRouterProfile.Visible := MachineType.ItemIndex = 0;
   GbPrinterTemps.Visible := MachineType.ItemIndex = 2;
   GbSideTemperatures.Visible := MachineType.ItemIndex = 2;
 
@@ -1648,8 +1778,8 @@ begin
           BaudCombo.Text := SavedBaud
         else
           BaudCombo.Text := '115200';
-        Session.SetWorkEnvelope(300.0, 180.0, 45.0); { Standard CNC Router 3018 work volume }
-        Log('Configuração CNC Router: Baud rate padrão 115200, mesa padrão 300x180x45 mm.');
+        { Curso e baud vem do perfil de marca/modelo selecionado. }
+        RouterModelChanged(nil);
       end;
       1: { CNC Laser }
       begin

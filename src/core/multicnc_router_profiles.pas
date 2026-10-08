@@ -1,5 +1,10 @@
 unit multicnc_router_profiles;
 
+{ Perfis de marca/modelo de CNC Router (fresadora). Valores conferidos nas
+  paginas dos fabricantes (out/2026). 0 em SpindlePowerW/SpindleMaxRPM = nao
+  informado pelo fabricante. O curso X/Y/Z e editavel na tela, porque cada
+  maquina montada pode diferir (mesa, fixacao, upgrades). }
+
 {$mode objfpc}{$H+}
 
 interface
@@ -23,37 +28,60 @@ type
   end;
 
 const
-  ROUTER_PROFILE_COUNT = 18;
+  ROUTER_PROFILE_COUNT = 22;
 
 procedure GetRouterBrands(AList: TStrings);
 procedure GetRouterModels(const ABrand: string; AList: TStrings);
 function FindRouterProfile(const ABrand, AModel: string; out AProfile: TRouterProfile): Boolean;
 function RouterProfileSummary(const P: TRouterProfile): string;
+{ Texto do spindle; trata valores nao informados (0). }
+function SpindleText(const P: TRouterProfile): string;
 
 implementation
 
 const
   PROFILES: array[0..ROUTER_PROFILE_COUNT - 1] of TRouterProfile = (
+    // Generic
+    (
+      Brand: 'Generic';
+      Model: 'Generic GRBL Router';
+      WorkX: 300.0; WorkY: 180.0; WorkZ: 45.0;
+      BaudRate: 115200;
+      SpindlePowerW: 0; SpindleMaxRPM: 0;
+      ColletType: '';
+      Firmware: 'GRBL 1.1';
+      Notes: 'Generic machine: adjust the X/Y/Z travel below to your machine before jogging'
+    ),
+    (
+      Brand: 'Generic';
+      Model: 'Mini Fresadora CNC 3018 Router 3 Eixos';
+      WorkX: 300.0; WorkY: 180.0; WorkZ: 45.0;
+      BaudRate: 115200;
+      SpindlePowerW: 0; SpindleMaxRPM: 0;
+      ColletType: '';
+      Firmware: 'GRBL 1.1';
+      Notes: 'Unbranded 3018 kit (typically 775 spindle); confirm travel and $30 on your board'
+    ),
     // SainSmart / Genmitsu
     (
       Brand: 'SainSmart / Genmitsu';
       Model: '3018-PRO';
       WorkX: 300.0; WorkY: 180.0; WorkZ: 45.0;
       BaudRate: 115200;
-      SpindlePowerW: 120; SpindleMaxRPM: 10000;
-      ColletType: 'ER11 (3.175mm)';
+      SpindlePowerW: 0; SpindleMaxRPM: 20000;
+      ColletType: '';
       Firmware: 'GRBL 1.1f';
-      Notes: 'Classic desktop entry-level CNC router, aluminum table, 775 spindle motor'
+      Notes: 'V2 control board; early units shipped with a 775 spindle (about 9000-10000 RPM)'
     ),
     (
       Brand: 'SainSmart / Genmitsu';
-      Model: '3018-PROVer V2';
-      WorkX: 300.0; WorkY: 180.0; WorkZ: 40.0;
+      Model: '3018-PROVer';
+      WorkX: 260.0; WorkY: 155.0; WorkZ: 35.0;
       BaudRate: 115200;
       SpindlePowerW: 120; SpindleMaxRPM: 10000;
-      ColletType: 'ER11 (3.175mm)';
-      Firmware: 'GRBL 1.1f';
-      Notes: 'Enclosed aluminum body, emergency stop button, XYZ limit switches, Z-probe'
+      ColletType: '';
+      Firmware: 'GRBL';
+      Notes: '775 spindle, 60 W rated / 120 W max, 12-24 V; effective engraving area'
     ),
     (
       Brand: 'SainSmart / Genmitsu';
@@ -61,167 +89,184 @@ const
       WorkX: 300.0; WorkY: 200.0; WorkZ: 72.0;
       BaudRate: 115200;
       SpindlePowerW: 300; SpindleMaxRPM: 12000;
-      ColletType: 'ER11 (3.175mm / 6.35mm)';
-      Firmware: 'GRBL 1.1f';
-      Notes: 'Heavy-duty steel dual linear rails, 300W quiet spindle, upgraded 72mm Z clearance'
+      ColletType: '';
+      Firmware: 'GRBL';
+      Notes: '300 W spindle'
     ),
     (
       Brand: 'SainSmart / Genmitsu';
-      Model: 'PROVerXL 4030';
+      Model: 'PROVerXL 4030 V2';
       WorkX: 400.0; WorkY: 300.0; WorkZ: 110.0;
       BaudRate: 115200;
-      SpindlePowerW: 300; SpindleMaxRPM: 12000;
-      ColletType: 'ER11 / 65mm clamp';
+      SpindlePowerW: 400; SpindleMaxRPM: 10000;
+      ColletType: '';
       Firmware: 'GRBL 1.1h';
-      Notes: 'Rigid C-beam extrusion architecture, high Z travel, compatible with trim routers'
+      Notes: '400 W DC spindle (0-48 V); max feed 5000 mm/min'
     ),
     (
       Brand: 'SainSmart / Genmitsu';
       Model: '4040-PRO';
       WorkX: 400.0; WorkY: 400.0; WorkZ: 78.0;
       BaudRate: 115200;
-      SpindlePowerW: 710; SpindleMaxRPM: 30000;
-      ColletType: '65mm Router Clamp / ER11';
-      Firmware: 'GRBL 1.1h';
-      Notes: 'Dual Y-axis lead screws, all-metal frame, large 400x400 mm square work area'
+      SpindlePowerW: 75; SpindleMaxRPM: 9000;
+      ColletType: '';
+      Firmware: 'GRBL (32-bit MCU)';
+      Notes: '75 W spindle, 42/52 mm mounts; max feed 2000 mm/min'
     ),
-
     // Carbide 3D
     (
       Brand: 'Carbide 3D';
       Model: 'Shapeoko 4 Standard';
-      WorkX: 444.0; WorkY: 444.0; WorkZ: 101.0;
+      WorkX: 444.5; WorkY: 444.5; WorkZ: 101.6;
       BaudRate: 115200;
-      SpindlePowerW: 750; SpindleMaxRPM: 30000;
-      ColletType: '1/4 in and 1/8 in (65mm)';
+      SpindlePowerW: 0; SpindleMaxRPM: 0;
+      ColletType: '';
       Firmware: 'GRBL 1.1';
-      Notes: 'Precision lead screw Z axis, heavy aluminum extrusions, inductive proximity switches'
+      Notes: 'Router not included: fit a 65 mm trim router or VFD spindle'
     ),
     (
       Brand: 'Carbide 3D';
       Model: 'Shapeoko 4 XL';
-      WorkX: 838.0; WorkY: 444.0; WorkZ: 101.0;
+      WorkX: 838.2; WorkY: 444.5; WorkZ: 101.6;
       BaudRate: 115200;
-      SpindlePowerW: 750; SpindleMaxRPM: 30000;
-      ColletType: '1/4 in and 1/8 in (65mm)';
+      SpindlePowerW: 0; SpindleMaxRPM: 0;
+      ColletType: '';
       Firmware: 'GRBL 1.1';
-      Notes: 'Wide cutting envelope (33 in x 17.5 in), ideal for guitar bodies and signs'
+      Notes: 'Router not included: fit a 65 mm trim router or VFD spindle'
     ),
     (
       Brand: 'Carbide 3D';
       Model: 'Shapeoko 4 XXL';
-      WorkX: 838.0; WorkY: 838.0; WorkZ: 101.0;
+      WorkX: 838.2; WorkY: 838.2; WorkZ: 101.6;
       BaudRate: 115200;
-      SpindlePowerW: 750; SpindleMaxRPM: 30000;
-      ColletType: '1/4 in and 1/8 in (65mm)';
+      SpindlePowerW: 0; SpindleMaxRPM: 0;
+      ColletType: '';
       Firmware: 'GRBL 1.1';
-      Notes: 'Full-size 33 in x 33 in cutting envelope, Sweeper dust boot compatible'
+      Notes: 'Router not included: fit a 65 mm trim router or VFD spindle'
     ),
     (
       Brand: 'Carbide 3D';
       Model: 'Shapeoko Pro Standard';
-      WorkX: 444.0; WorkY: 444.0; WorkZ: 101.0;
+      WorkX: 444.5; WorkY: 444.5; WorkZ: 101.6;
       BaudRate: 115200;
-      SpindlePowerW: 800; SpindleMaxRPM: 30000;
-      ColletType: '1/4 in and 1/8 in (65mm / VFD)';
+      SpindlePowerW: 0; SpindleMaxRPM: 0;
+      ColletType: '';
       Firmware: 'GRBL 1.1';
-      Notes: '15mm linear rails on all axes, hybrid T-slot clamping bed with MDF wasteboard'
+      Notes: 'Linear rails; router not included (65 mm trim router or VFD spindle)'
+    ),
+    (
+      Brand: 'Carbide 3D';
+      Model: 'Shapeoko Pro XL';
+      WorkX: 838.2; WorkY: 444.5; WorkZ: 101.6;
+      BaudRate: 115200;
+      SpindlePowerW: 0; SpindleMaxRPM: 0;
+      ColletType: '';
+      Firmware: 'GRBL 1.1';
+      Notes: 'Linear rails; router not included (65 mm trim router or VFD spindle)'
     ),
     (
       Brand: 'Carbide 3D';
       Model: 'Shapeoko Pro XXL';
-      WorkX: 838.0; WorkY: 838.0; WorkZ: 101.0;
+      WorkX: 838.2; WorkY: 838.2; WorkZ: 101.6;
       BaudRate: 115200;
-      SpindlePowerW: 800; SpindleMaxRPM: 30000;
-      ColletType: '1/4 in and 1/8 in (65mm / VFD)';
+      SpindlePowerW: 0; SpindleMaxRPM: 0;
+      ColletType: '';
       Firmware: 'GRBL 1.1';
-      Notes: 'Large format industrial linear rails, maximum rigidity for non-ferrous metals and hardwood'
+      Notes: 'Linear rails; router not included (65 mm trim router or VFD spindle)'
     ),
-
     // Inventables
     (
       Brand: 'Inventables';
       Model: 'X-Carve 1000mm';
       WorkX: 750.0; WorkY: 750.0; WorkZ: 65.0;
       BaudRate: 115200;
-      SpindlePowerW: 600; SpindleMaxRPM: 27000;
-      ColletType: '1/4 in (DeWalt DWP611)';
-      Firmware: 'GRBL 1.1';
-      Notes: 'X-Controller motion board, makerspace classic open CNC router platform'
-    ),
-    (
-      Brand: 'Inventables';
-      Model: 'X-Carve 500mm';
-      WorkX: 300.0; WorkY: 300.0; WorkZ: 65.0;
-      BaudRate: 115200;
-      SpindlePowerW: 600; SpindleMaxRPM: 27000;
-      ColletType: '1/4 in (DeWalt DWP611)';
-      Firmware: 'GRBL 1.1';
-      Notes: 'Compact footprint benchtop router for small precision projects and prototyping'
+      SpindlePowerW: 0; SpindleMaxRPM: 27000;
+      ColletType: '';
+      Firmware: 'GRBL (X-Controller)';
+      Notes: 'DeWalt 26200 trim router, 16000-27000 RPM'
     ),
     (
       Brand: 'Inventables';
       Model: 'X-Carve Pro 4x4';
-      WorkX: 1220.0; WorkY: 1220.0; WorkZ: 100.0;
+      WorkX: 1219.2; WorkY: 1219.2; WorkZ: 101.6;
       BaudRate: 115200;
-      SpindlePowerW: 2200; SpindleMaxRPM: 24000;
-      ColletType: 'ER20';
-      Firmware: 'GRBL';
-      Notes: 'Commercial 4x4 ft production CNC router, 3HP air-cooled spindle, ball screws on all axes'
+      SpindlePowerW: 1500; SpindleMaxRPM: 24000;
+      ColletType: 'ER16';
+      Firmware: 'GRBL 1.1h (XCPd)';
+      Notes: '2 HP air-cooled VFD spindle, 8000-24000 RPM'
     ),
-
+    (
+      Brand: 'Inventables';
+      Model: 'X-Carve Pro 4x2';
+      WorkX: 1219.2; WorkY: 609.6; WorkZ: 101.6;
+      BaudRate: 115200;
+      SpindlePowerW: 1500; SpindleMaxRPM: 24000;
+      ColletType: 'ER16';
+      Firmware: 'GRBL 1.1h (XCPd)';
+      Notes: '2 HP air-cooled VFD spindle, 8000-24000 RPM'
+    ),
     // FoxAlien
     (
       Brand: 'FoxAlien';
       Model: 'Masuter Pro';
       WorkX: 400.0; WorkY: 400.0; WorkZ: 60.0;
       BaudRate: 115200;
-      SpindlePowerW: 300; SpindleMaxRPM: 10000;
-      ColletType: 'ER11 / 65mm clamp';
-      Firmware: 'GRBL 1.1';
-      Notes: 'Z-axis linear rail structure, 400x400 mm aluminum T-slot table, optional 65mm router'
+      SpindlePowerW: 0; SpindleMaxRPM: 10000;
+      ColletType: '';
+      Firmware: 'GRBL';
+      Notes: '775 spindle; 52 mm and 65 mm clamps for spindle or laser upgrades'
     ),
     (
       Brand: 'FoxAlien';
       Model: '4040-XE';
-      WorkX: 400.0; WorkY: 400.0; WorkZ: 55.0;
+      WorkX: 400.0; WorkY: 400.0; WorkZ: 65.0;
       BaudRate: 115200;
-      SpindlePowerW: 300; SpindleMaxRPM: 10000;
-      ColletType: 'ER11 (3.175mm)';
-      Firmware: 'GRBL 1.1';
-      Notes: 'Dual Y-axis high-torque NEMA 23 stepper motors, integrated controller box'
+      SpindlePowerW: 300; SpindleMaxRPM: 0;
+      ColletType: '';
+      Firmware: 'GRBL';
+      Notes: '300 W spindle; manufacturer does not publish its RPM'
     ),
     (
       Brand: 'FoxAlien';
       Model: 'Vasto';
-      WorkX: 400.0; WorkY: 400.0; WorkZ: 95.0;
+      WorkX: 400.0; WorkY: 400.0; WorkZ: 100.0;
       BaudRate: 115200;
-      SpindlePowerW: 400; SpindleMaxRPM: 12000;
-      ColletType: 'ER11 / 65mm clamp';
-      Firmware: 'GRBL 1.1';
-      Notes: 'Heavy ball screws and HG-15 linear guide rails on all XYZ axes for heavy cutting'
+      SpindlePowerW: 400; SpindleMaxRPM: 0;
+      ColletType: '';
+      Firmware: 'GRBL';
+      Notes: '400 W spindle; manufacturer does not publish its RPM'
     ),
-
     // OpenBuilds
     (
       Brand: 'OpenBuilds';
       Model: 'LEAD CNC 1010';
-      WorkX: 730.0; WorkY: 810.0; WorkZ: 90.0;
+      WorkX: 730.0; WorkY: 810.0; WorkZ: 100.0;
       BaudRate: 115200;
-      SpindlePowerW: 600; SpindleMaxRPM: 27000;
-      ColletType: 'ER11 / RoutER11';
-      Firmware: 'GRBL 1.1 (BlackBox)';
-      Notes: 'Lead screw driven on all axes, BlackBox 32-bit motion controller, C-beam gantry'
+      SpindlePowerW: 0; SpindleMaxRPM: 0;
+      ColletType: '';
+      Firmware: 'GRBL (OpenBuilds Control)';
+      Notes: 'Z travel approximate; spindle/router chosen by the builder'
     ),
     (
       Brand: 'OpenBuilds';
       Model: 'MiniMill';
       WorkX: 120.0; WorkY: 180.0; WorkZ: 80.0;
       BaudRate: 115200;
-      SpindlePowerW: 300; SpindleMaxRPM: 12000;
-      ColletType: 'ER11 (3.175mm)';
-      Firmware: 'GRBL 1.1 (BlackBox)';
-      Notes: 'Compact, rigid small-part CNC milling machine for precision aluminum and brass'
+      SpindlePowerW: 0; SpindleMaxRPM: 0;
+      ColletType: '';
+      Firmware: 'GRBL (OpenBuilds Control)';
+      Notes: 'About 60 mm workable material height with spoilboard'
+    ),
+    // TwoTrees
+    (
+      Brand: 'TwoTrees';
+      Model: 'TTC450';
+      WorkX: 450.0; WorkY: 450.0; WorkZ: 80.0;
+      BaudRate: 115200;
+      SpindlePowerW: 80; SpindleMaxRPM: 8000;
+      ColletType: 'ER11';
+      Firmware: 'GRBL (MKS DLC32)';
+      Notes: '80 W 775 spindle; optional 500 W spindle reaches 12000 RPM'
     )
   );
 
@@ -267,11 +312,20 @@ begin
   Result := False;
 end;
 
+function SpindleText(const P: TRouterProfile): string;
+begin
+  if P.SpindlePowerW > 0 then Result := IntToStr(P.SpindlePowerW) + ' W'
+  else Result := 'power not informed';
+  if P.SpindleMaxRPM > 0 then Result := Result + ', ' + IntToStr(P.SpindleMaxRPM) + ' RPM'
+  else Result := Result + ', RPM not informed';
+  if P.ColletType <> '' then Result := Result + ', ' + P.ColletType;
+end;
+
 function RouterProfileSummary(const P: TRouterProfile): string;
 begin
-  Result := Format('%s %s | Table: %.0f x %.0f x %.0f mm | Baud: %d | Spindle: %dW (%d RPM) | %s',
-    [P.Brand, P.Model, P.WorkX, P.WorkY, P.WorkZ, P.BaudRate,
-     P.SpindlePowerW, P.SpindleMaxRPM, P.Firmware]);
+  Result := Format('%s %s | Table: %.1f x %.1f x %.1f mm | Baud: %d | Spindle: %s | %s',
+    [P.Brand, P.Model, P.WorkX, P.WorkY, P.WorkZ, P.BaudRate, SpindleText(P), P.Firmware],
+    DefaultFormatSettings);
 end;
 
 end.
