@@ -13,7 +13,7 @@
 | Fase | Estado | Commit / observacao |
 |---|---|---|
 | 0 Preparacao | concluida (08/10) | `laserpcb_roles.pas`; arvore `routerpcb/`; fixture 555 em `tests/fixtures/astable_gerber` (gerado por `tests/make_fixture.lpr`). Testes LaserPCB (2560 + 70 + UI) e MakePCB (2382) seguem passando. |
-| 1 Nucleo | pendente | |
+| 1 Nucleo | concluida (08/10) | `routerpcb_types`, `routerpcb_project`, `cam/routerpcb_isolation`, `cam/routerpcb_drillmap`, `cam/routerpcb_cutout`; `tests/test_routerpcb.lpr`: 96 checks passando (Linux). |
 | 2 Nivelamento e G-code | pendente | |
 | 3 Interface | pendente | |
 | 4 Integracao na suite | pendente | |
@@ -46,7 +46,7 @@ Regras do projeto, que valem para todas as fases:
 
 ## Fase 1: núcleo (≈ 2 h)
 
-- [ ] `routerpcb_types.pas`: registros de opções com padrões e `Validate(Errors)`.
+- [x] `routerpcb_types.pas`: registros de opções com padrões e `Validate(Errors)`.
 
   | Parâmetro | Padrão |
   |---|---|
@@ -58,19 +58,19 @@ Regras do projeto, que valem para todas as fases:
   | Máquina | SafeZ 5 mm, TravelZ 2 mm, espera do spindle 2 s, troca de ferramenta com M0 |
   | Nivelamento | grade 5×4, margem 2 mm, ProbeDepth -2 mm, ProbeFeed 50, MaxSegment 1 mm, MaxCorrection 0,5 mm |
 
-- [ ] `routerpcb_project.pas`:
+- [x] `routerpcb_project.pas`:
   - `ImportFolder`/`ImportFile` com os leitores do LaserPCB;
   - lado (placa de face simples abre em Bottom);
   - `OutputMatrix`;
   - `RebuildMasks` (resolução 0,02 mm);
   - `Warnings`.
-- [ ] `routerpcb_isolation.pas`: largura efetiva da fresa V, `GenerateIsolation`,
+- [x] `routerpcb_isolation.pas`: largura efetiva da fresa V, `GenerateIsolation`,
       verificação de folga (ilhas que se unem) e sentido de corte.
-- [ ] `routerpcb_drillmap.pas`: biblioteca de brocas, ajuste diâmetro → broca, avisos e
+- [x] `routerpcb_drillmap.pas`: biblioteca de brocas, ajuste diâmetro → broca, avisos e
       furos fresados.
-- [ ] `routerpcb_cutout.pas`: contorno externo (+R), recortes internos (−R), passos de
+- [x] `routerpcb_cutout.pas`: contorno externo (+R), recortes internos (−R), passos de
       profundidade e pontes por altura.
-- [ ] `tests/test_routerpcb.lpr`, primeira parte, cobrindo:
+- [x] `tests/test_routerpcb.lpr`, primeira parte, cobrindo:
   - largura da fresa V (30°/0,1/0,08 → 0,143);
   - isolação não vazia sobre o fixture;
   - nenhum ponto da isolação a menos de W/2 − res do cobre;
@@ -79,7 +79,7 @@ Regras do projeto, que valem para todas as fases:
   - recorte a R da placa (±res);
   - pontes subindo para a altura certa;
   - aviso de folga em duas trilhas próximas.
-- [ ] Commit: "RouterPCB: nucleo (importacao, isolacao, furacao, recorte)".
+- [x] Commit: "RouterPCB: nucleo (importacao, isolacao, furacao, recorte)".
 
 ## Fase 2: nivelamento e G-code (≈ 1 h 30)
 

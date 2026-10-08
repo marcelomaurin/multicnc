@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+ <ProjectOptions>
+  <Version Value="12"/>
+  <General><Title Value="make_fixture"/><UseAppBundle Value="False"/><ResourceType Value="res"/></General>
+  <BuildModes Count="1"><Item1 Name="Default" Default="True"/></BuildModes>
+  <Units Count="1"><Unit0><Filename Value="make_fixture.lpr"/><IsPartOfProject Value="True"/></Unit0></Units>
+   <RequiredPackages Count="1"><Item1><PackageName Value="LCL"/></Item1></RequiredPackages>
+ </ProjectOptions>
+ <CompilerOptions>
+  <Version Value="11"/>
+  <Target><Filename Value="make_fixture"/></Target>
+  <SearchPaths><OtherUnitFiles Value="../../makepcb/src/core;../../makepcb/src/export;../../makepcb/src/route;../../src/shared;../../multisuite/src/core"/><UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)/make_fixture"/></SearchPaths>
+  <Parsing><SyntaxOptions><SyntaxMode Value="ObjFPC"/></SyntaxOptions></Parsing>
+  <CodeGeneration><Checks><IOChecks Value="True"/><RangeChecks Value="True"/><OverflowChecks Value="True"/><StackChecks Value="True"/></Checks></CodeGeneration>
+ </CompilerOptions>
+</CONFIG>

@@ -120,3 +120,25 @@ M2
 ```
 Sem `G81..G83`, sem `T`/`M6`. Troca de ferramenta com `M0` e mensagem `; Troque para ...`.
 Numeros com `FormatFloat('0.###', InvFS)`. Cada linha <= 127 caracteres.
+
+## Estado da implementacao
+
+| Unidade | Estado |
+|---|---|
+| `laserpcb/src/import/laserpcb_roles.pas` | feito (funcao da camada, compartilhada) |
+| `src/core/routerpcb_types.pas` | feito: opcoes, padroes, validacao, `RPVBitWidth`, `RPParseBits`, `TRPPath3` |
+| `src/core/routerpcb_project.pas` | feito: importacao, lado/espelho, `OutputMatrix`, mascaras, `Generate`, `Validate` |
+| `src/cam/routerpcb_isolation.pas` | feito: `RPIsolationPaths`, `RPOrientPaths`, `RPOrderPaths` (sem inverter), `RPClearanceIssues` |
+| `src/cam/routerpcb_drillmap.pas` | feito: `RPChooseBit`, `RPBuildDrilling` (furos grandes -> `TRPMilledHole`) |
+| `src/cam/routerpcb_cutout.pas` | feito: `RPCutoutContours`, `RPTabIntervals`, `RPDepthLevels`, `RPContourPasses`, `RPMilledHolePasses` |
+| `src/level/routerpcb_heightmap.pas` | pendente (fase 2) |
+| `src/export/routerpcb_gcode.pas` | pendente (fase 2) |
+| `src/ui`, `src/app` | pendente (fase 3) |
+
+Decisoes tomadas na implementacao:
+- PTH e NPTH da mesma broca formam um so grupo (uma troca de broca).
+- Furo entre duas brocas usa a broca maior seguinte (o terminal sempre entra), com aviso.
+- Furos fresados vao para o programa de recorte (mesma fresa de topo).
+- Resolucao automatica: 0,02 mm, aumentada so se a placa passar de ~10 milhoes de pixels.
+- Verificacao de folga por expansao em largura a partir das ilhas de cobre (rotulos 8-vizinhos):
+  devolve um ponto por par de ilhas em conflito.
