@@ -1117,6 +1117,10 @@ begin
   Timer.Interval := 100;
   Timer.OnTimer := @Tick;
 
+  { Identifica o binario em execucao: ajuda a confirmar qual build o log mostra. }
+  Log(Format('MultiCNC build %s %s (%s-%s, FPC %s). Serial: CHATGPT TAISerialModem (COM10+ supported).',
+    [{$I %DATE%}, {$I %TIME%}, {$I %FPCTARGETCPU%}, {$I %FPCTARGETOS%}, {$I %FPCVERSION%}]));
+
   SyncLaserSettingsToUI;
   SelectionChanged(MachineType);
   UpdateMachineTypeLayout;
@@ -1470,14 +1474,22 @@ begin
 end;
 
 procedure TMainForm.Log(const AText: string);
+var Parts: TStringList; Stamp: string; I: Integer;
 begin
+  { Cada linha recebe o horario: blocos RX/TX com varias linhas ficam legiveis. }
+  Stamp := FormatDateTime('hh:nn:ss', Now) + '  ';
+  Parts := TStringList.Create;
   MemoLog.Lines.BeginUpdate;
   try
-    MemoLog.Lines.Add(FormatDateTime('hh:nn:ss', Now) + '  ' + Trim(AText));
+    Parts.Text := AText;
+    for I := 0 to Parts.Count - 1 do
+      if Trim(Parts[I]) <> '' then
+        MemoLog.Lines.Add(Stamp + Trim(Parts[I]));
     while MemoLog.Lines.Count > 1000 do MemoLog.Lines.Delete(0);
     MemoLog.SelStart := UTF8Length(MemoLog.Text);
   finally
     MemoLog.Lines.EndUpdate;
+    Parts.Free;
   end;
 end;
 
@@ -1857,6 +1869,16 @@ begin
     end;
     try
       SyncLaserSettingsFromUI;
+      if CommunicationMode.ItemIndex = 0 then
+        Log(Format('Connecting to %s at %d baud (8N1) | Machine: %s | Protocol: %s ...',
+          [Endpoint, Baud, MachineType.Text, ProtocolType.Text]))
+      else
+        Log(Format('Connecting to %s over TCP | Machine: %s | Protocol: %s ...',
+          [Endpoint, MachineType.Text, ProtocolType.Text]));
+      if (MachineType.ItemIndex = 2) and (ProtocolType.ItemIndex <> 1) then
+        Log('Warning: 3D Printer selected with GRBL protocol. Creality/Prusa/Anycubic printers run Marlin.');
+      if (MachineType.ItemIndex <> 2) and (ProtocolType.ItemIndex = 1) then
+        Log('Warning: CNC machine selected with Marlin protocol. Printer handshake and temperatures only run for 3D Printer.');
       if Session.Connect(TMachineType(MachineType.ItemIndex),
         TProtocolKind(ProtocolType.ItemIndex), Endpoint, Baud) then
       begin
@@ -1866,7 +1888,12 @@ begin
         else
           Session.SetFeedRate(FeedRate.Value);
       end
-      else Log('Failed to connect to ' + Endpoint + '. Check port and device.');
+      else
+      begin
+        Log('Failed to connect to ' + Endpoint + ': ' + Session.LastError);
+        if CommunicationMode.ItemIndex = 0 then
+          Log('Tip: close other programs that use the port, check Device Manager for the COM number, then click the COM list to refresh it.');
+      end;
     except
       on E: Exception do Log('Connection failure: ' + E.Message);
     end;

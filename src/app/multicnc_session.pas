@@ -44,9 +44,14 @@ type
     FErrorBase, FAlarmBase: Integer;
     FLastPoll: QWord;
     FLastTempQuery: QWord;
+    FConnectedAt, FLastRxAt: QWord;
+    FSilenceWarned: Boolean;
     FMarlinReadyAt: QWord;
     FMarlinHandshakeSent: Boolean;
     FEnvelopeX, FEnvelopeY, FEnvelopeZ: Double;
+    procedure SerialTX(Sender: TObject; const AData: string);
+    procedure CheckControllerSilence(ANow: QWord);
+    procedure Diag(const AText: string);
     procedure Receive(const Data: string);
     procedure ReleaseConnection;
     procedure CheckFirmwareFaults;
@@ -160,9 +165,71 @@ begin
   Result := False;
 end;
 
+{ Resposta ao M105 periodico ("ok T:200.0 /200.0 B:60.0 /60.0"): o valor ja
+  aparece no painel de temperaturas, nao precisa repetir no console. }
+function IsTemperatureReport(const ALine: string): Boolean;
+var L: string;
+begin
+  L := LowerCase(ALine);
+  if Copy(L, 1, 3) = 'ok ' then L := TrimLeft(Copy(L, 4, MaxInt));
+  Result := (Copy(L, 1, 2) = 't:') and ((Pos('b:', L) > 0) or (Pos('/', L) > 0));
+end;
+
+procedure TSimulationSession.Diag(const AText: string);
+begin
+  if Assigned(FOnLog) then FOnLog('[MultiCNC] ' + AText);
+end;
+
+{ Linhas enviadas a controladora aparecem no console como "TX". As consultas
+  periodicas (status GRBL e temperatura Marlin) ficam de fora para nao poluir. }
+procedure TSimulationSession.SerialTX(Sender: TObject; const AData: string);
+var Lines: TStringList; I: Integer; L, Shown: string;
+begin
+  if not Assigned(FOnLog) then Exit;
+  Lines := TStringList.Create;
+  try
+    Lines.Text := AData;
+    Shown := '';
+    for I := 0 to Lines.Count - 1 do
+    begin
+      L := Trim(Lines[I]);
+      if (L = '') or (L = '?') or SameText(L, 'M105') then Continue;
+      if (Length(L) = 1) and (Ord(L[1]) < 32) then L := Format('<0x%.2x>', [Ord(L[1])]);
+      Shown := Shown + 'TX  ' + L + LineEnding;
+    end;
+  finally
+    Lines.Free;
+  end;
+  if Shown <> '' then FOnLog(Shown);
+end;
+
+procedure TSimulationSession.CheckControllerSilence(ANow: QWord);
+var StartAt: QWord;
+begin
+  if FSilenceWarned or (FLastRxAt <> 0) or not Connected then Exit;
+  if FProtocolKind = pkMarlin then
+  begin
+    if FMarlinReadyAt = 0 then Exit;
+    StartAt := FMarlinReadyAt;
+  end
+  else
+    StartAt := FConnectedAt;
+  if ANow < StartAt + 5000 then Exit;
+  FSilenceWarned := True;
+  if FProtocolKind = pkMarlin then
+    Diag('No reply from the controller 5 s after M115. Port opened, but nothing came back: ' +
+      'check the baud rate (Creality/Ender stock firmware: 115200; some boards use 250000), ' +
+      'that this COM port is the printer, and that Protocol is Marlin.')
+  else
+    Diag('No reply from the controller 5 s after connecting (no GRBL banner or status). ' +
+      'Check the baud rate (GRBL 1.1: 115200), that this COM port is the machine, ' +
+      'and that Protocol is GRBL.');
+end;
+
 procedure TSimulationSession.Receive(const Data: string);
 var Lines: TStringList; I: Integer; Shown: string;
 begin
+  FLastRxAt := GetTickCount64;
   if not Assigned(FOnLog) then Exit;
   { Relatorios de estado periodicos do GRBL nao poluem o console. }
   Lines := TStringList.Create;
@@ -170,8 +237,9 @@ begin
     Lines.Text := Data;
     Shown := '';
     for I := 0 to Lines.Count - 1 do
-      if (Trim(Lines[I]) <> '') and (Copy(Trim(Lines[I]), 1, 1) <> '<') then
-        Shown := Shown + Trim(Lines[I]) + LineEnding;
+      if (Trim(Lines[I]) <> '') and (Copy(Trim(Lines[I]), 1, 1) <> '<') and
+         not IsTemperatureReport(Trim(Lines[I])) then
+        Shown := Shown + 'RX  ' + Trim(Lines[I]) + LineEnding;
   finally
     Lines.Free;
   end;
@@ -203,7 +271,11 @@ begin
   else
   begin
     Serial := TChatGPTSerialTransport.Create(Device, BaudRate);
+    Serial.Serial.OnTXSend := @SerialTX;
     Result := ConnectTransport(Kind, ProtocolKind, Serial, Serial);
+    { O transporte continua vivo ate a proxima conexao: traz o motivo real. }
+    if not Result and (Serial.Serial.LastError <> '') then
+      FLastError := Serial.Serial.LastError;
   end;
 end;
 
@@ -239,6 +311,9 @@ begin
   FAlarmBase := 0;
   FLastError := '';
   FLastTempQuery := 0;
+  FConnectedAt := GetTickCount64;
+  FLastRxAt := 0;
+  FSilenceWarned := False;
   FMarlinHandshakeSent := False;
   FMarlinReadyAt := 0;
   Result := FMachine.Connect;
@@ -468,6 +543,7 @@ var Now64: QWord;
 begin
   if not Assigned(FTransport) then Exit;
   FTransport.Poll;
+  CheckControllerSilence(GetTickCount64);
   { GRBL: '?' e de tempo real e nao ocupa o buffer. }
   if (FProtocolKind = pkGRBL) and Connected then
   begin

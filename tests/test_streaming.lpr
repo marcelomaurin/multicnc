@@ -290,6 +290,55 @@ begin
   end;
 end;
 
+type
+  TLogSink = class
+    Lines: TStringList;
+    constructor Create;
+    destructor Destroy; override;
+    procedure Add(const AText: string);
+    function Has(const ASub: string): Boolean;
+  end;
+
+constructor TLogSink.Create; begin inherited Create; Lines := TStringList.Create; end;
+destructor TLogSink.Destroy; begin Lines.Free; inherited Destroy; end;
+procedure TLogSink.Add(const AText: string); begin Lines.Add(AText); end;
+function TLogSink.Has(const ASub: string): Boolean;
+var I: Integer;
+begin
+  for I := 0 to Lines.Count - 1 do
+    if Pos(ASub, Lines[I]) > 0 then Exit(True);
+  Result := False;
+end;
+
+procedure TestConsoleLog;
+var S: TSimulationSession; F: TFakeController; Sink: TLogSink;
+begin
+  Sink := TLogSink.Create;
+  S := TSimulationSession.Create;
+  try
+    S.OnLog := @Sink.Add;
+    F := TFakeController.Create;
+    Check(S.ConnectTransport(mtRouter, pkGRBL, F, F), 'conectar GRBL para log');
+    { Controladora muda por 5 s: aviso de silencio, uma unica vez. }
+    Sleep(5200);
+    S.Poll;
+    Check(Sink.Has('[MultiCNC] No reply from the controller'), 'aviso de controladora sem resposta');
+    Sink.Lines.Clear;
+    S.Poll;
+    Check(not Sink.Has('No reply'), 'aviso de silencio nao se repete');
+    { Linhas recebidas com prefixo RX; relatorio de temperatura filtrado. }
+    F.Reply('Grbl 1.1h [''$'' for help]' + #10);
+    Check(Sink.Has('RX  Grbl 1.1h'), 'linha recebida com prefixo RX');
+    Sink.Lines.Clear;
+    F.Reply('ok T:200.0 /200.0 B:60.0 /60.0' + #10);
+    Check(not Sink.Has('T:200'), 'resposta de M105 nao polui o console');
+    F.Reply('error:22' + #10);
+    Check(Sink.Has('RX  error:22'), 'erro da controladora aparece no console');
+  finally
+    S.Free; Sink.Free;
+  end;
+end;
+
 procedure TestSessionJob;
 var S: TSimulationSession; F: TFakeController; L: TStringList; FN: string; I, Guard: Integer;
 begin
@@ -391,6 +440,7 @@ begin
   TestMarlin;
   TestJogUsesDecimalPoint;
   TestMoveTo;
+  TestConsoleLog;
   TestSessionJob;
   TestSessionRejectsBadProgram;
   if Failures > 0 then begin Writeln(Failures, ' falha(s)'); Halt(1); end;
