@@ -45,3 +45,7 @@ lib/
 /makepcb/tests/test_makepcb
 /makepcb/tests/test_makepcb_ui
 /makepcb/src/app/makepcb
+/routerpcb/src/app/routerpcb
+/routerpcb/tests/test_routerpcb
+/routerpcb/tests/test_routerpcb_ui
+/routerpcb/tests/make_fixture

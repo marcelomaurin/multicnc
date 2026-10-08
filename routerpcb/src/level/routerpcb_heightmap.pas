@@ -14,7 +14,7 @@ unit routerpcb_heightmap;
      com a grade (o deslocamento de maquina se cancela).
      Tambem aceita CSV "X;Y;Z" em coordenadas de trabalho (LoadCSV).
   4. Height: altura relativa ao primeiro ponto, interpolacao bilinear na
-     celula; fora da grade nao extrapola (False).
+     celula; ate 0,5 mm fora da grade usa a borda; alem disso, False.
   5. Compensate: divide cada corte em trechos <= MaxSegment e soma a altura
      em cada ponto; erro se sair da grade ou se a correcao passar de
      MaxCorrection. Deslocamentos rapidos e alturas seguras nao mudam (o
@@ -226,7 +226,9 @@ begin
   if not Complete then Exit;
   FX := (X - FX0) / FDX;
   FY := (Y - FY0) / FDY;
-  if (FX < -1e-6) or (FY < -1e-6) or (FX > FCols - 1 + 1e-6) or (FY > FRows - 1 + 1e-6) then Exit;
+  { ate 0,5 mm fora da grade usa a borda (nao extrapola a inclinacao) }
+  if (FX < -0.5 / FDX) or (FY < -0.5 / FDY) or (FX > FCols - 1 + 0.5 / FDX) or
+    (FY > FRows - 1 + 0.5 / FDY) then Exit;
   I := EnsureRange(Floor(FX), 0, FCols - 2);
   J := EnsureRange(Floor(FY), 0, FRows - 2);
   TX := EnsureRange(FX - I, 0, 1);

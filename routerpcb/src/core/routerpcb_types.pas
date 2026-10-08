@@ -246,7 +246,7 @@ begin
   Result.Enabled := False;
   Result.Cols := 5;
   Result.Rows := 4;
-  Result.Margin := -2;   { pontos 2 mm para dentro da borda (sobre o cobre) }
+  Result.Margin := 0;    { pontos na borda da placa (a chapa e maior que a placa) }
   Result.ProbeDepth := -2;
   Result.ProbeFeed := 50;
   Result.MaxSegment := 1;
