@@ -18,7 +18,7 @@ A tela principal foi reorganizada como um hub visual. O menu lateral permanece d
 
 - **Visao geral:** apresenta a proposta da suite, fluxo de fabricacao e atalhos.
 - **Projeto atual:** mostra artefatos e o estado das etapas do workspace.
-- **Projetar:** MultiCAD, MultiPCB, MakePCB, MakeRouter (em desenvolvimento), LaserPCB e LaserArt.
+- **Projetar:** MultiCAD, MultiPCB, MakePCB, MakeRouter, LaserPCB e LaserArt.
 - **Preparar:** MultiCAM, RouterPCB e MultiSlicer.
 - **Simular:** MultiPhysics e MultiAssembly.
 - **Fabricar:** MultiCNC.

@@ -1,10 +1,28 @@
 # MakeRouter
 
-> **Estado:** em análise (08/10/2026). Existe só uma **tela provisória** (`bin/makerouter.exe`)
-> que ocupa o lugar na suíte: registro, bandeja (grupo Projetar) e MultiSuite. Ela mostra as
-> etapas previstas e não gera percursos nem G-code.
-> As decisões em aberto estão em [docs/TAREFA.md](docs/TAREFA.md), seção "Decisões para o
-> Marcelo".
+> **Estado (08/10/2026):** primeira versão **2,5D** pronta (`bin/makerouter.exe`, instalador
+> 0.05). Já faz material e zero virtual, formas, perfil com pontes, bolsão, furação, gravação,
+> simulação sombreada e G-code para o MultiCNC. **Ainda não tem** V-Carve (fase 5), relevo 3D
+> (fase 6) nem importação DXF/SVG. O andamento está em [docs/TAREFA.md](docs/TAREFA.md).
+
+| | |
+|---|---|
+| ![Percursos](../imgs/Makerouter02.png) | ![Simulação](../imgs/Makerouter03.png) |
+| ![Desenho](../imgs/Makerouter05.png) | ![Saída](../imgs/Makerouter04.png) |
+
+## Uso rápido
+
+1. **Demo** abre a placa de exemplo (320 × 220 × 18 mm): texto gravado, bolsão, 4 furos e
+   recorte com pontes.
+2. **1 Material:** tamanho, espessura, ponto de zero (9 botões) e Z no topo ou na mesa.
+3. **2 Desenho:** adicione formas e edite as medidas, ou arraste na vista (Shift soma à
+   seleção, Delete exclui).
+4. **4 Percursos:** selecione as formas, crie Perfil, Bolsão, Furação ou Gravação, escolha a
+   ferramenta e as profundidades e clique em **Calcular**.
+5. **5 Simular:** veja a remoção do material. Vermelho indica corte abaixo da base, o que é
+   normal no recorte (a fresa entra na base de sacrifício).
+6. **6 Saída:** **Validar** e **Gerar G-code** (escolha a pasta). Depois, **Abrir no MultiCNC**,
+   leve a fresa ao ponto de zero, clique em Zero Workpiece e confira com Frame (Test).
 
 O **MakeRouter** é o programa da suíte para **projetar e usinar peças de madeira** (MDF,
 compensado, madeira maciça, acrílico) na CNC Router. Na mesma ferramenta o usuário:
@@ -53,13 +71,13 @@ Mover a peça na mesa não exige gerar o G-code de novo, só refazer o zero. É 
 do RouterPCB, em que o zero fica no canto da placa e na superfície do cobre. O contrato comum
 está em [../docs/CONTRATO_GCODE.md](../docs/CONTRATO_GCODE.md).
 
-## Etapas previstas
+## Etapas (o que já existe e o que falta)
 
 | Etapa | O que acontece |
 |---|---|
 | **1 Material** | Largura, altura e espessura do material, unidade (mm), ponto de zero XY (9 pontos) e Z (topo ou mesa), base de sacrifício, Z seguro e posição de retorno (*home*) relativa ao zero. Material visual (pinus, MDF, maple...) só para a prévia. |
 | **2 Desenho** | Vetores: retângulo (com cantos arredondados), círculo, elipse, polígono, estrela, arco, polilinha, curva e texto (fontes do sistema convertidas em contorno). Importação de DXF e SVG. Mover, girar, espelhar, escalar, alinhar, distribuir, soldar, subtrair, interseção, *offset*, unir vetores abertos e matriz/cópia em grade. Camadas de desenho. |
-| **3 Relevo** | Modelo 3D da peça como **mapa de alturas** (como os componentes do Aspire, em versão simples): domo, rampa/ângulo, prisma e extrusão a partir de vetor, revolução, imagem em tons de cinza → relevo e importação de STL (projetado de cima). Combinação por somar, subtrair, máximo e mínimo. |
+| **3 Relevo** *(fase 6, falta)* | Modelo 3D da peça como **mapa de alturas** (como os componentes do Aspire, em versão simples): domo, rampa/ângulo, prisma e extrusão a partir de vetor, revolução, imagem em tons de cinza → relevo e importação de STL (projetado de cima). Combinação por somar, subtrair, máximo e mínimo. |
 | **4 Percursos** | Lista de percursos com ferramenta, profundidades e parâmetros. Cada percurso pode ser ligado, desligado, recalculado e reordenado. Tipos: **Perfil** (fora, dentro ou na linha, com pontes, rampa e entrada/saída), **Bolsão** (*pocket*, com limpeza em zigue-zague ou offset), **Furação**, **Gravação em linha**, **V-Carve** (fresa V com profundidade variável), **Desbaste 3D** e **Acabamento 3D**. |
 | **5 Simular** | Remoção de material num mapa de alturas do *stock*, vista 3D com textura de madeira, simulação de um percurso ou de todos, tempo estimado e alertas de colisão do porta-ferramenta e de mergulho rápido no material. |
 | **6 Saída** | Validação (limites, ferramenta mais larga que o detalhe, profundidade maior que o material, pontes, Z seguro) e G-code GRBL. Gera um arquivo por ferramenta ou um único arquivo com pausa M0 para trocar a fresa. O botão "Abrir no MultiCNC" abre o primeiro programa. |

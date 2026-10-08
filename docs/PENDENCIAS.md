@@ -14,16 +14,19 @@ Lista do que ficou aberto. Detalhes do LaserArt em
 - A bandeja continua em segundo plano de proposito (icone ao lado do relogio); para fechar,
   "Sair" no painel.
 
-## MakeRouter (08/10/2026) - EM ANALISE
-- Projeto + usinagem de madeira na CNC Router (referencia de fluxo: Vectric Aspire, sem
-  copiar): material, desenho 2D, relevo, percursos (perfil, bolsao, furacao, V-Carve, 3D),
-  simulacao e G-code para o MultiCNC.
-- Zero virtual: G-code relativo a um ponto do material (9 pontos XY, Z topo ou mesa); o
-  MultiCNC posiciona (Zero Workpiece + Frame). Contrato comum proposto em
-  `docs/CONTRATO_GCODE.md` (linhas `; MS-DATUM/STOCK/BOUNDS`).
-- Tela provisoria `bin\makerouter.exe` na bandeja e no MultiSuite (grupo Projetar).
-- Decisoes D1-D6 (papel do MultiCAM, biblioteca de offset, emissor comum,
-  vista 3D, escopo da 1a entrega) em `makerouter/docs/TAREFA.md`.
+## MakeRouter (08/10/2026) - primeira versao 2,5D
+- Projeto + usinagem de madeira na CNC Router (fluxo de referencia: Vectric Aspire, sem
+  copiar): material e zero virtual (9 pontos, Z topo ou mesa), formas, perfil com pontes,
+  bolsao, furacao, gravacao, simulacao sombreada e G-code com o cabecalho `MS-...`.
+- Clipper2 em `src/shared/clipper2` (corrigida a comparacao com `MaxDouble` no FPC/Linux) e
+  emissor comum `src/shared/multisuite_gcode_writer.pas`.
+- MultiCNC: qualquer `-> MultiCNC (CNC Router)` vira CNC Router; log com zero, material e
+  caixa. `bin\multicnc.exe` recompilado.
+- Testes 92 + 21 checks (Linux e Win64), CI `makerouter-ci.yml`, Central de Testes,
+  instalador `bin\setup_multcnc_005.exe`.
+- Falta: V-Carve (fase 5), relevo 3D (fase 6), DXF/SVG, soldar/subtrair na tela, desfazer,
+  texto TrueType, RouterPCB usar o emissor comum, Frame do MultiCNC usar `MS-BOUNDS`.
+  Ver `makerouter/docs/TAREFA.md`.
 
 ## RouterPCB (08/10/2026) - pronto, falta a maquina real
 - Fecha o gap MakePCB -> RouterPCB -> MultiCNC (CNC Router): isolacao com fresa V,
@@ -132,6 +135,7 @@ Lista do que ficou aberto. Detalhes do LaserArt em
 ## Instalador
 - `bin\setup_multcnc_002.exe` (0.02): 14 aplicativos, incluindo Bandeja e SimuCNC.
 - `bin\setup_multcnc_003.exe` (0.03, 08/10): 15 aplicativos, com o RouterPCB.
+- `bin\setup_multcnc_005.exe` (0.05, 08/10): 16 aplicativos, com o MakeRouter 2,5D.
 - `bin\multicnc.exe` recompilado em 08/10 (console de log + reconhece o RouterPCB),
   usando o clone publico de `marcelomaurin/chatgpt`.
 

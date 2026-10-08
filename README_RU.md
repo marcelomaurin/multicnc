@@ -25,7 +25,7 @@
 - **MultiSlicer:** подготовка 3D-печати
 - **MultiPCB / MakePCB / LaserPCB:** проектирование и изготовление PCB (MakePCB: плата с нуля в стиле PCB Wizard, Gerber + Excellon для LaserPCB)
 - **RouterPCB:** фрезеровка PCB на CNC Router (изоляция V-фрезой, сверловка, обрезка контура с перемычками, выравнивание по зондированию) из папки Gerber + Excellon MakePCB. См. [routerpcb/README.md](routerpcb/README.md)
-- **MakeRouter** *(в разработке)*: проектирование и фрезеровка деталей из дерева на CNC Router (чертёж, рельеф, траектории, симуляция) в стиле Aspire; G-code с виртуальным нулём, который выставляет MultiCNC. См. [makerouter/README.md](makerouter/README.md)
+- **MakeRouter** *(первая версия 2,5D)*: проектирование и фрезеровка деталей из дерева на CNC Router (чертёж, рельеф, траектории, симуляция) в стиле Aspire; G-code с виртуальным нулём, который выставляет MultiCNC. См. [makerouter/README.md](makerouter/README.md)
 - **MultiAssembly:** интеграция механики и электроники
 - **MultiPhysics:** многодоменное физическое моделирование
 

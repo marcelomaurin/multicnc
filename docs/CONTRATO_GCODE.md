@@ -1,7 +1,7 @@
 # Contrato de G-code da suíte (zero virtual e cabeçalho)
 
-Estado: proposta (08/10/2026). Ela formaliza o que o RouterPCB já faz e serve de base para o
-MakeRouter. As ferramentas atuais seguem funcionando como estão, e a adoção é gradual.
+Estado: em uso (08/10/2026). O MakeRouter gera e o MultiCNC lê as linhas `; MS-...`; o RouterPCB
+ainda usa só o texto livre. As ferramentas atuais seguem funcionando como estão, e a adoção é gradual.
 
 ## Princípio: zero virtual
 
@@ -60,11 +60,13 @@ G21
 | LaserPCB / LaserArt | `; LaserPCB -> MultiCNC` / `; LaserArt -> MultiCNC` | mesa do laser | não |
 | MakeRouter | `; MakeRouter -> MultiCNC (CNC Router)` | 9 pontos do material, Z topo ou mesa | sim, desde o início |
 
-## Trabalho no MultiCNC (quando o contrato for aprovado)
+## Trabalho no MultiCNC
 
-- `OpenProgramFile`: reconhecer `; MakeRouter -> MultiCNC (CNC Router)`, seguindo o modelo do
-  RouterPCB. Generalizar para qualquer `-> MultiCNC (CNC Router)`.
-- Ler as linhas `MS-DATUM`, `MS-STOCK` e `MS-BOUNDS`.
+- [feito] `OpenProgramFile`: qualquer `; X -> MultiCNC (CNC Router)` seleciona CNC Router.
+- [feito] Lê `MS-DATUM`, `MS-STOCK` e `MS-BOUNDS` (`SuiteParseHeader`) e mostra no log o ponto
+  de zero, o material e a caixa do trabalho.
+
+Falta:
 - Mostrar o ponto de zero ("leve a ferramenta ao canto inferior esquerdo, no topo do
   material") e um desenho pequeno do material com o ponto marcado.
 - Usar `MS-BOUNDS` no Frame e conferir o curso: soft limits e posição atual + caixa.

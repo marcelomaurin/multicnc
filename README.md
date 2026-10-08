@@ -36,7 +36,7 @@ FABRICAÇÃO
 | **MultiSuite** | Ponto de entrada para toda a suíte |
 | **MultiCAD** | Projeto e preparação geométrica |
 | **MultiCAM** | Preparação de trajetórias e fabricação |
-| **MakeRouter** *(em desenvolvimento)* | Projeto e usinagem de madeira na CNC Router |
+| **MakeRouter** | Projeto e usinagem de madeira na CNC Router |
 | **MultiSlicer** | Preparação para impressão 3D |
 | **MultiPCB / MakePCB / LaserPCB / RouterPCB** | Projeto e fabricação de placas eletrônicas (laser ou fresagem) |
 | **MultiAssembly** | Integração de mecânica e eletrônica em uma montagem |
@@ -80,7 +80,7 @@ O MultiCNC é **open source** e está em desenvolvimento contínuo. Os módulos 
 | **MakePCB** | Placa do zero, no estilo PCB Wizard | Desenhar esquema e placa e gerar Gerber + Excellon para o LaserPCB ou o RouterPCB |
 | **RouterPCB** | Fresagem de PCB na CNC Router | Isolar trilhas com fresa V, furar e recortar a placa a partir do Gerber + Excellon |
 | **Ferramentas Laser** | Preparação de desenhos, imagens, logos e trabalhos para laser | Criar ou preparar arte para corte e gravação a laser |
-| **MakeRouter** *(em desenvolvimento)* | Projeto e usinagem de madeira, no estilo do Aspire | Desenhar a peça, fazer relevo, percursos (perfil, bolsão, furação, V-Carve, 3D), simular e mandar ao MultiCNC |
+| **MakeRouter** | Projeto e usinagem de madeira, no estilo do Aspire | Desenhar a peça, fazer relevo, percursos (perfil, bolsão, furação, V-Carve, 3D), simular e mandar ao MultiCNC |
 | **Ferramentas CNC Router/CAM** | Preparação de usinagem mecânica | Preparar operações, trajetórias e trabalhos para Router |
 | **Montagem eletromecânica** | Visualização conjunta de mecânica e eletrônica | Ver componentes mecânicos, placas, sensores, motores e conexões no mesmo projeto |
 | **Central de Testes** | Compilação e validação das funcionalidades | Desenvolver, testar e diagnosticar os módulos da suíte |
@@ -324,7 +324,7 @@ Use essas ferramentas quando quiser **preparar uma peça para ser usinada**.
 Para **placas de circuito**, use o **RouterPCB**: isolação, furação e recorte de PCB
 a partir do Gerber + Excellon (veja a seção 5). O MultiCAM continua dedicado à usinagem de peças.
 
-### MakeRouter — projetar e usinar madeira *(em desenvolvimento)*
+### MakeRouter — projetar e usinar madeira
 
 O **MakeRouter** (`makerouter/`) é o programa para **peças de madeira, MDF, compensado e
 acrílico**: letreiros, bandejas, painéis de móveis, entalhes. O fluxo de referência é o do Vectric
@@ -339,11 +339,18 @@ MakeRouter (material + desenho + relevo + percursos + simulação) --G-code com 
   escolhido nele (9 pontos em XY; Z no topo do material ou na mesa). O **MultiCNC** posiciona: o
   operador leva a ferramenta ao ponto, usa **Zero Workpiece** e confere com **Frame (Test)**. O
   cabeçalho comum está em [docs/CONTRATO_GCODE.md](docs/CONTRATO_GCODE.md).
-- **Estado:** projeto documentado e **tela provisória** (`bin/makerouter.exe`) já na bandeja e
-  no MultiSuite (grupo Projetar). Ainda não gera percursos nem G-code; as decisões D1 a D6 estão em
-  [makerouter/docs/TAREFA.md](makerouter/docs/TAREFA.md).
+- **Percursos (primeira versão, 2,5D):** perfil por fora, por dentro ou na linha, com rampa,
+  sobremetal e pontes; bolsão com ilhas; furação com bicadas; gravação na linha. Fresas reta,
+  esférica, V, broca e gravador.
+- **Simulação:** remoção do material em mapa de alturas, com madeira, sombra e profundidade.
+- **Saída:** um arquivo por ferramenta (ou único com M0), cabeçalho com o zero, o material e a
+  caixa do trabalho. O MultiCNC mostra esses dados no log ao abrir o arquivo.
+- **Falta:** V-Carve (fase 5), relevo 3D com desbaste e acabamento (fase 6) e importação
+  DXF/SVG. Andamento em [makerouter/docs/TAREFA.md](makerouter/docs/TAREFA.md).
 
-![MakeRouter: tela provisória](imgs/Makerouter01.png)
+| | |
+|---|---|
+| ![MakeRouter: percursos](imgs/Makerouter02.png) | ![MakeRouter: simulação](imgs/Makerouter03.png) |
 
 ---
 

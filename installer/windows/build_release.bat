@@ -7,10 +7,10 @@ set APP=%DIST%\app
 set BIN=%ROOT%\bin
 
 set VERSION=%~1
-if "%VERSION%"=="" set VERSION=0.04
+if "%VERSION%"=="" set VERSION=0.05
 
 set SETUP_SEQ=%~2
-if "%SETUP_SEQ%"=="" set SETUP_SEQ=004
+if "%SETUP_SEQ%"=="" set SETUP_SEQ=005
 
 set OUTPUT_NAME=setup_multcnc_%SETUP_SEQ%
 

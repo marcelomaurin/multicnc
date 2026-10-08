@@ -1,6 +1,6 @@
 # MakeRouter - Arquitetura (proposta para análise)
 
-Estado: em análise. Nada aqui foi implementado. As decisões marcadas com **[D#]** estão em
+Estado: primeira versão 2,5D implementada (08/10/2026). As unidades reais estão em `AI_GUIDE.md`; a tabela da seção 3 é o plano completo, e várias partes foram agrupadas (por exemplo, todos os percursos 2,5D estão em `makerouter_cam`). As decisões marcadas com **[D#]** estão em
 `TAREFA.md` e esperam a escolha do Marcelo.
 
 ## 1. Sistema de coordenadas e zero virtual

@@ -5,9 +5,19 @@ Projeto e usinagem de pecas de madeira (e acrilico/MDF/compensado) na CNC Router
 2D, relevo (mapa de alturas), percursos (perfil, bolsao, furacao, gravacao, V-Carve, 3D),
 simulacao e G-code para o MultiCNC.
 
-Estado: em analise. So existe a tela provisoria `src/app/makerouter_main.pas` (etapas
-descritivas, botoes desabilitados) registrada na suite como `stiMakeRouter`. Leia `TAREFA.md`
-(decisoes D1-D6) antes de comecar; a interface real substitui a provisoria na fase 4.
+Estado: primeira versao 2,5D (08/10/2026). Faltam V-Carve (fase 5), relevo 3D (fase 6) e
+importacao DXF/SVG. Andamento em `TAREFA.md`.
+
+## Unidades (como implementado)
+- src/core/makerouter_types: material, 9 pontos de zero, ferramentas, padroes, validacao.
+- src/core/makerouter_project: formas parametricas (TMRShape), percursos (TMRToolpath),
+  projeto, zero virtual (DatumPoint/ToOutput), JSON `.mrouter`, exemplo.
+- src/geom/makerouter_clip: ponte com a Clipper2 (`src/shared/clipper2`).
+- src/cam/makerouter_cam: perfil, bolsao, furacao, gravacao (movimentos no espaco do projeto).
+- src/sim/makerouter_sim: material como mapa de alturas e imagem sombreada.
+- src/export/makerouter_gcode: programas com o emissor comum `src/shared/multisuite_gcode_writer`.
+- src/ui/makerouter_view: vista 2D/simulacao; src/app/makerouter_main: tela (6 etapas).
+- tests/test_makerouter (92 checks) e tests/test_makerouter_ui (21 checks).
 
 ## Regras
 1. Projeto em mm, origem no canto inferior esquerdo do material, Z = 0 no topo do material.

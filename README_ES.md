@@ -27,7 +27,7 @@ IDEA → DISEÑO → SIMULACIÓN → PREPARACIÓN → VALIDACIÓN → FABRICACI�
 - **MultiSlicer:** preparación para impresión 3D
 - **MultiPCB / MakePCB / LaserPCB:** diseño y fabricación de PCB (MakePCB: placa desde cero, estilo PCB Wizard, Gerber + Excellon para LaserPCB)
 - **RouterPCB:** fresado de PCB en la CNC Router (aislamiento con fresa en V, taladrado, recorte con puentes, nivelación por sondeo) a partir de la carpeta Gerber + Excellon del MakePCB. Ver [routerpcb/README.md](routerpcb/README.md)
-- **MakeRouter** *(en desarrollo)*: diseño y mecanizado de piezas de madera en la CNC Router (dibujo, relieve, trayectorias, simulación), flujo al estilo Aspire; G-code con cero virtual que el MultiCNC posiciona. Ver [makerouter/README.md](makerouter/README.md)
+- **MakeRouter** *(primera versión 2,5D)*: diseño y mecanizado de piezas de madera en la CNC Router (dibujo, relieve, trayectorias, simulación), flujo al estilo Aspire; G-code con cero virtual que el MultiCNC posiciona. Ver [makerouter/README.md](makerouter/README.md)
 - **MultiAssembly:** integración mecánica y electrónica
 - **MultiPhysics:** simulación física multidominio
 

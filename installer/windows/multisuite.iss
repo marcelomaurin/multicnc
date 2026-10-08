@@ -2,10 +2,10 @@
   #define MyAppName "MultiSuite"
 #endif
 #ifndef MyAppVersion
-  #define MyAppVersion "0.04"
+  #define MyAppVersion "0.05"
 #endif
 #ifndef SetupSeq
-  #define SetupSeq "004"
+  #define SetupSeq "005"
 #endif
 #ifndef MyAppPublisher
   #define MyAppPublisher "Maurinsoft"
@@ -58,7 +58,7 @@ Name: "tools\multiphysics"; Description: "MultiPhysics - Simulacao Fisica, Termi
 Name: "tools\multicam"; Description: "MultiCAM - CAM e Simulacao CNC Router"; Types: full custom
 Name: "tools\multislicer"; Description: "MultiSlicer - Fatiador para Impressao 3D"; Types: full custom
 Name: "tools\makepcb"; Description: "MakePCB - Projeto de Placas do Zero (Gerber/Excellon)"; Types: full custom
-Name: "tools\makerouter"; Description: "MakeRouter - Projeto e usinagem de madeira (versao provisoria)"; Types: full custom
+Name: "tools\makerouter"; Description: "MakeRouter - Projeto e usinagem de madeira na CNC Router"; Types: full custom
 Name: "tools\routerpcb"; Description: "RouterPCB - Fresagem de PCB na CNC Router (isolacao, furacao, recorte, nivelamento)"; Types: full custom
 Name: "tools\laserpcb"; Description: "LaserPCB - Preparacao e Gravacao de PCB a Laser"; Types: full custom
 Name: "tools\laserart"; Description: "LaserArt - Vetorizacao e Gravacao de Imagens a Laser"; Types: full custom

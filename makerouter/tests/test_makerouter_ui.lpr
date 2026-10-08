@@ -76,7 +76,7 @@ begin
       'percurso calculado: ' + F.Project.Toolpaths[I].Name);
   F.ViewControl.FitMaterial;
   F.ShowStep(0); Shot('02_material');
-  F.ViewControl.SelectOnly(F.Project.Shapes[1].Id);
+  F.SelectShape(F.Project.Shapes[1].Id);
   F.ShowStep(1); Shot('03_desenho');
   F.ShowStep(3); Shot('04_percursos');
   Vol := F.Simulate;

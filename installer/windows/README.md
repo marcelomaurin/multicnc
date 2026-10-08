@@ -12,11 +12,11 @@ installer\windows\build_release.bat
 O script compila todas as aplicacoes, interrompe no primeiro erro, copia somente executaveis gerados com sucesso para dist\app e chama o Inno Setup.
 
 ## Pacote
-Instala MultiSuite, MultiSuite Bandeja, MultiCAD, MultiPCB, MakePCB, MultiAssembly, MultiPhysics, MultiCAM, MultiSlicer, MakeRouter (provisorio), RouterPCB, LaserPCB, LaserArt, MultiCNC, SimuCNC e Central de Testes.
+Instala MultiSuite, MultiSuite Bandeja, MultiCAD, MultiPCB, MakePCB, MultiAssembly, MultiPhysics, MultiCAM, MultiSlicer, MakeRouter, RouterPCB, LaserPCB, LaserArt, MultiCNC, SimuCNC e Central de Testes.
 
 A bandeja pode iniciar com o Windows (tarefa "Iniciar a MultiSuite Bandeja com o Windows"); a desinstalacao fecha a bandeja e remove esse registro.
 
-Versao atual: 0.04 (`setup_multcnc_004.exe`, telas em portugues do Brasil; RouterPCB, MakeRouter provisorio e correcao: fechar a janela encerra o programa). Gerar: `installer\windows\build_release.bat 0.04 004`.
+Versao atual: 0.05 (`setup_multcnc_005.exe`, telas em portugues do Brasil; MakeRouter 2,5D, RouterPCB e MultiCNC lendo o cabecalho da suite). Gerar: `installer\windows\build_release.bat 0.05 005`.
 
 Cria a pasta MultiSuite Projects em Documentos, menu Iniciar e opcionalmente atalho na area de trabalho. Registra .msuite como projeto MultiSuite.
 

@@ -129,6 +129,7 @@ type
     procedure OpenFile(const FN: string);
     procedure LoadExample;
     procedure ShowStep(N: Integer);
+    procedure SelectShape(AId: Integer);
     function CalculateAll: Integer;
     function Simulate: Double;
     function ValidateJob: Boolean;
@@ -537,6 +538,12 @@ begin
   for I := 0 to 5 do
     if I = N then Nav[I].SetLook(sbsSolid, clSuitePrimary)
     else Nav[I].SetLook(sbsSoft, clSuitePrimary);
+end;
+
+procedure TMakeRouterForm.SelectShape(AId: Integer);
+begin
+  View.SelectOnly(AId);
+  RefreshShapeList;
 end;
 
 procedure TMakeRouterForm.NavClick(Sender: TObject);

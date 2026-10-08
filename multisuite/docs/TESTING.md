@@ -28,6 +28,7 @@ LaserPCB: job, layout e alinhamento.
 MakePCB: nucleo (biblioteca, redes, Gerber/Excellon lidos pelo LaserPCB, roteamento, DRC, esquema, SMD, impressao) e interface.
 RouterPCB: isolacao, furacao, recorte, nivelamento e G-code (aceito pelo validador e pelo analisador do MultiCNC) e interface nativa.
 LaserArt: saida G-code (SVG, texto, imagem) e matriz de teste de material.
+MakeRouter: percursos 2,5D, zero virtual (9 pontos e mesa), G-code (contrato, validador e analisador do MultiCNC), simulacao e interface nativa.
 MultiSuite: registro (12 ferramentas, incluindo RouterPCB e MakeRouter) e workspace.
 
 ## Regra para IA

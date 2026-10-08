@@ -25,7 +25,7 @@
 - **MultiSlicer：** 3D 打印准备
 - **MultiPCB / MakePCB / LaserPCB：** PCB 设计与制造（MakePCB：从零设计电路板，PCB Wizard 风格，为 LaserPCB 生成 Gerber + Excellon）
 - **RouterPCB：**在 CNC 雕刻机上铣削 PCB（V 形刀隔离、钻孔、带连接桥的外形切割、探针自动调平），输入为 MakePCB 的 Gerber + Excellon 文件夹。参见 [routerpcb/README.md](routerpcb/README.md)
-- **MakeRouter**（开发中）：在 CNC 雕刻机上设计并加工木制零件（绘图、浮雕、刀路、仿真），流程参考 Aspire；G 代码使用虚拟零点，由 MultiCNC 定位。参见 [makerouter/README.md](makerouter/README.md)
+- **MakeRouter**（首个 2.5D 版本）：在 CNC 雕刻机上设计并加工木制零件（绘图、浮雕、刀路、仿真），流程参考 Aspire；G 代码使用虚拟零点，由 MultiCNC 定位。参见 [makerouter/README.md](makerouter/README.md)
 - **MultiAssembly：** 机械与电子装配集成
 - **MultiPhysics：** 多领域物理仿真
 
