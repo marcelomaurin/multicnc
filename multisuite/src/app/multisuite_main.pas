@@ -385,7 +385,7 @@ begin
   Result := False;
   case ASection of
     SEC_DESIGN:
-      Result := AID in [stiMultiCAD, stiMultiPCB, stiMakePCB, stiLaserPCB, stiLaserArt];
+      Result := AID in [stiMultiCAD, stiMultiPCB, stiMakePCB, stiMakeRouter, stiLaserPCB, stiLaserArt];
     SEC_PREPARE:
       Result := AID in [stiMultiCAM, stiRouterPCB, stiMultiSlicer];
     SEC_SIMULATE:

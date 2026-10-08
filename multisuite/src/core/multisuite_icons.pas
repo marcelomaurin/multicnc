@@ -32,7 +32,7 @@ type
     sikUndo, sikRedo, sikCopy, sikMirrorH, sikMirrorV, sikImport, sikEye,
     sikWand, sikFit, sikLayers, sikExport, sikNew, sikZoomIn, sikZoomOut,
     { ferramentas novas (no fim: os ordinais aparecem em caches) }
-    sikMakePCB, sikRouterPCB
+    sikMakePCB, sikRouterPCB, sikMakeRouter
   );
 
   { sifNone    - apenas o glifo, ocupando toda a area
@@ -676,6 +676,20 @@ begin
         Pn.RoundBox(9, 1.5, 15, 6.5, 1, False);
         Pn.Poly([9.5, 6.5, 14.5, 6.5, 14.5, 9.5, 12, 13, 9.5, 9.5], True);
         Pn.Line(10, 8, 14, 9.5);
+      end;
+
+    sikMakeRouter:
+      begin
+        { peca de madeira com bolsao curvo e a fresa reta acima }
+        Pn.RoundBox(2.5, 12.5, 21.5, 21, 1.5, False);
+        Pn.Poly([6, 16, 9, 18.5, 15, 18.5, 18, 16], False);
+        Pn.Line(5, 14.5, 7, 14.5);
+        Pn.Line(17, 14.5, 19, 14.5);
+        Pn.RoundBox(9.5, 1.5, 14.5, 5.5, 1, False);
+        Pn.Line(10.5, 5.5, 10.5, 10.5);
+        Pn.Line(13.5, 5.5, 13.5, 10.5);
+        Pn.Line(10.5, 10.5, 13.5, 10.5);
+        Pn.Line(10.5, 7, 13.5, 9);
       end;
 
     sikPen:

@@ -1,6 +1,8 @@
 # MakeRouter
 
-> **Estado:** em análise (08/10/2026). Só a documentação existe; nenhum código foi escrito.
+> **Estado:** em análise (08/10/2026). Existe só uma **tela provisória** (`bin/makerouter.exe`)
+> que ocupa o lugar na suíte: registro, bandeja (grupo Projetar) e MultiSuite. Ela mostra as
+> etapas previstas e não gera percursos nem G-code.
 > As decisões em aberto estão em [docs/TAREFA.md](docs/TAREFA.md), seção "Decisões para o
 > Marcelo".
 

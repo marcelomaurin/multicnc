@@ -623,6 +623,7 @@ begin
     stiMultiPCB:      Result := sikPCB;
     stiMakePCB:       Result := sikMakePCB;
     stiRouterPCB:     Result := sikRouterPCB;
+    stiMakeRouter:    Result := sikMakeRouter;
     stiMultiAssembly: Result := sikAssembly;
     stiMultiPhysics:  Result := sikPhysics;
     stiMultiCAM:      Result := sikCAM;
@@ -642,6 +643,7 @@ begin
     stiMultiPCB:      Result := C(13, 148, 136);
     stiMakePCB:       Result := C(5, 150, 105);
     stiRouterPCB:     Result := C(180, 83, 9);
+    stiMakeRouter:    Result := C(146, 64, 14);
     stiLaserPCB:      Result := C(239, 68, 68);
     stiLaserArt:      Result := C(219, 39, 119);
     stiMultiCAM:      Result := C(217, 119, 6);
@@ -902,7 +904,7 @@ begin
   FList.DoubleBuffered := True;
   FList.OnResize := @ListResize;
 
-  AddGroup('PROJETAR', [stiMultiCAD, stiMultiPCB, stiMakePCB, stiLaserPCB, stiLaserArt]);
+  AddGroup('PROJETAR', [stiMultiCAD, stiMultiPCB, stiMakePCB, stiMakeRouter, stiLaserPCB, stiLaserArt]);
   AddGroup('PREPARAR', [stiMultiCAM, stiRouterPCB, stiMultiSlicer]);
   AddGroup('SIMULAR', [stiMultiPhysics, stiMultiAssembly]);
   AddGroup('FABRICAR', [stiMultiCNC]);

@@ -2,6 +2,11 @@
 
 - **Aberta em:** 08/10/2026
 - **Estado:** em análise. É preciso decidir D1 a D6 antes de começar a fase 0.
+- **Tela provisória (08/10):** `src/app/makerouter_main.pas` (padrão da suíte, 6 etapas só
+  descritivas, botões desabilitados), ícone `sikMakeRouter`, `stiMakeRouter` no fim do enum
+  (12 ferramentas), bandeja e MultiSuite no grupo Projetar e `bin/makerouter.exe` (x64).
+  Na fase 4 a tela provisória dá lugar à interface real; o registro e a bandeja já ficam
+  prontos.
 - **Visão:** [../README.md](../README.md)
 - **Arquitetura:** [ARCHITECTURE.md](ARCHITECTURE.md)
 - **Contrato de G-code:** [../../docs/CONTRATO_GCODE.md](../../docs/CONTRATO_GCODE.md)

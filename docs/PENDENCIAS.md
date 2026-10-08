@@ -10,7 +10,8 @@ Lista do que ficou aberto. Detalhes do LaserArt em
 - Zero virtual: G-code relativo a um ponto do material (9 pontos XY, Z topo ou mesa); o
   MultiCNC posiciona (Zero Workpiece + Frame). Contrato comum proposto em
   `docs/CONTRATO_GCODE.md` (linhas `; MS-DATUM/STOCK/BOUNDS`).
-- So documentacao. Decisoes D1-D6 (papel do MultiCAM, biblioteca de offset, emissor comum,
+- Tela provisoria `bin\makerouter.exe` na bandeja e no MultiSuite (grupo Projetar).
+- Decisoes D1-D6 (papel do MultiCAM, biblioteca de offset, emissor comum,
   vista 3D, escopo da 1a entrega) em `makerouter/docs/TAREFA.md`.
 
 ## RouterPCB (08/10/2026) - pronto, falta a maquina real

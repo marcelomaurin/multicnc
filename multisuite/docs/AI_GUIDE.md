@@ -20,7 +20,7 @@ Ferramentas sao executaveis independentes. O launcher pode enviar --project <dir
 
 ## Ferramentas registradas
 MultiCAD, MultiPCB, MultiAssembly, MultiPhysics, MultiCAM, MultiSlicer, LaserPCB, LaserArt, MultiCNC e MakePCB.
-RouterPCB (`stiRouterPCB`, ultimo do enum; o registro tem 11 ferramentas) fica na secao/grupo Preparar, ao lado do MultiCAM. Novas ferramentas sempre no FIM de `TSuiteToolID` e de `TSuiteIconKind` (o `.msuite` e caches gravam ordinais).
+RouterPCB (`stiRouterPCB`) e MakeRouter (`stiMakeRouter`, ultimo do enum, tela provisoria; o registro tem 12 ferramentas) fica na secao/grupo Preparar, ao lado do MultiCAM. Novas ferramentas sempre no FIM de `TSuiteToolID` e de `TSuiteIconKind` (o `.msuite` e caches gravam ordinais).
 
 Novas ferramentas entram no FIM de `TSuiteToolID` (`multisuite_types.pas`): o workspace `.msuite` grava o ordinal.
 Na bandeja (`multisuite_tray_form.pas`) cada ferramenta precisa de icone (`ToolIcon`), cor (`ToolAccent`) e grupo (`AddGroup`).
