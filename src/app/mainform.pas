@@ -22,6 +22,7 @@ type
     SerialPanel, TCPPanel: TPanel;
     BtnConnect, BtnOpen, BtnFraming, BtnStart, BtnPause, BtnResume, BtnStop,
       BtnHome, BtnSetHome, BtnPhysicalHome, BtnZero, BtnStatus, BtnUnlock, BtnSend: TSuiteButton;
+      BtnGoTo: TSuiteButton;
     JogButtons: array[0..5] of TSuiteButton;
     StepSize: TFloatSpinEdit;
     FeedRate: TSpinEdit;
@@ -106,6 +107,7 @@ type
     procedure Log(const AText: string);
     procedure UpdateControls;
     procedure UpdateMachineTypeLayout;
+    function AskTargetPosition(var AX, AY, AZ: Double): Boolean;
     procedure FeedRateChanged(Sender: TObject);
     procedure Closing(Sender: TObject; var CanClose: Boolean);
     procedure LaserParamChanged(Sender: TObject);
@@ -377,6 +379,11 @@ begin
   BtnSetHome.SetLook(sbsOutline, clSuiteInfo, sikFlag);
   BtnSetHome.Hint := 'Record current axes position as application reference HOME (G28.1) without moving.';
   BtnSetHome.ShowHint := True;
+  BtnGoTo := ButtonAt(Side, 'Go To Position', COL2_X, ROW1_Y, COL_W, @CommandClick);
+  BtnGoTo.SetLook(sbsOutline, clSuiteInfo, sikPointer);
+  BtnGoTo.Hint := 'Move the head to an absolute X/Y/Z position (G90 G0), checked against the machine travel.';
+  BtnGoTo.ShowHint := True;
+  BtnGoTo.Visible := False;
 
   BtnPhysicalHome := ButtonAt(Side, 'Physical Homing', SIDE_X, ROW2_Y, COL_W, @CommandClick);
   BtnPhysicalHome.SetLook(sbsOutline, clSuitePrimary, sikTarget);
@@ -1465,6 +1472,7 @@ begin
   BtnSetHome.Visible := MachineType.ItemIndex <> 2;
   BtnSetHome.Enabled := Manual and not Alarm and (MachineType.ItemIndex <> 2);
   BtnPhysicalHome.Enabled := Manual;
+  BtnGoTo.Enabled := Manual and not Alarm and (MachineType.ItemIndex = 2);
   BtnZero.Visible := MachineType.ItemIndex <> 2;
   BtnZero.Enabled := Manual and not Alarm and (MachineType.ItemIndex <> 2);
   BtnStatus.Enabled := Session.Connected;
@@ -1509,6 +1517,74 @@ begin
   Timer.Enabled := Session.Connected;
 end;
 
+{ Dialogo do "Go To Position": X/Y/Z absolutos, limitados ao curso do perfil. }
+function TMainForm.AskTargetPosition(var AX, AY, AZ: Double): Boolean;
+var
+  Dlg: TForm;
+  Edits: array[0..2] of TFloatSpinEdit;
+  BtnOK, BtnCancel: TButton;
+  Travel: array[0..2] of Double;
+  Values: array[0..2] of Double;
+  I: Integer;
+  L: TLabel;
+const
+  Names: array[0..2] of string = ('X (mm)', 'Y (mm)', 'Z (mm)');
+begin
+  Result := False;
+  Travel[0] := Session.EnvelopeX;
+  Travel[1] := Session.EnvelopeY;
+  Travel[2] := Session.EnvelopeZ;
+  Values[0] := AX; Values[1] := AY; Values[2] := AZ;
+  Dlg := TForm.CreateNew(nil);
+  try
+    Dlg.Caption := 'Go To Position';
+    Dlg.BorderStyle := bsDialog;
+    Dlg.Position := poOwnerFormCenter;
+    Dlg.Font.Assign(Font);
+    Dlg.Color := clSuiteSurface;
+    Dlg.SetBounds(0, 0, 300, 210);
+    for I := 0 to 2 do
+    begin
+      L := TLabel.Create(Dlg);
+      L.Parent := Dlg;
+      L.Caption := Names[I];
+      L.SetBounds(20, 22 + I * 40, 70, 24);
+      Edits[I] := TFloatSpinEdit.Create(Dlg);
+      Edits[I].Parent := Dlg;
+      Edits[I].SetBounds(100, 18 + I * 40, 170, 28);
+      Edits[I].DecimalPlaces := 2;
+      Edits[I].Increment := 1;
+      Edits[I].MinValue := 0;
+      if Travel[I] > 0 then Edits[I].MaxValue := Travel[I] else Edits[I].MaxValue := 1000;
+      Edits[I].Value := EnsureRange(Values[I], Edits[I].MinValue, Edits[I].MaxValue);
+      if Travel[I] > 0 then
+        Edits[I].Hint := Format('0 to %.0f mm (machine travel)', [Travel[I]], InvariantFS);
+      Edits[I].ShowHint := True;
+    end;
+    BtnOK := TButton.Create(Dlg);
+    BtnOK.Parent := Dlg;
+    BtnOK.Caption := 'Move';
+    BtnOK.Default := True;
+    BtnOK.ModalResult := mrOK;
+    BtnOK.SetBounds(100, 140, 82, 32);
+    BtnCancel := TButton.Create(Dlg);
+    BtnCancel.Parent := Dlg;
+    BtnCancel.Caption := 'Cancel';
+    BtnCancel.Cancel := True;
+    BtnCancel.ModalResult := mrCancel;
+    BtnCancel.SetBounds(188, 140, 82, 32);
+    if Dlg.ShowModal = mrOK then
+    begin
+      AX := Edits[0].Value;
+      AY := Edits[1].Value;
+      AZ := Edits[2].Value;
+      Result := True;
+    end;
+  finally
+    Dlg.Free;
+  end;
+end;
+
 procedure TMainForm.UpdateMachineTypeLayout;
 begin
   { Barra de acoes: o enquadramento (framing) so existe no laser }
@@ -1523,13 +1599,16 @@ begin
     PrinterModelChanged(nil);
     BtnSetHome.Visible := False;
     BtnZero.Visible := False;
-    BtnHome.SetBounds(SIDE_X, ROW1_Y, COL_W * 2 + 6, ROW_H);
+    BtnHome.SetBounds(SIDE_X, ROW1_Y, COL_W, ROW_H);
+    BtnGoTo.SetBounds(COL2_X, ROW1_Y, COL_W, ROW_H);
+    BtnGoTo.Visible := True;
     BtnPhysicalHome.SetBounds(SIDE_X, ROW2_Y, COL_W * 2 + 6, ROW_H);
     HomeLabel.Visible := False;
     DroPanel.Height := 68;
   end
   else { CNC Router / CNC Laser }
   begin
+    BtnGoTo.Visible := False;
     BtnHome.SetBounds(SIDE_X, ROW1_Y, COL_W, ROW_H);
     BtnSetHome.SetBounds(COL2_X, ROW1_Y, COL_W, ROW_H);
     BtnSetHome.Visible := True;
@@ -1900,7 +1979,7 @@ begin
 end;
 
 procedure TMainForm.CommandClick(Sender: TObject);
-var OK: Boolean; PosHome: TMachinePosition;
+var OK: Boolean; PosHome, Target: TMachinePosition;
 begin
   OK := False;
   if Sender = BtnStart then
@@ -1982,6 +2061,14 @@ begin
     end;
   end
   else if Sender = BtnPhysicalHome then OK := Session.PhysicalHoming
+  else if Sender = BtnGoTo then begin
+    Target := Session.Position;
+    if not AskTargetPosition(Target.X, Target.Y, Target.Z) then Exit;
+    OK := Session.MoveTo(Target.X, Target.Y, Target.Z, FeedRate.Value);
+    if OK then
+      Log(Format('Go To: X %.3f Y %.3f Z %.3f at F%d',
+        [Target.X, Target.Y, Target.Z, FeedRate.Value], InvariantFS));
+  end
   else if Sender = BtnZero then begin OK := Session.Zero; if OK then UpdateControls; end
   else if Sender = BtnStatus then OK := Session.Status
   else if Sender = BtnUnlock then OK := Session.Unlock

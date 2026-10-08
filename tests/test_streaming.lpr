@@ -250,6 +250,46 @@ begin
   M.Free; F.Free;
 end;
 
+procedure TestMoveTo;
+var M: TMultiCNCMachine; F: TFakeController; S: TSimulationSession;
+begin
+  { Movimento absoluto da impressora: G90 explicito e ponto decimal. }
+  M := NewMachine(mtPrinter3D, True, F);
+  M.SetWorkEnvelope(220, 220, 250);
+  Check(M.MoveTo(110.5, 20, 5, 1500), 'MoveTo Marlin: ' + M.LastError);
+  while F.Pending.Count > 0 do F.Ack(1);
+  Check((F.Sent.Count = 2) and (F.Sent[0] = 'G90') and
+    (F.Sent[1] = 'G0 X110.500 Y20.000 Z5.000 F1500'), 'MoveTo Marlin G90/G0');
+  Check(not M.MoveTo(221, 0, 0, 1500), 'MoveTo: X alem do curso recusado');
+  Check(not M.MoveTo(0, -1, 0, 1500), 'MoveTo: Y negativo recusado');
+  Check(not M.MoveTo(0, 0, 251, 1500), 'MoveTo: Z alem do curso recusado');
+  Check(not M.MoveTo(10, 10, 10, 0), 'MoveTo: avanco zero recusado');
+  M.Free; F.Free;
+
+  { Laser nao tem Z: alvo Z diferente de zero e recusado. }
+  M := NewMachine(mtLaser, False, F);
+  Check(not M.MoveTo(10, 10, 5, 1000), 'MoveTo: Z em laser recusado');
+  Check(M.MoveTo(10, 10, 0, 1000), 'MoveTo laser XY');
+  M.Free; F.Free;
+
+  { Sessao Marlin: apos jog e MoveTo pede M114 para atualizar o DRO. }
+  S := TSimulationSession.Create;
+  try
+    F := TFakeController.Create;
+    Check(S.ConnectTransport(mtPrinter3D, pkMarlin, F, F), 'conectar sessao Marlin');
+    S.SetWorkEnvelope(220, 220, 250);
+    Sleep(2600); { janela de boot do Marlin }
+    Check(S.Jog(axX, 10, 1200), 'jog sessao Marlin: ' + S.LastError);
+    while F.Pending.Count > 0 do F.Ack(1);
+    Check(F.Sent[F.Sent.Count - 1] = 'M114', 'jog Marlin seguido de M114');
+    Check(S.MoveTo(50, 60, 10, 1200), 'MoveTo sessao: ' + S.LastError);
+    while F.Pending.Count > 0 do F.Ack(1);
+    Check(F.Sent[F.Sent.Count - 1] = 'M114', 'MoveTo Marlin seguido de M114');
+  finally
+    S.Free;
+  end;
+end;
+
 procedure TestSessionJob;
 var S: TSimulationSession; F: TFakeController; L: TStringList; FN: string; I, Guard: Integer;
 begin
@@ -350,6 +390,7 @@ begin
   TestGRBLStopIsImmediate;
   TestMarlin;
   TestJogUsesDecimalPoint;
+  TestMoveTo;
   TestSessionJob;
   TestSessionRejectsBadProgram;
   if Failures > 0 then begin Writeln(Failures, ' falha(s)'); Halt(1); end;

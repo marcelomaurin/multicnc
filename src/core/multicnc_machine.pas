@@ -63,6 +63,7 @@ type
     function GetCapabilities: TMachineCapabilities;
     function GetTemperatures: TPrinterTemperatures;
     function QueryTemperatures: Boolean;
+    function MoveTo(AX, AY, AZ, AFeed: Double): Boolean;
     function SetHotendTemperature(ATemp: Double): Boolean;
     function SetBedTemperature(ATemp: Double): Boolean;
     function Connect: Boolean;
@@ -474,6 +475,15 @@ begin
   if not TSafetyValidator.CheckJog(GetState, AAxis, ADistance, AFeed, FCapabilities,
     FEnvelope, Reason) then Exit(Reject(Reason));
   Result := SendProtocolCommand(FProtocol.BuildJogCommand(AAxis, ADistance, AFeed), True);
+end;
+
+function TMultiCNCMachine.MoveTo(AX, AY, AZ, AFeed: Double): Boolean;
+var Reason: string;
+begin
+  if not Assigned(FProtocol) then Exit(Reject('Sem protocolo'));
+  if not TSafetyValidator.CheckMoveTo(GetState, AX, AY, AZ, AFeed, FCapabilities,
+    FEnvelope, Reason) then Exit(Reject(Reason));
+  Result := SendProtocolCommand(FProtocol.BuildMoveToCommand(AX, AY, AZ, AFeed), True);
 end;
 
 function TMultiCNCMachine.SendGCode(const ALine: string): Boolean;

@@ -62,6 +62,8 @@ type
     { Linhas enviadas apos a parada para desligar spindle/laser/aquecedores. }
     function BuildSafeOffCommands(AType: TMachineType): string;
     function BuildJogCommand(AAxis: TAxis; ADistance, AFeed: Double): string;
+    { Movimento absoluto ate X/Y/Z (coordenadas de trabalho, mm). }
+    function BuildMoveToCommand(AX, AY, AZ, AFeed: Double): string;
     function BuildFeedRateCommand(AFeed: Double): string;
     function BuildQueryTemperaturesCommand: string;
     function BuildSetHotendTemperatureCommand(ATemp: Double): string;

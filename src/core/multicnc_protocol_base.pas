@@ -50,6 +50,7 @@ type
     function BuildSafeOffCommands(AType: TMachineType): string; virtual;
     function BuildJogCommand(AAxis: TAxis; ADistance, AFeed: Double): string; virtual; abstract;
     function BuildFeedRateCommand(AFeed: Double): string; virtual; abstract;
+    function BuildMoveToCommand(AX, AY, AZ, AFeed: Double): string; virtual;
     function BuildQueryTemperaturesCommand: string; virtual;
     function BuildSetHotendTemperatureCommand(ATemp: Double): string; virtual;
     function BuildSetBedTemperatureCommand(ATemp: Double): string; virtual;
@@ -189,6 +190,13 @@ end;
 function TMultiCNCProtocolBase.BuildSafeOffCommands(AType: TMachineType): string;
 begin
   Result := '';
+end;
+
+function TMultiCNCProtocolBase.BuildMoveToCommand(AX, AY, AZ, AFeed: Double): string;
+begin
+  { G90 explicito: o movimento e absoluto mesmo apos um jog relativo. }
+  Result := Format('G90%sG0 X%.3f Y%.3f Z%.3f F%.0f%s',
+    [LineEnding, AX, AY, AZ, AFeed, LineEnding], InvariantFS);
 end;
 
 function TMultiCNCProtocolBase.BuildQueryTemperaturesCommand: string;

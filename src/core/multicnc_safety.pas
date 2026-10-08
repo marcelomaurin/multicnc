@@ -27,6 +27,9 @@ type
       const C: TMachineCapabilities; out Reason: string): Boolean;
     class function CheckJog(AState: TMachineState; AAxis: TAxis; ADistance, AFeed: Double;
       const C: TMachineCapabilities; const E: TWorkEnvelope; out Reason: string): Boolean;
+    { Valida um movimento absoluto: alvo dentro de 0..curso de cada eixo. }
+    class function CheckMoveTo(AState: TMachineState; AX, AY, AZ, AFeed: Double;
+      const C: TMachineCapabilities; const E: TWorkEnvelope; out Reason: string): Boolean;
     { Valida uma linha de G-code ou comando de firmware. }
     class function CheckCommand(AState: TMachineState; const ALine: string;
       out Reason: string): Boolean;
@@ -84,6 +87,53 @@ begin
     Reason := Format('Travel exceeds axis travel range (%.0f mm)', [Travel]);
     Exit(False);
   end;
+end;
+
+class function TSafetyValidator.CheckMoveTo(AState: TMachineState;
+  AX, AY, AZ, AFeed: Double; const C: TMachineCapabilities; const E: TWorkEnvelope;
+  out Reason: string): Boolean;
+
+  function AxisOK(AAxis: TAxis; const AName: string; AValue, ATravel: Double): Boolean;
+  begin
+    Result := False;
+    if IsNan(AValue) or IsInfinite(AValue) then
+    begin
+      Reason := 'Coordenada ' + AName + ' invalida';
+      Exit;
+    end;
+    if not (AAxis in C.Axes) then
+    begin
+      if AValue <> 0 then
+      begin
+        Reason := 'Eixo ' + AName + ' indisponivel';
+        Exit;
+      end;
+    end
+    else if (AValue < 0) or ((ATravel > 0) and (AValue > ATravel)) then
+    begin
+      if ATravel > 0 then
+        Reason := Format('%s fora do curso da maquina (0 a %.0f mm)', [AName, ATravel])
+      else
+        Reason := AName + ' negativo nao permitido';
+      Exit;
+    end;
+    Result := True;
+  end;
+
+begin
+  Reason := '';
+  if AState in [msDisconnected, msConnecting, msAlarm, msError] then
+  begin
+    Reason := 'Machine state does not allow motion';
+    Exit(False);
+  end;
+  if (AFeed <= 0) or IsNan(AFeed) or IsInfinite(AFeed) then
+  begin
+    Reason := 'Invalid feed rate';
+    Exit(False);
+  end;
+  Result := AxisOK(axX, 'X', AX, E.X) and AxisOK(axY, 'Y', AY, E.Y) and
+    AxisOK(axZ, 'Z', AZ, E.Z);
 end;
 
 class function TSafetyValidator.HasDecimalComma(const ALine: string): Boolean;

@@ -61,6 +61,7 @@ type
     function GetHomePositionSet: Boolean;
     function GetControllerReady: Boolean;
     function Fail(const Reason: string): Boolean;
+    procedure RequestPositionAfterMotion;
   public
     constructor Create;
     destructor Destroy; override;
@@ -86,6 +87,8 @@ type
     function Status: Boolean;
     function Unlock: Boolean;
     function Jog(Axis: TAxis; Distance, Feed: Double): Boolean;
+    { Movimento absoluto ate X/Y/Z (mm), validado contra o curso da maquina. }
+    function MoveTo(X, Y, Z, Feed: Double): Boolean;
     function Send(const Line: string): Boolean;
     function SupportsAxis(Axis: TAxis): Boolean;
     function ProgramText: string;
@@ -141,6 +144,14 @@ begin
   FLoadedLines.Free;
   FOriginalLines.Free;
   inherited Destroy;
+end;
+
+{ Marlin nao envia posicao sozinho: depois de cada movimento manual pede um
+  M114 (enfileirado, sai apos o "ok" do movimento) para atualizar o DRO. }
+procedure TSimulationSession.RequestPositionAfterMotion;
+begin
+  if (FProtocolKind = pkMarlin) and Assigned(FMachine) then
+    FMachine.Status;
 end;
 
 function TSimulationSession.Fail(const Reason: string): Boolean;
@@ -584,14 +595,16 @@ function TSimulationSession.PhysicalHoming: Boolean;
 begin
   if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Unavailable while program is running'));
   Result := FMachine.PhysicalHoming;
-  if not Result then FLastError := FMachine.LastError;
+  if Result then RequestPositionAfterMotion
+  else FLastError := FMachine.LastError;
 end;
 
 function TSimulationSession.Home(AFeed: Double = 0): Boolean;
 begin
   if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Unavailable while program is running'));
   Result := FMachine.Home(AFeed);
-  if not Result then FLastError := FMachine.LastError;
+  if Result then RequestPositionAfterMotion
+  else FLastError := FMachine.LastError;
 end;
 
 function TSimulationSession.SetFeedRate(AFeed: Double): Boolean;
@@ -641,7 +654,20 @@ begin
   if not ((Abs(Distance) > 0) and (Abs(Distance) <= 100) and (Feed >= 1) and (Feed <= 10000)) then
     Exit(Fail('Passo ou avanco fora dos limites (0-100 mm, 1-10000 mm/min)'));
   Result := FMachine.Jog(Axis, Distance, Feed);
-  if not Result then FLastError := FMachine.LastError;
+  if Result then RequestPositionAfterMotion
+  else FLastError := FMachine.LastError;
+end;
+
+function TSimulationSession.MoveTo(X, Y, Z, Feed: Double): Boolean;
+begin
+  if not Connected then Exit(Fail('Maquina desconectada'));
+  if not ControllerReady then Exit(Fail('Aguarde a inicializacao do firmware Marlin'));
+  if FState in [ssRunning, ssPaused] then Exit(Fail('Unavailable while program is running'));
+  if not ((Feed >= 1) and (Feed <= 10000)) then
+    Exit(Fail('Avanco fora dos limites (1-10000 mm/min)'));
+  Result := FMachine.MoveTo(X, Y, Z, Feed);
+  if Result then RequestPositionAfterMotion
+  else FLastError := FMachine.LastError;
 end;
 
 function TSimulationSession.Send(const Line: string): Boolean;
