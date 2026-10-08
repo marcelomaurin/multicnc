@@ -1684,7 +1684,7 @@ begin
         inc(p);
       end;
     end;
-  if Result.Left = MaxDouble then Result := NullRectD;
+  if Result.Left = Double(MaxDouble) then Result := NullRectD; // MultiSuite: comparar como Double (ver README)
 end;
 //------------------------------------------------------------------------------
 

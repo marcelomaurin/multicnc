@@ -1,7 +1,8 @@
 # TAREFA: MakeRouter (projeto e usinagem de madeira na CNC Router)
 
 - **Aberta em:** 08/10/2026
-- **Estado:** em análise. É preciso decidir D1 a D6 antes de começar a fase 0.
+- **Estado:** em implementação (08/10). As decisões D1 a D6 seguiram as propostas da tabela
+  abaixo (o Marcelo pediu a implementação sem alterá-las).
 - **Tela provisória (08/10):** `src/app/makerouter_main.pas` (padrão da suíte, 6 etapas só
   descritivas, botões desabilitados), ícone `sikMakeRouter`, `stiMakeRouter` no fim do enum
   (12 ferramentas), bandeja e MultiSuite no grupo Projetar e `bin/makerouter.exe` (x64).
@@ -10,6 +11,24 @@
 - **Visão:** [../README.md](../README.md)
 - **Arquitetura:** [ARCHITECTURE.md](ARCHITECTURE.md)
 - **Contrato de G-code:** [../../docs/CONTRATO_GCODE.md](../../docs/CONTRATO_GCODE.md)
+
+## Progresso
+
+| Fase | Estado | O que foi feito |
+|---|---|---|
+| 0 Base | concluída (08/10) | Clipper2 em `src/shared/clipper2` (licença Boost) com duas correções para o FPC no Linux (comparação com `MaxDouble`, ver o README da pasta); emissor comum `src/shared/multisuite_gcode_writer.pas` com o cabeçalho `MS-...`, verificação (`SuiteCheckGCode`) e leitura (`SuiteParseHeader`). A migração do RouterPCB para o emissor comum fica para depois (ele segue com o emissor próprio, já testado). |
+| 1 Material, zero e projeto | concluída (08/10) | `makerouter_types` (material, 9 pontos de zero, Z no topo ou na mesa, ferramentas com padrões de exemplo), `makerouter_project` (formas paramétricas, percursos, `ToOutput`, JSON `.mrouter`, exemplo "Placa exemplo"). |
+| 2 Desenho 2D | parcial | Formas: retângulo (cantos arredondados), círculo, elipse, polígono, estrela, polilinha, texto (fonte de traço do MakePCB, para gravação), com rotação. Offset/booleanas via `makerouter_clip`. Faltam DXF/SVG e soldar/subtrair na interface. |
+| 3 Percursos 2,5D | concluída (08/10) | `makerouter_cam`: perfil (fora/dentro/na linha, concordante/discordante, rampa, sobremetal, pontes por altura), bolsão (anéis de offset ligados sem subir, ilhas), furação (bicadas), gravação. |
+| 4 Simulação, saída e suíte | em andamento | `makerouter_sim` (mapa de alturas, fresa reta/esférica/V, imagem sombreada com madeira), `makerouter_gcode` (um arquivo por ferramenta ou único com M0, zero virtual, cabeçalho do contrato). Falta: interface, MultiCNC lendo `MS-...`, instalador. |
+| 5 V-Carve | pendente | |
+| 6 Relevo 3D | pendente | |
+
+Testes: `tests/test_makerouter.lpr`, 92 checks passando no Linux com checagem de faixa e
+variáveis locais embaralhadas (`-Cr -gt`): Clipper, 9 pontos de zero, formas, JSON, níveis de
+profundidade, perfil a R da forma, pontes, bolsão limpo por completo sem invadir a parede,
+furação com bicadas, gravação, G-code aceito pelo contrato, pelo validador e pelo analisador
+do MultiCNC, deslocamento exato do zero (centro e mesa) e simulação.
 
 ## Comparação com o padrão do PCB
 

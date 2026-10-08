@@ -214,20 +214,24 @@ procedure GetLowestPolygonInfo(const paths: TPaths64;
 var
   i,j: integer;
   a  : double;
+  hasArea: Boolean; // MultiSuite: flag no lugar de "a = MaxDouble" (ver README)
   botPt: TPoint64;
 begin
 	idx := -1;
+  IsNegArea := false;
   botPt := Point64(MaxInt64, MinInt64);
   for i := 0 to High(paths) do
   begin
-    a := MaxDouble;
+    a := 0;
+    hasArea := false;
     for j := 0 to High(paths[i]) do
       with paths[i][j] do
       begin
         if (Y < botPt.Y) or
           ((Y = botPt.Y) and (X >= botPt.X)) then Continue;
-        if a = MaxDouble then
+        if not hasArea then
         begin
+          hasArea := true;
           a := Area(paths[i]);
           if (a = 0) then Break; // invalid closed path, break from inner loop
           IsNegArea := a < 0;
