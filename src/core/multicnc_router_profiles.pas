@@ -50,7 +50,7 @@ const
       SpindlePowerW: 0; SpindleMaxRPM: 0;
       ColletType: '';
       Firmware: 'GRBL 1.1';
-      Notes: 'Generic machine: adjust the X/Y/Z travel below to your machine before jogging'
+      Notes: 'Generic machine: adjust the X/Y/Z travel fields to your machine before jogging'
     ),
     (
       Brand: 'Generic';
