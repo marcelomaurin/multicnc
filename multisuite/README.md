@@ -60,6 +60,7 @@ O formato `.msuite` persiste o contexto global sem substituir os formatos de cad
 - **MultiCAM:** CAM e simulacao CNC Router.
 - **MultiSlicer:** fatiamento para impressao 3D.
 - **LaserPCB:** preparacao de PCB para laser.
+- **RouterPCB** (planejado): fresagem de PCB na CNC Router a partir do Gerber + Excellon do MakePCB (`routerpcb/docs/TAREFA.md`). Entrara no grupo Preparar.
 - **LaserArt:** imagem, vetor e arte para laser.
 - **MultiCNC:** controle e execucao da maquina fisica.
 

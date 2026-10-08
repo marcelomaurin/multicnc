@@ -24,6 +24,7 @@
 - **MultiCAM:** подготовка траекторий
 - **MultiSlicer:** подготовка 3D-печати
 - **MultiPCB / MakePCB / LaserPCB:** проектирование и изготовление PCB (MakePCB: плата с нуля в стиле PCB Wizard, Gerber + Excellon для LaserPCB)
+- **RouterPCB** *(запланировано)*: фрезеровка PCB на CNC Router (изоляция V-фрезой, сверловка, обрезка контура с перемычками, выравнивание по зондированию) из папки Gerber + Excellon MakePCB. См. [routerpcb/README.md](routerpcb/README.md)
 - **MultiAssembly:** интеграция механики и электроники
 - **MultiPhysics:** многодоменное физическое моделирование
 

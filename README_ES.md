@@ -26,6 +26,7 @@ IDEA → DISEÑO → SIMULACIÓN → PREPARACIÓN → VALIDACIÓN → FABRICACI�
 - **MultiCAM:** preparación de trayectorias
 - **MultiSlicer:** preparación para impresión 3D
 - **MultiPCB / MakePCB / LaserPCB:** diseño y fabricación de PCB (MakePCB: placa desde cero, estilo PCB Wizard, Gerber + Excellon para LaserPCB)
+- **RouterPCB** *(planificado)*: fresado de PCB en la CNC Router (aislamiento con fresa en V, taladrado, recorte con puentes, nivelación por sondeo) a partir de la carpeta Gerber + Excellon del MakePCB. Ver [routerpcb/README.md](routerpcb/README.md)
 - **MultiAssembly:** integración mecánica y electrónica
 - **MultiPhysics:** simulación física multidominio
 

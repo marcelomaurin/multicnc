@@ -26,6 +26,7 @@ IDEE → ENTWURF → SIMULATION → VORBEREITUNG → VALIDIERUNG → FERTIGUNG
 - **MultiCAM:** Werkzeugweg- und Fertigungsvorbereitung
 - **MultiSlicer:** Vorbereitung für den 3D-Druck
 - **MultiPCB / MakePCB / LaserPCB:** Leiterplattenentwurf und -fertigung (MakePCB: Platine von Grund auf, im Stil von PCB Wizard, Gerber + Excellon für LaserPCB)
+- **RouterPCB** *(geplant)*: Leiterplattenfräsen auf der CNC-Fräse (Isolationsfräsen mit V-Fräser, Bohren, Konturschnitt mit Haltestegen, Höhenabtastung/Autolevel) aus dem Gerber- + Excellon-Ordner des MakePCB. Siehe [routerpcb/README.md](routerpcb/README.md)
 - **MultiAssembly:** mechanisch-elektronische Integration
 - **MultiPhysics:** multidomänenübergreifende physikalische Simulation
 

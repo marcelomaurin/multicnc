@@ -1,9 +1,20 @@
-# Pendencias da suite (atualizado 06/10/2026, noite)
+# Pendencias da suite (atualizado 08/10/2026)
 
 Lista do que ficou aberto. Detalhes do LaserArt em
 `laserart/docs/LASERART_PLANO.md`.
 
-## MakePCB (07/10/2026) - novo
+## RouterPCB (08/10/2026) - PROXIMA TAREFA
+- Gap da suite: MakePCB -> ? -> MultiCNC (CNC Router). Hoje so o LaserPCB consome
+  o Gerber + Excellon; nao ha como fresar a placa na router.
+- Nova ferramenta `routerpcb/`: isolacao com fresa V, furacao por broca, recorte com
+  pontes, nivelamento por sondagem (G38.2 + bilinear) e G-code GRBL com cabecalho
+  `; RouterPCB -> MultiCNC (CNC Router)`. Reutiliza import/raster/CAM/drill do LaserPCB.
+- Documentado (visao, arquitetura, guia IA); **sem codigo ainda**.
+- Plano passo a passo, com fases, criterios de pronto e integracao (registro
+  `stiRouterPCB`, bandeja, catalogo, CI, instalador 0.03, botao no MakePCB, cabecalho
+  no MultiCNC): `routerpcb/docs/TAREFA.md`.
+
+## MakePCB (07/10/2026)
 - Projeto de placas do zero no estilo PCB Wizard, na raiz: `makepcb/`.
   Galeria de componentes, editor (trilhas 45 graus, ligacoes, textos, areas
   de cobre, desfazer), vistas Normal / Mundo real / Sem componentes / Arte
@@ -90,8 +101,15 @@ Lista do que ficou aberto. Detalhes do LaserArt em
      `AI_GUIDE.md` lista 8 ferramentas (falta MultiPhysics).
 
 ## MultiSuite Bandeja
-- `bin\multisuite_tray.exe` pronto. Falta incluir no `build_release.bat` e no
-  `installer\windows\multisuite.iss` (atalho + opcao "Iniciar com o Windows").
+- Feito (08/10): MakePCB na bandeja, instancia unica (segunda execucao so mostra o
+  painel), incluida no `build_release.bat` e no `multisuite.iss` (atalho + "Iniciar
+  com o Windows"). `bin\multisuite_tray.exe` (x64) atualizado.
+
+## Instalador
+- `bin\setup_multcnc_002.exe` (0.02): 14 aplicativos, incluindo Bandeja e SimuCNC.
+- Proximo: 0.03 com o RouterPCB (fase 6 de `routerpcb/docs/TAREFA.md`).
+- `bin\multicnc.exe` ainda e o do commit 31ad502: o console de log (ef824d6) so
+  entra apos recompilar com a biblioteca CHATGPT (`D:\projetos\maurinsoft\CHATGPT`).
 
 ## Geral
 - Builds atuais da suite sao i386; os executaveis gerados nesta sessao
