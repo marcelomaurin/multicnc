@@ -1947,6 +1947,7 @@ end;
 
 { Abre um programa vindo da suite (LaserArt / LaserPCB via --file).
   O cabecalho define a maquina:
+  - "; RouterPCB -> MultiCNC (CNC Router)": fresagem de PCB do RouterPCB -> CNC Router;
   - "; LaserPCB -> MultiCNC (CNC Router)": furacao do LaserPCB -> CNC Router;
   - "; LaserArt" ou "; LaserPCB": laser. A potencia (S) e as passadas ja
     estao no G-code, entao Pass count = 1 e override de velocidade desligado.
@@ -1966,7 +1967,8 @@ begin
     try
       SL.LoadFromFile(AFileName);
       for I := 0 to Min(SL.Count, 40) - 1 do
-        if Pos('; LaserPCB -> MultiCNC (CNC Router)', SL[I]) = 1 then
+        if (Pos('; RouterPCB -> MultiCNC (CNC Router)', SL[I]) = 1) or
+           (Pos('; LaserPCB -> MultiCNC (CNC Router)', SL[I]) = 1) then
         begin
           Origin := soRouter;
           Break;
@@ -1991,7 +1993,7 @@ begin
         MachineType.ItemIndex := 0;
         SelectionChanged(MachineType);
       end;
-      Log('Furacao do LaserPCB: maquina CNC Router. Zere X/Y como no laser e Z na superficie da placa.');
+      Log('Programa de PCB (RouterPCB/LaserPCB): maquina CNC Router. Zere X/Y no canto da placa e Z na superficie do cobre.');
     end
     else
     begin

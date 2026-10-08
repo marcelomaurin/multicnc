@@ -110,8 +110,8 @@ Lista do que ficou aberto. Detalhes do LaserArt em
 ## Instalador
 - `bin\setup_multcnc_002.exe` (0.02): 14 aplicativos, incluindo Bandeja e SimuCNC.
 - Proximo: 0.03 com o RouterPCB (fase 6 de `routerpcb/docs/TAREFA.md`).
-- `bin\multicnc.exe` ainda e o do commit 31ad502: o console de log (ef824d6) so
-  entra apos recompilar com a biblioteca CHATGPT (`D:\projetos\maurinsoft\CHATGPT`).
+- `bin\multicnc.exe` recompilado em 08/10 (console de log + reconhece o RouterPCB),
+  usando o clone publico de `marcelomaurin/chatgpt`.
 
 ## Geral
 - Builds atuais da suite sao i386; os executaveis gerados nesta sessao

@@ -17,7 +17,7 @@ uses
   Classes, SysUtils, Math, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls, Grids,
   Dialogs, Graphics, LCLType, makepcb_model, makepcb_library, makepcb_render,
   makepcb_editor, makepcb_gallery, makepcb_select, makepcb_fpeditor, makepcb_schematic,
-  makepcb_schedit, makepcb_print, multisuite_controls, multisuite_icons;
+  makepcb_schedit, makepcb_print, multisuite_controls, multisuite_icons, multisuite_types;
 
 type
   TMakePCBForm = class(TForm)
@@ -51,7 +51,7 @@ type
     RouteLog: TMemo;
     BOMGrid: TStringGrid;
     OptSilk, OptMask, OptTop, MirrorBox: TCheckBox;
-    CheckButton, ExportButton, OpenLaserButton: TSuiteButton;
+    CheckButton, ExportButton, OpenLaserButton, OpenRouterButton: TSuiteButton;
     FFileName, FExportDir: string;
     FUpdating: Boolean;
     FFocusReason: string;
@@ -125,6 +125,9 @@ type
     procedure CheckClick(Sender: TObject);
     procedure ExportClick(Sender: TObject);
     procedure OpenLaserClick(Sender: TObject);
+    procedure OpenRouterClick(Sender: TObject);
+    { exporta se preciso e abre a pasta Gerber na ferramenta da suite }
+    procedure OpenInTool(AID: TSuiteToolID; const AName: string);
     procedure SaveBOMClick(Sender: TObject);
     procedure SaveArtworkClick(Sender: TObject);
     procedure PrintClick(Sender: TObject);
@@ -156,7 +159,7 @@ type
 implementation
 
 uses makepcb_gerber, makepcb_route, makepcb_drc, makepcb_bom, multisuite_numfmt,
-  multisuite_registry, multisuite_launcher, multisuite_types, multisuite_context;
+  multisuite_registry, multisuite_launcher, multisuite_context;
 
 function FmtNum(V: Double; D: Integer): string;
 var
@@ -304,6 +307,8 @@ begin
   ExportButton.SetLook(sbsSolid, clSuitePrimary, sikExport);
   OpenLaserButton := Button(Footer, 'Abrir no LaserPCB', 0, 15, 200, sikLaserPCB, @OpenLaserClick);
   OpenLaserButton.Enabled := False;
+  OpenRouterButton := Button(Footer, 'Abrir no RouterPCB', 0, 15, 210, sikRouterPCB, @OpenRouterClick);
+  OpenRouterButton.Enabled := False;
 
   { etapas e vistas }
   Sidebar := TPanel.Create(Self);
@@ -361,7 +366,7 @@ begin
           GridBox.Items.Add('1 mm');
           GridBox.Items.Add('0,5 mm');
           Button(Scroll, 'Aplicar', 16, 456, 290, sikTarget, @ApplyBoardClick).SetLook(sbsSolid, clSuitePrimary, sikTarget);
-          LabelAt(Scroll, 'Para o LaserPCB, prefira trilhas de 0,6 a 1,0 mm e folga de 0,4 mm ou mais: a isolacao a laser precisa de espaco entre os cobres.',
+          LabelAt(Scroll, 'Para LaserPCB ou RouterPCB, prefira trilhas de 0,6 a 1,0 mm e folga de 0,4 mm ou mais: a isolacao (laser ou fresa V) precisa de espaco entre os cobres.',
             16, 504, 290, 72);
           LabelAt(Scroll, 'Na face simples o cobre fica embaixo (lado da solda) e os componentes em cima, como no PCB Wizard.',
             16, 580, 290, 56);
@@ -479,21 +484,22 @@ begin
           BOMGrid.Options := BOMGrid.Options - [goEditing, goRangeSelect] + [goRowSelect];
           BOMGrid.ScrollBars := ssAutoVertical;
           Button(Scroll, 'Salvar lista (CSV)', 16, 302, 290, sikSave, @SaveBOMClick);
-          LabelAt(Scroll, 'ARQUIVOS PARA O LASERPCB', 16, 352, 290, 18).Font.Style := [fsBold];
+          LabelAt(Scroll, 'ARQUIVOS PARA LASERPCB / ROUTERPCB', 16, 352, 290, 18).Font.Style := [fsBold];
           OptSilk := TCheckBox.Create(Self); OptSilk.Parent := Scroll;
           OptSilk.SetBounds(16, 376, 290, 24); OptSilk.Caption := 'Serigrafia (F_Silkscreen)'; OptSilk.Checked := True;
           OptMask := TCheckBox.Create(Self); OptMask.Parent := Scroll;
           OptMask.SetBounds(16, 402, 290, 24); OptMask.Caption := 'Mascara de solda (F/B_Mask)'; OptMask.Checked := True;
           OptTop := TCheckBox.Create(Self); OptTop.Parent := Scroll;
           OptTop.SetBounds(16, 428, 290, 24); OptTop.Caption := 'Cobre superior mesmo em face simples';
-          LabelAt(Scroll, 'Gerber RS-274X (X2) + Excellon (PTH/NPTH), nomes no padrao KiCad: o LaserPCB reconhece cada camada sozinho.',
+          LabelAt(Scroll, 'Gerber RS-274X (X2) + Excellon (PTH/NPTH), nomes no padrao KiCad: LaserPCB e RouterPCB reconhecem cada camada sozinhos.',
             16, 458, 290, 56);
           B := Button(Scroll, 'Exportar Gerber + Excellon', 16, 518, 290, sikExport, @ExportClick);
           B.SetLook(sbsSolid, clSuitePrimary, sikExport);
-          Button(Scroll, 'Abrir no LaserPCB', 16, 560, 290, sikLaserPCB, @OpenLaserClick);
-          Button(Scroll, 'Imprimir arte final (1:1)...', 16, 602, 290, sikImage, @PrintClick);
-          Button(Scroll, 'Salvar arte final (PNG 600 dpi)', 16, 644, 290, sikSave, @SaveArtworkClick);
-          FabSummary := LabelAt(Scroll, '', 16, 690, 290, 140);
+          Button(Scroll, 'Abrir no LaserPCB (laser)', 16, 560, 290, sikLaserPCB, @OpenLaserClick);
+          Button(Scroll, 'Abrir no RouterPCB (fresa)', 16, 602, 290, sikRouterPCB, @OpenRouterClick);
+          Button(Scroll, 'Imprimir arte final (1:1)...', 16, 644, 290, sikImage, @PrintClick);
+          Button(Scroll, 'Salvar arte final (PNG 600 dpi)', 16, 686, 290, sikSave, @SaveArtworkClick);
+          FabSummary := LabelAt(Scroll, '', 16, 732, 290, 140);
           FabSummary.WordWrap := False;
         end;
     end;
@@ -587,7 +593,8 @@ procedure TMakePCBForm.ResizeUI(Sender: TObject);
 begin
   if FooterPanel = nil then Exit;
   OpenLaserButton.Left := FooterPanel.ClientWidth - OpenLaserButton.Width - 18;
-  ExportButton.Left := OpenLaserButton.Left - ExportButton.Width - 10;
+  OpenRouterButton.Left := OpenLaserButton.Left - OpenRouterButton.Width - 10;
+  ExportButton.Left := OpenRouterButton.Left - ExportButton.Width - 10;
   CheckButton.Left := ExportButton.Left - CheckButton.Width - 10;
   Status.Width := Max(120, CheckButton.Left - 30);
   Coords.Width := Status.Width;
@@ -1062,6 +1069,7 @@ begin
   Doc.Clear;
   FFileName := ''; FExportDir := '';
   OpenLaserButton.Enabled := False;
+  OpenRouterButton.Enabled := False;
   Editor.ClearHistory;
   Editor.Select(selNone, -1);
   Editor.Modified := False;
@@ -1080,6 +1088,7 @@ begin
   Doc.SchematicJSON := Sch.ToJSON;
   FFileName := ''; FExportDir := '';
   OpenLaserButton.Enabled := False;
+  OpenRouterButton.Enabled := False;
   Editor.ClearHistory;
   Editor.Select(selNone, -1);
   Editor.Modified := True;
@@ -1096,6 +1105,7 @@ begin
     Doc.LoadFromFile(FN, @Lib.Resolve);
     FFileName := FN; FExportDir := '';
     OpenLaserButton.Enabled := False;
+    OpenRouterButton.Enabled := False;
     Editor.ClearHistory;
     Editor.Select(selNone, -1);
     Editor.Modified := False;
@@ -1312,6 +1322,7 @@ begin
     try
       ExportTo(Folder, Files);
       OpenLaserButton.Enabled := True;
+      OpenRouterButton.Enabled := True;
       Status.Caption := Format('%d arquivos em %s', [Files.Count, Folder]);
       RefreshBOM;
       FabSummary.Caption := FabSummary.Caption + #10#10 + ExtractFileName(Files[0]);
@@ -1326,6 +1337,16 @@ begin
 end;
 
 procedure TMakePCBForm.OpenLaserClick(Sender: TObject);
+begin
+  OpenInTool(stiLaserPCB, 'LaserPCB');
+end;
+
+procedure TMakePCBForm.OpenRouterClick(Sender: TObject);
+begin
+  OpenInTool(stiRouterPCB, 'RouterPCB');
+end;
+
+procedure TMakePCBForm.OpenInTool(AID: TSuiteToolID; const AName: string);
 var
   Registry: TSuiteRegistry;
   Root, Err, Candidate: string;
@@ -1352,10 +1373,10 @@ begin
         end;
         Candidate := ExtractFileDir(ExcludeTrailingPathDelimiter(Candidate));
       end;
-      if not TSuiteLauncher.LaunchArtifact(Registry.Tool(Registry.Find(stiLaserPCB)), Root,
+      if not TSuiteLauncher.LaunchArtifact(Registry.Tool(Registry.Find(AID)), Root,
         C.ProjectRoot, FExportDir, Err) then
         raise Exception.Create(Err);
-      Status.Caption := 'Placa aberta no LaserPCB.';
+      Status.Caption := 'Placa aberta no ' + AName + '.';
     except
       on E: Exception do ShowError(E);
     end;

@@ -17,7 +17,7 @@
 | 2 Nivelamento e G-code | concluida (08/10) | `level/routerpcb_heightmap`, `export/routerpcb_gcode`. 246 checks: regras do G-code, validador `TSafetyValidator` e analisador do MultiCNC aceitam todas as linhas. Exemplo 555: isolacao 1310 mm (~9 min), 2 brocas, recorte com 4 pontes e 3 furos fresados. |
 | 3 Interface | concluida (08/10) | `ui/routerpcb_preview`, `app/routerpcb_main` (6 etapas), icone `sikRouterPCB`, `routerpcb.lpi`. `tests/test_routerpcb_ui.lpr`: 22 checks no Linux (GTK2) e no Win64 (Wine). `bin/routerpcb.exe` (x64). Capturas em `imgs/Routerpcb01..04.png`. |
 | 4 Integracao na suite | concluida (08/10) | registro (`stiRouterPCB`, 11 ferramentas), icone, bandeja (grupo Preparar), MultiSuite (secao Preparar), catalogo da Central de Testes e `routerpcb-ci.yml`. Bandeja conferida na tela e `bin\multisuite_tray.exe` (x64) atualizado. |
-| 5 MakePCB / MultiCNC | pendente | |
+| 5 MakePCB / MultiCNC | concluida (08/10) | MakePCB: "Abrir no RouterPCB" no rodape e na etapa 5 (`OpenInTool`). MultiCNC reconhece `; RouterPCB -> MultiCNC (CNC Router)`; `bin/multicnc.exe` e `bin/makepcb.exe` (x64) recompilados e abertos no Wine (o MultiCNC carregou a isolacao do 555: 2331 comandos, 50,09 x 37,39 mm). MakePCB: 2382 + 22 checks. |
 | 6 Entrega | pendente | |
 
 Regras do projeto, que valem para todas as fases:
@@ -151,15 +151,18 @@ Regras do projeto, que valem para todas as fases:
 
 ## Fase 5: ligações com MakePCB e MultiCNC (≈ 45 min)
 
-- [ ] MakePCB: botão "Abrir no RouterPCB" no rodapé e na etapa 5, ao lado do "Abrir no
-      LaserPCB". Exporta a pasta e chama `TSuiteLauncher.LaunchArtifact(stiRouterPCB, ...)`.
-- [ ] MultiCNC (`src/app/mainform.pas`, `OpenProgramFile`): reconhecer
+- [x] MakePCB: botão "Abrir no RouterPCB" no rodapé e na etapa 5, ao lado do "Abrir no
+      LaserPCB". Exporta a pasta se preciso e chama `TSuiteLauncher.LaunchArtifact(stiRouterPCB, ...)`
+      (`OpenInTool`, comum aos dois botões). Dica da etapa 1 vale para laser e fresa V.
+- [x] MultiCNC (`src/app/mainform.pas`, `OpenProgramFile`): reconhece
       `; RouterPCB -> MultiCNC (CNC Router)` como `soRouter`, com mensagem própria no log.
-      Para recompilar o `multicnc.exe` é preciso a biblioteca CHATGPT
-      (`D:\projetos\maurinsoft\CHATGPT`). Até lá vale a linha de compatibilidade
-      `; LaserPCB -> MultiCNC (CNC Router)` no cabeçalho.
-- [ ] Opcional: no MultiCNC, um botão "Salvar sondagem" que grava só as linhas `[PRB:...]`.
-- [ ] Commit.
+      `multicnc.exe` recompilado com a biblioteca CHATGPT (clone público de
+      `marcelomaurin/chatgpt`). A linha de compatibilidade `; LaserPCB -> MultiCNC (CNC Router)`
+      continua no cabeçalho para quem ainda tem o MultiCNC antigo.
+- [x] "Salvar sondagem" não é necessário: o console já grava as respostas como
+      `hh:nn:ss  RX  [PRB:x,y,z:1]` (só os relatórios `<...>` são filtrados) e o
+      `LoadProbeLog` acha o `[PRB:` em qualquer posição da linha. "Save Log..." basta.
+- [x] Commit: "RouterPCB fase 5: MakePCB e MultiCNC".
 
 ## Fase 6: entrega (≈ 1 h)
 
