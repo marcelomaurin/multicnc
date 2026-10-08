@@ -2,10 +2,10 @@
   #define MyAppName "MultiSuite"
 #endif
 #ifndef MyAppVersion
-  #define MyAppVersion "0.01"
+  #define MyAppVersion "0.02"
 #endif
 #ifndef SetupSeq
-  #define SetupSeq "001"
+  #define SetupSeq "002"
 #endif
 #ifndef MyAppPublisher
   #define MyAppPublisher "Maurinsoft"
@@ -14,7 +14,7 @@
   #define MyAppExeName "multisuite.exe"
 #endif
 #ifndef OutputExeName
-  #define OutputExeName "setup_" + SetupSeq
+  #define OutputExeName "setup_multcnc_" + SetupSeq
 #endif
 
 [Setup]
@@ -34,7 +34,11 @@ ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
 WizardStyle=modern
 UninstallDisplayIcon={app}\multisuite.exe
+CloseApplications=yes
 ChangesAssociations=yes
+
+[Languages]
+Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
 
 [Types]
 Name: "full"; Description: "Instalacao Completa (Instalar todas as ferramentas)"
@@ -45,6 +49,8 @@ Name: "custom"; Description: "Instalacao Personalizada (Escolher as ferramentas 
 Name: "tools"; Description: "Ferramentas do MultiSuite"; Types: full compact custom; Flags: fixed
 Name: "tools\multisuite"; Description: "MultiSuite - Painel Central Integrador / Dashboard"; Types: full custom
 Name: "tools\multicnc"; Description: "MultiCNC - Controle de Maquinas CNC (GRBL, Marlin, Simulador)"; Types: full compact custom
+Name: "tools\tray"; Description: "MultiSuite Bandeja - Ferramentas ao lado do relogio"; Types: full custom
+Name: "tools\simucnc"; Description: "SimuCNC - Simulador de maquina (impressora, router e laser) com porta serial virtual"; Types: full custom
 Name: "tools\multicad"; Description: "MultiCAD - Modelagem e Desenho CAD 2D/3D"; Types: full custom
 Name: "tools\multipcb"; Description: "MultiPCB - Design e Roteamento de Circuitos Impressos"; Types: full custom
 Name: "tools\multiassembly"; Description: "MultiAssembly - Montagem Eletromecanica"; Types: full custom
@@ -64,6 +70,8 @@ Name: "{userdocs}\MultiSuite Projects"
 [Files]
 Source: "..\..\dist\app\multisuite.exe"; DestDir: "{app}"; Components: tools\multisuite; Flags: ignoreversion
 Source: "..\..\dist\app\multicnc.exe"; DestDir: "{app}"; Components: tools\multicnc; Flags: ignoreversion
+Source: "..\..\dist\app\multisuite_tray.exe"; DestDir: "{app}"; Components: tools\tray; Flags: ignoreversion
+Source: "..\..\dist\app\SimuCNC.exe"; DestDir: "{app}"; Components: tools\simucnc; Flags: ignoreversion
 Source: "..\..\dist\app\multicad.exe"; DestDir: "{app}"; Components: tools\multicad; Flags: ignoreversion
 Source: "..\..\dist\app\multipcb.exe"; DestDir: "{app}"; Components: tools\multipcb; Flags: ignoreversion
 Source: "..\..\dist\app\multiassembly.exe"; DestDir: "{app}"; Components: tools\multiassembly; Flags: ignoreversion
@@ -79,12 +87,15 @@ Source: "..\..\docs\*"; DestDir: "{app}\docs"; Components: extra\docs; Flags: ig
 [Tasks]
 Name: "desktopicon_suite"; Description: "Criar atalho do MultiSuite na area de trabalho"; GroupDescription: "Atalhos da Area de Trabalho:"; Components: tools\multisuite; Flags: unchecked
 Name: "desktopicon_cnc"; Description: "Criar atalho do MultiCNC na area de trabalho"; GroupDescription: "Atalhos da Area de Trabalho:"; Components: tools\multicnc; Flags: unchecked
+Name: "trayautostart"; Description: "Iniciar a MultiSuite Bandeja com o Windows"; GroupDescription: "Bandeja:"; Components: tools\tray
 
 [Icons]
 Name: "{autoprograms}\MultiSuite\MultiSuite"; Filename: "{app}\multisuite.exe"; Components: tools\multisuite
 Name: "{autodesktop}\MultiSuite"; Filename: "{app}\multisuite.exe"; Tasks: desktopicon_suite; Components: tools\multisuite
 Name: "{autoprograms}\MultiSuite\MultiCNC"; Filename: "{app}\multicnc.exe"; Components: tools\multicnc
 Name: "{autodesktop}\MultiCNC"; Filename: "{app}\multicnc.exe"; Tasks: desktopicon_cnc; Components: tools\multicnc
+Name: "{autoprograms}\MultiSuite\MultiSuite Bandeja"; Filename: "{app}\multisuite_tray.exe"; Components: tools\tray
+Name: "{autoprograms}\MultiSuite\SimuCNC"; Filename: "{app}\SimuCNC.exe"; Components: tools\simucnc
 Name: "{autoprograms}\MultiSuite\MultiCAD"; Filename: "{app}\multicad.exe"; Components: tools\multicad
 Name: "{autoprograms}\MultiSuite\MultiPCB"; Filename: "{app}\multipcb.exe"; Components: tools\multipcb
 Name: "{autoprograms}\MultiSuite\MultiAssembly"; Filename: "{app}\multiassembly.exe"; Components: tools\multiassembly
@@ -97,11 +108,16 @@ Name: "{autoprograms}\MultiSuite\LaserArt"; Filename: "{app}\laserart.exe"; Comp
 Name: "{autoprograms}\MultiSuite\Central de Testes"; Filename: "{app}\multisuite_test_center.exe"; Components: tools\testcenter
 
 [Registry]
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "MultiSuiteTray"; ValueData: """{app}\multisuite_tray.exe"" --tray"; Flags: uninsdeletevalue; Tasks: trayautostart; Components: tools\tray
 Root: HKA; Subkey: "Software\Classes\.msuite"; ValueType: string; ValueData: "MultiSuite.Project"; Flags: uninsdeletevalue; Components: tools\multisuite
 Root: HKA; Subkey: "Software\Classes\MultiSuite.Project"; ValueType: string; ValueData: "Projeto MultiSuite"; Flags: uninsdeletekey; Components: tools\multisuite
 Root: HKA; Subkey: "Software\Classes\MultiSuite.Project\DefaultIcon"; ValueType: string; ValueData: "{app}\multisuite.exe,0"; Components: tools\multisuite
 Root: HKA; Subkey: "Software\Classes\MultiSuite.Project\shell\open\command"; ValueType: string; ValueData: """{app}\multisuite.exe"" ""%1"""; Components: tools\multisuite
 
 [Run]
+Filename: "{app}\multisuite_tray.exe"; Parameters: "--tray"; Description: "Iniciar a MultiSuite Bandeja"; Flags: nowait postinstall skipifsilent; Components: tools\tray
 Filename: "{app}\multisuite.exe"; Description: "Abrir MultiSuite"; Flags: nowait postinstall skipifsilent; Components: tools\multisuite
 Filename: "{app}\multicnc.exe"; Description: "Abrir MultiCNC"; Flags: nowait postinstall skipifsilent; Components: tools\multicnc and not tools\multisuite
+
+[UninstallRun]
+Filename: "{sys}\taskkill.exe"; Parameters: "/im multisuite_tray.exe /f"; Flags: runhidden; RunOnceId: "FecharBandeja"; Components: tools\tray

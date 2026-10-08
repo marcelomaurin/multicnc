@@ -6,6 +6,7 @@
    <Title Value="MultiSuite" />
    <UseAppBundle Value="False" />
    <ResourceType Value="res" />
+   <Icon Value="0"/>
   </General>
   <BuildModes Count="1">
    <Item1 Name="Default" Default="True" />

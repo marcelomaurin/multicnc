@@ -7,12 +7,12 @@ set APP=%DIST%\app
 set BIN=%ROOT%\bin
 
 set VERSION=%~1
-if "%VERSION%"=="" set VERSION=0.01
+if "%VERSION%"=="" set VERSION=0.02
 
 set SETUP_SEQ=%~2
-if "%SETUP_SEQ%"=="" set SETUP_SEQ=001
+if "%SETUP_SEQ%"=="" set SETUP_SEQ=002
 
-set OUTPUT_NAME=setup_%SETUP_SEQ%
+set OUTPUT_NAME=setup_multcnc_%SETUP_SEQ%
 
 if exist "%DIST%" rmdir /s /q "%DIST%"
 mkdir "%APP%"
@@ -31,6 +31,8 @@ call :build makepcb\src\app\makepcb.lpi makepcb\src\app\makepcb.exe makepcb.exe 
 call :build laserpcb\src\app\laserpcb.lpi laserpcb\src\app\laserpcb.exe laserpcb.exe || exit /b 1
 call :build laserart\src\app\laserart.lpi laserart\src\app\laserart.exe laserart.exe || exit /b 1
 call :build src\app\multicnc.lpi src\app\multicnc.exe multicnc.exe || exit /b 1
+call :build multisuite\src\tray\multisuite_tray.lpi multisuite\src\tray\multisuite_tray.exe multisuite_tray.exe || exit /b 1
+call :build src\simucnc\simucnc.lpi src\simucnc\SimuCNC.exe SimuCNC.exe || exit /b 1
 call :build multisuite\src\testing\multisuite_test_center.lpi multisuite\src\testing\multisuite_test_center.exe multisuite_test_center.exe || exit /b 1
 
 where strip >nul 2>nul && (for %%F in ("%APP%\*.exe") do strip --strip-debug "%%F") || echo AVISO: strip nao encontrado; executaveis mantem informacao de debug.
