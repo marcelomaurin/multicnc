@@ -3,6 +3,17 @@
 Lista do que ficou aberto. Detalhes do LaserArt em
 `laserart/docs/LASERART_PLANO.md`.
 
+## Correcao: programas ficavam rodando em segundo plano (08/10/2026)
+- Causa: os `.lpr` criavam a janela com `TForm.Create(Application)`; sem
+  `Application.CreateForm` o LCL nao define `Application.MainForm`, entao fechar a janela
+  so a escondia e o processo continuava (prendendo o `.exe` em `bin`).
+- Corrigido em 16 programas (LaserPCB, MakePCB, MakeRouter, RouterPCB, MultiAssembly,
+  MultiCAD, MultiCAM e simulador, MultiPCB e posicionamento, MultiPhysics, MultiSlicer e
+  posicionamento, MultiSuite, Central de Testes). Teste: com `CreateForm` o processo sai ao
+  fechar; com `Create` fica preso. Instalador 0.04 com a correcao.
+- A bandeja continua em segundo plano de proposito (icone ao lado do relogio); para fechar,
+  "Sair" no painel.
+
 ## MakeRouter (08/10/2026) - EM ANALISE
 - Projeto + usinagem de madeira na CNC Router (referencia de fluxo: Vectric Aspire, sem
   copiar): material, desenho 2D, relevo, percursos (perfil, bolsao, furacao, V-Carve, 3D),

@@ -19,7 +19,7 @@ begin
   Application.Title := 'MakePCB';
   Application.Initialize;
   C := ReadSuiteContext;
-  F := TMakePCBForm.Create(Application);
+  Application.CreateForm(TMakePCBForm, F);
   if (C.FileName <> '') and FileExists(C.FileName) then F.OpenFile(C.FileName);
   F.Show;
   Application.Run;

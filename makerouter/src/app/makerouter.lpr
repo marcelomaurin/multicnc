@@ -20,7 +20,7 @@ begin
   Application.Title := 'MakeRouter';
   Application.Initialize;
   C := ReadSuiteContext;
-  F := TMakeRouterForm.Create(Application);
+  Application.CreateForm(TMakeRouterForm, F);
   F.Caption := ContextCaption(F.Caption, C);
   F.Show;
   Application.Run;

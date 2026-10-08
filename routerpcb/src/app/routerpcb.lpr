@@ -26,7 +26,7 @@ begin
   FN := C.FileName;
   if (FN = '') and (ParamCount >= 1) and (Copy(ParamStr(1), 1, 2) <> '--') then
     FN := ExpandFileName(ParamStr(1));
-  F := TRouterPCBForm.Create(Application);
+  Application.CreateForm(TRouterPCBForm, F);
   F.Caption := ContextCaption(F.Caption, C);
   if (FN <> '') and (FileExists(FN) or DirectoryExists(FN)) then F.OpenFile(FN);
   F.Show;

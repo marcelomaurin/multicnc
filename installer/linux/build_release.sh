@@ -46,6 +46,7 @@ APPS=(
   "multicam|multicam/src/app/multicam.lpi|multicam/src/app/multicam|MultiCAM|CAM e simulacao CNC Router"
   "multislicer|multislicer/src/app/multislicer.lpi|multislicer/src/app/multislicer|MultiSlicer|Fatiamento para impressao 3D"
   "makepcb|makepcb/src/app/makepcb.lpi|makepcb/src/app/makepcb|MakePCB|Projeto de placas do zero"
+  "makerouter|makerouter/src/app/makerouter.lpi|makerouter/src/app/makerouter|MakeRouter|Projeto e usinagem de madeira"
   "routerpcb|routerpcb/src/app/routerpcb.lpi|routerpcb/src/app/routerpcb|RouterPCB|Fresagem de PCB na CNC Router"
   "laserpcb|laserpcb/src/app/laserpcb.lpi|laserpcb/src/app/laserpcb|LaserPCB|Preparacao de PCB para laser"
   "laserart|laserart/src/app/laserart.lpi|laserart/src/app/laserart|LaserArt|Imagem, vetor e arte para laser"
@@ -107,7 +108,7 @@ Maintainer: Maurinsoft <marcelomaurinmartins@gmail.com>
 Homepage: https://github.com/marcelomaurin/multicnc
 Description: MultiSuite - CAD, PCB, CAM, fatiamento, laser e controle CNC
  Inclui MultiSuite, MultiCAD, MultiPCB, MultiAssembly, MultiPhysics, MultiCAM,
- MultiSlicer, MakePCB, RouterPCB, LaserPCB, LaserArt, MultiCNC e Central de Testes.
+ MultiSlicer, MakePCB, MakeRouter, RouterPCB, LaserPCB, LaserArt, MultiCNC e Central de Testes.
 EOF
 
 cat > "$STAGE/DEBIAN/postinst" <<'EOF'

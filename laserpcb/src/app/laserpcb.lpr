@@ -12,7 +12,7 @@ begin
   Application.Title := 'LaserPCB';
   Application.Initialize;
   C := ReadSuiteContext;
-  F := TLaserPCBForm.Create(Application);
+  Application.CreateForm(TLaserPCBForm, F);
   F.Caption := ContextCaption(F.Caption, C);
   F.Hint := 'Projeto: ' + C.ProjectRoot + ' | Arquivo: ' + C.FileName;
   F.ShowHint := True;

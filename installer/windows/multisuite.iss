@@ -2,10 +2,10 @@
   #define MyAppName "MultiSuite"
 #endif
 #ifndef MyAppVersion
-  #define MyAppVersion "0.03"
+  #define MyAppVersion "0.04"
 #endif
 #ifndef SetupSeq
-  #define SetupSeq "003"
+  #define SetupSeq "004"
 #endif
 #ifndef MyAppPublisher
   #define MyAppPublisher "Maurinsoft"
@@ -58,6 +58,7 @@ Name: "tools\multiphysics"; Description: "MultiPhysics - Simulacao Fisica, Termi
 Name: "tools\multicam"; Description: "MultiCAM - CAM e Simulacao CNC Router"; Types: full custom
 Name: "tools\multislicer"; Description: "MultiSlicer - Fatiador para Impressao 3D"; Types: full custom
 Name: "tools\makepcb"; Description: "MakePCB - Projeto de Placas do Zero (Gerber/Excellon)"; Types: full custom
+Name: "tools\makerouter"; Description: "MakeRouter - Projeto e usinagem de madeira (versao provisoria)"; Types: full custom
 Name: "tools\routerpcb"; Description: "RouterPCB - Fresagem de PCB na CNC Router (isolacao, furacao, recorte, nivelamento)"; Types: full custom
 Name: "tools\laserpcb"; Description: "LaserPCB - Preparacao e Gravacao de PCB a Laser"; Types: full custom
 Name: "tools\laserart"; Description: "LaserArt - Vetorizacao e Gravacao de Imagens a Laser"; Types: full custom
@@ -80,6 +81,7 @@ Source: "..\..\dist\app\multiphysics.exe"; DestDir: "{app}"; Components: tools\m
 Source: "..\..\dist\app\multicam.exe"; DestDir: "{app}"; Components: tools\multicam; Flags: ignoreversion
 Source: "..\..\dist\app\multislicer.exe"; DestDir: "{app}"; Components: tools\multislicer; Flags: ignoreversion
 Source: "..\..\dist\app\makepcb.exe"; DestDir: "{app}"; Components: tools\makepcb; Flags: ignoreversion
+Source: "..\..\dist\app\makerouter.exe"; DestDir: "{app}"; Components: tools\makerouter; Flags: ignoreversion
 Source: "..\..\dist\app\routerpcb.exe"; DestDir: "{app}"; Components: tools\routerpcb; Flags: ignoreversion
 Source: "..\..\dist\app\laserpcb.exe"; DestDir: "{app}"; Components: tools\laserpcb; Flags: ignoreversion
 Source: "..\..\dist\app\laserart.exe"; DestDir: "{app}"; Components: tools\laserart; Flags: ignoreversion
@@ -105,6 +107,7 @@ Name: "{autoprograms}\MultiSuite\MultiPhysics"; Filename: "{app}\multiphysics.ex
 Name: "{autoprograms}\MultiSuite\MultiCAM"; Filename: "{app}\multicam.exe"; Components: tools\multicam
 Name: "{autoprograms}\MultiSuite\MultiSlicer"; Filename: "{app}\multislicer.exe"; Components: tools\multislicer
 Name: "{autoprograms}\MultiSuite\MakePCB"; Filename: "{app}\makepcb.exe"; Components: tools\makepcb
+Name: "{autoprograms}\MultiSuite\MakeRouter"; Filename: "{app}\makerouter.exe"; Components: tools\makerouter
 Name: "{autoprograms}\MultiSuite\RouterPCB"; Filename: "{app}\routerpcb.exe"; Components: tools\routerpcb
 Name: "{autoprograms}\MultiSuite\LaserPCB"; Filename: "{app}\laserpcb.exe"; Components: tools\laserpcb
 Name: "{autoprograms}\MultiSuite\LaserArt"; Filename: "{app}\laserart.exe"; Components: tools\laserart

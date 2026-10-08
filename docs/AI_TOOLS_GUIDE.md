@@ -48,6 +48,7 @@ Imagem/Vetor -> LaserArt -> MultiCNC
 9. Nao declare build/teste como aprovado sem executar compilador/testes.
 10. Consulte o AI_GUIDE.md da ferramenta antes de editar seus fontes.
 11. G-code de ferramentas de preparacao usa zero virtual e o cabecalho de `docs/CONTRATO_GCODE.md`; so o MultiCNC conhece a maquina.
+12. A janela principal de cada aplicativo e criada com `Application.CreateForm` no `.lpr`. Com `TForm.Create(Application)` o LCL nao define `Application.MainForm`: fechar a janela so a esconde e o processo continua rodando em segundo plano (prende o `.exe`).
 
 ## Documentacao por ferramenta
 - multisuite/docs/AI_GUIDE.md
