@@ -218,22 +218,22 @@ begin
     0:
     begin
       LabelAt(S, 'Abra a pasta <nome>_gerber exportada pelo MakePCB (ou Gerber + Excellon de outro programa). ' +
-        'Cobre, contorno e furos sao reconhecidos pelo nome e pelo atributo X2.', 16, Y, 290, 74);
-      Button(S, 'Abrir pasta do MakePCB...', 16, Y + 80, 290, sikFolder, @OpenFolderClick)
+        'Cobre, contorno e furos sao reconhecidos pelo nome e pelo atributo X2.', 16, Y, 290, 96);
+      Button(S, 'Abrir pasta do MakePCB...', 16, Y + 100, 290, sikFolder, @OpenFolderClick)
         .SetLook(sbsSolid, clSuitePrimary, sikFolder);
-      Button(S, 'Abrir arquivos...', 16, Y + 122, 290, sikImport, @OpenFilesClick);
-      SideBox := Combo(S, 'Lado a fresar', ['Top (cobre de cima)', 'Bottom (espelhado)'], Y + 172);
+      Button(S, 'Abrir arquivos...', 16, Y + 142, 290, sikImport, @OpenFilesClick);
+      SideBox := Combo(S, 'Lado a fresar', ['Top (cobre de cima)', 'Bottom (espelhado)'], Y + 192);
       LabelAt(S, 'Placa de face simples do MakePCB tem o cobre embaixo: abre em Bottom e a saida ' +
-        'ja sai espelhada. Vire a placa na mesa com o cobre para cima.', 16, Y + 228, 290, 58);
-      LabelAt(S, 'Funcao da camada selecionada', 16, Y + 296, 290, 18).WordWrap := False;
+        'ja sai espelhada. Vire a placa na mesa com o cobre para cima.', 16, Y + 248, 290, 96);
+      LabelAt(S, 'Funcao da camada selecionada', 16, Y + 350, 290, 18).WordWrap := False;
       RoleBox := TComboBox.Create(Self);
       RoleBox.Parent := S;
-      RoleBox.SetBounds(16, Y + 316, 290, 30);
+      RoleBox.SetBounds(16, Y + 370, 290, 30);
       RoleBox.Style := csDropDownList;
       for Role := Low(TLPLayerRole) to High(TLPLayerRole) do RoleBox.Items.Add(LayerRoleName(Role));
       RoleBox.ItemIndex := 0;
       RoleBox.OnChange := @RoleChanged;
-      ResEdit := Field(S, 'Resolucao do calculo (mm/pixel, 0 = auto)', '0', Y + 360);
+      ResEdit := Field(S, 'Resolucao do calculo (mm/pixel, 0 = auto)', '0', Y + 414);
     end;
     1:
     begin
@@ -254,8 +254,8 @@ begin
       IsoRPM := Field(S, 'Rotacao do spindle (RPM)', '12000', Y + 394);
       LabelAt(S, 'A largura do corte da fresa V cresce com a profundidade. Se aparecer um circulo vermelho ' +
         'na previa, a fresa nao passa entre dois cobres: reduza a profundidade ou use ponta menor.',
-        16, Y + 452, 290, 74);
-      Button(S, 'Atualizar trajetorias', 16, Y + 532, 290, sikFlame, @GenerateClick);
+        16, Y + 452, 290, 96);
+      Button(S, 'Atualizar trajetorias', 16, Y + 554, 290, sikFlame, @GenerateClick);
     end;
     2:
     begin
@@ -279,8 +279,8 @@ begin
     begin
       CutOn := Check(S, 'Recortar a placa', Y, True);
       CutDia := HalfField(S, 'Fresa de topo (mm)', '2', 16, Y + 30);
-      CutThick := HalfField(S, 'Espessura placa (mm)', '1.6', 166, Y + 30);
-      CutExtra := HalfField(S, 'Passar do fundo (mm)', '0.1', 16, Y + 86);
+      CutThick := HalfField(S, 'Espessura (mm)', '1.6', 166, Y + 30);
+      CutExtra := HalfField(S, 'Extra no fundo (mm)', '0.1', 16, Y + 86);
       CutStep := HalfField(S, 'Passo (mm)', '0.6', 166, Y + 86);
       CutFeed := HalfField(S, 'Avanco (mm/min)', '200', 16, Y + 142);
       CutPlunge := HalfField(S, 'Mergulho (mm/min)', '60', 166, Y + 142);
@@ -325,16 +325,16 @@ begin
       MSpin := HalfField(S, 'Espera spindle (s)', '2', 16, Y + 124);
       MRapid := HalfField(S, 'Desloc. (mm/min)', '1500', 166, Y + 124);
       Title(S, 'PROGRAMAS', Y + 184);
-      Summary := LabelAt(S, 'Atualize as trajetorias para ver os programas.', 16, Y + 208, 290, 120);
+      Summary := LabelAt(S, 'Atualize as trajetorias para ver os programas.', 16, Y + 208, 290, 150);
       LogMemo := TMemo.Create(Self);
       LogMemo.Parent := S;
-      LogMemo.SetBounds(16, Y + 334, 290, 170);
+      LogMemo.SetBounds(16, Y + 364, 290, 150);
       LogMemo.ReadOnly := True;
       LogMemo.ScrollBars := ssAutoVertical;
       LabelAt(S, 'Zere X/Y no canto inferior esquerdo da placa e Z na superficie do cobre. ' +
-        'Troque a ferramenta entre os programas sem mexer no zero X/Y.', 16, Y + 512, 290, 58);
-      Button(S, 'Validar agora', 16, Y + 576, 290, sikTests, @ValidateClick);
-      Button(S, 'Gerar G-code...', 16, Y + 618, 290, sikSave, @ExportClick);
+        'Troque a ferramenta entre os programas sem mexer no zero X/Y.', 16, Y + 522, 290, 78);
+      Button(S, 'Validar agora', 16, Y + 606, 290, sikTests, @ValidateClick);
+      Button(S, 'Gerar G-code...', 16, Y + 648, 290, sikSave, @ExportClick);
     end;
   end;
 end;
@@ -855,8 +855,8 @@ begin
       try
         S := '';
         for I := 0 to Progs.Count - 1 do
-          S := S + Format('%s  ~%d min  (%s)', [Progs.Item(I).Suffix, Ceil(Progs.Item(I).Seconds / 60),
-            Progs.Item(I).Tool], InvariantFS) + LineEnding;
+          S := S + Format('%s  ~%d min', [Progs.Item(I).Suffix, Ceil(Progs.Item(I).Seconds / 60)],
+            InvariantFS) + LineEnding;
         Secs := Progs.TotalSeconds;
         if Progs.NeedsProbe then S := S + 'Rode a sondagem e importe o log para gerar os demais.'
         else S := S + Format('Total ~%d min', [Ceil(Secs / 60)]);

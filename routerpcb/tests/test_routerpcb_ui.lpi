@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+ <ProjectOptions>
+  <Version Value="12"/>
+  <General><Title Value="test_routerpcb_ui"/><UseAppBundle Value="False"/><ResourceType Value="res"/></General>
+  <BuildModes Count="1"><Item1 Name="Default" Default="True"/></BuildModes>
+  <Units Count="1"><Unit0><Filename Value="test_routerpcb_ui.lpr"/><IsPartOfProject Value="True"/></Unit0></Units>
+   <RequiredPackages Count="1"><Item1><PackageName Value="LCL"/></Item1></RequiredPackages>
+ </ProjectOptions>
+ <CompilerOptions>
+  <Version Value="11"/>
+  <Target><Filename Value="test_routerpcb_ui"/></Target>
+  <SearchPaths><OtherUnitFiles Value="../src/core;../src/cam;../src/level;../src/export;../../laserpcb/src/geom;../../laserpcb/src/import;../../laserpcb/src/cam;../../laserpcb/src/drill;../../src/shared;../src/ui;../src/app;../../multisuite/src/core"/><UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)/test_routerpcb_ui"/></SearchPaths>
+  <Parsing><SyntaxOptions><SyntaxMode Value="ObjFPC"/></SyntaxOptions></Parsing>
+  <CodeGeneration><Checks><IOChecks Value="True"/><RangeChecks Value="True"/><OverflowChecks Value="True"/><StackChecks Value="True"/></Checks></CodeGeneration>
+ </CompilerOptions>
+</CONFIG>

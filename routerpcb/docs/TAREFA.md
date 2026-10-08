@@ -15,7 +15,7 @@
 | 0 Preparacao | concluida (08/10) | `laserpcb_roles.pas`; arvore `routerpcb/`; fixture 555 em `tests/fixtures/astable_gerber` (gerado por `tests/make_fixture.lpr`). Testes LaserPCB (2560 + 70 + UI) e MakePCB (2382) seguem passando. |
 | 1 Nucleo | concluida (08/10) | `routerpcb_types`, `routerpcb_project`, `cam/routerpcb_isolation`, `cam/routerpcb_drillmap`, `cam/routerpcb_cutout`; `tests/test_routerpcb.lpr`: 96 checks passando (Linux). |
 | 2 Nivelamento e G-code | concluida (08/10) | `level/routerpcb_heightmap`, `export/routerpcb_gcode`. 246 checks: regras do G-code, validador `TSafetyValidator` e analisador do MultiCNC aceitam todas as linhas. Exemplo 555: isolacao 1310 mm (~9 min), 2 brocas, recorte com 4 pontes e 3 furos fresados. |
-| 3 Interface | pendente | |
+| 3 Interface | concluida (08/10) | `ui/routerpcb_preview`, `app/routerpcb_main` (6 etapas), icone `sikRouterPCB`, `routerpcb.lpi`. `tests/test_routerpcb_ui.lpr`: 22 checks no Linux (GTK2) e no Win64 (Wine). `bin/routerpcb.exe` (x64). Capturas em `imgs/Routerpcb01..04.png`. |
 | 4 Integracao na suite | pendente | |
 | 5 MakePCB / MultiCNC | pendente | |
 | 6 Entrega | pendente | |
@@ -109,12 +109,12 @@ Regras do projeto, que valem para todas as fases:
 
 ## Fase 3: interface (≈ 2 h)
 
-- [ ] `routerpcb_preview.pas`:
+- [x] `routerpcb_preview.pas`:
   - placa e cobre (Top vermelho, Bottom verde, como no LaserPCB);
   - isolação, furos com cor por broca, recorte e pontes;
   - mapa de altura em cores;
   - réguas em mm, zoom/pan e "ajustar".
-- [ ] `routerpcb_main.pas` com 6 etapas:
+- [x] `routerpcb_main.pas` com 6 etapas:
   1. **Importar**;
   2. **Isolação**;
   3. **Furação**;
@@ -124,13 +124,13 @@ Regras do projeto, que valem para todas as fases:
 
   No rodapé: Validar, Gerar G-code (escolhe a pasta) e Abrir no MultiCNC.
   O rodapé mostra o status e o badge de estado.
-- [ ] Linha de comando: `routerpcb.exe <pasta_gerber>` abre a pasta direto (para o MakePCB
+- [x] Linha de comando: `routerpcb.exe <pasta_gerber>` abre a pasta direto (para o MakePCB
       e o launcher).
-- [ ] `routerpcb.lpi`, `.lpr`, `.manifest`, `.ico` (novo ícone: placa + fresa) e `.res`.
-- [ ] `tests/test_routerpcb_ui.lpr`: abre o fixture, gera tudo, valida e exporta para uma
+- [x] `routerpcb.lpi`, `.lpr`, `.manifest`, `.ico` (novo ícone: placa + fresa) e `.res`.
+- [x] `tests/test_routerpcb_ui.lpr`: abre o fixture, gera tudo, valida e exporta para uma
       pasta temporária. Rodar no Linux (GTK2, Xvfb) e no Win64 (Wine).
-- [ ] Capturas de tela para `imgs/Routerpcb01..04.png`.
-- [ ] Commit: "RouterPCB: interface no padrao da suite".
+- [x] Capturas de tela para `imgs/Routerpcb01..04.png`.
+- [x] Commit: "RouterPCB: interface no padrao da suite".
 
 ## Fase 4: integração na suíte (≈ 1 h)
 

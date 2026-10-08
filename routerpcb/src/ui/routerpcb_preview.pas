@@ -323,8 +323,7 @@ begin
       end
       else Canvas.Line(RP_RULER - 4, P.Y, RP_RULER, P.Y);
     end;
-    V := V - StepMM;
-    if V < -100000 then Break;
+    V := V + StepMM;
   end;
   Canvas.Brush.Color := RGBToColor(255, 255, 255);
   Canvas.Pen.Color := RGBToColor(226, 232, 240);

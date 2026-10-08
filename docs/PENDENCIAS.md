@@ -9,7 +9,9 @@ Lista do que ficou aberto. Detalhes do LaserArt em
 - Nova ferramenta `routerpcb/`: isolacao com fresa V, furacao por broca, recorte com
   pontes, nivelamento por sondagem (G38.2 + bilinear) e G-code GRBL com cabecalho
   `; RouterPCB -> MultiCNC (CNC Router)`. Reutiliza import/raster/CAM/drill do LaserPCB.
-- Documentado (visao, arquitetura, guia IA); **sem codigo ainda**.
+- 08/10: fases 0-3 prontas (nucleo, nivelamento, G-code e interface; 246 + 22 checks,
+  Linux e Win64). `bin\routerpcb.exe` (x64). Faltam as fases 4-6: registro na suite,
+  bandeja, catalogo de testes, CI, botao no MakePCB, cabecalho no MultiCNC, instalador 0.03.
 - Plano passo a passo, com fases, criterios de pronto e integracao (registro
   `stiRouterPCB`, bandeja, catalogo, CI, instalador 0.03, botao no MakePCB, cabecalho
   no MultiCNC): `routerpcb/docs/TAREFA.md`.

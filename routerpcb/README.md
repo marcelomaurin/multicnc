@@ -1,8 +1,8 @@
 # RouterPCB
 
-> **Estado:** planejado (08/10/2026). A ferramenta está documentada e a implementação
-> está descrita passo a passo em [docs/TAREFA.md](docs/TAREFA.md). Ainda não há código
-> nem executável.
+> **Estado (08/10/2026):** núcleo, nivelamento, G-code e interface prontos e testados
+> (`bin/routerpcb.exe`, Win64). Falta a integração com a suíte (MultiSuite, bandeja,
+> instalador, botão no MakePCB): fases 4 a 6 de [docs/TAREFA.md](docs/TAREFA.md).
 
 O **RouterPCB** é a ponte que faltava entre o **MakePCB** e o **MultiCNC no modo CNC Router**.
 Ele recebe a pasta Gerber + Excellon exportada pelo MakePCB e gera os programas G-code
@@ -28,6 +28,29 @@ fresadora de bancada etc.) e quer produzir a placa com fresa V e broca, como no 
 | **4 Recorte** | Fresa o contorno da placa por fora, com a compensação do raio da fresa, em várias profundidades. Deixa pontes (*tabs*) com largura e altura configuráveis. Recortes internos são fresados por dentro. |
 | **5 Nivelamento** | Gera o programa de sondagem em grade (G38.2) e importa as alturas medidas: linhas `[PRB:...]` do log salvo no MultiCNC ou um CSV X;Y;Z. A correção de Z é aplicada à isolação, com interpolação bilinear e segmentos subdivididos. |
 | **6 Saída** | Valida tudo, estima o tempo e grava os programas na ordem de execução: `0_sondagem`, `1_isolacao`, `2_furos_T1...`, `3_recorte`. O botão "Abrir no MultiCNC" abre o primeiro programa já em CNC Router. |
+
+## Telas
+
+| | |
+|---|---|
+| ![Isolação](../imgs/Routerpcb01.png) | ![Recorte com pontes](../imgs/Routerpcb02.png) |
+| ![Nivelamento](../imgs/Routerpcb03.png) | ![Saída](../imgs/Routerpcb04.png) |
+
+Na prévia, o cobre aparece em verde (Bottom) ou vermelho (Top), a isolação em azul, os furos
+com uma cor por broca, os furos fresados em laranja, o recorte em roxo com as pontes em âmbar e
+a grade de sondagem com a altura medida em cada ponto.
+
+## Uso
+
+1. **Importar:** "Abrir pasta do MakePCB..." e escolha `<nome>_gerber`. Também funciona
+   `routerpcb <pasta>` ou `routerpcb --file <pasta>`.
+2. **Isolação, Furação e Recorte:** ajuste as ferramentas e clique em "Atualizar trajetórias".
+   Um círculo vermelho na prévia indica cobres mais próximos que a largura da fresa.
+3. **Nivelamento** (opcional): "Gerar sondagem...", rode no MultiCNC com a garra na fresa e o
+   fio no cobre, salve o log ("Save Log...") e "Importar log ou CSV...".
+4. **Saída:** "Validar" e "Gerar G-code" gravam `<nome>_1_isolacao.gcode`,
+   `<nome>_2_furos_T1_0.80mm.gcode`, ... e `<nome>_3_recorte.gcode` na pasta escolhida.
+   "Abrir no MultiCNC" abre o primeiro já em CNC Router.
 
 ## Princípios
 
