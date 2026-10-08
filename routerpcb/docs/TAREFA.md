@@ -8,6 +8,18 @@
 - **Decisões técnicas:** [ARCHITECTURE.md](ARCHITECTURE.md)
 - **Guia para IA:** [AI_GUIDE.md](AI_GUIDE.md)
 
+## Progresso
+
+| Fase | Estado | Commit / observacao |
+|---|---|---|
+| 0 Preparacao | concluida (08/10) | `laserpcb_roles.pas`; arvore `routerpcb/`; fixture 555 em `tests/fixtures/astable_gerber` (gerado por `tests/make_fixture.lpr`). Testes LaserPCB (2560 + 70 + UI) e MakePCB (2382) seguem passando. |
+| 1 Nucleo | pendente | |
+| 2 Nivelamento e G-code | pendente | |
+| 3 Interface | pendente | |
+| 4 Integracao na suite | pendente | |
+| 5 MakePCB / MultiCNC | pendente | |
+| 6 Entrega | pendente | |
+
 Regras do projeto, que valem para todas as fases:
 
 - Padrão visual da suíte, igual ao LaserPCB/MakePCB: `TSuiteHeader`, barra lateral de
@@ -23,13 +35,13 @@ Regras do projeto, que valem para todas as fases:
 
 ## Fase 0: preparação (≈ 30 min)
 
-- [ ] Mover `DetectLayerRole`, `TLPLayerRole` e `LayerRoleName` de
+- [x] Mover `DetectLayerRole`, `TLPLayerRole` e `LayerRoleName` de
       `laserpcb/src/core/laserpcb_project.pas` para a nova
       `laserpcb/src/import/laserpcb_roles.pas`. `laserpcb_project` passa a usá-la.
-- [ ] Recompilar e rodar os testes do LaserPCB (`test_pipeline`, `test_drill`, `test_ui`),
+- [x] Recompilar e rodar os testes do LaserPCB (`test_pipeline`, `test_drill`, `test_ui`),
       que não podem mudar de resultado.
-- [ ] Criar a árvore `routerpcb/src/{core,cam,level,export,ui,app}` e `routerpcb/tests`.
-- [ ] Gerar uma pasta de exemplo para os testes: exemplo 555 do MakePCB, exportada para
+- [x] Criar a árvore `routerpcb/src/{core,cam,level,export,ui,app}` e `routerpcb/tests`.
+- [x] Gerar uma pasta de exemplo para os testes: exemplo 555 do MakePCB, exportada para
       `routerpcb/tests/fixtures/astable_gerber/`, com camadas B_Cu, Edge_Cuts, PTH e NPTH.
 
 ## Fase 1: núcleo (≈ 2 h)

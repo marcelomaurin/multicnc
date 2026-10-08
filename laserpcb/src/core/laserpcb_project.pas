@@ -2,14 +2,15 @@ unit laserpcb_project;
 {$mode objfpc}{$H+}
 interface
 uses Classes, SysUtils, Math, laserpcb_types, laserpcb_job, laserpcb_layout,
-  laserpcb_geom, laserpcb_gerber, laserpcb_excellon, laserpcb_raster, laserpcb_drill;
+  laserpcb_geom, laserpcb_gerber, laserpcb_excellon, laserpcb_raster, laserpcb_drill,
+  laserpcb_roles;
 
 type
   { cmDrillMarks: marca a laser o lugar de cada furo (laserpcb_drill)
     cmOutline:    percorre o contorno da placa (linha, sem compensacao) }
   TLPCamMode = (cmVectors, cmIsolation, cmRemoveCopper, cmLayerHatch, cmDrillMarks, cmOutline);
-  TLPLayerRole = (lrUnknown, lrTopCopper, lrBottomCopper, lrOutline,
-    lrTopMask, lrBottomMask, lrTopSilk, lrBottomSilk);
+  { funcao da camada: definida em laserpcb_roles (compartilhada com o RouterPCB) }
+  TLPLayerRole = laserpcb_roles.TLPLayerRole;
   TLPSource = class
     FileName: string;
     Role: TLPLayerRole;
@@ -131,9 +132,7 @@ type
     { comprimento de corte e tempo estimado das camadas com Saida }
     procedure EstimateOperations(RapidFeed: Double; out CutMM, TravelMM, Seconds: Double);
   end;
-function LayerRoleName(Role: TLPLayerRole): string;
 function CamModeName(Mode: TLPCamMode): string;
-function DetectLayerRole(const FileName, FileFunction: string): TLPLayerRole;
 implementation
 uses laserpcb_svg, laserpcb_profile, laserpcb_cam, laserpcb_gcode;
 
@@ -172,38 +171,6 @@ var I: Integer;
 begin
   Result := 0;
   for I := 0 to High(ItemPaths) do Result := Result + LPPathsLength(ItemPaths[I]);
-end;
-
-function LayerRoleName(Role: TLPLayerRole): string;
-begin
-  case Role of
-    lrTopCopper: Result := 'Cobre Top';
-    lrBottomCopper: Result := 'Cobre Bottom';
-    lrOutline: Result := 'Contorno da placa';
-    lrTopMask: Result := 'Mascara Top';
-    lrBottomMask: Result := 'Mascara Bottom';
-    lrTopSilk: Result := 'Serigrafia Top';
-    lrBottomSilk: Result := 'Serigrafia Bottom';
-  else Result := 'Definir funcao'; end;
-end;
-
-function DetectLayerRole(const FileName, FileFunction: string): TLPLayerRole;
-var S, E: string; Bottom: Boolean;
-begin
-  S := LowerCase(FileFunction + ' ' + ExtractFileName(FileName));
-  E := LowerCase(ExtractFileExt(FileName));
-  Bottom := (Pos('bot', S) > 0) or (Pos('b_cu', S) > 0) or
-    (Pos('b_mask', S) > 0) or (Pos('b_silk', S) > 0) or (E = '.gbl') or
-    (E = '.gbs') or (E = '.gbo');
-  if (Pos('profile', S) > 0) or (Pos('edge_cuts', S) > 0) or
-     (E = '.gm1') or (E = '.gko') then Exit(lrOutline);
-  if (Pos('copper', S) > 0) or (Pos('_cu', S) > 0) or (E = '.gtl') or (E = '.gbl') then
-  begin if Bottom then Exit(lrBottomCopper) else Exit(lrTopCopper); end;
-  if (Pos('soldermask', S) > 0) or (Pos('_mask', S) > 0) or (E = '.gts') or (E = '.gbs') then
-  begin if Bottom then Exit(lrBottomMask) else Exit(lrTopMask); end;
-  if (Pos('legend', S) > 0) or (Pos('silk', S) > 0) or (E = '.gto') or (E = '.gbo') then
-  begin if Bottom then Exit(lrBottomSilk) else Exit(lrTopSilk); end;
-  Result := lrUnknown;
 end;
 
 constructor TLPSource.Create;

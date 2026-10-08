@@ -1,0 +1,15 @@
+G04 MakePCB*
+%TF.GenerationSoftware,Maurinsoft,MakePCB,0.1*%
+%TF.FileFunction,Profile,NP*%
+%FSLAX46Y46*%
+%MOMM*%
+%LPD*%
+%ADD10C,0.1*%
+G01*
+D10*
+X0Y0D02*
+X50800000Y0D01*
+X50800000Y38100000D01*
+X0Y38100000D01*
+X0Y0D01*
+M02*

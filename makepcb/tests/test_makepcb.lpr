@@ -10,7 +10,7 @@ uses
   Interfaces, Classes, SysUtils, Math, StrUtils, multisuite_numfmt,
   makepcb_model, makepcb_library, makepcb_font, makepcb_gerber, makepcb_route, makepcb_drc, makepcb_bom, makepcb_select, makepcb_schematic, makepcb_printlayout,
   laserpcb_geom, laserpcb_gerber, laserpcb_excellon, laserpcb_raster,
-  laserpcb_project, laserpcb_types;
+  laserpcb_project, laserpcb_types, laserpcb_roles;
 
 var
   Checks: Integer = 0;

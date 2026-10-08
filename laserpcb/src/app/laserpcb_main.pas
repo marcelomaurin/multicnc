@@ -3,7 +3,7 @@ unit laserpcb_main;
 interface
 uses Classes, SysUtils, Math, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls,
   Dialogs, Graphics, laserpcb_project, laserpcb_preview, laserpcb_layout,
-  laserpcb_types, laserpcb_layertable, laserart_widgets, multisuite_controls, multisuite_icons;
+  laserpcb_types, laserpcb_layertable, laserpcb_roles, laserart_widgets, multisuite_controls, multisuite_icons;
 type
   TLaserPCBForm = class(TForm)
   private
