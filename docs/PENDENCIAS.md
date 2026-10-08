@@ -3,6 +3,16 @@
 Lista do que ficou aberto. Detalhes do LaserArt em
 `laserart/docs/LASERART_PLANO.md`.
 
+## MakeRouter (08/10/2026) - EM ANALISE
+- Projeto + usinagem de madeira na CNC Router (referencia de fluxo: Vectric Aspire, sem
+  copiar): material, desenho 2D, relevo, percursos (perfil, bolsao, furacao, V-Carve, 3D),
+  simulacao e G-code para o MultiCNC.
+- Zero virtual: G-code relativo a um ponto do material (9 pontos XY, Z topo ou mesa); o
+  MultiCNC posiciona (Zero Workpiece + Frame). Contrato comum proposto em
+  `docs/CONTRATO_GCODE.md` (linhas `; MS-DATUM/STOCK/BOUNDS`).
+- So documentacao. Decisoes D1-D6 (papel do MultiCAM, biblioteca de offset, emissor comum,
+  vista 3D, escopo da 1a entrega) em `makerouter/docs/TAREFA.md`.
+
 ## RouterPCB (08/10/2026) - pronto, falta a maquina real
 - Fecha o gap MakePCB -> RouterPCB -> MultiCNC (CNC Router): isolacao com fresa V,
   furacao por broca, recorte com pontes, nivelamento por sondagem (G38.2 + bilinear) e
