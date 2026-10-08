@@ -14,7 +14,7 @@
 |---|---|---|
 | 0 Preparacao | concluida (08/10) | `laserpcb_roles.pas`; arvore `routerpcb/`; fixture 555 em `tests/fixtures/astable_gerber` (gerado por `tests/make_fixture.lpr`). Testes LaserPCB (2560 + 70 + UI) e MakePCB (2382) seguem passando. |
 | 1 Nucleo | concluida (08/10) | `routerpcb_types`, `routerpcb_project`, `cam/routerpcb_isolation`, `cam/routerpcb_drillmap`, `cam/routerpcb_cutout`; `tests/test_routerpcb.lpr`: 96 checks passando (Linux). |
-| 2 Nivelamento e G-code | pendente | |
+| 2 Nivelamento e G-code | concluida (08/10) | `level/routerpcb_heightmap`, `export/routerpcb_gcode`. 246 checks: regras do G-code, validador `TSafetyValidator` e analisador do MultiCNC aceitam todas as linhas. Exemplo 555: isolacao 1310 mm (~9 min), 2 brocas, recorte com 4 pontes e 3 furos fresados. |
 | 3 Interface | pendente | |
 | 4 Integracao na suite | pendente | |
 | 5 MakePCB / MultiCNC | pendente | |
@@ -83,19 +83,19 @@ Regras do projeto, que valem para todas as fases:
 
 ## Fase 2: nivelamento e G-code (≈ 1 h 30)
 
-- [ ] `routerpcb_heightmap.pas`:
+- [x] `routerpcb_heightmap.pas`:
   - grade;
   - `ProbeProgram`;
   - `LoadProbeLog` (`[PRB:x,y,z:1]`, ignora o resto do log);
   - `LoadCSV`;
   - `Bilinear`;
   - `CompensatePaths` (subdivisão + limite).
-- [ ] `routerpcb_gcode.pas`:
+- [x] `routerpcb_gcode.pas`:
   - emissor único com cabeçalho;
   - `Programs` na ordem `0_sondagem`, `1_isolacao`, `2_furos_T<n>_<d>mm`, `3_recorte`;
   - opção de arquivo único com M0;
   - estimativa de tempo.
-- [ ] `tests/test_routerpcb.lpr`, segunda parte, cobrindo:
+- [x] `tests/test_routerpcb.lpr`, segunda parte, cobrindo:
   - bilinear exata num plano inclinado;
   - fora da grade dá erro;
   - correção acima do limite dá erro;
@@ -104,8 +104,8 @@ Regras do projeto, que valem para todas as fases:
   - G-code só com os códigos permitidos, sem vírgula decimal e com linhas ≤ 127;
   - primeira linha com o cabeçalho;
   - parâmetro inválido não grava arquivo.
-- [ ] Rodar o G-code no SimuCNC (router) ou no analisador `multicnc_gcode_analyzer`.
-- [ ] Commit: "RouterPCB: nivelamento por sondagem e G-code".
+- [x] G-code conferido pelo analisador `multicnc_gcode_analyzer` e pelo validador `multicnc_safety` do MultiCNC (teste automatico). SimuCNC: conferir na maquina do Marcelo.
+- [x] Commit: "RouterPCB: nivelamento por sondagem e G-code".
 
 ## Fase 3: interface (≈ 2 h)
 

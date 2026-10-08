@@ -9,7 +9,7 @@
  <CompilerOptions>
   <Version Value="11"/>
   <Target><Filename Value="test_routerpcb"/></Target>
-  <SearchPaths><OtherUnitFiles Value="../src/core;../src/cam;../src/level;../src/export;../../laserpcb/src/geom;../../laserpcb/src/import;../../laserpcb/src/cam;../../laserpcb/src/drill;../../src/shared"/><UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)/test_routerpcb"/></SearchPaths>
+  <SearchPaths><OtherUnitFiles Value="../src/core;../src/cam;../src/level;../src/export;../../laserpcb/src/geom;../../laserpcb/src/import;../../laserpcb/src/cam;../../laserpcb/src/drill;../../src/shared;../../src/core"/><UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)/test_routerpcb"/></SearchPaths>
   <Parsing><SyntaxOptions><SyntaxMode Value="ObjFPC"/></SyntaxOptions></Parsing>
   <CodeGeneration><Checks><IOChecks Value="True"/><RangeChecks Value="True"/><OverflowChecks Value="True"/><StackChecks Value="True"/></Checks></CodeGeneration>
  </CompilerOptions>

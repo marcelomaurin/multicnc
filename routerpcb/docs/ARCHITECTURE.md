@@ -131,8 +131,8 @@ Numeros com `FormatFloat('0.###', InvFS)`. Cada linha <= 127 caracteres.
 | `src/cam/routerpcb_isolation.pas` | feito: `RPIsolationPaths`, `RPOrientPaths`, `RPOrderPaths` (sem inverter), `RPClearanceIssues` |
 | `src/cam/routerpcb_drillmap.pas` | feito: `RPChooseBit`, `RPBuildDrilling` (furos grandes -> `TRPMilledHole`) |
 | `src/cam/routerpcb_cutout.pas` | feito: `RPCutoutContours`, `RPTabIntervals`, `RPDepthLevels`, `RPContourPasses`, `RPMilledHolePasses` |
-| `src/level/routerpcb_heightmap.pas` | pendente (fase 2) |
-| `src/export/routerpcb_gcode.pas` | pendente (fase 2) |
+| `src/level/routerpcb_heightmap.pas` | feito: grade em serpentina, `ProbeProgram` (G38.2 + `G10 L20 P0 Z0` no 1o ponto), `LoadProbeLog` (por ordem, confere deslocamentos), `LoadCSV`/`ToCSV`, `Height` bilinear, `Compensate` |
+| `src/export/routerpcb_gcode.pas` | feito: `TRPWriter` (F modal, continuidade entre passadas, bicadas, rasgos), `RPBuildPrograms`, `RPSavePrograms`, `RPEstimate`, `RPCheckGCode` |
 | `src/ui`, `src/app` | pendente (fase 3) |
 
 Decisoes tomadas na implementacao:
@@ -140,5 +140,9 @@ Decisoes tomadas na implementacao:
 - Furo entre duas brocas usa a broca maior seguinte (o terminal sempre entra), com aviso.
 - Furos fresados vao para o programa de recorte (mesma fresa de topo).
 - Resolucao automatica: 0,02 mm, aumentada so se a placa passar de ~10 milhoes de pixels.
+- O log do MultiCNC traz as respostas do GRBL como `RX  [PRB:x,y,z:1]` (coordenadas de maquina):
+  a leitura usa a ordem da serpentina e confere os deslocamentos X/Y relativos (o offset se cancela).
+- Com nivelamento ligado e sem mapa medido, so o programa de sondagem e gerado (`NeedsProbe`).
+- Os programas sao todos montados em memoria e conferidos (`RPCheckGCode`) antes de gravar qualquer arquivo.
 - Verificacao de folga por expansao em largura a partir das ilhas de cobre (rotulos 8-vizinhos):
   devolve um ponto por par de ilhas em conflito.

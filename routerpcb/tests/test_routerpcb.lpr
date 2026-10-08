@@ -10,7 +10,8 @@ uses
   Classes, SysUtils, Math,
   laserpcb_geom, laserpcb_raster, laserpcb_drill, laserpcb_roles,
   routerpcb_types, routerpcb_isolation, routerpcb_drillmap, routerpcb_cutout,
-  routerpcb_project;
+  routerpcb_project, routerpcb_heightmap, routerpcb_gcode,
+  multicnc_types, multicnc_safety, multicnc_gcode_analyzer, multisuite_numfmt;
 
 var
   Checks, Failures: Integer;
@@ -341,6 +342,247 @@ begin
   end;
 end;
 
+function Plane(X, Y: Double): Double;
+begin
+  Result := 0.01 * X + 0.02 * Y;
+end;
+
+procedure TestHeightMap;
+var HM, H2: TRPHeightMap; R: TLPRect; I, J, K: Integer; H, X, Y, Z: Double;
+  Log, E, CSV: TStringList; P, Q: TRPPaths3; Path: TRPPath3; Raised: Boolean;
+  G: TStringList; NProbe, NZero: Integer;
+begin
+  Check(RPParsePRB('12:00:01  RX  [PRB:-10.000,-5.500,-1.234:1]', X, Y, Z) and Near(X, -10, 1e-9) and
+    Near(Y, -5.5, 1e-9) and Near(Z, -1.234, 1e-9), 'linha PRB do log');
+  Check(not RPParsePRB('[PRB:1,2,3:0]', X, Y, Z), 'sondagem sem contato ignorada');
+  Check(not RPParsePRB('ok', X, Y, Z), 'linha sem PRB');
+  HM := TRPHeightMap.Create; H2 := TRPHeightMap.Create;
+  Log := TStringList.Create; E := TStringList.Create;
+  try
+    R := LPEmptyRect; LPRectInclude(R, 0, 0); LPRectInclude(R, 40, 30);
+    HM.Setup(R, 0, 5, 4);
+    Check(HM.Ready and not HM.Complete and (HM.Count = 20), 'grade 5x4');
+    Check(Near(HM.PointX(4), 40, 1e-9) and Near(HM.PointY(3), 30, 1e-9), 'pontos nos cantos');
+    HM.ProbeOrder(5, I, J);
+    Check((I = 4) and (J = 1), 'serpentina: 2a linha volta da direita');
+    { log do GRBL: coordenadas de maquina com deslocamento, mais ruido }
+    Log.Add('Grbl 1.1h [''$'' for help]');
+    for K := 0 to HM.Count - 1 do
+    begin
+      HM.ProbeOrder(K, I, J);
+      Log.Add('ok');
+      Log.Add(Format('10:00:%.2d  RX  [PRB:%.3f,%.3f,%.4f:1]',
+        [K mod 60, HM.PointX(I) - 100, HM.PointY(J) - 50, -20 + Plane(HM.PointX(I), HM.PointY(J))], InvariantFS));
+    end;
+    Check(HM.LoadProbeLog(Log, E) = 20, 'log com 20 sondagens: ' + E.Text);
+    Check(HM.Complete and (E.Count = 0), 'mapa completo');
+    Check(HM.Height(10, 10, H) and Near(H, Plane(10, 10), 1e-6), 'bilinear exata no plano');
+    Check(HM.Height(37.3, 4.1, H) and Near(H, Plane(37.3, 4.1), 1e-6), 'bilinear em outra celula');
+    Check(not HM.Height(-1, 5, H), 'fora da grade nao extrapola');
+    { compensacao }
+    Path := nil;
+    RPAddPoint3(Path, 0, 0, -0.08); RPAddPoint3(Path, 10, 0, -0.08);
+    P := nil; RPAddPath3(P, Path);
+    Q := HM.Compensate(P, 1, 0.5);
+    Check(Length(Q[0]) = 11, 'segmento de 10 mm em trechos de 1 mm');
+    Check(Near(Q[0][5].Z, -0.08 + Plane(5, 0), 1e-9), 'Z corrigido no meio');
+    Raised := False;
+    try HM.Compensate(P, 1, 0.05); except Raised := True; end;
+    Check(Raised, 'correcao acima do limite bloqueia');
+    Path := nil; RPAddPoint3(Path, 0, 0, -0.08); RPAddPoint3(Path, 50, 0, -0.08);
+    P := nil; RPAddPath3(P, Path);
+    Raised := False;
+    try HM.Compensate(P, 1, 0.5); except Raised := True; end;
+    Check(Raised, 'corte fora da grade bloqueia');
+    { CSV ida e volta }
+    CSV := HM.ToCSV;
+    try
+      H2.Setup(R, 0, 5, 4);
+      E.Clear;
+      Check(H2.LoadCSV(CSV, E) = 20, 'CSV com 20 pontos');
+      Check(H2.Height(22, 17, H) and Near(H, Plane(22, 17), 1e-4), 'CSV preserva o mapa');
+    finally
+      CSV.Free;
+    end;
+    { log que nao bate com a grade }
+    H2.Setup(R, 0, 4, 4);
+    E.Clear;
+    Check(H2.LoadProbeLog(Log, E) = 0, 'log de outra grade recusado');
+    Check(E.Count > 0, 'mensagem do log incompativel');
+    { programa de sondagem }
+    G := HM.ProbeProgram(RPDefaultLevel, RPDefaultMachine, 'teste');
+    try
+      NProbe := 0; NZero := 0;
+      for K := 0 to G.Count - 1 do
+      begin
+        if Pos('G38.2 ', G[K]) = 1 then Inc(NProbe);
+        if Pos('G10 L20 P0 Z0', G[K]) = 1 then Inc(NZero);
+        Check(Pos('M3', G[K]) <> 1, 'sondagem nunca liga o spindle');
+      end;
+      Check(NProbe = 20, 'um G38.2 por ponto');
+      Check(NZero = 1, 'zera Z so no primeiro ponto');
+      E.Clear;
+      Check(RPCheckGCode(G, E), 'sondagem passa nas regras: ' + E.Text);
+    finally
+      G.Free;
+    end;
+  finally
+    E.Free; Log.Free; H2.Free; HM.Free;
+  end;
+end;
+
+function CountPrefix(L: TStrings; const Prefix: string): Integer;
+var I: Integer;
+begin
+  Result := 0;
+  for I := 0 to L.Count - 1 do if Pos(Prefix, L[I]) = 1 then Inc(Result);
+end;
+
+procedure CheckForMultiCNC(L: TStrings; const What: string; MaxX, MaxY: Double);
+var I, Bad: Integer; Reason: string; B: TGCodeBounds;
+begin
+  Bad := 0;
+  for I := 0 to L.Count - 1 do
+    if (L[I] <> '') and (L[I][1] <> ';') and
+      not TSafetyValidator.CheckCommand(msIdle, L[I], Reason) then
+    begin
+      Inc(Bad);
+      if Bad = 1 then Writeln('  ', What, ': ', L[I], ' -> ', Reason);
+    end;
+  Check(Bad = 0, What + ': todas as linhas aceitas pelo validador do MultiCNC');
+  Check(TGCodeAnalyzer.Analyze(L, B) and B.HasMotion, What + ': analisador do MultiCNC');
+  Check((B.MinX > -3) and (B.MinY > -3) and (B.MaxX < MaxX + 3) and (B.MaxY < MaxY + 3),
+    Format('%s: dentro da placa (X %.2f..%.2f Y %.2f..%.2f)', [What, B.MinX, B.MaxX, B.MinY, B.MaxY], InvariantFS));
+end;
+
+procedure TestPrograms;
+var P: TRouterPCBProject; Progs: TRPPrograms; HM: TRPHeightMap; I, K, NZ: Integer;
+  Iso, T1, Cut: TRPProgram; Dir: string; Files, E, Log: TStringList; Raised, AllDepth: Boolean;
+  S: string; Z: Double; SR: TSearchRec; R: TLPRect;
+begin
+  P := TRouterPCBProject.Create;
+  HM := TRPHeightMap.Create;
+  E := TStringList.Create;
+  try
+    P.ImportFolder(FixtureDir);
+    P.Generate;
+    Progs := RPBuildPrograms(P, nil);
+    try
+      Check(Progs.Count = 4, 'isolacao, 2 brocas e recorte: ' + IntToStr(Progs.Count));
+      Check((Progs.Item(0).Suffix = '1_isolacao') and (Progs.Item(1).Suffix = '2_furos_T1_0.80mm') and
+        (Progs.Item(2).Suffix = '2_furos_T2_1.20mm') and (Progs.Item(3).Suffix = '3_recorte'),
+        'nomes na ordem de execucao: ' + Progs.Item(1).Suffix + ' ' + Progs.Item(2).Suffix);
+      for I := 0 to Progs.Count - 1 do
+      begin
+        Check(Progs.Item(I).Lines[0] = RP_HEADER, 'cabecalho RouterPCB');
+        Check(Progs.Item(I).Lines[1] = RP_COMPAT_HEADER, 'cabecalho compativel com o MultiCNC instalado');
+        Check(Progs.Item(I).Seconds > 0, 'tempo estimado');
+        E.Clear;
+        Check(RPCheckGCode(Progs.Item(I).Lines, E), 'regras do G-code: ' + E.Text);
+        CheckForMultiCNC(Progs.Item(I).Lines, Progs.Item(I).Suffix, P.BoardWidth, P.BoardHeight);
+      end;
+      Iso := Progs.Item(0); T1 := Progs.Item(1); Cut := Progs.Item(3);
+      AllDepth := True; NZ := 0;
+      for K := 0 to Iso.Lines.Count - 1 do
+      begin
+        S := Iso.Lines[K];
+        if (Pos('G1', S) = 1) and (Pos(' Z', S) > 0) then
+        begin
+          Inc(NZ);
+          Z := StrToFloat(Copy(S, Pos(' Z', S) + 2, Pos(' ', Copy(S, Pos(' Z', S) + 2, 99) + ' ') - 1), InvariantFS);
+          if not Near(Z, -0.08, 1e-9) then AllDepth := False;
+        end;
+      end;
+      Check(AllDepth and (NZ > 0), 'isolacao sempre a -0,08 mm');
+      Check(CountPrefix(Iso.Lines, 'M3 S12000') = 1, 'spindle ligado uma vez');
+      Check(Iso.CutLength > 100, 'comprimento da isolacao');
+      Check(CountPrefix(T1.Lines, 'G1 Z-1.8') = 20, 'vinte furos de 0,8 mm');
+      Check(Pos('broca 0.8 mm', T1.Lines.Text) > 0, 'ferramenta no cabecalho');
+      Check(Pos('Z-1.7', Cut.Lines.Text) > 0, 'recorte ate a espessura + 0,1 mm');
+      NZ := 0;
+      for K := 0 to Cut.Lines.Count - 1 do
+        if (Pos(' Z-1 ', Cut.Lines[K] + ' ') > 0) then Inc(NZ);
+      Check(NZ >= 8, 'recorte sobe nas pontes (topo a -1,0 mm): ' + IntToStr(NZ));
+      Check(CountPrefix(Cut.Lines, 'M0') = 0, 'recorte sem pausa');
+    finally
+      Progs.Free;
+    end;
+    { arquivo unico com pausa na troca }
+    P.Machine.OneFilePerTool := False;
+    Progs := RPBuildPrograms(P, nil);
+    try
+      Check(Progs.Count = 3, 'arquivo unico de furacao');
+      Check(CountPrefix(Progs.Item(1).Lines, 'M0') = 1, 'uma pausa M0 na troca de broca');
+      Check(CountPrefix(Progs.Item(1).Lines, 'M3') = 2, 'spindle religado depois da troca');
+    finally
+      Progs.Free;
+    end;
+    P.Machine.OneFilePerTool := True;
+    { nivelamento: sem mapa so a sondagem }
+    P.Level.Enabled := True;
+    R := LPEmptyRect; LPRectInclude(R, 0, 0); LPRectInclude(R, P.BoardWidth, P.BoardHeight);
+    HM.Setup(R, 0, P.Level.Cols, P.Level.Rows);
+    Progs := RPBuildPrograms(P, HM);
+    try
+      Check(Progs.NeedsProbe and (Progs.Count = 1) and (Progs.Item(0).Suffix = '0_sondagem'), 'sem mapa: so a sondagem');
+    finally
+      Progs.Free;
+    end;
+    Log := TStringList.Create;
+    try
+      for K := 0 to HM.Count - 1 do
+      begin
+        HM.ProbeOrder(K, I, NZ);
+        Log.Add(Format('[PRB:%.3f,%.3f,%.4f:1]', [HM.PointX(I), HM.PointY(NZ),
+          -5 + 0.003 * HM.PointX(I)], InvariantFS));
+      end;
+      E.Clear;
+      Check(HM.LoadProbeLog(Log, E) = HM.Count, 'mapa da placa');
+    finally
+      Log.Free;
+    end;
+    Progs := RPBuildPrograms(P, HM);
+    try
+      Check(not Progs.NeedsProbe and (Progs.Count = 5), 'com mapa: sondagem + 4 programas');
+      Iso := Progs.Item(1);
+      Check(Pos('Z-0.08 ', Iso.Lines.Text) = 0, 'isolacao corrigida (Z nao fica constante)');
+      Check(Iso.Lines.Count > 1000, 'segmentos subdivididos');
+      CheckForMultiCNC(Iso.Lines, 'isolacao nivelada', P.BoardWidth, P.BoardHeight);
+    finally
+      Progs.Free;
+    end;
+    P.Level.Enabled := False;
+    { grava so quando tudo deu certo }
+    Dir := IncludeTrailingPathDelimiter(GetTempDir) + 'routerpcb_test_' + IntToStr(GetProcessID);
+    ForceDirectories(Dir);
+    Progs := RPBuildPrograms(P, nil);
+    try
+      Files := RPSavePrograms(Progs, Dir, P.Name);
+      try
+        Check(Files.Count = 4, 'quatro arquivos gravados');
+        Check(FileExists(Dir + PathDelim + 'astable_1_isolacao.gcode'), 'nome do arquivo');
+        for I := 0 to Files.Count - 1 do DeleteFile(Files[I]);
+      finally
+        Files.Free;
+      end;
+    finally
+      Progs.Free;
+    end;
+    P.Isolation.Feed := -5;
+    Raised := False; Progs := nil;
+    try Progs := RPBuildPrograms(P, nil); except Raised := True; end;
+    Progs.Free;
+    Check(Raised, 'parametro invalido impede gerar');
+    Check(FindFirst(Dir + PathDelim + '*.gcode', faAnyFile, SR) <> 0, 'nenhum arquivo gravado com erro');
+    FindClose(SR);
+    RemoveDir(Dir);
+  finally
+    E.Free;
+    HM.Free;
+    P.Free;
+  end;
+end;
+
 begin
   Checks := 0; Failures := 0;
   try
@@ -350,6 +592,8 @@ begin
     TestOrientation;
     TestTabsAndPasses;
     TestProject;
+    TestHeightMap;
+    TestPrograms;
   except
     on Ex: Exception do
     begin
@@ -358,7 +602,7 @@ begin
     end;
   end;
   if Failures = 0 then
-    Writeln('PASS: ', Checks, ' checks (parametros, brocas, folga, sentido, pontes, isolacao, furacao, recorte)')
+    Writeln('PASS: ', Checks, ' checks (parametros, brocas, folga, sentido, pontes, isolacao, furacao, recorte, nivelamento, G-code)')
   else
   begin
     Writeln('FAIL: ', Failures, ' de ', Checks);
