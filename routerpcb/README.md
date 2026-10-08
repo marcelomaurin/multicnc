@@ -1,8 +1,9 @@
 # RouterPCB
 
-> **Estado (08/10/2026):** núcleo, nivelamento, G-code e interface prontos e testados
-> (`bin/routerpcb.exe`, Win64). Falta a integração com a suíte (MultiSuite, bandeja,
-> instalador, botão no MakePCB): fases 4 a 6 de [docs/TAREFA.md](docs/TAREFA.md).
+> **Estado (08/10/2026):** pronto e integrado à suíte: MultiSuite e bandeja (grupo Preparar),
+> botão "Abrir no RouterPCB" no MakePCB, MultiCNC abre os programas em CNC Router e
+> instalador 0.03 (`bin/setup_multcnc_003.exe`). Falta o teste na máquina real; ver
+> [docs/TAREFA.md](docs/TAREFA.md).
 
 O **RouterPCB** é a ponte que faltava entre o **MakePCB** e o **MultiCNC no modo CNC Router**.
 Ele recebe a pasta Gerber + Excellon exportada pelo MakePCB e gera os programas G-code

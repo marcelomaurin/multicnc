@@ -3,18 +3,18 @@
 Lista do que ficou aberto. Detalhes do LaserArt em
 `laserart/docs/LASERART_PLANO.md`.
 
-## RouterPCB (08/10/2026) - PROXIMA TAREFA
-- Gap da suite: MakePCB -> ? -> MultiCNC (CNC Router). Hoje so o LaserPCB consome
-  o Gerber + Excellon; nao ha como fresar a placa na router.
-- Nova ferramenta `routerpcb/`: isolacao com fresa V, furacao por broca, recorte com
-  pontes, nivelamento por sondagem (G38.2 + bilinear) e G-code GRBL com cabecalho
-  `; RouterPCB -> MultiCNC (CNC Router)`. Reutiliza import/raster/CAM/drill do LaserPCB.
-- 08/10: fases 0-3 prontas (nucleo, nivelamento, G-code e interface; 246 + 22 checks,
-  Linux e Win64). `bin\routerpcb.exe` (x64). Faltam as fases 4-6: registro na suite,
-  bandeja, catalogo de testes, CI, botao no MakePCB, cabecalho no MultiCNC, instalador 0.03.
-- Plano passo a passo, com fases, criterios de pronto e integracao (registro
-  `stiRouterPCB`, bandeja, catalogo, CI, instalador 0.03, botao no MakePCB, cabecalho
-  no MultiCNC): `routerpcb/docs/TAREFA.md`.
+## RouterPCB (08/10/2026) - pronto, falta a maquina real
+- Fecha o gap MakePCB -> RouterPCB -> MultiCNC (CNC Router): isolacao com fresa V,
+  furacao por broca, recorte com pontes, nivelamento por sondagem (G38.2 + bilinear) e
+  G-code GRBL com cabecalho `; RouterPCB -> MultiCNC (CNC Router)`. Reutiliza
+  import/raster/CAM/drill do LaserPCB (`laserpcb_roles` compartilhado).
+- Fases 0 a 6 feitas em 08/10: testes 246 + 22 checks (Linux e Win64), registro
+  `stiRouterPCB` (11 ferramentas), bandeja e MultiSuite (Preparar), Central de Testes, CI
+  `routerpcb-ci.yml`, botao "Abrir no RouterPCB" no MakePCB, MultiCNC reconhece o
+  cabecalho, instalador `bin\setup_multcnc_003.exe` (15 aplicativos).
+- Falta: teste na maquina (sondagem, isolacao em fenolite, furacao, recorte) e anotar os
+  parametros em `routerpcb/docs/PARAMETROS.md`. Dupla face fica para depois.
+- Andamento detalhado: `routerpcb/docs/TAREFA.md`.
 
 ## MakePCB (07/10/2026)
 - Projeto de placas do zero no estilo PCB Wizard, na raiz: `makepcb/`.
@@ -109,7 +109,7 @@ Lista do que ficou aberto. Detalhes do LaserArt em
 
 ## Instalador
 - `bin\setup_multcnc_002.exe` (0.02): 14 aplicativos, incluindo Bandeja e SimuCNC.
-- Proximo: 0.03 com o RouterPCB (fase 6 de `routerpcb/docs/TAREFA.md`).
+- `bin\setup_multcnc_003.exe` (0.03, 08/10): 15 aplicativos, com o RouterPCB.
 - `bin\multicnc.exe` recompilado em 08/10 (console de log + reconhece o RouterPCB),
   usando o clone publico de `marcelomaurin/chatgpt`.
 

@@ -18,7 +18,7 @@
 | 3 Interface | concluida (08/10) | `ui/routerpcb_preview`, `app/routerpcb_main` (6 etapas), icone `sikRouterPCB`, `routerpcb.lpi`. `tests/test_routerpcb_ui.lpr`: 22 checks no Linux (GTK2) e no Win64 (Wine). `bin/routerpcb.exe` (x64). Capturas em `imgs/Routerpcb01..04.png`. |
 | 4 Integracao na suite | concluida (08/10) | registro (`stiRouterPCB`, 11 ferramentas), icone, bandeja (grupo Preparar), MultiSuite (secao Preparar), catalogo da Central de Testes e `routerpcb-ci.yml`. Bandeja conferida na tela e `bin\multisuite_tray.exe` (x64) atualizado. |
 | 5 MakePCB / MultiCNC | concluida (08/10) | MakePCB: "Abrir no RouterPCB" no rodape e na etapa 5 (`OpenInTool`). MultiCNC reconhece `; RouterPCB -> MultiCNC (CNC Router)`; `bin/multicnc.exe` e `bin/makepcb.exe` (x64) recompilados e abertos no Wine (o MultiCNC carregou a isolacao do 555: 2331 comandos, 50,09 x 37,39 mm). MakePCB: 2382 + 22 checks. |
-| 6 Entrega | pendente | |
+| 6 Entrega | concluida (08/10), falta a maquina real | `bin/routerpcb.exe`, `makepcb.exe`, `multicnc.exe`, `multisuite.exe`, `multisuite_tray.exe`, `laserpcb.exe` e Central de Testes (x64) recompilados. Instalador 0.03 (`bin/setup_multcnc_003.exe`, 15 aplicativos) instalado em silencio no Wine: arquivos e atalho RouterPCB conferidos. Docs marcam o RouterPCB como disponivel. |
 
 Regras do projeto, que valem para todas as fases:
 
@@ -166,18 +166,19 @@ Regras do projeto, que valem para todas as fases:
 
 ## Fase 6: entrega (≈ 1 h)
 
-- [ ] Win64: `bin/routerpcb.exe`, mais `makepcb.exe` e `multisuite_tray.exe` recompilados.
-- [ ] Instalador 0.03:
+- [x] Win64: `bin/routerpcb.exe`, mais `makepcb.exe`, `multisuite_tray.exe`, `multisuite.exe`,
+      `multicnc.exe`, `laserpcb.exe` e Central de Testes recompilados.
+- [x] Instalador 0.03 (gerado com Inno Setup 6.3 no Wine e instalado em silencio para conferir):
   - `installer/windows/multisuite.iss` com o componente `tools\routerpcb`, o arquivo e o
     atalho;
   - `build_release.bat` e `installer/linux/build_release.sh` compilando o RouterPCB;
   - `setup_multcnc_003.exe` em `bin/`.
-- [ ] Documentação:
+- [x] Documentação:
   - em `README.md`, trocar "planejado" por "disponível" e incluir as capturas;
   - `README_*` (8 idiomas), `docs/AI_TOOLS_GUIDE.md`, `docs/PENDENCIAS.md`;
   - `multisuite/README.md`, `multisuite/docs/AI_GUIDE.md` e `multisuite/docs/TESTING.md`;
   - `makepcb/README.md`, `installer/windows/README.md`.
-- [ ] Push e sincronização com `D:\projetos\maurinsoft\multicnc`: `bin\`, `imgs\`, docs.
+- [x] Push e sincronização com `D:\projetos\maurinsoft\multicnc`: `bin\`, `imgs\`, docs.
 - [ ] Teste na máquina real (Marcelo):
   1. sondagem;
   2. isolação numa placa de fenolite;

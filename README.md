@@ -77,7 +77,7 @@ O MultiCNC é **open source** e está em desenvolvimento contínuo. Os módulos 
 | **Ferramentas de projeto mecânico** | Projeto e preparação de peças e conjuntos | Trabalhar com geometria, peças mecânicas, montagem e preparação para CNC Router |
 | **Ferramentas de PCB/eletrônica** | Projeto de circuitos e placas | Trabalhar com esquemas, componentes, conexões e PCB |
 | **MakePCB** | Placa do zero, no estilo PCB Wizard | Desenhar esquema e placa e gerar Gerber + Excellon para o LaserPCB ou o RouterPCB |
-| **RouterPCB** *(em implementação)* | Fresagem de PCB na CNC Router | Isolar trilhas com fresa V, furar e recortar a placa a partir do Gerber + Excellon |
+| **RouterPCB** | Fresagem de PCB na CNC Router | Isolar trilhas com fresa V, furar e recortar a placa a partir do Gerber + Excellon |
 | **Ferramentas Laser** | Preparação de desenhos, imagens, logos e trabalhos para laser | Criar ou preparar arte para corte e gravação a laser |
 | **Ferramentas CNC Router/CAM** | Preparação de usinagem mecânica | Preparar operações, trajetórias e trabalhos para Router |
 | **Montagem eletromecânica** | Visualização conjunta de mecânica e eletrônica | Ver componentes mecânicos, placas, sensores, motores e conexões no mesmo projeto |
@@ -274,7 +274,7 @@ MakePCB (esquema + placa) --Gerber + Excellon--> LaserPCB  (isolação a laser) 
 
 Detalhes em [makepcb/README.md](makepcb/README.md).
 
-### RouterPCB — fresar a placa na CNC Router *(em implementação)*
+### RouterPCB — fresar a placa na CNC Router
 
 O **RouterPCB** (`routerpcb/`) é a ponte entre o MakePCB e o MultiCNC no modo **CNC Router**,
 para quem fabrica a placa com fresa e broca em vez de laser. Ele abre a pasta Gerber + Excellon
@@ -288,14 +288,16 @@ do MakePCB e gera os programas na ordem de execução:
 - **Nivelamento** (*autolevel*): sondagem em grade (G38.2) e correção de Z na isolação.
 
 O G-code é GRBL puro, com cabeçalho `; RouterPCB -> MultiCNC (CNC Router)`, e reaproveita os
-importadores e o CAM raster do LaserPCB. Núcleo, G-code e interface já estão prontos
-(`bin/routerpcb.exe`); falta a integração com o MultiSuite, a bandeja e o instalador.
+importadores e o CAM raster do LaserPCB. No MakePCB, "Abrir no RouterPCB" já leva a pasta
+exportada; o RouterPCB fica no grupo **Preparar** do MultiSuite e da bandeja e entra no
+instalador a partir da versão 0.03 (`bin/routerpcb.exe`, `bin/setup_multcnc_003.exe`).
 
 | | |
 |---|---|
 | ![RouterPCB: isolação](imgs/Routerpcb01.png) | ![RouterPCB: nivelamento](imgs/Routerpcb03.png) |
- A visão e o plano de implementação estão em
-[routerpcb/README.md](routerpcb/README.md) e [routerpcb/docs/TAREFA.md](routerpcb/docs/TAREFA.md).
+
+Uso e detalhes em [routerpcb/README.md](routerpcb/README.md); andamento em
+[routerpcb/docs/TAREFA.md](routerpcb/docs/TAREFA.md).
 
 ---
 
@@ -317,7 +319,7 @@ O fluxo previsto parte da geometria da peça e das operações desejadas para ch
 
 Use essas ferramentas quando quiser **preparar uma peça para ser usinada**.
 
-Para **placas de circuito**, use o **RouterPCB** *(planejado)*: isolação, furação e recorte de PCB
+Para **placas de circuito**, use o **RouterPCB**: isolação, furação e recorte de PCB
 a partir do Gerber + Excellon (veja a seção 5). O MultiCAM continua dedicado à usinagem de peças.
 
 ---

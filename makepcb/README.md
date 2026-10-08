@@ -5,7 +5,7 @@ gerando os arquivos que o **LaserPCB** consome (Gerber RS-274X/X2 + Excellon).
 
 ```
 MakePCB  ──(Gerber + Excellon)──►  LaserPCB   ──(G-code)──►  MultiCNC (CNC Laser)
-                                 └─►  RouterPCB  ──(G-code)──►  MultiCNC (CNC Router)   [planejado]
+                                 └─►  RouterPCB  ──(G-code)──►  MultiCNC (CNC Router)
  desenho da placa                   isolacao a laser          execucao
 ```
 

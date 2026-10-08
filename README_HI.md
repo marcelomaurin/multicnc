@@ -24,7 +24,7 @@
 - **MultiCAM:** टूलपाथ और निर्माण तैयारी
 - **MultiSlicer:** 3D प्रिंट तैयारी
 - **MultiPCB / MakePCB / LaserPCB:** PCB डिज़ाइन और निर्माण (MakePCB: PCB Wizard शैली में शुरू से बोर्ड, LaserPCB के लिए Gerber + Excellon)
-- **RouterPCB** *(योजनाबद्ध)*: CNC Router पर PCB मिलिंग (V-बिट आइसोलेशन, ड्रिलिंग, टैब के साथ बोर्ड कटआउट, प्रोबिंग/ऑटो-लेवल), MakePCB के Gerber + Excellon फ़ोल्डर से। देखें [routerpcb/README.md](routerpcb/README.md)
+- **RouterPCB:** CNC Router पर PCB मिलिंग (V-बिट आइसोलेशन, ड्रिलिंग, टैब के साथ बोर्ड कटआउट, प्रोबिंग/ऑटो-लेवल), MakePCB के Gerber + Excellon फ़ोल्डर से। देखें [routerpcb/README.md](routerpcb/README.md)
 - **MultiAssembly:** मैकेनिकल और इलेक्ट्रॉनिक असेंबली एकीकरण
 - **MultiPhysics:** मल्टी-डोमेन भौतिक सिमुलेशन
 

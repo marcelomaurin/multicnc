@@ -5,9 +5,9 @@ Fabricacao de PCB por fresagem mecanica na CNC Router: isolacao do cobre, furaca
 recorte do contorno e nivelamento da superficie (heightmap). Recebe a pasta Gerber +
 Excellon do MakePCB (ou de outro EDA) e gera G-code para o MultiCNC em modo CNC Router.
 
-Estado: planejado. Plano em `docs/TAREFA.md`.
+Estado: implementado e integrado a suite (08/10/2026). Andamento em `docs/TAREFA.md`.
 
-## Estrutura prevista
+## Estrutura
 - src/core/: `routerpcb_types` (ferramentas, parametros, padroes) e `routerpcb_project`
   (importacao, lado, espelho, mascaras, geracao das operacoes, validacao).
 - src/cam/: `routerpcb_isolation`, `routerpcb_cutout` (recorte com pontes em altura) e

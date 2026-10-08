@@ -1,6 +1,6 @@
 # RouterPCB - Arquitetura
 
-Estado: planejado. Este documento fixa as decisões técnicas antes de escrever o código.
+Estado: implementado (08/10/2026). Este documento registra as decisões técnicas seguidas no código.
 
 ## Fluxo de dados
 

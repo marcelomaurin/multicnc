@@ -7,10 +7,10 @@ set APP=%DIST%\app
 set BIN=%ROOT%\bin
 
 set VERSION=%~1
-if "%VERSION%"=="" set VERSION=0.02
+if "%VERSION%"=="" set VERSION=0.03
 
 set SETUP_SEQ=%~2
-if "%SETUP_SEQ%"=="" set SETUP_SEQ=002
+if "%SETUP_SEQ%"=="" set SETUP_SEQ=003
 
 set OUTPUT_NAME=setup_multcnc_%SETUP_SEQ%
 
@@ -28,6 +28,7 @@ call :build multiphysics\src\app\multiphysics.lpi multiphysics\src\app\multiphys
 call :build multicam\src\app\multicam.lpi multicam\src\app\multicam.exe multicam.exe || exit /b 1
 call :build multislicer\src\app\multislicer.lpi multislicer\src\app\multislicer.exe multislicer.exe || exit /b 1
 call :build makepcb\src\app\makepcb.lpi makepcb\src\app\makepcb.exe makepcb.exe || exit /b 1
+call :build routerpcb\src\app\routerpcb.lpi routerpcb\src\app\routerpcb.exe routerpcb.exe || exit /b 1
 call :build laserpcb\src\app\laserpcb.lpi laserpcb\src\app\laserpcb.exe laserpcb.exe || exit /b 1
 call :build laserart\src\app\laserart.lpi laserart\src\app\laserart.exe laserart.exe || exit /b 1
 call :build src\app\multicnc.lpi src\app\multicnc.exe multicnc.exe || exit /b 1

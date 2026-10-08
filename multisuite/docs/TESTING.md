@@ -26,6 +26,7 @@ MultiCAM: CAM mecanico, setup, simulacao, eletronica virtual e pipeline demo.
 MultiSlicer: layout 3D.
 LaserPCB: job, layout e alinhamento.
 MakePCB: nucleo (biblioteca, redes, Gerber/Excellon lidos pelo LaserPCB, roteamento, DRC, esquema, SMD, impressao) e interface.
+RouterPCB: isolacao, furacao, recorte, nivelamento e G-code (aceito pelo validador e pelo analisador do MultiCNC) e interface nativa.
 LaserArt: saida G-code (SVG, texto, imagem) e matriz de teste de material.
 MultiSuite: registro e workspace.
 
