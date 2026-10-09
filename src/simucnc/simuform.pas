@@ -774,8 +774,8 @@ begin
   View.SetToolState(Sim.State.LaserPower, Sim.RapidMove);
   View.SetTemperatures(Sim.State.Hotend, Sim.State.HotendTarget, Sim.State.Bed, Sim.State.BedTarget);
   { Router: o zero de trabalho em Z (G92) marca a superficie do bloco }
-  if (MachineCombo.ItemIndex = 1) and Sim.G92Active and (-Sim.Offset.Z > 0.5) then
-    View.StockTop := -Sim.Offset.Z
+  if (MachineCombo.ItemIndex = 1) and Sim.G92Active and ((RealPos.Z - RefPos.Z) > 0.5) then
+    View.StockTop := (RealPos.Z - RefPos.Z)
   else
     View.StockTop := 0;
   View.SetPosition(RealPos);

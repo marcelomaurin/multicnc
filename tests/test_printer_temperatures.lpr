@@ -106,12 +106,17 @@ var
   S: TSimulationSession;
   Trans: TSimulatorTransport;
   Temps: TPrinterTemperatures;
+  Deadline: QWord;
 begin
   S := TSimulationSession.Create;
   try
     Trans := TSimulatorTransport.Create;
     Check(S.ConnectTransport(mtPrinter3D, pkMarlin, Trans, Trans), 'Connected 3D printer session');
     Check(S.Connected, 'Session is connected');
+
+    Deadline := GetTickCount64 + 4000;
+    repeat S.Poll; Sleep(10); until S.ControllerReady or (GetTickCount64 >= Deadline);
+    Check(S.ControllerReady, 'Firmware ready before querying temperatures');
 
     // Query temperatures
     Check(S.QueryTemperatures, 'QueryTemperatures returned true');

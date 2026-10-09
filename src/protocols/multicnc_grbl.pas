@@ -9,17 +9,31 @@ interface
 
 uses
   SysUtils, multisuite_numfmt, multicnc_types, multicnc_interfaces,
-  multicnc_protocol_base;
+  multicnc_protocol_base, multicnc_grbl_status, multicnc_realtime;
 
 type
-  TGRBLProtocol = class(TMultiCNCProtocolBase)
+  TGRBLProtocol = class(TMultiCNCProtocolBase, IMultiCNCStreamingProtocol)
   private
+    FParser: TGrblStatusParser;
     FWCO: TMachinePosition;
     FMPos: TMachinePosition;
     procedure ParseStatus(const S: string);
   protected
     procedure HandleLine(const ALine: string); override;
   public
+    constructor Create;
+    destructor Destroy; override;
+    function RecommendedStreamMode: TStreamMode;
+    function RxBufferSize: Integer; virtual;
+    function BuildStatusQuery: string; virtual;
+    function BuildFeedOverride(APercent: Integer): string;
+    function BuildSpindleOverride(APercent: Integer): string;
+    function CurrentState: TMachineState;
+    function CurrentPosition: TMachinePosition;
+    function BuildJogCancel: string;
+    function BuildRealtime(ACmd: TRealtimeCommand): string;
+    function BuildProbeCommand(ADistance, AFeed: Double): string;
+    property Parser: TGrblStatusParser read FParser;
     function GetName: string; override;
     procedure Reset; override;
     function ReceiveBufferSize: Integer; override;
@@ -37,7 +51,77 @@ type
     procedure ResetPositionToZero; override;
   end;
 
+  TGrblHALProtocol = class(TGRBLProtocol)
+  public
+    function GetName: string; override;
+    function RxBufferSize: Integer; override;
+    function BuildStatusQuery: string; override;
+  end;
+
+  TFluidNCProtocol = class(TGRBLProtocol)
+  public
+    function GetName: string; override;
+  end;
+
 implementation
+
+constructor TGRBLProtocol.Create;
+begin inherited Create; FParser := TGrblStatusParser.Create; Reset; end;
+destructor TGRBLProtocol.Destroy;
+begin FParser.Free; inherited Destroy; end;
+
+function TGRBLProtocol.RecommendedStreamMode: TStreamMode; begin Result := smCharacterCounting; end;
+function TGRBLProtocol.RxBufferSize: Integer; begin Result := 128; end;
+function TGRBLProtocol.BuildStatusQuery: string; begin Result := '?'; end;
+
+function TGRBLProtocol.BuildFeedOverride(APercent: Integer): string;
+begin
+  Result := multicnc_realtime.BuildFeedOverride(FParser.Status.FeedOverride, APercent);
+end;
+
+function TGRBLProtocol.BuildSpindleOverride(APercent: Integer): string;
+begin
+  Result := multicnc_realtime.BuildSpindleOverride(FParser.Status.SpindleOverride, APercent);
+end;
+
+function TGRBLProtocol.CurrentState: TMachineState;
+begin
+  if FParser.Status.State = gsUnknown then Result := msConnecting
+  else Result := GrblStateToMachineState(FParser.Status.State);
+end;
+
+function TGRBLProtocol.CurrentPosition: TMachinePosition;
+begin
+  Result := FParser.Status.WPos;
+end;
+
+function TGRBLProtocol.BuildJogCancel: string;
+begin
+  Result := RealtimeByte(rtJogCancel);
+end;
+
+function TGRBLProtocol.BuildRealtime(ACmd: TRealtimeCommand): string;
+begin
+  if RealtimeSupported(ACmd, FParser.Firmware) or
+    ((FParser.Firmware = gfUnknown) and (Self is TGrblHALProtocol)) then
+    Result := RealtimeByte(ACmd)
+  else
+    Result := '';
+end;
+
+function TGRBLProtocol.BuildProbeCommand(ADistance, AFeed: Double): string;
+begin
+  // G38.2: sonda ate tocar; erro se nao houver contato (ALARM:5)
+  Result := Format('G38.2 G91 Z%.3f F%.0f%sG90%s', [-Abs(ADistance), AFeed, LineEnding, LineEnding], InvariantFS);
+end;
+
+function TGrblHALProtocol.GetName: string; begin Result := 'grblHAL'; end;
+function TGrblHALProtocol.RxBufferSize: Integer; begin Result := 1024; end;
+function TGrblHALProtocol.BuildStatusQuery: string; begin Result := '?'; end;
+
+function TFluidNCProtocol.GetName: string; begin Result := 'FluidNC'; end;
+
+
 
 function TGRBLProtocol.GetName: string;
 begin
@@ -47,6 +131,7 @@ end;
 procedure TGRBLProtocol.Reset;
 begin
   inherited Reset;
+  if Assigned(FParser) then FParser.Reset;
   FWCO := EmptyPosition;
   FMPos := EmptyPosition;
 end;
@@ -102,6 +187,7 @@ end;
 procedure TGRBLProtocol.HandleLine(const ALine: string);
 var L: string;
 begin
+  FParser.ParseLine(ALine);
   L := LowerCase(ALine);
   if L = 'ok' then
     Inc(FAcks)
@@ -119,7 +205,7 @@ begin
   end
   else if (ALine[1] = '<') and (ALine[Length(ALine)] = '>') then
     ParseStatus(ALine)
-  else if Copy(L, 1, 5) = 'grbl ' then
+  else if (Copy(L, 1, 5) = 'grbl ') or (Copy(L, 1, 7) = 'grblhal') then
   begin
     { Reinicio (#24 ou reset fisico): a controladora descartou a fila. }
     FWCO := EmptyPosition;
@@ -166,7 +252,7 @@ function TGRBLProtocol.BuildStopCommand: string; begin Result := #24; end;
 function TGRBLProtocol.BuildJogCommand(AAxis: TAxis; ADistance, AFeed: Double): string;
 const N: array[TAxis] of string = ('X', 'Y', 'Z', 'A', 'E');
 begin
-  Result := Format('$J=G91 %s%.3f F%.0f%s', [N[AAxis], ADistance, AFeed, LineEnding], InvariantFS);
+  Result := Format('$J=G91 G21 %s%.3f F%.0f%s', [N[AAxis], ADistance, AFeed, LineEnding], InvariantFS);
 end;
 
 function TGRBLProtocol.BuildFeedRateCommand(AFeed: Double): string;

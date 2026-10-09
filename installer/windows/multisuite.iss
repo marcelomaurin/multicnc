@@ -1,9 +1,7 @@
 ﻿#ifndef MyAppName
   #define MyAppName "MultiSuite"
 #endif
-#ifndef MyAppVersion
-  #define MyAppVersion "0.05"
-#endif
+#include "..\..\dist\version.iss"
 #ifndef SetupSeq
   #define SetupSeq "005"
 #endif
@@ -21,6 +19,7 @@
 AppId={{A9D52D62-2B20-4A38-A44B-6A975EF41F9D}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
+VersionInfoVersion={#MyBinaryVersion}
 AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\MultiSuite
 DefaultGroupName=MultiSuite
@@ -92,6 +91,10 @@ Source: "..\..\docs\*"; DestDir: "{app}\docs"; Components: extra\docs; Flags: ig
 Name: "desktopicon_suite"; Description: "Criar atalho do MultiSuite na area de trabalho"; GroupDescription: "Atalhos da Area de Trabalho:"; Components: tools\multisuite; Flags: unchecked
 Name: "desktopicon_cnc"; Description: "Criar atalho do MultiCNC na area de trabalho"; GroupDescription: "Atalhos da Area de Trabalho:"; Components: tools\multicnc; Flags: unchecked
 Name: "trayautostart"; Description: "Iniciar a MultiSuite Bandeja com o Windows"; GroupDescription: "Bandeja:"; Components: tools\tray
+
+Source: "..\..\dist\app\tests\*"; DestDir: "{app}\tests"; Components: tools\testcenter; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\..\dist\app\build-manifest.json"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\dist\app\qa-tests.json"; DestDir: "{app}"; Components: tools\testcenter; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\MultiSuite\MultiSuite"; Filename: "{app}\multisuite.exe"; Components: tools\multisuite

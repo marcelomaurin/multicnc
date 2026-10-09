@@ -758,7 +758,7 @@ end;
 
 function TSimulationSession.ProgramText: string;
 begin
-  Result := FLines.Text;
+  Result := FOriginalLines.Text;
 end;
 
 function TSimulationSession.GetTemperatures: TPrinterTemperatures;

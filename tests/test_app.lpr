@@ -1,16 +1,17 @@
 program test_app;
 {$mode objfpc}{$H+}
 uses Interfaces, Forms, Controls, StdCtrls, SysUtils, Classes, LCLType, mainform,
-  multisuite_controls;
+  multisuite_controls, multicnc_gcode_analyzer;
 var F: TMainForm; I, FirstMatch, SecondMatch: Integer;
   ConnectButton, StartButton, JogZ, PauseButton, StopButton: TSuiteButton;
   ProgramView, Console: TMemo; Search: TEdit; FindNext: TSuiteButton;
-  Lines: TStringList; FN: string; Key: Word;
+  Lines: TStringList; FN: string; Key: Word; Env: TMachineEnvelope;
 procedure Check(Value: Boolean; const Msg: string);
 begin
   if not Value then raise Exception.Create(Msg);
 end;
 begin
+  try
   Application.Initialize;
   F := TMainForm.Create(nil);
   Lines := TStringList.Create;
@@ -29,13 +30,14 @@ begin
         end;
     Check(Assigned(ConnectButton) and Assigned(StartButton) and Assigned(JogZ), 'Controls exist');
     Check(not StartButton.Enabled and not JogZ.Enabled, 'Disconnected controls');
+    TComboBox(F.FindComponent('CommunicationMode')).ItemIndex := 2;
     ConnectButton.Click;
     Check(JogZ.Enabled and not StartButton.Enabled, 'Connected controls');
     ProgramView := TMemo(F.FindComponent('ProgramText'));
     Console := TMemo(F.FindComponent('ConsoleLog'));
     Search := TEdit(F.FindComponent('ProgramSearch'));
     FindNext := TSuiteButton(F.FindComponent('FindNext'));
-    Lines.Text := 'G0 X0' + LineEnding + 'G1 X10' + LineEnding + 'G1 X20';
+    Lines.Text := 'M3 S1000' + LineEnding + 'G0 X0' + LineEnding + 'G1 X10 F500' + LineEnding + 'G1 X20';
     Lines.SaveToFile(FN);
     F.OnDropFiles(F, [FN]);
     Check(StartButton.Enabled, 'Dropped program is ready');
@@ -81,4 +83,5 @@ begin
     Lines.Free;
     DeleteFile(FN);
   end;
+  except on E: Exception do begin Writeln('FAIL: ', E.Message); Halt(1); end; end;
 end.

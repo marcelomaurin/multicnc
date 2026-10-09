@@ -241,7 +241,7 @@ var M: TMultiCNCMachine; F: TFakeController;
 begin
   M := NewMachine(mtRouter, False, F);
   Check(M.Jog(axX, 10.5, 600), 'jog');
-  Check(F.Sent[F.Sent.Count - 1] = '$J=G91 X10.500 F600', 'jog com ponto decimal: ' + F.Sent[F.Sent.Count - 1]);
+  Check(F.Sent[F.Sent.Count - 1] = '$J=G91 G21 X10.500 F600', 'jog com ponto decimal: ' + F.Sent[F.Sent.Count - 1]);
   M.Free; F.Free;
   M := NewMachine(mtPrinter3D, True, F);
   Check(M.Jog(axZ, -0.25, 300), 'jog Marlin');

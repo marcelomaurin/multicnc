@@ -47,5 +47,33 @@ function DefaultTestCatalog:TTestDefinitions;begin SetLength(Result,0);
  Add(Result,'MakeRouter','Percursos, zero virtual, G-code e simulacao','makerouter/tests/test_makerouter.lpr','makerouter/tests/test_makerouter');Add(Result,'MakeRouter','Interface nativa','makerouter/tests/test_makerouter_ui.lpr','makerouter/tests/test_makerouter_ui');
  Add(Result,'RouterPCB','Isolacao, furacao, recorte, nivelamento e G-code','routerpcb/tests/test_routerpcb.lpr','routerpcb/tests/test_routerpcb');Add(Result,'RouterPCB','Interface nativa','routerpcb/tests/test_routerpcb_ui.lpr','routerpcb/tests/test_routerpcb_ui');
  Add(Result,'MultiSuite','Registro','multisuite/tests/test_registry.lpr','multisuite/tests/test_registry');Add(Result,'MultiSuite','Workspace','multisuite/tests/test_workspace.lpr','multisuite/tests/test_workspace');
+ Add(Result,'MultiCAM','advanced mechanical','multicam/tests/test_advanced_mechanical.lpr','multicam/tests/test_advanced_mechanical');
+ Add(Result,'MultiCAM','integrated simulator','multicam/tests/test_integrated_simulator.lpr','multicam/tests/test_integrated_simulator');
+ Add(Result,'MultiCAM','pcb heightmap','multicam/tests/test_pcb_heightmap.lpr','multicam/tests/test_pcb_heightmap');
+ Add(Result,'MultiCAM','pcb outside heightmap','multicam/tests/test_pcb_outside_heightmap.lpr','multicam/tests/test_pcb_outside_heightmap');
+ Add(Result,'MultiCAM','pcb segmented heightmap','multicam/tests/test_pcb_segmented_heightmap.lpr','multicam/tests/test_pcb_segmented_heightmap');
+ Add(Result,'MultiCAM','profile','multicam/tests/test_profile.lpr','multicam/tests/test_profile');
+ Add(Result,'MultiCAM','real physics','multicam/tests/test_real_physics.lpr','multicam/tests/test_real_physics');
+ Add(Result,'MultiCAM','simulation session','multicam/tests/test_simulation_session.lpr','multicam/tests/test_simulation_session');
+ Add(Result,'MultiPCB','cnc alignment','multipcb/tests/test_cnc_alignment.lpr','multipcb/tests/test_cnc_alignment');
+ Add(Result,'MultiSuite','context','multisuite/tests/test_context.lpr','multisuite/tests/test_context');
+ Add(Result,'MultiSuite','launcher delivery','multisuite/tests/test_launcher_delivery.lpr','multisuite/tests/test_launcher_delivery');
+ Add(Result,'MultiSuite','launcher paths','multisuite/tests/test_launcher_paths.lpr','multisuite/tests/test_launcher_paths');
+ Add(Result,'MultiSuite','runner','multisuite/tests/test_runner.lpr','multisuite/tests/test_runner');
+ Add(Result,'MultiSuite','workspace validation','multisuite/tests/test_workspace_validation.lpr','multisuite/tests/test_workspace_validation');
+ Add(Result,'MultiCNC','gcode trace','tests/test_gcode_trace.lpr','tests/test_gcode_trace');
+ Add(Result,'MultiCNC','session','tests/test_session.lpr','tests/test_session');
+
+
+ Add(Result,'MultiCNC','Controlador: status, streaming, preflight, TCP','tests/test_controller.lpr','tests/test_controller');
+ Add(Result,'MultiCNC','Geometria compartilhada e arc fitting','tests/test_shared_geometry.lpr','tests/test_shared_geometry');
+ Add(Result,'MultiCAM','HSM, feeds & speeds e pos-processador G2/G3','multicam/tests/test_hsm.lpr','multicam/tests/test_hsm');
+ Add(Result,'LaserArt','Raster: dithering, potencia variavel, overscan','laserpcb/tests/test_raster.lpr','laserpcb/tests/test_raster');
+ Add(Result,'MultiSlicer','Fatiador moderno: gyroid, adaptativo, Klipper','multislicer/tests/test_modern_slicer.lpr','multislicer/tests/test_modern_slicer');
+ Add(Result,'MultiPCB','Gerber X2, Excellon, DRC e autorouter','multipcb/tests/test_fabrication.lpr','multipcb/tests/test_fabrication');
+ Add(Result,'MultiPCB','Compensacao Z bilinear','multipcb/tests/test_zcompensation.lpr','multipcb/tests/test_zcompensation');
+ Add(Result,'MultiPhysics','MNA Newton-Raphson e integradores','multiphysics/tests/test_newton_ode.lpr','multiphysics/tests/test_newton_ode');
+ Add(Result,'MultiCAD','Restricoes, DOF, extrusao, STL/3MF','multicad/tests/test_parametric.lpr','multicad/tests/test_parametric');
+ Add(Result,'MultiAssembly','ERC, BOM e configuracao de firmware','multiassembly/tests/test_engineering.lpr','multiassembly/tests/test_engineering');
 end;
 end.

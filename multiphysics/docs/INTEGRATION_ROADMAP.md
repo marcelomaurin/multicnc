@@ -29,6 +29,10 @@
 - merge por ID/refdes entre MultiPCB e MultiAssembly;
 - importacao do contrato unificado para o grafo MultiPhysics.
 
+## Solver de circuitos e integradores
+- `multiphysics_circuit_newton`: MNA com Newton-Raphson global, limitacao de juncao (pnjlim), gmin stepping, source stepping, transitorio trapezoidal ou Euler implicito, fontes senoidais, diodo e NMOS nivel 1.
+- `multiphysics_ode`: RK4, Dormand-Prince 5(4) adaptativo com FSAL, Velocity Verlet e Euler simpletico.
+
 ## MultiPCB
 A integracao deve exportar a netlist real do modelo do MultiPCB para o contrato unificado. Nao criar uma segunda copia do esquema. O ID/refdes deve ser preservado.
 
@@ -36,7 +40,7 @@ A integracao deve exportar a netlist real do modelo do MultiPCB para o contrato 
 As relacoes mecanicas sao exportadas como links rotacionais ou lineares. O proximo refinamento e mapear ratio/pitch e propriedades de inercia para os links.
 
 ## Modelos ainda necessarios
-- integrar diodo/MOSFET diretamente na iteracao global MNA; co-simulacao SPICE;
+- co-simulacao SPICE (diodo/MOSFET ja estao na iteracao global: multiphysics_circuit_newton);
 - spindle parametrizado, correia/polia e juntas multi-corpo;
 - fim de curso discreto por posicao;
 - curto e circuito aberto por net;

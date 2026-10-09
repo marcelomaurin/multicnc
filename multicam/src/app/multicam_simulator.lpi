@@ -29,8 +29,8 @@
    <Filename Value="multicam_simulator" />
   </Target>
   <SearchPaths>
-   <OtherUnitFiles Value="../core;../export;../mechanical;../simulation;../../../src/shared" />
-   <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
+   <OtherUnitFiles Value="../core;../mechanical;../simulation;../export;../../../src/shared" />
+   <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)/multicam_simulator" />
   </SearchPaths>
   <Parsing>
    <SyntaxOptions>

@@ -16,12 +16,26 @@ uses
   multicnc_protocol_base;
 
 type
-  TMarlinProtocol = class(TMultiCNCProtocolBase)
+  TMarlinTemperatures = record
+    Hotend, HotendTarget, Bed, BedTarget: Double;
+    Valid: Boolean;
+  end;
+  TMarlinProtocol = class(TMultiCNCProtocolBase, IMultiCNCStreamingProtocol)
   private
+    function GetStreamingTemperatures: TMarlinTemperatures;
     procedure ParsePosition(const S: string);
   protected
     procedure HandleLine(const ALine: string); override;
   public
+    function RecommendedStreamMode: TStreamMode;
+    function RxBufferSize: Integer;
+    function BuildStatusQuery: string;
+    function BuildFeedOverride(APercent: Integer): string;
+    function BuildSpindleOverride(APercent: Integer): string;
+    function CurrentState: TMachineState;
+    function CurrentPosition: TMachinePosition;
+    function BuildTemperatureAutoReport(AIntervalSeconds: Integer): string;
+    property Temperatures: TMarlinTemperatures read GetStreamingTemperatures;
     function GetName: string; override;
     function ReceiveBufferSize: Integer; override;
     function BuildHomeCommand(AFeed: Double = 0): string; override;
@@ -42,6 +56,42 @@ type
   end;
 
 implementation
+function TMarlinProtocol.RecommendedStreamMode: TStreamMode; begin Result := smMarlinChecksum; end;
+function TMarlinProtocol.RxBufferSize: Integer; begin Result := 0; end;
+function TMarlinProtocol.BuildStatusQuery: string; begin Result := 'M114' + LineEnding; end;
+
+function TMarlinProtocol.BuildFeedOverride(APercent: Integer): string;
+begin
+  if APercent < 10 then APercent := 10;
+  if APercent > 999 then APercent := 999;
+
+  Result := Format('M220 S%d', [APercent]) + LineEnding;
+end;
+
+function TMarlinProtocol.BuildSpindleOverride(APercent: Integer): string;
+begin
+  // Em impressoras o equivalente e o fluxo do extrusor (M221).
+  if APercent < 10 then APercent := 10;
+  if APercent > 999 then APercent := 999;
+  Result := Format('M221 S%d', [APercent]) + LineEnding;
+end;
+
+function TMarlinProtocol.CurrentState: TMachineState; begin Result := FState; end;
+function TMarlinProtocol.CurrentPosition: TMachinePosition; begin Result := FPosition; end;
+
+function TMarlinProtocol.BuildTemperatureAutoReport(AIntervalSeconds: Integer): string;
+begin
+  Result := Format('M155 S%d', [AIntervalSeconds]) + LineEnding;
+end;
+
+
+function TMarlinProtocol.GetStreamingTemperatures: TMarlinTemperatures;
+begin
+ Result.Hotend := FTemperatures.HotendActual; Result.HotendTarget := FTemperatures.HotendTarget;
+ Result.Bed := FTemperatures.BedActual; Result.BedTarget := FTemperatures.BedTarget;
+ Result.Valid := FTemperatures.HasReadings;
+end;
+
 
 function TMarlinProtocol.GetName: string;
 begin

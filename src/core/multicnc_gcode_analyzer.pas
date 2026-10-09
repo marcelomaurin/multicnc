@@ -1,13 +1,19 @@
 unit multicnc_gcode_analyzer;
 
-{ objfpc}{+}
+{$mode objfpc}{$H+}
 
 interface
 
 uses
-  Classes, SysUtils, Math, multisuite_numfmt;
+  Classes, SysUtils, Math, multisuite_numfmt, multicnc_gcode_preflight;
 
 type
+  TMachineEnvelope = multicnc_gcode_preflight.TMachineEnvelope;
+  TGCodeReport = multicnc_gcode_preflight.TGCodeReport;
+  TGCodePoint = multicnc_gcode_preflight.TGCodePoint;
+  TGCodeSegment = multicnc_gcode_preflight.TGCodeSegment;
+  TGCodeTrace = multicnc_gcode_preflight.TGCodeTrace;
+
   TGCodeBounds = record
     HasMotion: Boolean;
     MinX, MaxX: Double;
@@ -18,17 +24,40 @@ type
   TGCodeAnalyzer = class
   public
     class function EmptyBounds: TGCodeBounds; static;
-    class function Analyze(ALines: TStrings; out Bounds: TGCodeBounds): Boolean; static;
+    class function Analyze(ALines: TStrings; out Bounds: TGCodeBounds): Boolean; static; overload;
+    class function AnalyzeFile(const FileName: string; const Env: TMachineEnvelope; Warnings: TStrings): TGCodeReport; static;
+    class function DefaultEnvelope: TMachineEnvelope; static;
+    class function Analyze(ALines: TStrings; const Envelope: TMachineEnvelope; Warnings: TStrings; Trace: TGCodeTrace = nil; MaxSegments: Integer = 1000000): TGCodeReport; static; overload;
     class function BuildFramingGCode(const Bounds: TGCodeBounds;
       AFramingFeed: Double; AUseLaser: Boolean; ALaserPowerS: Integer): TStringList; static;
   end;
 
+function DefaultEnvelope(SizeX, SizeY, SizeZ: Double): TMachineEnvelope;
+function FormatDuration(Seconds: Double): string;
+procedure ValidateEnvelope(const Env: TMachineEnvelope);
 function BoundsWidth(const Bounds: TGCodeBounds): Double;
 function BoundsHeight(const Bounds: TGCodeBounds): Double;
 function BoundsDepth(const Bounds: TGCodeBounds): Double;
 function BoundsSummary(const Bounds: TGCodeBounds): string;
 
 implementation
+
+function DefaultEnvelope(SizeX, SizeY, SizeZ: Double): TMachineEnvelope;
+begin Result := multicnc_gcode_preflight.DefaultEnvelope(SizeX,SizeY,SizeZ); end;
+function FormatDuration(Seconds: Double): string;
+begin Result := multicnc_gcode_preflight.FormatDuration(Seconds); end;
+procedure ValidateEnvelope(const Env: TMachineEnvelope);
+begin multicnc_gcode_preflight.ValidateEnvelope(Env); end;
+
+class function TGCodeAnalyzer.AnalyzeFile(const FileName: string; const Env: TMachineEnvelope; Warnings: TStrings): TGCodeReport;
+begin Result := multicnc_gcode_preflight.TGCodeAnalyzer.AnalyzeFile(FileName,Env,Warnings); end;
+
+class function TGCodeAnalyzer.DefaultEnvelope: TMachineEnvelope;
+begin Result := multicnc_gcode_preflight.DefaultEnvelope(300,300,100); end;
+
+class function TGCodeAnalyzer.Analyze(ALines: TStrings; const Envelope: TMachineEnvelope; Warnings: TStrings; Trace: TGCodeTrace; MaxSegments: Integer): TGCodeReport;
+begin Result := multicnc_gcode_preflight.TGCodeAnalyzer.Analyze(ALines, Envelope, Warnings, Trace, MaxSegments); end;
+
 
 function BoundsWidth(const Bounds: TGCodeBounds): Double;
 begin

@@ -6,7 +6,7 @@ set DIST=%ROOT%\dist
 set APP=%DIST%\app
 set BIN=%ROOT%\bin
 
-set VERSION=%~1
+if not "%~1"=="" set VERSION=%~1
 if "%VERSION%"=="" set VERSION=0.05
 
 set SETUP_SEQ=%~2
@@ -14,7 +14,7 @@ if "%SETUP_SEQ%"=="" set SETUP_SEQ=005
 
 set OUTPUT_NAME=setup_multcnc_%SETUP_SEQ%
 
-if exist "%DIST%" rmdir /s /q "%DIST%"
+if exist "%APP%" rmdir /s /q "%APP%"
 mkdir "%APP%"
 if not exist "%BIN%" mkdir "%BIN%"
 
@@ -37,7 +37,13 @@ call :build multisuite\src\tray\multisuite_tray.lpi multisuite\src\tray\multisui
 call :build src\simucnc\simucnc.lpi src\simucnc\SimuCNC.exe SimuCNC.exe || exit /b 1
 call :build multisuite\src\testing\multisuite_test_center.lpi multisuite\src\testing\multisuite_test_center.exe multisuite_test_center.exe || exit /b 1
 
+rem Testes de console sao executados e incluidos no instalador.
+python tools\verify_suite.py console --stage "%APP%" || exit /b 1
+xcopy /E /I /Y docs "%APP%\docs" >nul || exit /b 1
+
 where strip >nul 2>nul && (for %%F in ("%APP%\*.exe") do strip --strip-debug "%%F") || echo AVISO: strip nao encontrado; executaveis mantem informacao de debug.
+
+python tools\release_manifest.py --app-dir "%APP%" --version "%VERSION%" --os windows --arch amd64 --require-clean --version-include "%DIST%\version.iss" || exit /b 1
 
 where iscc >nul 2>nul || (echo ERRO: Inno Setup ISCC nao encontrado no PATH.& exit /b 2)
 iscc "-dMyAppVersion=%VERSION%" "-dSetupSeq=%SETUP_SEQ%" "-dOutputExeName=%OUTPUT_NAME%" installer\windows\multisuite.iss || exit /b 3
@@ -46,6 +52,8 @@ if exist "%DIST%\%OUTPUT_NAME%.exe" (
   copy /y "%DIST%\%OUTPUT_NAME%.exe" "%BIN%\%OUTPUT_NAME%.exe" >nul
   echo Instalador copiado para: bin\%OUTPUT_NAME%.exe
 )
+
+powershell -NoProfile -Command "$p=Get-Item 'dist\%OUTPUT_NAME%.exe'; ((Get-FileHash $p.FullName -Algorithm SHA256).Hash.ToLower()+'  '+$p.Name) | Set-Content -Encoding ascii 'dist\SHA256SUMS'" || exit /b 1
 
 echo.
 echo Instalador gerado com sucesso em dist\ e bin\
