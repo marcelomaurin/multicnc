@@ -49,3 +49,5 @@ lib/
 /routerpcb/tests/test_routerpcb
 /routerpcb/tests/test_routerpcb_ui
 /routerpcb/tests/make_fixture
+/multicad/src/app/multicad
+/multicad/tests/test_multicad

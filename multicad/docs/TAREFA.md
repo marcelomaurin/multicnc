@@ -1,7 +1,8 @@
 # TAREFA: MultiCAD (modelagem paramétrica de peças, referência SolidWorks 2014)
 
 - **Aberta em:** 09/10/2026
-- **Estado:** em análise. Aguardando aprovação das decisões D1 a D10.
+- **Estado:** em implementação. Decisões D1 a D10 aprovadas pelo Marcelo em 09/10/2026, como
+  propostas na tabela abaixo.
 - **Visão:** [../README.md](../README.md)
 - **Arquitetura:** [ARCHITECTURE.md](ARCHITECTURE.md)
 - **Guia para IA:** [AI_GUIDE.md](AI_GUIDE.md)
@@ -11,7 +12,8 @@
 O código atual é um esqueleto de cerca de 120 linhas: `multicad_types`, `multicad_feature`
 (Id pelo endereço do objeto, que não persiste), `multicad_document`, `multicad_sketch`
 (linha, círculo, retângulo e restrições guardadas, sem solver), `multicad_extrude` (guarda só a
-profundidade), `multicad_viewport` (2D) e `tests/test_document`. O registro da suíte já tem
+profundidade), `multicad_viewport` (2D) e `tests/test_document` (substituído por
+`tests/test_multicad` na fase 0). O registro da suíte já tem
 `stiMultiCAD`, no grupo **Projetar**. Quase tudo será reescrito; o que serve é a divisão em
 documento, *feature* e *sketch*.
 
@@ -19,7 +21,7 @@ documento, *feature* e *sketch*.
 
 | Fase | Estado | O que foi feito |
 |---|---|---|
-| 0 Base | pendente | |
+| 0 Base | concluída (09/10) | `multicad_types` (vetores, matrizes, referenciais dos planos padrão como no SolidWorks, regra das faces), `multicad_units` (mm, cm, m, in, ", graus, rad, vírgula ou ponto, expressões, `D1@Esboço1`), `multicad_materials` (12 materiais, extensão por JSON), `multicad_feature` (Id persistente, estado ok/aviso/erro, registro de tipos), `multicad_refgeom` (origem, planos e eixos com os tipos da seção 3A), `multicad_sketch` (entidades com Id, restrições e cotas `D1`), `multicad_extrude` (PropertyManager completo da seção 3B e regras de validação), `multicad_document` (`.mcad` JSON, planos padrão Ids 1-3 e origem 4, nomes automáticos "Esboço1"/"Ressalto-Extrusão1", dependências, barra de retrocesso, gravação segura), `multicad_mesh` (malha rotulada, solda a 0,001 mm, malha fechada, volume, área, centro de massa, bloco e cilindro) e `multicad_kernel` (`ICadKernel` + núcleo Pascal). Central de Testes e CI `multicad-ci.yml`. |
 | 1 Sketch e solver | pendente | |
 | 2 Operações básicas | pendente | |
 | 3 Vista 3D e árvore | pendente | |
@@ -29,7 +31,7 @@ documento, *feature* e *sketch*.
 | 7 Desenho 2D | pendente | |
 | 8 OpenCascade (opcional) | pendente | |
 
-## Decisões para o Marcelo
+## Decisões (aprovadas em 09/10/2026)
 
 | # | Pergunta | Proposta |
 |---|---|---|
@@ -49,14 +51,34 @@ documento, *feature* e *sketch*.
 Cada fase termina com testes no Linux e no Win64 (`-Cr -gt`), commit e push na `fila`, e o
 andamento registrado neste arquivo. Mesmo procedimento do RouterPCB e do MakeRouter.
 
-### Fase 0: base (≈ 2 h)
-- [ ] Árvore `multicad/src/{core,sketch,kernel,features,export,ui,app}` e `tests`.
-- [ ] Ids persistentes, parâmetros por operação, estado de erro, JSON `.mcad` ida e volta.
-- [ ] `multicad_types`: vetores, matrizes 4×4, planos, tolerância interna de 0,001 mm.
-- [ ] `multicad_units` (mm, graus, conversão de `in` na entrada, expressões nas cotas) e
-      `multicad_materials` (biblioteca com densidade e módulo de elasticidade, `data/materials.json`).
-- [ ] Interface `ICadKernel` e malha rotulada (`multicad_mesh`) com verificação de malha fechada.
-- [ ] Testes: JSON, Ids estáveis entre execuções, malha de um cubo fechada e com volume certo.
+### Fase 0: base (≈ 2 h) — concluída em 09/10/2026
+- [x] Árvore `multicad/src/{core,sketch,kernel,features,ui,app}` e `tests` (`export`, `standards`
+      e `drawing` entram nas fases em que forem usadas).
+- [x] Ids persistentes, parâmetros por operação, estado de erro, JSON `.mcad` ida e volta.
+- [x] `multicad_types`: vetores, matrizes 4×4, planos, tolerância interna de 0,001 mm.
+- [x] `multicad_units` (mm, graus, conversão de `in` na entrada, expressões nas cotas) e
+      `multicad_materials` (biblioteca com densidade e módulo de elasticidade; arquivo JSON
+      opcional, por exemplo `data/materials.json`, acrescenta ou substitui pelo nome).
+- [x] Interface `ICadKernel` e malha rotulada (`multicad_mesh`) com verificação de malha fechada.
+- [x] Testes: JSON, Ids estáveis entre execuções, malha de um cubo fechada e com volume certo.
+
+Testes da fase 0: `tests/test_multicad.lpr`, **142 checks** passando no Linux e no Win64 (Wine),
+com checagem de faixa, de estouro e variáveis locais embaralhadas (`-Cr -Co -gt`):
+referenciais dos 3 planos padrão (a tabela da seção 3A), regra da face, matrizes; expressões
+(`80/2`, `1in`, `2"`, `12,5`, `D1@Esboço1 + 5`, erros com mensagem); materiais (massa de
+1000 cm³ de alumínio = 2,7 kg, arquivo inválido recusado sem alterar a biblioteca); documento
+(Ids fixos dos planos, nomes automáticos, regras de ressalto e corte, dependências diretas e
+indiretas, JSON idêntico na ida e volta, contador de Ids que não volta, arquivos inválidos
+recusados sem alterar o documento aberto, referência perdida vira erro na árvore, gravação sem
+deixar `.tmp`/`.bak`, barra de retrocesso); malha (bloco 80 × 50 × 10 com volume, área, centro
+de massa e normais para fora, solda, malha aberta detectada, cilindro dentro de 0,5%,
+transformação rígida, sólido invertido recusado pelo núcleo).
+
+Observações:
+- A tela atual (`multicad_main`) continua a provisória do esqueleto, só adaptada à nova API;
+  a interface real é a fase 3.
+- O programa e os testes definem a página de código como UTF-8 (`multicad_types`), como o LCL
+  faz, para os nomes com acento ("Esboço1", "Aço 1020") baterem ao ler o JSON.
 
 ### Fase 1: sketch e solver (≈ 5 h)
 - [ ] Entidades: ponto, linha, arco, círculo, retângulo, ranhura, polígono, construção e

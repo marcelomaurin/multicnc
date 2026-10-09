@@ -3,15 +3,17 @@
 Lista do que ficou aberto. Detalhes do LaserArt em
 `laserart/docs/LASERART_PLANO.md`.
 
-## MultiCAD (09/10/2026) - documentado, aguardando decisoes
+## MultiCAD (09/10/2026) - decisoes aprovadas, fase 0 concluida
 - CAD parametrico de pecas no fluxo do SolidWorks 2014: sketch com restricoes e cotas,
   ressalto/corte extrudado, revolucao, furo, padroes, filete, casca, arvore de operacoes.
 - Documentos: `multicad/README.md`, `multicad/docs/ARCHITECTURE.md`,
   `multicad/docs/TAREFA.md`.
 - Requisitos metricos (ISO/ABNT: roscas, ajustes, tolerancias, 1o diedro) e vistas como no
   SolidWorks (atalhos, cubo, estilos, secao, desenho 2D) documentados.
-- Falta aprovar D1 a D10 (principal: D1, nucleo geometrico hibrido Pascal + OpenCascade
-  opcional) e implementar as fases 0 a 4 (primeira entrega).
+- D1 a D10 aprovadas. Fase 0 concluida: Ids persistentes, `.mcad`, unidades, materiais,
+  malha rotulada e `ICadKernel` (142 checks, Linux e Win64), CI `multicad-ci.yml`.
+- Falta: fases 1 a 4 para a primeira entrega (sketch e solver, extrusao/corte/revolucao,
+  vista 3D e arvore, exportacao e suite). Ver `multicad/docs/TAREFA.md`.
 
 ## Correcao: programas ficavam rodando em segundo plano (08/10/2026)
 - Causa: os `.lpr` criavam a janela com `TForm.Create(Application)`; sem

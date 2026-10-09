@@ -4,8 +4,9 @@
 MultiCAD e o autor CAD da suite. Seu objetivo e criar e editar a geometria que representa pecas mecanicas. A direcao funcional e um CAD parametrico simplificado, semelhante conceitualmente a ferramentas como SolidWorks, sem tentar duplicar CAM ou controle de maquina.
 
 ## Estado (09/10/2026)
-Em analise. O codigo atual e um esqueleto (Id por ponteiro, sketch sem solver, extrusao sem
-solido, vista 2D). O plano completo esta em `TAREFA.md` (decisoes D1 a D8 aguardando
+Em implementacao: decisoes D1 a D10 aprovadas, fase 0 concluida (base de dados, Ids, JSON,
+unidades, materiais, malha rotulada, ICadKernel; 142 checks). Proxima: fase 1 (sketch e
+solver). O plano completo esta em `TAREFA.md` (decisoes D1 a D8 aguardando
 aprovacao, fases 0 a 8) e o projeto tecnico em `ARCHITECTURE.md` (modelo `.mcad`, solver
 Newton/LM, nucleo em malha rotulada + CSG BSP atras de `ICadKernel`, OpenGL, exportacao).
 Referencia de fluxo: SolidWorks 2014 (sketch com restricoes e cotas, arvore de operacoes,
@@ -15,14 +16,18 @@ reconstrucao), sem copiar.
 Documento CAD, features, sketches, extrusoes, transformacoes geometricas, viewport e futuras operacoes de modelagem.
 
 ## Fontes atuais
-- src/core/multicad_types.pas: tipos geometricos basicos.
-- src/core/multicad_feature.pas: abstracao de feature.
-- src/core/multicad_document.pas: documento e colecao de features.
-- src/sketch/multicad_sketch.pas: sketch.
-- src/features/multicad_extrude.pas: extrusao.
-- src/ui/multicad_viewport.pas: visualizacao.
-- src/app/: aplicacao Lazarus.
-- tests/test_document.lpr: teste do documento.
+- src/core/multicad_types.pas: vetores, matrizes, referenciais dos planos (Y para cima), UTF-8.
+- src/core/multicad_units.pas: unidades e expressoes nas cotas (CadEval, CadFmt).
+- src/core/multicad_materials.pas: biblioteca de materiais e massa.
+- src/core/multicad_feature.pas: base das operacoes (Id persistente, estado, registro de tipos).
+- src/core/multicad_document.pas: documento, arquivo .mcad, dependencias, retrocesso.
+- src/features/multicad_refgeom.pas: origem, planos e eixos de referencia.
+- src/features/multicad_extrude.pas: parametros de Ressalto/Base e Corte extrudado.
+- src/sketch/multicad_sketch.pas: entidades com Id, restricoes e cotas.
+- src/kernel/multicad_kernel.pas: interface ICadKernel e nucleo Pascal.
+- src/kernel/multicad_mesh.pas: malha com faces rotuladas, solda, malha fechada, volume.
+- src/ui/multicad_viewport.pas e src/app/: tela provisoria (interface real na fase 3).
+- tests/test_multicad.lpr: testes do nucleo (sem LCL).
 
 ## Entradas e saidas
 Entrada: comandos de modelagem e, futuramente, formatos CAD/mesh suportados.
