@@ -17,9 +17,12 @@ type
   TSimulatorTransport = class(TInterfacedObject, IMultiCNCTransport)
   private
     FConnected: Boolean;
+    FDeferredReplies: Boolean;
+    FPendingReply: string;
     FOnData: TTransportDataEvent;
     FOnState: TTransportStateEvent;
   public
+    property DeferredReplies: Boolean read FDeferredReplies write FDeferredReplies;
     function Connect: Boolean;
     procedure Disconnect;
     function IsConnected: Boolean;
@@ -62,6 +65,7 @@ procedure TSimulatorTransport.Disconnect;
 begin
   if not FConnected then Exit;
   FConnected := False;
+  FPendingReply := '';
   if Assigned(FOnState) then FOnState(False);
 end;
 
@@ -95,11 +99,17 @@ begin
   finally
     Lines.Free;
   end;
-  if (Reply <> '') and Assigned(FOnData) then FOnData(Reply);
+  if Pos(#24, AData) > 0 then FPendingReply := '';
+  if FDeferredReplies then FPendingReply := FPendingReply + Reply
+  else if (Reply <> '') and Assigned(FOnData) then FOnData(Reply);
 end;
 
 procedure TSimulatorTransport.Poll;
+var Reply: string;
 begin
+  Reply := FPendingReply;
+  FPendingReply := '';
+  if FConnected and (Reply <> '') and Assigned(FOnData) then FOnData(Reply);
 end;
 
 procedure TSimulatorTransport.SetOnData(AEvent: TTransportDataEvent);

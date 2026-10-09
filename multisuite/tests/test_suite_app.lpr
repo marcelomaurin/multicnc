@@ -26,7 +26,7 @@ begin
     try F.OpenProject(Base + '/bad.msuite'); except on E: Exception do Raised := True; end;
     Check(Raised and (F.ProjectWorkspace.Project.Name = 'Projeto integrado'), 'invalid open preserves UI project');
     Check(TListBox(F.FindComponent('Tools')).Items.IndexOf('MultiPhysics') >= 0, 'MultiPhysics remains available');
-    Check(TComboBox(F.FindComponent('RecentProjects')).Items.IndexOf(FN) >= 0, 'recent projects reflect successful saves');
+    Check(TComboBox(F.FindComponent('RecentProjects')).Items.IndexOf(ExpandFileName(FN)) >= 0, 'recent projects reflect successful saves');
     F.Show; Application.ProcessMessages;
     Writeln('MultiSuite GUI: OK (new, save, open, artifacts, recent, Physics, invalid-file guard)');
   finally

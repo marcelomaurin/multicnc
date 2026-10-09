@@ -23,3 +23,5 @@ MultiCAM mantém a exportacao original com numeros invariantes e oferece o pos-p
 Compilacao Win64 com Lazarus/FPC 3.2.2; testes de console, testes graficos sem hardware e ferramentas de release. Os logs da execucao ficam fora do repositorio. tools/verify_suite.py console descobre as dependencias em MULTICNC_CHATGPT_DIR (padrao: ../CHATGPT) e LAZARUS_DIR. O teste test_multicnc_tcp exige SimuCNC local ativo e so entra no lote com --integration; tests/test_simucnc_tcp.py inicia o simulador para o fluxo TCP completo.
 
 A compilacao Linux/ARM e o empacotamento final dependem dos respectivos ambientes de CI. Os executaveis historicos versionados nao foram regenerados por esta integracao.
+
+Resultados locais: 49 projetos ativos compilados em Win64; 82 testes de console aprovados, com um teste TCP dependente de servidor separado; tres testes graficos aprovados; sete testes das ferramentas de release aprovados. O prototipo preservado passou suas 40 verificacoes Pascal e dois testes Node. O teste TCP completo do SimuCNC nao foi executado: seu manifesto exige elevacao do Windows (erro 740). Nao houve acionamento de hardware.

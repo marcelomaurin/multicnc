@@ -411,6 +411,7 @@ begin
       Commands.Add(Line);
     end;
     if Commands.Count = 0 then raise Exception.Create('The file contains no commands.');
+    FOriginalLines.Assign(Source);
     FLoadedLines.Assign(Commands);
     FLines.Assign(Commands);
     TGCodeAnalyzer.Analyze(Commands, FBounds);

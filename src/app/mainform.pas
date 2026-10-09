@@ -1879,6 +1879,7 @@ var Endpoint: string; Baud, PortNumber: Integer; Simulator: TSimulatorTransport;
 begin
   if not Session.Connected and (CommunicationMode.ItemIndex = 2) then begin
     Simulator := TSimulatorTransport.Create;
+    Simulator.DeferredReplies := True;
     if Session.ConnectTransport(TMachineType(MachineType.ItemIndex), TProtocolKind(ProtocolType.ItemIndex), Simulator, Simulator) then
       Log('Simulador local conectado. Os movimentos sao estimados e nao acionam equipamentos.');
     UpdateControls; Exit;
