@@ -1,7 +1,15 @@
-# Pendencias da suite (atualizado 08/10/2026)
+# Pendencias da suite (atualizado 09/10/2026)
 
 Lista do que ficou aberto. Detalhes do LaserArt em
 `laserart/docs/LASERART_PLANO.md`.
+
+## MultiCAD (09/10/2026) - documentado, aguardando decisoes
+- CAD parametrico de pecas no fluxo do SolidWorks 2014: sketch com restricoes e cotas,
+  ressalto/corte extrudado, revolucao, furo, padroes, filete, casca, arvore de operacoes.
+- Documentos: `multicad/README.md`, `multicad/docs/ARCHITECTURE.md`,
+  `multicad/docs/TAREFA.md`.
+- Falta aprovar D1 a D8 (principal: D1, nucleo geometrico hibrido Pascal + OpenCascade
+  opcional) e implementar as fases 0 a 4 (primeira entrega).
 
 ## Correcao: programas ficavam rodando em segundo plano (08/10/2026)
 - Causa: os `.lpr` criavam a janela com `TForm.Create(Application)`; sem

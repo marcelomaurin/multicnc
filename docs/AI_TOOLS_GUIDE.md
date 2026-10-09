@@ -11,7 +11,7 @@ Antes de escrever codigo, identifique qual ferramenta e dona da responsabilidade
 | Ferramenta | Responsabilidade |
 |---|---|
 | MultiSuite | Gestor unificado, projetos e launcher das ferramentas |
-| MultiCAD | Criacao e edicao de geometria/pecas CAD |
+| MultiCAD | CAD parametrico de pecas (fluxo SolidWorks 2014): sketch, operacoes, arvore; STL/DXF/.mcad. Em analise, ver `multicad/docs/TAREFA.md` |
 | MultiPCB | Esquematico, PCB, netlist, roteamento e arquivos de fabricacao de placas |
 | MakePCB | Placa do zero estilo PCB Wizard: esquema, componentes (furados e SMD), trilhas, autoroteamento, DRC, BOM, impressao 1:1 e Gerber + Excellon para o LaserPCB (pasta `makepcb/`) |
 | RouterPCB | Fresagem de PCB na CNC Router: isolacao com fresa V, furacao por broca, recorte com pontes e nivelamento por sondagem, a partir do Gerber + Excellon (pasta `routerpcb/`, andamento em `routerpcb/docs/TAREFA.md`) |
