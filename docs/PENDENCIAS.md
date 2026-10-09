@@ -8,7 +8,9 @@ Lista do que ficou aberto. Detalhes do LaserArt em
   ressalto/corte extrudado, revolucao, furo, padroes, filete, casca, arvore de operacoes.
 - Documentos: `multicad/README.md`, `multicad/docs/ARCHITECTURE.md`,
   `multicad/docs/TAREFA.md`.
-- Falta aprovar D1 a D8 (principal: D1, nucleo geometrico hibrido Pascal + OpenCascade
+- Requisitos metricos (ISO/ABNT: roscas, ajustes, tolerancias, 1o diedro) e vistas como no
+  SolidWorks (atalhos, cubo, estilos, secao, desenho 2D) documentados.
+- Falta aprovar D1 a D10 (principal: D1, nucleo geometrico hibrido Pascal + OpenCascade
   opcional) e implementar as fases 0 a 4 (primeira entrega).
 
 ## Correcao: programas ficavam rodando em segundo plano (08/10/2026)

@@ -48,6 +48,15 @@ MultiCAD (peça) ──> MultiAssembly (montagem) ──> MultiPhysics (simulaç
 - **Topo:** abas de comandos, como o CommandManager: *Sketch*, Operações, Avaliar (medir,
   propriedades de massa) e Exportar.
 - **Rodapé:** estado do *sketch* (sub/totalmente definido), unidade (mm) e coordenadas.
+- **Vistas como no SolidWorks:** Y para cima, Ctrl+1..8, F, barra de espaço, cubo de vistas,
+  barra de vista, cinco estilos de exibição e seção dinâmica.
+
+## Requisitos métricos
+
+Só sistema métrico (mm, graus, kg), materiais com densidade, roscas ISO (M2 a M24),
+furos de passagem e rebaixos por tabela, ajustes ISO 286 (H7/g6), tolerância geral ISO 2768,
+tolerâncias geométricas, acabamento Ra e desenho técnico ABNT/ISO no 1º diedro. Detalhes em
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), seções 6A e 6B.
 
 ## Documentação
 

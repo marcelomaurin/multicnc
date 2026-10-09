@@ -107,19 +107,132 @@ TCadDocument
 ## 6. Vista 3D **[D3]**
 
 - OpenGL pelo pacote **LazOpenGLContext** (`TOpenGLControl`), com pipeline fixo do OpenGL 2.1
-  (funciona em placas antigas e no Mesa). Sombreado com arestas, cores por face selecionada e
-  transparência no modo sketch.
-- Navegação como no SolidWorks: botão do meio orbita, Ctrl + meio desloca, roda dá zoom no
-  cursor, barra de espaço abre as vistas padrão, e há cubo de vistas no canto.
+  (funciona em placas antigas e no Mesa). Cores por face selecionada e transparência no modo
+  sketch.
 - Seleção: *picking* por ID de cor num buffer escondido (face, aresta, vértice).
 - Alternativa por *software* (z-buffer em Pascal) para miniaturas, testes sem GPU e máquinas
   sem OpenGL.
+
+### 6.1 Sistema de coordenadas
+
+- Igual ao SolidWorks: **Y para cima**. Plano Frontal = XY (olhando de +Z), Superior = XZ,
+  Lateral (direita) = YZ. Origem visível no centro.
+- Na exportação (STL, DXF) há uma opção de orientação, porque o MultiSlicer e as máquinas usam
+  **Z para cima**: "Y do modelo → Z" (padrão) ou "apoiar a face selecionada na mesa". Sem
+  isso a peça chega deitada no fatiador.
+
+### 6.2 Navegação (mouse)
+
+| Ação | Comando |
+|---|---|
+| Orbitar | botão do meio |
+| Deslocar | Ctrl + botão do meio |
+| Zoom no cursor | roda (para frente aproxima, como no SolidWorks) |
+| Girar em torno de aresta/vértice | botão do meio sobre a entidade (fixa o centro de giro) |
+| Rolar no plano da tela | Alt + botão do meio |
+
+### 6.3 Orientação e atalhos
+
+| Vista | Atalho |
+|---|---|
+| Frontal / Posterior | Ctrl+1 / Ctrl+2 |
+| Esquerda / Direita | Ctrl+3 / Ctrl+4 |
+| Superior / Inferior | Ctrl+5 / Ctrl+6 |
+| Isométrica | Ctrl+7 |
+| Normal a (de frente para a face ou plano selecionado) | Ctrl+8 |
+| Zoom para ajustar (peça inteira) | F |
+| Diálogo de orientação (vistas padrão + vistas salvas) | barra de espaço |
+| Vista anterior | Ctrl+Shift+Z |
+
+- **Cubo de vistas** no canto superior direito (clicar em face, aresta ou vértice orienta) e
+  **tríade de eixos** no canto inferior esquerdo.
+- Transição animada curta entre orientações (desligável).
+- **Vistas com nome** salvas no `.mcad` ("Vista do furo", etc.).
+- Tela dividida em 1, 2 (horizontal/vertical) ou 4 janelas, cada uma com orientação própria.
+
+### 6.4 Barra de vista (sobre a área 3D, como a *heads-up view toolbar*)
+
+Zoom ajustar, zoom por área, vista anterior, vista de seção, orientação, estilo de exibição,
+ocultar/mostrar itens (planos, eixos, origem, sketches) e perspectiva.
+
+### 6.5 Estilos de exibição
+
+| Estilo | Uso |
+|---|---|
+| Sombreado com arestas (padrão) | modelagem |
+| Sombreado | apresentação |
+| Linhas ocultas removidas | conferência de contorno |
+| Linhas ocultas visíveis (tracejadas) | ver furos internos |
+| Arame | todas as arestas |
+
+- Projeção **ortográfica** por padrão, perspectiva opcional.
+- **Vista de seção dinâmica:** corta a peça por um plano (Frontal/Superior/Lateral, face ou
+  plano de referência) com deslocamento e ângulo, mostrando a face de corte hachurada. É só
+  visual: não altera o sólido.
+
+## 6A. Requisitos métricos e normas
+
+O MultiCAD trabalha **só no sistema métrico** (mm, graus, kg). Medidas em polegadas podem ser
+digitadas convertendo na entrada (`1in` = 25,4 mm), mas o modelo e os arquivos ficam em mm.
+
+### Precisão
+- Tolerância interna do modelo: 0,001 mm (solda de vértices, coincidência, booleanas).
+- Casas decimais das cotas configuráveis (padrão 2 para mm, 1 para graus).
+- Expressões nas cotas: `80/2`, `D1@Sketch1 + 5`.
+
+### Materiais
+Biblioteca com densidade (e módulo de elasticidade, para o MultiPhysics):
+aço 1020, aço 1045, inox 304, alumínio 6061, latão, ferro fundido, nylon, POM, ABS, PLA, PETG,
+MDF. Material editável e gravado no `.mcad`.
+
+### Roscas e furos (assistente de furo, fase 5)
+- Roscas métricas **ISO 261/262**: M2 a M24, passo normal e fino (M8 × 1,25 / M8 × 1,0...).
+- Broca para rosca escolhida pela tabela (M6 → Ø5,0; M8 → Ø6,8; M10 → Ø8,5).
+- Rosca representada como **cosmética** (o sólido fica com o furo da broca; a rosca é um
+  atributo da face, mostrado na vista e no desenho), como no SolidWorks.
+- Furo de passagem para parafuso: folga fina, normal e larga (ISO 273).
+- Rebaixo para parafuso Allen (ISO 4762 / DIN 912) e escareado 90° (ISO 10642), com
+  diâmetros e profundidades da tabela.
+- Furo cego com ponta de broca a 118°.
+- Tabelas em arquivo de dados, não no código, para ampliar sem recompilar.
+
+### Tolerâncias (cota e desenho, fase 7)
+- Por cota: nenhuma, simétrica (±), bilateral (+a/−b), limites, básica e **ajuste ISO 286**
+  (furo H7, H8, eixo g6, h6, k6...), com cálculo dos desvios pela tabela.
+- Tolerância geral **ISO 2768** (f, m, c, v) indicada na legenda do desenho.
+- Tolerâncias geométricas **ISO 1101** (planeza, perpendicularidade, paralelismo,
+  concentricidade, posição) com referências (A, B, C).
+- Acabamento superficial **Ra** (ISO 1302 / NBR 8404).
+- Tolerâncias são **informação** (desenho, propriedades); o sólido é sempre o nominal.
+
+## 6B. Desenho 2D (fase 7)
+
+- Normas **ABNT/ISO**: projeção no **1º diedro** (padrão no Brasil, NBR 10067), 3º diedro
+  como opção; linhas ISO 128; cotagem ISO 129 / NBR 10126; folhas A4 a A0 (ISO 5457 /
+  NBR 10068) com legenda (carimbo: título, material, escala, autor, data, tolerância geral).
+- Vistas, como nos desenhos do SolidWorks:
+
+| Vista | Descrição |
+|---|---|
+| 3 vistas padrão | frontal, superior e lateral alinhadas pelo diedro |
+| Vista do modelo | qualquer orientação, incluindo isométrica e vistas com nome |
+| Projetada | arrastada a partir de uma vista existente, alinhada |
+| Seção (A-A) | linha de corte com setas e hachura; seção total, meia seção, alinhada |
+| Detalhe | círculo na vista-mãe, ampliado em outra escala |
+| Auxiliar | perpendicular a uma aresta inclinada |
+| Interrompida | encurta peças longas |
+| Corte parcial | remove parte da vista para mostrar o interior |
+
+- Linhas ocultas, linhas de centro e marcas de centro automáticas.
+- Cotas importadas do modelo (as do sketch) ou criadas no desenho, com tolerâncias.
+- Associativo: mudar a peça atualiza o desenho.
+- Saída DXF (oficina, MakeRouter) e PDF.
 
 ## 7. Exportação e integração
 
 | Saída | Para quem | Fase |
 |---|---|---|
-| STL (binário e ASCII, mm) | MultiSlicer (impressão 3D), MultiCAM | 4 |
+| STL (binário e ASCII, mm, orientação Y→Z ou face na mesa) | MultiSlicer (impressão 3D), MultiCAM | 4 |
 | DXF do sketch ou de uma face plana | MakeRouter (madeira, chapas), LaserArt | 4 |
 | `.mcad` (peça paramétrica) | MultiAssembly (referência da peça) | 4 |
 | Propriedades de massa (volume, área, centro de massa) | MultiPhysics, MultiAssembly | 4 |
@@ -134,7 +247,9 @@ TCadDocument
 | `src/sketch` | `multicad_sketch` (entidades, restrições, cotas), `multicad_solver` (Newton/LM, graus de liberdade), `multicad_profile` (laços e regiões) |
 | `src/kernel` | `multicad_kernel` (interface), `multicad_mesh` (malha rotulada, solda), `multicad_csg` (BSP), `multicad_sweep` (extrusão e revolução), `multicad_occt` (adaptador, fase 8) |
 | `src/features` | `multicad_extrude`, `multicad_revolve`, `multicad_hole`, `multicad_pattern`, `multicad_mirror`, `multicad_fillet` |
-| `src/export` | `multicad_stl`, `multicad_dxf`, `multicad_massprops` |
+| `src/standards` | `multicad_units` (mm, expressões), `multicad_materials`, `multicad_threads` (ISO 261/262, brocas, folgas, rebaixos), `multicad_fits` (ISO 286, ISO 2768); tabelas em `data/*.json` |
+| `src/drawing` | `multicad_drawing` (folha, legenda), `multicad_views2d` (projeção, linhas ocultas, seção, detalhe), `multicad_dims2d` |
+| `src/export` | `multicad_stl`, `multicad_dxf`, `multicad_pdf`, `multicad_massprops` |
 | `src/ui` | `multicad_view3d` (OpenGL), `multicad_softrender`, `multicad_sketchview`, `multicad_tree`, `multicad_props` |
 | `src/app` | `multicad_main` (padrão da suíte) |
 | `tests` | solver, perfis, malha fechada (*manifold*), volumes analíticos, JSON, reconstrução, STL |

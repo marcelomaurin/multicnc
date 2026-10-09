@@ -1,7 +1,7 @@
 # TAREFA: MultiCAD (modelagem paramétrica de peças, referência SolidWorks 2014)
 
 - **Aberta em:** 09/10/2026
-- **Estado:** em análise. Aguardando aprovação das decisões D1 a D8.
+- **Estado:** em análise. Aguardando aprovação das decisões D1 a D10.
 - **Visão:** [../README.md](../README.md)
 - **Arquitetura:** [ARCHITECTURE.md](ARCHITECTURE.md)
 - **Guia para IA:** [AI_GUIDE.md](AI_GUIDE.md)
@@ -40,6 +40,8 @@ documento, *feature* e *sketch*.
 | **D5** | Formato de arquivo | `.mcad` em JSON com Ids persistentes (contador gravado), no lugar dos Ids por ponteiro. Referências a faces e arestas por nome estável (`Extrude2/topo`). |
 | **D6** | Nomes na interface | Português, no estilo do SolidWorks em PT: "Ressalto/Base extrudado", "Corte extrudado", "Ressalto revolucionado", "Furo", "Filete", "Chanfro", "Casca", "Padrão linear", "Padrão circular", "Espelhar". |
 | **D7** | Primeira entrega | Fases 0 a 4: *sketch* com restrições, extrusão (ressalto e corte), revolução, vista 3D com árvore, STL/DXF e propriedades de massa. |
+| **D9** | Sistema de unidades e normas | Só métrico (mm, graus, kg), com conversão de polegadas na digitação. Roscas ISO 261/262, ajustes ISO 286, tolerância geral ISO 2768, desenho ABNT/ISO no 1º diedro. Tabelas em arquivos de dados. Detalhes em `ARCHITECTURE.md`, seção 6A. |
+| **D10** | Vistas e navegação | Como no SolidWorks: Y para cima, atalhos Ctrl+1..8, F, barra de espaço, cubo de vistas, barra de vista, 5 estilos de exibição, seção dinâmica, vistas com nome, tela dividida. Exportação com orientação Y→Z para o MultiSlicer. Detalhes em `ARCHITECTURE.md`, seção 6. |
 | **D8** | Integração | STL → MultiSlicer e MultiCAM; DXF (sketch ou face plana) → MakeRouter e LaserArt; `.mcad` → MultiAssembly; propriedades de massa → MultiPhysics e MultiAssembly. O MultiCAD nunca gera G-code. |
 
 ## Fases (depois das decisões)
@@ -50,7 +52,9 @@ andamento registrado neste arquivo. Mesmo procedimento do RouterPCB e do MakeRou
 ### Fase 0: base (≈ 2 h)
 - [ ] Árvore `multicad/src/{core,sketch,kernel,features,export,ui,app}` e `tests`.
 - [ ] Ids persistentes, parâmetros por operação, estado de erro, JSON `.mcad` ida e volta.
-- [ ] `multicad_types`: vetores, matrizes 4×4, planos, tolerâncias.
+- [ ] `multicad_types`: vetores, matrizes 4×4, planos, tolerância interna de 0,001 mm.
+- [ ] `multicad_units` (mm, graus, conversão de `in` na entrada, expressões nas cotas) e
+      `multicad_materials` (biblioteca com densidade e módulo de elasticidade, `data/materials.json`).
 - [ ] Interface `ICadKernel` e malha rotulada (`multicad_mesh`) com verificação de malha fechada.
 - [ ] Testes: JSON, Ids estáveis entre execuções, malha de um cubo fechada e com volume certo.
 
@@ -76,8 +80,15 @@ andamento registrado neste arquivo. Mesmo procedimento do RouterPCB e do MakeRou
       fechada, nome de face mantido depois de um corte, cota alterada reconstrói.
 
 ### Fase 3: vista 3D e árvore (≈ 6 h)
-- [ ] `TOpenGLControl`: sombreado com arestas, orbitar, deslocar, zoom no cursor, vistas
-      padrão, isométrica e cubo de vistas.
+- [ ] `TOpenGLControl` com Y para cima; orbitar (meio), deslocar (Ctrl + meio), zoom no
+      cursor (roda), girar em torno de aresta/vértice, rolar (Alt + meio).
+- [ ] Orientação: Ctrl+1..7 (vistas padrão e isométrica), Ctrl+8 (Normal a), F (ajustar),
+      barra de espaço (diálogo com vistas salvas), vista anterior, transição animada.
+- [ ] Cubo de vistas, tríade de eixos, barra de vista sobre a área 3D.
+- [ ] Estilos: sombreado com arestas, sombreado, linhas ocultas removidas, linhas ocultas
+      visíveis, arame; ortográfica/perspectiva.
+- [ ] Vista de seção dinâmica (plano, deslocamento, ângulo, face hachurada).
+- [ ] Vistas com nome no `.mcad` e tela dividida em 1, 2 ou 4 janelas.
 - [ ] Seleção por cor (face, aresta, vértice) e realce.
 - [ ] Modo *sketch*: gira para o plano, grade, relações, cotas editáveis com duplo clique.
 - [ ] *Sketch* sobre face plana.
@@ -86,7 +97,8 @@ andamento registrado neste arquivo. Mesmo procedimento do RouterPCB e do MakeRou
 - [ ] Renderização por *software* para miniatura e teste sem GPU.
 
 ### Fase 4: exportação e suíte (≈ 3 h)
-- [ ] STL binário e ASCII; DXF do *sketch* ou de face plana.
+- [ ] STL binário e ASCII com orientação (Y→Z ou face selecionada na mesa); DXF do *sketch*
+      ou de face plana.
 - [ ] Propriedades de massa (volume, área, centro de massa, massa pelo material) e medir.
 - [ ] "Abrir no MultiSlicer" e "Abrir no MakeRouter" (mesmo padrão do `OpenInTool` do MakePCB).
 - [ ] Suíte: `Application.CreateForm`, ícone, bandeja, MultiSuite, Central de Testes, CI,
@@ -94,7 +106,13 @@ andamento registrado neste arquivo. Mesmo procedimento do RouterPCB e do MakeRou
 - [ ] **Primeira entrega** (ver critério abaixo).
 
 ### Fase 5: furo, padrões e espelho (≈ 4 h)
-- [ ] Assistente de furo: simples, rebaixado, escareado (pontos de um *sketch* na face).
+- [ ] `multicad_threads` com tabelas em `data/*.json`: roscas ISO 261/262 M2 a M24 (passo
+      normal e fino), broca para rosca, folgas ISO 273 (fina, normal, larga), rebaixo ISO 4762,
+      escareado 90° ISO 10642.
+- [ ] Assistente de furo: simples, passagem para parafuso, roscado, rebaixado, escareado, cego
+      com ponta 118° (pontos de um *sketch* na face).
+- [ ] Rosca cosmética: atributo da face, mostrado na vista e levado ao desenho.
+- [ ] Teste: M8 gera furo Ø6,8; passagem M8 normal Ø9,0; rebaixo M8 Ø13 × 8,6 (pela tabela).
 - [ ] Padrão linear e circular de operações; espelhar por plano.
 
 ### Fase 6: filete, chanfro e casca (≈ 6 h)
@@ -102,9 +120,19 @@ andamento registrado neste arquivo. Mesmo procedimento do RouterPCB e do MakeRou
 - [ ] Casca com espessura constante e faces removidas (faces planas).
 - [ ] Teste: volume do filete de um cubo dentro de 0,5% do valor analítico.
 
-### Fase 7: desenho 2D (≈ 5 h)
-- [ ] Vistas ortográficas e isométrica, linhas ocultas, cotas e legenda.
+### Fase 7: desenho 2D e tolerâncias (≈ 10 h)
+- [ ] Folhas A4 a A0 (ISO 5457 / NBR 10068) com legenda: título, material, escala, autor,
+      data, tolerância geral ISO 2768.
+- [ ] 1º diedro (NBR 10067, padrão) e 3º diedro opcional.
+- [ ] Vistas: 3 vistas padrão, vista do modelo, projetada, seção A-A (total, meia, alinhada),
+      detalhe, auxiliar, interrompida e corte parcial.
+- [ ] Linhas ISO 128 (contorno, oculta, centro, hachura), linhas e marcas de centro automáticas.
+- [ ] Cotas ISO 129 / NBR 10126, importadas do modelo ou criadas no desenho.
+- [ ] Tolerâncias por cota (±, bilateral, limites, ajuste ISO 286 H7/g6... com desvios pela
+      tabela), tolerâncias geométricas ISO 1101 com referências e acabamento Ra (ISO 1302).
+- [ ] Desenho associativo: mudar a peça atualiza as vistas.
 - [ ] Saída DXF e PDF.
+- [ ] Teste: Ø20 H7 dá +0,021/0; Ø20 g6 dá −0,007/−0,020.
 
 ### Fase 8: OpenCascade (opcional, ≈ 10 h ou mais)
 - [ ] `mcad_occt` (DLL/SO com API C) atrás de `ICadKernel`; STEP ler/gravar, filete e casca
@@ -118,7 +146,9 @@ andamento registrado neste arquivo. Mesmo procedimento do RouterPCB e do MakeRou
    lugar.
 3. Exportar STL que o MultiSlicer abre; volume dentro de 0,5% do valor analítico.
 4. Salvar, fechar e abrir o `.mcad`: mesma árvore, mesmos Ids, mesmo sólido.
-5. Testes passando no Linux (GTK2) e no Win64 (Wine).
+5. Navegar como no SolidWorks: Ctrl+1..8, F, cubo de vistas, estilos e seção dinâmica.
+6. O STL exportado chega em pé no MultiSlicer (orientação Y→Z).
+7. Testes passando no Linux (GTK2) e no Win64 (Wine).
 
 ## Riscos
 - **Nomes estáveis de faces:** é o ponto mais delicado de qualquer CAD paramétrico. Mitigação:
@@ -130,5 +160,10 @@ andamento registrado neste arquivo. Mesmo procedimento do RouterPCB e do MakeRou
 - **OpenGL no Wine e em placas antigas:** pipeline fixo 2.1 e alternativa por *software*.
 - **Convergência do solver:** partir da posição atual, amortecimento LM e detecção de conflito
   pelo posto do jacobiano.
+- **Tabelas de normas:** valores errados em roscas e ajustes geram peças que não montam.
+  Mitigação: tabelas em arquivo de dados, conferidas contra as normas e com testes de valores
+  conhecidos.
+- **Linhas ocultas no desenho 2D:** custo alto em peças grandes. Mitigação: cálculo por
+  arestas visíveis com z-buffer e cache por vista.
 - **Escopo:** o SolidWorks tem décadas de trabalho. A entrega cobre peças prismáticas e
   torneadas; superfícies livres, chapas metálicas e soldas ficam fora.
