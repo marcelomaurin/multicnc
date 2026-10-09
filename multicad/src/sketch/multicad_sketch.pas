@@ -2,9 +2,9 @@ unit multicad_sketch;
 
 { MultiCAD - esboco (sketch): entidades, restricoes e cotas.
 
-  Fase 0: modelo de dados com Ids persistentes por entidade (o nome
-  estavel das faces usa esse Id, ex. "Extrude2/lat:7") e JSON.
-  Fase 1: solver Newton/LM, graus de liberdade e perfis.
+  Ids persistentes por entidade (o nome estavel das faces usa esse Id, ex.
+  "Extrude2/lat:7"). O solver esta em multicad_solver e os perfis em
+  multicad_profile.
 
   Pontos das entidades (no referencial do plano, mm):
     ponto   P1
@@ -12,14 +12,18 @@ unit multicad_sketch;
     arco    P1 centro, P2 inicio, P3 fim (sentido anti-horario)
     circulo P1 centro, Radius
   Referencia a ponto em restricao: (entidade, indice) com indice
-    0 = a entidade inteira, 1 = P1, 2 = P2, 3 = P3. }
+    0 = a entidade inteira, 1 = P1, 2 = P2, 3 = P3.
+  Entidade CAD_SKETCH_ORIGIN (-1) = origem do esboco (ponto fixo 0,0). }
 
 {$mode objfpc}{$H+}
 
 interface
 
 uses
-  Classes, SysUtils, fpjson, multicad_types, multicad_feature, multicad_refgeom;
+  Classes, SysUtils, Math, fpjson, multicad_types, multicad_feature, multicad_refgeom;
+
+const
+  CAD_SKETCH_ORIGIN = -1;
 
 type
   TSketchEntity = record
@@ -28,6 +32,7 @@ type
     P1, P2, P3: TCadVec2;
     Radius: Double;
     Construction: Boolean;
+    Centerline: Boolean;   { linha de centro (eixo de revolucao); e construcao }
   end;
 
   TSketchConstraint = record
@@ -35,10 +40,12 @@ type
     Kind: TConstraintKind;
     EntityA, PointA: Integer;
     EntityB, PointB: Integer;
+    EntityC, PointC: Integer;  { simetrica: linha de simetria }
     Value: Double;       { mm ou graus (cotas) }
     Expr: string;        { expressao digitada, ex. "D1@Esboço1/2" }
     DimName: string;     { "D1" (nome completo: D1@<sketch>) }
     Driving: Boolean;    { cota dirigente (comanda) ou dirigida (so mostra) }
+    Fix: array of Double; { fixa: coordenadas guardadas }
   end;
 
   TCadSketch = class(TCadFeature)
@@ -55,20 +62,46 @@ type
     procedure Clear;
     function AddPoint(X, Y: Double): Integer;
     function AddLine(X1, Y1, X2, Y2: Double; AConstruction: Boolean = False): Integer;
+    function AddCenterline(X1, Y1, X2, Y2: Double): Integer;
+    { Arco pelo centro, inicio e fim (anti-horario). O fim e ajustado ao raio. }
     function AddArc(CX, CY, X1, Y1, X2, Y2: Double): Integer;
+    { Arco por tres pontos (inicio, ponto no meio, fim). 0 se colineares. }
+    function AddArc3P(X1, Y1, XM, YM, X2, Y2: Double): Integer;
     function AddCircle(X, Y, R: Double): Integer;
-    { Quatro linhas; devolve o Id da primeira (as outras sao Id+1..Id+3). }
+    { Quatro linhas com cantos coincidentes, 2 horizontais e 2 verticais.
+      Devolve o Id da primeira (inferior); as outras sao Id+1 (direita),
+      Id+2 (superior), Id+3 (esquerda). }
     function AddRectangle(X1, Y1, X2, Y2: Double): Integer;
+    { Ranhura reta: centros C1-C2, largura W (= 2R). Duas linhas + dois arcos
+      tangentes. Devolve o Id da primeira linha. }
+    function AddSlot(X1, Y1, X2, Y2, W: Double): Integer;
+    { Poligono regular inscrito: N lados iguais e circulo de construcao.
+      Devolve o Id do circulo de construcao. }
+    function AddPolygon(CX, CY, R: Double; N: Integer; AStartDeg: Double = 90): Integer;
     function AddConstraint(AKind: TConstraintKind; AEntA, APtA, AEntB, APtB: Integer;
       AValue: Double = 0): Integer;
+    function AddSymmetric(AEntA, APtA, AEntB, APtB, ALine: Integer): Integer;
+    { Fixa a entidade (APt=0) ou um ponto na posicao atual. }
+    function AddFixed(AEnt, APt: Integer): Integer;
     function AddDimension(AKind: TConstraintKind; AEntA, APtA, AEntB, APtB: Integer;
       AValue: Double): Integer;
+    procedure DeleteConstraint(AId: Integer);
     function EntityCount: Integer;
     function ConstraintCount: Integer;
     function Entity(I: Integer): TSketchEntity;
     function Constraint(I: Integer): TSketchConstraint;
+    procedure SetEntity(I: Integer; const E: TSketchEntity);
+    procedure SetConstraintValue(I: Integer; AValue: Double);
+    procedure SetConstraintExpr(I: Integer; const AExpr: string);
+    procedure SetConstraintDriving(I: Integer; ADriving: Boolean);
     function EntityIndex(AId: Integer): Integer;
+    function ConstraintIndex(AId: Integer): Integer;
+    function DimensionIndex(const ADimName: string): Integer;
     function FindDimension(const ADimName: string; out AValue: Double): Boolean;
+    { Muda o valor de uma cota pelo nome ("D1"). False se nao existe. }
+    function SetDimension(const ADimName: string; AValue: Double): Boolean;
+    { Ponto de uma entidade (indice 1..3) ou a origem. }
+    function PointOf(AEnt, APt: Integer; out P: TCadVec2): Boolean;
     procedure SaveParams(O: TJSONObject); override;
     procedure LoadParams(O: TJSONObject); override;
     function Validate: string; override;
@@ -76,6 +109,8 @@ type
   end;
 
 function IsDimensionKind(K: TConstraintKind): Boolean;
+{ Linhas de restricao/cota em portugues, como no SolidWorks. }
+function CadConstraintName(K: TConstraintKind): string;
 
 implementation
 
@@ -83,6 +118,17 @@ function IsDimensionKind(K: TConstraintKind): Boolean;
 begin
   Result := K in [ckDistance, ckHorizontalDistance, ckVerticalDistance,
     ckRadius, ckDiameter, ckAngle];
+end;
+
+function CadConstraintName(K: TConstraintKind): string;
+const
+  N: array[TConstraintKind] of string = ('Coincidente', 'Horizontal',
+    'Vertical', 'Paralela', 'Perpendicular', 'Tangente', 'Igual',
+    'Concêntrica', 'Ponto médio', 'Fixa', 'Simétrica', 'Cota',
+    'Cota horizontal', 'Cota vertical', 'Cota de raio', 'Cota de diâmetro',
+    'Cota angular');
+begin
+  Result := N[K];
 end;
 
 constructor TCadSketch.Create;
@@ -124,7 +170,7 @@ end;
 
 function BlankEntity(AKind: TSketchEntityKind): TSketchEntity;
 begin
-  FillChar(Result, SizeOf(Result), 0);
+  Result := Default(TSketchEntity);
   Result.Kind := AKind;
 end;
 
@@ -148,16 +194,53 @@ begin
   Result := AddEntity(E);
 end;
 
+function TCadSketch.AddCenterline(X1, Y1, X2, Y2: Double): Integer;
+var
+  I: Integer;
+begin
+  Result := AddLine(X1, Y1, X2, Y2, True);
+  I := EntityIndex(Result);
+  FEntities[I].Centerline := True;
+end;
+
 function TCadSketch.AddArc(CX, CY, X1, Y1, X2, Y2: Double): Integer;
 var
   E: TSketchEntity;
+  R, L: Double;
 begin
   E := BlankEntity(seArc);
+  R := Sqrt(Sqr(X1 - CX) + Sqr(Y1 - CY));
+  L := Sqrt(Sqr(X2 - CX) + Sqr(Y2 - CY));
   E.P1 := V2(CX, CY);
   E.P2 := V2(X1, Y1);
-  E.P3 := V2(X2, Y2);
-  E.Radius := Sqrt(Sqr(X1 - CX) + Sqr(Y1 - CY));
+  if L > CAD_EPS then
+    E.P3 := V2(CX + (X2 - CX) * R / L, CY + (Y2 - CY) * R / L)
+  else
+    E.P3 := V2(X2, Y2);
+  E.Radius := R;
   Result := AddEntity(E);
+end;
+
+function TCadSketch.AddArc3P(X1, Y1, XM, YM, X2, Y2: Double): Integer;
+var
+  D, UX, UY, Cr: Double;
+  S1, S2: Double;
+begin
+  { circunferencia pelos tres pontos }
+  D := 2 * (X1 * (YM - Y2) + XM * (Y2 - Y1) + X2 * (Y1 - YM));
+  if Abs(D) < 1E-12 then
+    Exit(0);
+  S1 := X1 * X1 + Y1 * Y1;
+  S2 := XM * XM + YM * YM;
+  UX := (S1 * (YM - Y2) + S2 * (Y2 - Y1) + (X2 * X2 + Y2 * Y2) * (Y1 - YM)) / D;
+  UY := (S1 * (X2 - XM) + S2 * (X1 - X2) + (X2 * X2 + Y2 * Y2) * (XM - X1)) / D;
+  { sentido: se o ponto do meio fica a esquerda de 1->2, o arco e anti-horario }
+  { (M-1) x (2-1) > 0: o triangulo 1, M, 2 e anti-horario }
+  Cr := (XM - X1) * (Y2 - Y1) - (YM - Y1) * (X2 - X1);
+  if Cr > 0 then
+    Result := AddArc(UX, UY, X1, Y1, X2, Y2)
+  else
+    Result := AddArc(UX, UY, X2, Y2, X1, Y1);
 end;
 
 function TCadSketch.AddCircle(X, Y, R: Double): Integer;
@@ -178,7 +261,6 @@ begin
   L2 := AddLine(X2, Y1, X2, Y2);
   L3 := AddLine(X2, Y2, X1, Y2);
   L4 := AddLine(X1, Y2, X1, Y1);
-  { cantos coincidentes, como o retangulo do SolidWorks }
   AddConstraint(ckCoincident, L1, 2, L2, 1);
   AddConstraint(ckCoincident, L2, 2, L3, 1);
   AddConstraint(ckCoincident, L3, 2, L4, 1);
@@ -190,28 +272,131 @@ begin
   Result := L1;
 end;
 
+function TCadSketch.AddSlot(X1, Y1, X2, Y2, W: Double): Integer;
+var
+  DX, DY, L, NX, NY, R: Double;
+  LA, LB, A1, A2: Integer;
+begin
+  R := W / 2;
+  DX := X2 - X1;
+  DY := Y2 - Y1;
+  L := Sqrt(DX * DX + DY * DY);
+  if (L < CAD_TOL) or (R < CAD_TOL) then
+    Exit(0);
+  NX := -DY / L * R;  { normal a esquerda }
+  NY := DX / L * R;
+  LA := AddLine(X1 - NX, Y1 - NY, X2 - NX, Y2 - NY);   { lado direito, 1 -> 2 }
+  A2 := AddArc(X2, Y2, X2 - NX, Y2 - NY, X2 + NX, Y2 + NY);
+  LB := AddLine(X2 + NX, Y2 + NY, X1 + NX, Y1 + NY);   { lado esquerdo, 2 -> 1 }
+  A1 := AddArc(X1, Y1, X1 + NX, Y1 + NY, X1 - NX, Y1 - NY);
+  AddConstraint(ckCoincident, LA, 2, A2, 2);
+  AddConstraint(ckCoincident, A2, 3, LB, 1);
+  AddConstraint(ckCoincident, LB, 2, A1, 2);
+  AddConstraint(ckCoincident, A1, 3, LA, 1);
+  AddConstraint(ckTangent, LA, 0, A2, 0);
+  AddConstraint(ckTangent, LB, 0, A2, 0);
+  AddConstraint(ckTangent, LB, 0, A1, 0);
+  AddConstraint(ckTangent, LA, 0, A1, 0);
+  AddConstraint(ckEqual, A1, 0, A2, 0);
+  Result := LA;
+end;
+
+function TCadSketch.AddPolygon(CX, CY, R: Double; N: Integer; AStartDeg: Double): Integer;
+var
+  I, C: Integer;
+  Ids: array of Integer;
+  A0, A1: Double;
+begin
+  if (N < 3) or (R < CAD_TOL) then
+    Exit(0);
+  C := AddCircle(CX, CY, R);
+  FEntities[EntityIndex(C)].Construction := True;
+  SetLength(Ids, N);
+  for I := 0 to N - 1 do
+  begin
+    A0 := DegToRadC(AStartDeg + 360 * I / N);
+    A1 := DegToRadC(AStartDeg + 360 * (I + 1) / N);
+    Ids[I] := AddLine(CX + R * Cos(A0), CY + R * Sin(A0), CX + R * Cos(A1), CY + R * Sin(A1));
+  end;
+  for I := 0 to N - 1 do
+  begin
+    AddConstraint(ckCoincident, Ids[I], 2, Ids[(I + 1) mod N], 1);
+    AddConstraint(ckCoincident, Ids[I], 1, C, 0);  { vertice no circulo }
+    if I > 0 then
+      AddConstraint(ckEqual, Ids[0], 0, Ids[I], 0);
+  end;
+  Result := C;
+end;
+
 function TCadSketch.AddConstraint(AKind: TConstraintKind; AEntA, APtA, AEntB,
   APtB: Integer; AValue: Double): Integer;
 var
   C: TSketchConstraint;
   N: Integer;
 begin
+  C := Default(TSketchConstraint);
   C.Kind := AKind;
   C.EntityA := AEntA;
   C.PointA := APtA;
   C.EntityB := AEntB;
   C.PointB := APtB;
   C.Value := AValue;
-  C.Expr := '';
-  C.DimName := '';
   C.Driving := True;
   N := Length(FConstraints);
-  C.Id := N + 1;
+  C.Id := 1;
   if N > 0 then
     C.Id := FConstraints[N - 1].Id + 1;
   SetLength(FConstraints, N + 1);
   FConstraints[N] := C;
   Result := C.Id;
+end;
+
+function TCadSketch.AddSymmetric(AEntA, APtA, AEntB, APtB, ALine: Integer): Integer;
+begin
+  Result := AddConstraint(ckSymmetric, AEntA, APtA, AEntB, APtB);
+  FConstraints[High(FConstraints)].EntityC := ALine;
+end;
+
+function TCadSketch.AddFixed(AEnt, APt: Integer): Integer;
+var
+  I, K: Integer;
+  E: TSketchEntity;
+  F: array of Double;
+  procedure Put(const P: TCadVec2);
+  begin
+    SetLength(F, Length(F) + 2);
+    F[High(F) - 1] := P.X;
+    F[High(F)] := P.Y;
+  end;
+begin
+  F := nil;
+  I := EntityIndex(AEnt);
+  if I < 0 then
+    Exit(0);
+  E := FEntities[I];
+  if APt > 0 then
+  begin
+    case APt of
+      1: Put(E.P1);
+      2: Put(E.P2);
+      3: Put(E.P3);
+    end;
+  end
+  else
+    case E.Kind of
+      sePoint: Put(E.P1);
+      seLine: begin Put(E.P1); Put(E.P2); end;
+      seArc: begin Put(E.P1); Put(E.P2); Put(E.P3); end;
+      seCircle:
+        begin
+          Put(E.P1);
+          SetLength(F, Length(F) + 1);
+          F[High(F)] := E.Radius;
+        end;
+    end;
+  Result := AddConstraint(ckFixed, AEnt, APt, 0, 0);
+  K := High(FConstraints);
+  FConstraints[K].Fix := Copy(F);
 end;
 
 function TCadSketch.AddDimension(AKind: TConstraintKind; AEntA, APtA, AEntB,
@@ -220,6 +405,18 @@ begin
   Result := AddConstraint(AKind, AEntA, APtA, AEntB, APtB, AValue);
   FConstraints[High(FConstraints)].DimName := 'D' + IntToStr(FNextDim);
   Inc(FNextDim);
+end;
+
+procedure TCadSketch.DeleteConstraint(AId: Integer);
+var
+  I, J: Integer;
+begin
+  I := ConstraintIndex(AId);
+  if I < 0 then
+    Exit;
+  for J := I to High(FConstraints) - 1 do
+    FConstraints[J] := FConstraints[J + 1];
+  SetLength(FConstraints, Length(FConstraints) - 1);
 end;
 
 function TCadSketch.EntityCount: Integer;
@@ -242,6 +439,31 @@ begin
   Result := FConstraints[I];
 end;
 
+procedure TCadSketch.SetEntity(I: Integer; const E: TSketchEntity);
+begin
+  FEntities[I].P1 := E.P1;
+  FEntities[I].P2 := E.P2;
+  FEntities[I].P3 := E.P3;
+  FEntities[I].Radius := E.Radius;
+  FEntities[I].Construction := E.Construction;
+  FEntities[I].Centerline := E.Centerline;
+end;
+
+procedure TCadSketch.SetConstraintValue(I: Integer; AValue: Double);
+begin
+  FConstraints[I].Value := AValue;
+end;
+
+procedure TCadSketch.SetConstraintExpr(I: Integer; const AExpr: string);
+begin
+  FConstraints[I].Expr := AExpr;
+end;
+
+procedure TCadSketch.SetConstraintDriving(I: Integer; ADriving: Boolean);
+begin
+  FConstraints[I].Driving := ADriving;
+end;
+
 function TCadSketch.EntityIndex(AId: Integer): Integer;
 var
   I: Integer;
@@ -252,18 +474,69 @@ begin
   Result := -1;
 end;
 
-function TCadSketch.FindDimension(const ADimName: string; out AValue: Double): Boolean;
+function TCadSketch.ConstraintIndex(AId: Integer): Integer;
+var
+  I: Integer;
+begin
+  for I := 0 to High(FConstraints) do
+    if FConstraints[I].Id = AId then
+      Exit(I);
+  Result := -1;
+end;
+
+function TCadSketch.DimensionIndex(const ADimName: string): Integer;
 var
   I: Integer;
 begin
   for I := 0 to High(FConstraints) do
     if SameText(FConstraints[I].DimName, ADimName) then
-    begin
-      AValue := FConstraints[I].Value;
-      Exit(True);
-    end;
-  AValue := 0;
-  Result := False;
+      Exit(I);
+  Result := -1;
+end;
+
+function TCadSketch.FindDimension(const ADimName: string; out AValue: Double): Boolean;
+var
+  I: Integer;
+begin
+  I := DimensionIndex(ADimName);
+  Result := I >= 0;
+  if Result then
+    AValue := FConstraints[I].Value
+  else
+    AValue := 0;
+end;
+
+function TCadSketch.SetDimension(const ADimName: string; AValue: Double): Boolean;
+var
+  I: Integer;
+begin
+  I := DimensionIndex(ADimName);
+  Result := I >= 0;
+  if Result then
+  begin
+    FConstraints[I].Value := AValue;
+    FConstraints[I].Expr := '';
+  end;
+end;
+
+function TCadSketch.PointOf(AEnt, APt: Integer; out P: TCadVec2): Boolean;
+var
+  I: Integer;
+begin
+  P := V2(0, 0);
+  if AEnt = CAD_SKETCH_ORIGIN then
+    Exit(True);
+  I := EntityIndex(AEnt);
+  if I < 0 then
+    Exit(False);
+  Result := True;
+  case APt of
+    0, 1: P := FEntities[I].P1;
+    2: P := FEntities[I].P2;
+    3: P := FEntities[I].P3;
+  else
+    Result := False;
+  end;
 end;
 
 function KindFromCode(const S: string; out K: TSketchEntityKind): Boolean;
@@ -313,9 +586,9 @@ end;
 
 procedure TCadSketch.SaveParams(O: TJSONObject);
 var
-  Ents, Cons: TJSONArray;
+  Ents, Cons, Fx: TJSONArray;
   E: TJSONObject;
-  I: Integer;
+  I, J: Integer;
 begin
   O.Add('plane', PlaneRef);
   O.Add('next_entity', FNextEntityId);
@@ -335,6 +608,8 @@ begin
       E.Add('r', FEntities[I].Radius);
     if FEntities[I].Construction then
       E.Add('construction', True);
+    if FEntities[I].Centerline then
+      E.Add('centerline', True);
     Ents.Add(E);
   end;
   O.Add('entities', Ents);
@@ -347,6 +622,15 @@ begin
     E.Add('a', TJSONArray.Create([FConstraints[I].EntityA, FConstraints[I].PointA]));
     if FConstraints[I].EntityB <> 0 then
       E.Add('b', TJSONArray.Create([FConstraints[I].EntityB, FConstraints[I].PointB]));
+    if FConstraints[I].EntityC <> 0 then
+      E.Add('c', TJSONArray.Create([FConstraints[I].EntityC, FConstraints[I].PointC]));
+    if Length(FConstraints[I].Fix) > 0 then
+    begin
+      Fx := TJSONArray.Create;
+      for J := 0 to High(FConstraints[I].Fix) do
+        Fx.Add(FConstraints[I].Fix[J]);
+      E.Add('fix', Fx);
+    end;
     if IsDimensionKind(FConstraints[I].Kind) then
     begin
       E.Add('value', FConstraints[I].Value);
@@ -379,9 +663,9 @@ end;
 
 procedure TCadSketch.LoadParams(O: TJSONObject);
 var
-  Ents, Cons: TJSONData;
+  Ents, Cons, Fx: TJSONData;
   EO: TJSONObject;
-  I: Integer;
+  I, J: Integer;
   E: TSketchEntity;
   C: TSketchConstraint;
   K: TSketchEntityKind;
@@ -411,6 +695,7 @@ begin
       E.P3 := LoadV2(EO, 'p3');
       E.Radius := JNum(EO, 'r', 0);
       E.Construction := JBool(EO, 'construction', False);
+      E.Centerline := JBool(EO, 'centerline', False);
       AddEntity(E);
     end;
   Cons := O.Find('constraints');
@@ -424,10 +709,21 @@ begin
       EO := TJSONObject(Cons.Items[I]);
       if not CKindFromCode(JStr(EO, 'kind', ''), CK) then
         raise Exception.CreateFmt('Restrição de tipo desconhecido "%s"', [JStr(EO, 'kind', '')]);
+      C := Default(TSketchConstraint);
       C.Kind := CK;
       C.Id := JInt(EO, 'id', I + 1);
       LoadRef(EO, 'a', C.EntityA, C.PointA);
       LoadRef(EO, 'b', C.EntityB, C.PointB);
+      LoadRef(EO, 'c', C.EntityC, C.PointC);
+      Fx := EO.Find('fix');
+      if Fx <> nil then
+      begin
+        if not (Fx is TJSONArray) then
+          raise Exception.Create('"fix" deve ser lista');
+        SetLength(C.Fix, Fx.Count);
+        for J := 0 to Fx.Count - 1 do
+          C.Fix[J] := Fx.Items[J].AsFloat;
+      end;
       C.Value := JNum(EO, 'value', 0);
       C.DimName := JStr(EO, 'dim', '');
       C.Expr := JStr(EO, 'expr', '');
@@ -435,15 +731,18 @@ begin
       SetLength(FConstraints, Length(FConstraints) + 1);
       FConstraints[High(FConstraints)] := C;
     end;
-  { contadores gravados nunca voltam para tras }
   if JInt(O, 'next_entity', 1) > FNextEntityId then
     FNextEntityId := JInt(O, 'next_entity', 1);
-  FNextDim := JInt(O, 'next_dim', 1);
+  FNextDim := Max(1, JInt(O, 'next_dim', 1));
 end;
 
 function TCadSketch.Validate: string;
 var
   I: Integer;
+  function BadRef(AEnt: Integer): Boolean;
+  begin
+    Result := (AEnt <> 0) and (AEnt <> CAD_SKETCH_ORIGIN) and (EntityIndex(AEnt) < 0);
+  end;
 begin
   Result := '';
   if PlaneRef = '' then
@@ -453,12 +752,12 @@ begin
       Exit(Format('Raio inválido na entidade %d', [FEntities[I].Id]));
   for I := 0 to High(FConstraints) do
   begin
-    if (FConstraints[I].EntityA <> 0) and (EntityIndex(FConstraints[I].EntityA) < 0) then
-      Exit(Format('Restrição %d aponta para entidade inexistente %d',
-        [FConstraints[I].Id, FConstraints[I].EntityA]));
-    if (FConstraints[I].EntityB <> 0) and (EntityIndex(FConstraints[I].EntityB) < 0) then
-      Exit(Format('Restrição %d aponta para entidade inexistente %d',
-        [FConstraints[I].Id, FConstraints[I].EntityB]));
+    if BadRef(FConstraints[I].EntityA) or BadRef(FConstraints[I].EntityB) or
+      BadRef(FConstraints[I].EntityC) then
+      Exit(Format('Restrição %d aponta para entidade inexistente', [FConstraints[I].Id]));
+    if IsDimensionKind(FConstraints[I].Kind) and FConstraints[I].Driving and
+      (FConstraints[I].Value <= 0) and (FConstraints[I].Kind <> ckAngle) then
+      Exit(Format('Cota %s deve ser maior que zero', [FConstraints[I].DimName]));
   end;
 end;
 

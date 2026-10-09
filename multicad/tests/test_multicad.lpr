@@ -9,7 +9,8 @@ program test_multicad;
 uses
   SysUtils, Classes, Math, multicad_types, multicad_units, multicad_materials,
   multicad_feature, multicad_refgeom, multicad_sketch, multicad_extrude,
-  multicad_document, multicad_mesh, multicad_kernel;
+  multicad_document, multicad_mesh, multicad_kernel, multicad_solver,
+  multicad_profile;
 
 var
   Passed, Failed: Integer;
@@ -407,6 +408,393 @@ begin
   end;
 end;
 
+
+{ ---------- fase 1: solver ---------- }
+
+function Ent(S: TCadSketch; AId: Integer): TSketchEntity;
+begin
+  Result := S.Entity(S.EntityIndex(AId));
+end;
+
+function LenOf(const E: TSketchEntity): Double;
+begin
+  Result := Sqrt(Sqr(E.P2.X - E.P1.X) + Sqr(E.P2.Y - E.P1.Y));
+end;
+
+function NearP(const A, B: TCadVec2; Tol: Double = 1E-6): Boolean;
+begin
+  Result := (Abs(A.X - B.X) <= Tol) and (Abs(A.Y - B.Y) <= Tol);
+end;
+
+{ Retangulo 80 x 50 com canto na origem, desenhado torto de proposito. }
+function MakeBracketSketch(out L1: Integer): TCadSketch;
+var
+  S: TCadSketch;
+begin
+  S := TCadSketch.Create;
+  S.Name := 'Esboço1';
+  L1 := S.AddRectangle(0.3, -0.2, 71, 44);
+  S.AddConstraint(ckCoincident, L1, 1, CAD_SKETCH_ORIGIN, 1);
+  S.AddDimension(ckHorizontalDistance, L1, 0, 0, 0, 80);   { D1 }
+  S.AddDimension(ckVerticalDistance, L1 + 1, 0, 0, 0, 50); { D2 }
+  Result := S;
+end;
+
+procedure TestSolver;
+var
+  S: TCadSketch;
+  R: TSketchSolveResult;
+  L1, C, Ln, A, P, I, Dm: Integer;
+  E, E0: TSketchEntity;
+  V: Double;
+  D: TCadDocument;
+  Fn, Err: string;
+  T0: QWord;
+begin
+  { retangulo totalmente definido }
+  S := MakeBracketSketch(L1);
+  try
+    R := CadAnalyzeSketch(S);
+    Check(not R.Converged, 'desenho torto ainda nao atende as cotas');
+    R := CadSolveSketch(S);
+    Check(R.Converged, 'retangulo converge: ' + R.Message);
+    Check(R.Status = ssFullyDefined, 'retangulo com canto na origem e duas cotas: totalmente definido (' +
+      CAD_SKETCH_STATUS_NAMES[R.Status] + ')');
+    Check(R.DOF = 0, 'zero graus de liberdade');
+    Check(NearP(Ent(S, L1).P1, V2(0, 0)) and NearP(Ent(S, L1).P2, V2(80, 0)) and
+      NearP(Ent(S, L1 + 2).P1, V2(80, 50)), 'cantos em (0,0), (80,0), (80,50)');
+    for I := 0 to S.EntityCount - 1 do
+      Check(R.EntityState[I] = esDefined, 'linha preta (definida) ' + IntToStr(I));
+    Check(R.Message = 'Totalmente definido', 'mensagem de totalmente definido');
+
+    { mudar a cota: so o lado direito anda }
+    E0 := Ent(S, L1 + 3);
+    Check(S.SetDimension('D1', 100), 'muda D1 para 100');
+    R := CadSolveSketch(S);
+    Check(R.Converged and NearP(Ent(S, L1).P2, V2(100, 0)) and NearP(Ent(S, L1 + 2).P1, V2(100, 50)),
+      'base passa para 100 mm');
+    Check(NearP(Ent(S, L1 + 3).P1, E0.P1) and NearP(Ent(S, L1 + 3).P2, E0.P2), 'lado esquerdo nao se mexe');
+    Check(Near(LenOf(Ent(S, L1 + 1)), 50, 1E-6), 'altura continua 50');
+
+    { cota redundante: superdefinido }
+    S.AddDimension(ckHorizontalDistance, L1 + 2, 0, 0, 0, 100);
+    R := CadSolveSketch(S);
+    Check(R.Status = ssOverDefined, 'cota repetida deixa superdefinido');
+    Check(R.ConstraintState[S.ConstraintCount - 1] = csRedundant, 'a cota repetida aparece como redundante');
+    { tornar a cota dirigida resolve e mede }
+    S.SetConstraintDriving(S.ConstraintCount - 1, False);
+    R := CadSolveSketch(S);
+    Check(R.Status = ssFullyDefined, 'cota dirigida tira o superdefinido');
+    Check(Near(S.Constraint(S.ConstraintCount - 1).Value, 100, 1E-6), 'cota dirigida mostra o valor medido');
+
+    { conflito: altura 50 de um lado e 60 do outro }
+    E0 := Ent(S, L1 + 1);
+    S.AddDimension(ckVerticalDistance, L1 + 3, 0, 0, 0, 60);
+    R := CadSolveSketch(S);
+    Check(R.Status = ssConflict, 'cotas incompatíveis = conflito');
+    Check(not R.Converged and (R.Message <> ''), 'mensagem de conflito');
+    Check(NearP(Ent(S, L1 + 1).P1, E0.P1) and NearP(Ent(S, L1 + 1).P2, E0.P2), 'conflito nao deforma o esboço');
+    Check(R.ConstraintState[S.ConstraintCount - 1] = csConflict, 'cota em conflito marcada');
+    Check(R.EntityState[S.EntityIndex(L1 + 3)] = esProblem, 'linha da cota em conflito em vermelho');
+  finally
+    S.Free;
+  end;
+
+  { sem ancorar na origem: so translacao livre }
+  S := TCadSketch.Create;
+  try
+    L1 := S.AddRectangle(5, 5, 45, 25);
+    S.AddDimension(ckDistance, L1, 0, 0, 0, 40);
+    S.AddDimension(ckDistance, L1 + 1, 0, 0, 0, 20);
+    R := CadSolveSketch(S);
+    Check((R.Status = ssUnderDefined) and (R.DOF = 2), Format('retangulo cotado e solto: 2 GL (%d)', [R.DOF]));
+    Check(R.EntityState[0] = esFree, 'linha azul (livre)');
+    Check(Pos('2 grau', R.Message) > 0, 'mensagem com os graus de liberdade');
+  finally
+    S.Free;
+  end;
+
+  { tangencia linha-circulo }
+  S := TCadSketch.Create;
+  try
+    Ln := S.AddLine(0, 0, 60, 0);
+    S.AddFixed(Ln, 0);
+    C := S.AddCircle(20, 13, 10);
+    S.AddConstraint(ckTangent, Ln, 0, C, 0);
+    R := CadSolveSketch(S);
+    E := Ent(S, C);
+    Check(R.Converged and Near(Abs(E.P1.Y), E.Radius, 1E-7), 'circulo tangente a linha (distancia = raio)');
+    Check(NearP(Ent(S, Ln).P1, V2(0, 0)) and NearP(Ent(S, Ln).P2, V2(60, 0)), 'linha fixa nao se mexe');
+    S.AddDimension(ckDiameter, C, 0, 0, 0, 30);
+    R := CadSolveSketch(S);
+    E := Ent(S, C);
+    Check(R.Converged and Near(E.Radius, 15, 1E-7) and Near(E.P1.Y, 15, 1E-7), 'diametro 30 tangente por cima');
+    Check(R.DOF = 1, 'circulo tangente com diametro: 1 GL (desliza na linha)');
+  finally
+    S.Free;
+  end;
+
+  { paralela, perpendicular, igual, angulo, ponto medio, concentrica, simetrica }
+  S := TCadSketch.Create;
+  try
+    L1 := S.AddLine(0, 0, 50, 3);
+    Ln := S.AddLine(0, 20, 40, 28);
+    S.AddConstraint(ckParallel, L1, 0, Ln, 0);
+    S.AddConstraint(ckEqual, L1, 0, Ln, 0);
+    R := CadSolveSketch(S);
+    E := Ent(S, L1);
+    E0 := Ent(S, Ln);
+    Check(R.Converged and Near((E.P2.X - E.P1.X) * (E0.P2.Y - E0.P1.Y) - (E.P2.Y - E.P1.Y) * (E0.P2.X - E0.P1.X), 0, 1E-6),
+      'linhas paralelas');
+    Check(Near(LenOf(E), LenOf(E0), 1E-7), 'linhas iguais');
+    A := S.AddLine(60, 0, 70, 30);
+    S.AddConstraint(ckPerpendicular, L1, 0, A, 0);
+    R := CadSolveSketch(S);
+    E := Ent(S, L1);
+    E0 := Ent(S, A);
+    Check(R.Converged and Near((E.P2.X - E.P1.X) * (E0.P2.X - E0.P1.X) + (E.P2.Y - E.P1.Y) * (E0.P2.Y - E0.P1.Y), 0, 1E-6),
+      'linhas perpendiculares');
+    Dm := S.AddDimension(ckAngle, L1, 0, Ln, 0, 0);
+    S.DeleteConstraint(Dm);
+    Ln := S.AddLine(0, 50, 30, 52);
+    S.AddConstraint(ckHorizontal, L1, 0, 0, 0);
+    S.AddDimension(ckAngle, L1, 0, Ln, 0, 30);
+    R := CadSolveSketch(S);
+    E := Ent(S, Ln);
+    Check(R.Converged and Near(RadToDegC(ArcTan2(E.P2.Y - E.P1.Y, E.P2.X - E.P1.X)), 30, 1E-6),
+      'cota angular de 30 graus');
+    Check(CadMeasureDimension(S, S.ConstraintCount - 1, V) and Near(V, 30, 1E-6), 'angulo medido 30');
+    P := S.AddPoint(3, 7);
+    S.AddConstraint(ckMidpoint, P, 0, L1, 0);
+    R := CadSolveSketch(S);
+    E := Ent(S, L1);
+    Check(R.Converged and NearP(Ent(S, P).P1, V2((E.P1.X + E.P2.X) / 2, (E.P1.Y + E.P2.Y) / 2)), 'ponto medio');
+  finally
+    S.Free;
+  end;
+
+  S := TCadSketch.Create;
+  try
+    C := S.AddCircle(0, 0, 20);
+    A := S.AddCircle(3, -2, 8);
+    S.AddConstraint(ckConcentric, C, 0, A, 0);
+    R := CadSolveSketch(S);
+    Check(R.Converged and NearP(Ent(S, C).P1, Ent(S, A).P1), 'circulos concentricos');
+    Ln := S.AddCenterline(0, -50, 0, 50);
+    S.AddConstraint(ckVertical, Ln, 0, 0, 0);
+    S.AddConstraint(ckCoincident, Ln, 1, CAD_SKETCH_ORIGIN, 1);
+    P := S.AddPoint(-10, 4);
+    I := S.AddPoint(13, 9);
+    S.AddSymmetric(P, 0, I, 0, Ln);
+    R := CadSolveSketch(S);
+    Check(R.Converged and Near(Ent(S, P).P1.X, -Ent(S, I).P1.X, 1E-7) and Near(Ent(S, P).P1.Y, Ent(S, I).P1.Y, 1E-7),
+      'pontos simetricos pela linha de centro');
+    Check(Ent(S, Ln).Centerline and Ent(S, Ln).Construction, 'linha de centro e construcao');
+  finally
+    S.Free;
+  end;
+
+  { ranhura e poligono }
+  S := TCadSketch.Create;
+  try
+    L1 := S.AddSlot(0, 0, 40, 0, 10);
+    R := CadSolveSketch(S);
+    Check(R.Converged and (R.Status = ssUnderDefined), 'ranhura consistente: ' + R.Message);
+    Check(R.DOF = 5, Format('ranhura livre com 5 GL (%d)', [R.DOF]));
+    C := S.AddPolygon(100, 0, 20, 6);
+    R := CadSolveSketch(S);
+    Check(R.Converged and (R.DOF = 5 + 4), Format('hexagono soma 4 GL (%d)', [R.DOF]));
+    Check(Near(LenOf(Ent(S, C + 1)), 20, 1E-6), 'lado do hexagono = raio');
+  finally
+    S.Free;
+  end;
+
+  { arco por tres pontos e tangente linha-arco }
+  S := TCadSketch.Create;
+  try
+    A := S.AddArc3P(10, 0, 0, 10, -10, 0);
+    E := Ent(S, A);
+    Check((A > 0) and NearP(E.P1, V2(0, 0), 1E-9) and Near(E.Radius, 10, 1E-9), 'arco por tres pontos');
+    Check(NearP(E.P2, V2(10, 0), 1E-9), 'arco anti-horario comeca no primeiro ponto');
+    Check(S.AddArc3P(0, 0, 1, 1, 2, 2) = 0, 'tres pontos colineares recusados');
+  finally
+    S.Free;
+  end;
+
+  { desempenho: poligono de 40 lados }
+  S := TCadSketch.Create;
+  try
+    S.AddPolygon(0, 0, 50, 40);
+    T0 := GetTickCount64;
+    R := CadSolveSketch(S);
+    Check(R.Converged and (R.DOF = 4), 'poligono de 40 lados resolvido');
+    Check(GetTickCount64 - T0 < 5000, Format('poligono de 40 lados em menos de 5 s (%d ms)', [GetTickCount64 - T0]));
+  finally
+    S.Free;
+  end;
+
+  { documento: expressao entre cotas, JSON com os campos novos }
+  D := TCadDocument.Create;
+  try
+    S := D.AddSketch('plane:1');
+    L1 := S.AddRectangle(0, 0, 70, 45);
+    S.AddConstraint(ckCoincident, L1, 1, CAD_SKETCH_ORIGIN, 1);
+    S.AddDimension(ckHorizontalDistance, L1, 0, 0, 0, 80);
+    I := S.ConstraintCount;
+    S.AddDimension(ckVerticalDistance, L1 + 1, 0, 0, 0, 10);
+    S.SetConstraintExpr(I, 'D1@Esboço1 / 2');
+    S.AddSymmetric(L1, 1, L1, 2, L1 + 3);
+    S.DeleteConstraint(S.Constraint(S.ConstraintCount - 1).Id);
+    S.AddFixed(L1 + 2, 2);
+    S.DeleteConstraint(S.Constraint(S.ConstraintCount - 1).Id);
+    R := D.SolveSketch(S);
+    Check(R.Status = ssFullyDefined, 'documento: esboço totalmente definido');
+    Check(Near(S.Constraint(I).Value, 40, 1E-12) and Near(LenOf(Ent(S, L1 + 1)), 40, 1E-6),
+      'D2 = D1@Esboço1 / 2 = 40');
+    S.SetDimension('D1', 120);
+    R := D.SolveSketch(S);
+    Check(Near(LenOf(Ent(S, L1 + 1)), 60, 1E-6), 'mudar D1 atualiza D2 pela expressao');
+    S.SetConstraintExpr(I, 'D7@Esboço1');
+    R := D.SolveSketch(S);
+    Check((R.Status = ssConflict) and (S.State = fsError) and (Pos('D2', S.Message) > 0),
+      'expressao com cota inexistente marca erro no esboço');
+    S.SetConstraintExpr(I, '');
+    S.AddCenterline(0, 0, 0, 10);
+    S.AddSymmetric(L1, 1, L1, 2, S.Entity(S.EntityCount - 1).Id);
+    S.AddFixed(L1, 0);
+    Fn := D.ToJSON;
+    D.LoadFromJSON(Fn, Err);
+    Check(D.ToJSON = Fn, 'JSON com linha de centro, simetrica e fixa identico na ida e volta');
+    S := TCadSketch(D.FindByName('Esboço1'));
+    Check(S.Entity(S.EntityCount - 1).Centerline, 'linha de centro preservada');
+    Check(S.Constraint(S.ConstraintCount - 2).EntityC = S.Entity(S.EntityCount - 1).Id, 'terceira referencia preservada');
+    Check(Length(S.Constraint(S.ConstraintCount - 1).Fix) = 4, 'valores da fixa preservados');
+    Check(D.SolveAllSketches >= 0, 'resolve todos os esboços');
+  finally
+    D.Free;
+  end;
+end;
+
+{ ---------- fase 1: perfis ---------- }
+
+procedure TestProfiles;
+var
+  S: TCadSketch;
+  P: TCadProfileResult;
+  L1, C, Pt, I, K: Integer;
+  Found: Boolean;
+begin
+  { retangulo com furo }
+  S := TCadSketch.Create;
+  try
+    L1 := S.AddRectangle(0, 0, 80, 50);
+    C := S.AddCircle(20, 25, 4);
+    P := CadSketchProfiles(S, 0.001);
+    Check(P.Ok, 'perfil do retangulo com furo: ' + P.Message);
+    Check(Length(P.Regions) = 1, 'uma regiao');
+    Check(Length(P.Regions[0].Holes) = 1, 'com uma ilha (furo)');
+    Check(Abs(P.Regions[0].Area - (4000 - Pi * 16)) < 0.05, Format('area liquida 4000 - pi 16 (%.4f)', [P.Regions[0].Area]));
+    Check(P.Regions[0].Outer.Area > 0, 'externo anti-horario');
+    Check(P.Regions[0].Holes[0].Area < 0, 'ilha horaria');
+    Check(P.Regions[0].Id = 'region:' + IntToStr(L1), 'Id da regiao pela menor entidade');
+    Check(Length(P.Regions[0].Outer.Edges) = 4, 'laco externo com 4 entidades');
+    Found := True;
+    for I := 0 to High(P.Regions[0].Outer.SegEntity) do
+      if (P.Regions[0].Outer.SegEntity[I] < L1) or (P.Regions[0].Outer.SegEntity[I] > L1 + 3) then
+        Found := False;
+    Check(Found, 'cada segmento sabe de que linha veio (nome da face lateral)');
+    Check(P.Regions[0].Holes[0].SegEntity[0] = C, 'segmentos do furo apontam para o circulo');
+    Check(CadFindRegion(P, 'region:' + IntToStr(L1)) = 0, 'busca da regiao pelo Id');
+
+    { ilha dentro da ilha vira outra regiao }
+    S.AddCircle(20, 25, 2);
+    P := CadSketchProfiles(S, 0.001);
+    Check(P.Ok and (Length(P.Regions) = 2), 'circulo dentro do furo vira segunda regiao');
+
+    { construcao nao entra }
+    S.AddLine(-10, -10, 90, 60, True);
+    P := CadSketchProfiles(S);
+    Check(P.Ok, 'linha de construcao ignorada');
+  finally
+    S.Free;
+  end;
+
+  { contorno aberto }
+  S := TCadSketch.Create;
+  try
+    S.AddLine(0, 0, 50, 0);
+    S.AddLine(50, 0, 50, 30);
+    S.AddLine(50, 30, 0, 30);
+    P := CadSketchProfiles(S);
+    Check(not P.Ok and (Length(P.OpenPoints) = 2), 'contorno aberto: 2 extremidades soltas');
+    Check(Pos('abertos', P.Message) > 0, 'mensagem "contornos abertos"');
+  finally
+    S.Free;
+  end;
+
+  { ramificacao }
+  S := TCadSketch.Create;
+  try
+    S.AddRectangle(0, 0, 40, 40);
+    S.AddLine(0, 0, 40, 40);
+    P := CadSketchProfiles(S);
+    Check(not P.Ok and (Length(P.BranchPoints) = 2), 'diagonal no retangulo: 2 pontos de ramificacao');
+  finally
+    S.Free;
+  end;
+
+  { contornos que se cruzam }
+  S := TCadSketch.Create;
+  try
+    S.AddRectangle(0, 0, 40, 40);
+    S.AddCircle(40, 20, 5);
+    P := CadSketchProfiles(S);
+    Check(not P.Ok and (Pos('cruzam', P.Message) > 0), 'circulo cruzando o retangulo recusado');
+  finally
+    S.Free;
+  end;
+
+  { ranhura: linhas + arcos }
+  S := TCadSketch.Create;
+  try
+    L1 := S.AddSlot(0, 0, 40, 0, 10);
+    P := CadSketchProfiles(S, 0.0005);
+    Check(P.Ok and (Length(P.Regions) = 1), 'ranhura e um contorno fechado: ' + P.Message);
+    Check(Abs(P.Regions[0].Area - (40 * 10 + Pi * 25)) < 0.05, Format('area da ranhura (%.4f)', [P.Regions[0].Area]));
+    K := 0;
+    for I := 0 to High(P.Regions[0].Outer.Edges) do
+      if P.Regions[0].Outer.Edges[I].Reversed then
+        Inc(K);
+    Check(Length(P.Regions[0].Outer.Edges) = 4, 'ranhura com 4 entidades no laco');
+  finally
+    S.Free;
+  end;
+
+  { retangulo desenhado no sentido horario vira anti-horario }
+  S := TCadSketch.Create;
+  try
+    S.AddLine(0, 0, 0, 30);
+    S.AddLine(0, 30, 50, 30);
+    S.AddLine(50, 30, 50, 0);
+    S.AddLine(50, 0, 0, 0);
+    Pt := S.AddPoint(10, 10);
+    P := CadSketchProfiles(S);
+    Check(P.Ok and Near(P.Regions[0].Area, 1500, 1E-9), 'laco horario reorientado, area 1500');
+    Check(P.Regions[0].Outer.Edges[0].Reversed, 'arestas marcadas como percorridas ao contrario');
+    Check(Pt > 0, 'ponto solto nao atrapalha o perfil');
+  finally
+    S.Free;
+  end;
+
+  S := TCadSketch.Create;
+  try
+    P := CadSketchProfiles(S);
+    Check(not P.Ok and (P.Message <> ''), 'esboço vazio sem perfil');
+  finally
+    S.Free;
+  end;
+end;
+
 begin
   Passed := 0;
   Failed := 0;
@@ -416,6 +804,8 @@ begin
   TestDocument;
   TestPlanes;
   TestMesh;
+  TestSolver;
+  TestProfiles;
   Writeln(Format('MultiCAD: %d checks, %d falhas', [Passed + Failed, Failed]));
   if Failed > 0 then
     Halt(1);

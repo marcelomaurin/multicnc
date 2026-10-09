@@ -19,7 +19,8 @@ interface
 
 uses
   Classes, SysUtils, fpjson, jsonparser, multicad_types, multicad_feature,
-  multicad_refgeom, multicad_sketch, multicad_extrude, multicad_materials;
+  multicad_refgeom, multicad_sketch, multicad_extrude, multicad_materials,
+  multicad_solver;
 
 const
   MCAD_FORMAT = 'multicad';
@@ -74,6 +75,14 @@ type
     { Avalia expressao com as cotas do documento ("D1@Esboço1"). }
     function Eval(const AText: string; out AValue: Double; out AError: string): Boolean;
     function MaterialData: TCadMaterial;
+    { Avalia as expressoes das cotas do esboco ("D1@Esboço1 / 2") e grava os
+      valores. Devolve False e a mensagem na primeira expressao com erro. }
+    function ApplyExpressions(S: TCadSketch; out AError: string): Boolean;
+    { Expressoes + solver; marca o estado da operacao (ok, aviso se
+      subdefinido nao importa: so conflito e superdefinido sao erro/aviso). }
+    function SolveSketch(S: TCadSketch): TSketchSolveResult;
+    { Resolve todos os esboços na ordem da arvore. Devolve quantos falharam. }
+    function SolveAllSketches: Integer;
 
     function ToJSON: string;
     function LoadFromJSON(const AText: string; out AError: string): Boolean;
@@ -405,6 +414,69 @@ function TCadDocument.MaterialData: TCadMaterial;
 begin
   if not CadFindMaterial(Material, Result) then
     CadFindMaterial(CAD_DEFAULT_MATERIAL, Result);
+end;
+
+function TCadDocument.ApplyExpressions(S: TCadSketch; out AError: string): Boolean;
+var
+  I: Integer;
+  C: TSketchConstraint;
+  V: Double;
+  Err: string;
+  Kind: TCadValueKind;
+begin
+  AError := '';
+  Result := True;
+  for I := 0 to S.ConstraintCount - 1 do
+  begin
+    C := S.Constraint(I);
+    if (C.Expr = '') or not IsDimensionKind(C.Kind) or not C.Driving then
+      Continue;
+    if C.Kind = ckAngle then
+      Kind := vkAngle
+    else
+      Kind := vkLength;
+    if not CadTryEval(C.Expr, V, Err, Kind, @ResolveVar) then
+    begin
+      AError := Format('%s@%s: %s', [C.DimName, S.Name, Err]);
+      Exit(False);
+    end;
+    S.SetConstraintValue(I, V);
+  end;
+end;
+
+function TCadDocument.SolveSketch(S: TCadSketch): TSketchSolveResult;
+var
+  Err: string;
+begin
+  if not ApplyExpressions(S, Err) then
+  begin
+    Result := Default(TSketchSolveResult);
+    Result.Status := ssConflict;
+    Result.Message := Err;
+    S.SetState(fsError, Err);
+    Exit;
+  end;
+  Result := CadSolveSketch(S);
+  case Result.Status of
+    ssConflict: S.SetState(fsError, Result.Message);
+    ssOverDefined: S.SetState(fsWarning, Result.Message);
+  else
+    if Result.Message <> '' then
+      S.SetState(fsOk, Result.Message)
+    else
+      S.SetState(fsOk, '');
+  end;
+end;
+
+function TCadDocument.SolveAllSketches: Integer;
+var
+  I: Integer;
+begin
+  Result := 0;
+  for I := 0 to Count - 1 do
+    if (GetFeature(I) is TCadSketch) and not GetFeature(I).Suppressed then
+      if SolveSketch(TCadSketch(GetFeature(I))).Status = ssConflict then
+        Inc(Result);
 end;
 
 function TCadDocument.ToJSON: string;

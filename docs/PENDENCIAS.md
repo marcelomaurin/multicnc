@@ -3,7 +3,7 @@
 Lista do que ficou aberto. Detalhes do LaserArt em
 `laserart/docs/LASERART_PLANO.md`.
 
-## MultiCAD (09/10/2026) - decisoes aprovadas, fase 0 concluida
+## MultiCAD (09/10/2026) - decisoes aprovadas, fases 0 e 1 concluidas
 - CAD parametrico de pecas no fluxo do SolidWorks 2014: sketch com restricoes e cotas,
   ressalto/corte extrudado, revolucao, furo, padroes, filete, casca, arvore de operacoes.
 - Documentos: `multicad/README.md`, `multicad/docs/ARCHITECTURE.md`,
@@ -12,8 +12,10 @@ Lista do que ficou aberto. Detalhes do LaserArt em
   SolidWorks (atalhos, cubo, estilos, secao, desenho 2D) documentados.
 - D1 a D10 aprovadas. Fase 0 concluida: Ids persistentes, `.mcad`, unidades, materiais,
   malha rotulada e `ICadKernel` (142 checks, Linux e Win64), CI `multicad-ci.yml`.
-- Falta: fases 1 a 4 para a primeira entrega (sketch e solver, extrusao/corte/revolucao,
-  vista 3D e arvore, exportacao e suite). Ver `multicad/docs/TAREFA.md`.
+- Fase 1 concluida: solver de restricoes com graus de liberdade (azul/preto/vermelho),
+  redundancia e conflito, perfis com ilhas (223 checks).
+- Falta: fases 2 a 4 para a primeira entrega (extrusao/corte/revolucao, vista 3D e arvore,
+  exportacao e suite). Ver `multicad/docs/TAREFA.md`.
 
 ## Correcao: programas ficavam rodando em segundo plano (08/10/2026)
 - Causa: os `.lpr` criavam a janela com `TForm.Create(Application)`; sem

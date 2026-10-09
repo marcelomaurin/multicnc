@@ -22,7 +22,7 @@ documento, *feature* e *sketch*.
 | Fase | Estado | O que foi feito |
 |---|---|---|
 | 0 Base | concluída (09/10) | `multicad_types` (vetores, matrizes, referenciais dos planos padrão como no SolidWorks, regra das faces), `multicad_units` (mm, cm, m, in, ", graus, rad, vírgula ou ponto, expressões, `D1@Esboço1`), `multicad_materials` (12 materiais, extensão por JSON), `multicad_feature` (Id persistente, estado ok/aviso/erro, registro de tipos), `multicad_refgeom` (origem, planos e eixos com os tipos da seção 3A), `multicad_sketch` (entidades com Id, restrições e cotas `D1`), `multicad_extrude` (PropertyManager completo da seção 3B e regras de validação), `multicad_document` (`.mcad` JSON, planos padrão Ids 1-3 e origem 4, nomes automáticos "Esboço1"/"Ressalto-Extrusão1", dependências, barra de retrocesso, gravação segura), `multicad_mesh` (malha rotulada, solda a 0,001 mm, malha fechada, volume, área, centro de massa, bloco e cilindro) e `multicad_kernel` (`ICadKernel` + núcleo Pascal). Central de Testes e CI `multicad-ci.yml`. |
-| 1 Sketch e solver | pendente | |
+| 1 Sketch e solver | concluída (09/10) | `multicad_sketch` (ponto, linha, arco por centro e por 3 pontos, círculo, retângulo, ranhura, polígono, construção, linha de centro; 11 restrições e 6 tipos de cota com `D1@Esboço1`, dirigente/dirigida, fixa guardando a posição, simétrica pela linha), `multicad_solver` (passo de norma mínima amortecido, GL pelo posto do jacobiano, redundância e conflito por restrição, azul/preto/vermelho por entidade, conflito não deforma o esboço), `multicad_profile` (laços fechados, ilhas, região com Id estável, entidade de cada segmento, erros de contorno aberto, ramificação e cruzamento), documento avalia expressões e resolve os esboços. |
 | 2 Operações básicas | pendente | |
 | 3 Vista 3D e árvore | pendente | |
 | 4 Exportação e suíte | pendente | |
@@ -80,16 +80,51 @@ Observações:
 - O programa e os testes definem a página de código como UTF-8 (`multicad_types`), como o LCL
   faz, para os nomes com acento ("Esboço1", "Aço 1020") baterem ao ler o JSON.
 
-### Fase 1: sketch e solver (≈ 5 h)
-- [ ] Entidades: ponto, linha, arco, círculo, retângulo, ranhura, polígono, construção e
+### Fase 1: sketch e solver (≈ 5 h) — concluída em 09/10/2026
+- [x] Entidades: ponto, linha, arco, círculo, retângulo, ranhura, polígono, construção e
       linha de centro.
-- [ ] Restrições: coincidente, horizontal, vertical, paralela, perpendicular, tangente, igual,
+- [x] Restrições: coincidente, horizontal, vertical, paralela, perpendicular, tangente, igual,
       concêntrica, ponto médio, fixa, simétrica.
-- [ ] Cotas: distância, horizontal, vertical, raio, diâmetro, ângulo; nome `D1@Sketch1`.
-- [ ] Solver Newton/LM e graus de liberdade (sub, total, superdefinido).
-- [ ] Perfis: laços fechados com ilhas, via Clipper2.
-- [ ] Testes: retângulo 80×50 totalmente definido, mudança de cota move só o que deve, conflito
+- [x] Cotas: distância, horizontal, vertical, raio, diâmetro, ângulo; nome `D1@Sketch1`.
+- [x] Solver Newton/LM e graus de liberdade (sub, total, superdefinido).
+- [x] Perfis: laços fechados com ilhas (a Clipper2 entra na fase 2, nos *offsets* da inclinação
+      e do recurso fino; o perfil usa geometria própria, sem dependência).
+- [x] Testes: retângulo 80×50 totalmente definido, mudança de cota move só o que deve, conflito
       detectado, tangência linha-arco, perfil com furo vira região com ilha.
+
+Como ficou o solver (`multicad_solver`):
+- Variáveis: pontos e raios; o arco guarda centro, início e fim com a equação interna
+  |início − centro| = |fim − centro|.
+- Passo de norma mínima amortecido `dx = −Jᵀ(JJᵀ + λI)⁻¹F`, partindo da posição atual: muda o
+  mínimo possível, por isso mudar uma cota mexe só o que depende dela (testado: base de 80 para
+  100 mm não move o lado esquerdo).
+- Graus de liberdade pelo posto do jacobiano (Gram-Schmidt): restrição que não aumenta o posto
+  é **redundante** (superdefinido, como o SolidWorks pede para tornar a cota dirigida);
+  equação que não zera é **conflito**, e aí o esboço volta como estava.
+- Cor por entidade: azul (livre), preto (definida), vermelho (em restrição redundante ou em
+  conflito).
+- Tangência com extremidade comum usa a forma de primeira ordem (direção perpendicular ao
+  raio no ponto comum). A forma pela distância tem derivada nula quando o ponto já está na
+  curva e derrubava o posto (a ranhura aparecia como superdefinida).
+- Cotas com sinal "pegajoso" (distância à reta, horizontal, vertical, ângulo): o lado em que a
+  geometria está ao resolver é mantido, para não espelhar o desenho.
+- Desempenho: polígono de 40 lados em menos de 0,1 s.
+
+Perfis (`multicad_profile`): laços pelos nós das extremidades (tolerância 0,0001 mm), arcos
+discretizados pelo erro de corda, externos anti-horários e ilhas horárias, Id da região
+`region:<menor Id de entidade do laço externo>`, entidade de origem por segmento (nome da face
+lateral na fase 2). Recusa contorno aberto, ramificação (3 ou mais entidades num ponto) e
+contornos que se cruzam ou se tocam.
+
+Testes: **223 checks** (142 da fase 0 + 81 novos), Linux e Win64 (Wine), `-Cr -Co -gt`, sem
+vazamento de memória (heaptrc).
+
+Fica para depois:
+- Ramificação com escolha de contorno (regiões pelo grafo planar), para "Contornos
+  selecionados" em esboços com linhas que se cruzam.
+- *Spline* e elipse (os tipos existem no arquivo, o solver ainda as ignora).
+- Ferramentas de desenho na tela (arco tangente, aparar, estender, Converter entidades,
+  Offset de entidades) entram com a interface, na fase 3.
 
 ### Fase 2: operações básicas (≈ 6 h)
 - [ ] Referencial local dos planos padrão e de faces planas (tabela em `ARCHITECTURE.md` 3A).
