@@ -40,6 +40,7 @@ type
     FInFlightBytes: Integer;
     FPumping: Boolean;
     FFeedPaused, FWaitingReset: Boolean;
+    FHasControllerReply: Boolean;
     FErrorCount: Integer;
     FAlarmCount: Integer;
     FLastError: string;
@@ -93,6 +94,7 @@ type
     function InFlightLines: Integer;
     function PendingLines: Integer;
     property ErrorCount: Integer read FErrorCount;
+    property HasControllerReply: Boolean read FHasControllerReply;
     property AlarmCount: Integer read FAlarmCount;
     property HomePosition: TMachinePosition read FHomePosition;
     property HomePositionSet: Boolean read FHomePositionSet;
@@ -189,6 +191,7 @@ begin
     end;
     if FProtocol.ReportedState(S) then
     begin
+      FHasControllerReply := True;
       if (S = msAlarm) and (FState <> msAlarm) then
       begin
         Inc(FAlarmCount);
@@ -323,6 +326,7 @@ begin
   FHomePosition := EmptyPosition;
   FHomePositionSet := False;
   FTemperatures := EmptyTemperatures;
+  FHasControllerReply := False;
   FState := msConnecting;
   Result := FTransport.Connect;
   if Result then FState := msIdle else FState := msError;

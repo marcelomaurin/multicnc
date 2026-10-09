@@ -55,6 +55,9 @@ begin
     Check(FindRouterProfile('Generic', 'Generic GRBL Router', P), 'router generico presente');
     Check(FindRouterProfile('Generic', 'Mini Fresadora CNC 3018 Router 3 Eixos', P) and
       (P.WorkX = 300) and (P.WorkY = 180) and (P.WorkZ = 45), 'mini fresadora 3018 com 300x180x45');
+    Check(FindRouterProfile('TwoTrees', 'TTC3018', P) and
+      (P.WorkX = 300) and (P.WorkY = 180) and (P.WorkZ = 40) and
+      (P.BaudRate = 115200) and (P.Firmware = 'GRBL') and P.DisablePhysicalHoming, 'TwoTrees TTC3018 com perfil proprio');
     Check(not FindRouterProfile('Generic', 'Inexistente', P) and (P.WorkX = 0), 'perfil inexistente zerado');
     Check(Pos('not informed', SpindleText(P)) > 0, 'spindle nao informado descrito');
   finally

@@ -415,6 +415,7 @@ begin
   BtnGoTo.Visible := False;
 
   BtnPhysicalHome := ButtonAt(Side, 'Physical Homing', SIDE_X, ROW2_Y, COL_W, @CommandClick);
+  BtnPhysicalHome.Name := 'PhysicalHoming';
   BtnPhysicalHome.SetLook(sbsOutline, clSuitePrimary, sikTarget);
   BtnPhysicalHome.Hint := 'Run physical homing cycle on endstop switches ($H in GRBL / G28 in Marlin 3D).';
   BtnPhysicalHome.ShowHint := True;
@@ -627,6 +628,7 @@ begin
 
   LabelAt(GbConnection, 'Protocol', 165, 5);
   ProtocolType := TComboBox.Create(Self);
+  ProtocolType.Name := 'ProtocolType';
   ProtocolType.Parent := GbConnection;
   ProtocolType.SetBounds(165, 29, 115, 30);
   ProtocolType.Style := csDropDownList;
@@ -710,6 +712,7 @@ begin
 
   LabelAt(GbRouterProfile, 'Brand:', 15, 8);
   RouterBrandCombo := TComboBox.Create(Self);
+  RouterBrandCombo.Name := 'RouterBrand';
   RouterBrandCombo.Parent := GbRouterProfile;
   RouterBrandCombo.SetBounds(15, 30, 220, 30);
   RouterBrandCombo.Style := csDropDownList;
@@ -717,6 +720,7 @@ begin
 
   LabelAt(GbRouterProfile, 'Model:', 250, 8);
   RouterModelCombo := TComboBox.Create(Self);
+  RouterModelCombo.Name := 'RouterModel';
   RouterModelCombo.Parent := GbRouterProfile;
   RouterModelCombo.SetBounds(250, 30, 300, 30);
   RouterModelCombo.Style := csDropDownList;
@@ -1149,7 +1153,7 @@ begin
   Timer.OnTimer := @Tick;
 
   { Identifica o binario em execucao: ajuda a confirmar qual build o log mostra. }
-  Log(Format('MultiCNC build %s %s (%s-%s, FPC %s). Serial: CHATGPT TAISerialModem (COM10+ supported).',
+  Log(Format('MultiCNC build %s %s (%s-%s, FPC %s). Serial: 8N1, Windows DTR/RTS, COM10+ supported.',
     [{$I %DATE%}, {$I %TIME%}, {$I %FPCTARGETCPU%}, {$I %FPCTARGETOS%}, {$I %FPCVERSION%}]));
 
   SyncLaserSettingsToUI;
@@ -1241,6 +1245,8 @@ begin
     Exit;
   end;
   BaudCombo.Text := IntToStr(Prof.BaudRate);
+  if not Session.Connected then ProtocolType.ItemIndex := 0;
+  Session.PhysicalHomingAllowed := not Prof.DisablePhysicalHoming;
   { Preenche o curso sem disparar tres atualizacoes parciais do envelope. }
   SpRouterX.OnChange := nil; SpRouterY.OnChange := nil; SpRouterZ.OnChange := nil;
   try
@@ -1263,6 +1269,7 @@ begin
      Prof.BaudRate, Prof.Firmware, SpindleText(Prof), Prof.Notes], InvariantFS);
   Log(Format('CNC Router profile applied: %s %s (Table: %.1fx%.1fx%.1f mm, Baud: %d)',
     [Prof.Brand, Prof.Model, Prof.WorkX, Prof.WorkY, Prof.WorkZ, Prof.BaudRate], InvariantFS));
+  UpdateControls;
 end;
 
 procedure TMainForm.RouterTravelChanged(Sender: TObject);
@@ -1531,13 +1538,20 @@ const StateNames: array[TSessionState] of string = ('Disconnected', 'Ready',
 var
   Busy, Manual, Alarm: Boolean; I: Integer; P, H: TMachinePosition; Info: string;
   T: TPrinterTemperatures; HRealStr, BRealStr, HStat: string;
+  RouterProfile: TRouterProfile;
 begin
+  if not Session.Connected then begin
+    Session.PhysicalHomingAllowed := True;
+    if (MachineType.ItemIndex = 0) and
+       FindRouterProfile(RouterBrandCombo.Text, RouterModelCombo.Text, RouterProfile) then
+      Session.PhysicalHomingAllowed := not RouterProfile.DisablePhysicalHoming;
+  end;
   Busy := Session.State in [ssRunning, ssPaused];
   Manual := Session.Connected and Session.ControllerReady and not Busy;
   Alarm := Session.MachineState = msAlarm;
   StateLabel.Caption := StateNames[Session.State];
   if Session.Connected and not Session.ControllerReady then
-    StateLabel.Caption := 'Initializing Marlin...';
+    StateLabel.Caption := 'Aguardando controladora...';
   if Alarm then StateLabel.Caption := StateLabel.Caption + ' | ALARM';
   if Alarm or (Session.State = ssError) then
     StateLabel.DotColor := clSuiteDanger
@@ -1636,16 +1650,20 @@ begin
   end;
   BtnConnect.Enabled := not Busy;
   BtnOpen.Enabled := not Busy;
-  BtnFraming.Enabled := Session.Connected and not Busy and (Session.Count > 0);
+  BtnFraming.Enabled := Session.Connected and Session.ControllerReady and not Busy and (Session.Count > 0);
   BtnStart.Enabled := Session.Connected and Session.ControllerReady and not Busy and (Session.Count > 0) and
     ((CommunicationMode.ItemIndex <> 2) or (Report.Errors = 0));
   BtnPause.Enabled := Session.State = ssRunning;
   BtnResume.Enabled := Session.State = ssPaused;
   BtnStop.Enabled := Session.Connected;
-  BtnHome.Enabled := Manual and not Alarm;
+  BtnHome.Enabled := Manual and not Alarm and
+    (Session.PhysicalHomingAllowed or Session.HomePositionSet);
   BtnSetHome.Visible := MachineType.ItemIndex <> 2;
   BtnSetHome.Enabled := Manual and not Alarm and (MachineType.ItemIndex <> 2);
-  BtnPhysicalHome.Enabled := Manual;
+  BtnPhysicalHome.Hint := 'Homing fisico por sensores de fim de curso.';
+  if not Session.PhysicalHomingAllowed then
+    BtnPhysicalHome.Hint := 'Este perfil nao possui homing. Defina a origem manualmente.';
+  BtnPhysicalHome.Enabled := Session.PhysicalHomingAllowed and Manual;
   BtnGoTo.Enabled := Manual and not Alarm and (MachineType.ItemIndex = 2);
   BtnZero.Visible := MachineType.ItemIndex <> 2;
   BtnZero.Enabled := Manual and not Alarm and (MachineType.ItemIndex <> 2);
@@ -1923,10 +1941,10 @@ begin
         TProtocolKind(ProtocolType.ItemIndex), Endpoint, Baud) then
       begin
         Log('Connected: ' + MachineType.Text + ' / ' + ProtocolType.Text + ' at ' + Endpoint);
-        if MachineType.ItemIndex = 2 then
+        if (MachineType.ItemIndex = 2) and (ProtocolType.ItemIndex = 1) then
           Log('Marlin conectado. Aguardando inicializacao da controladora antes do handshake M115/M105...')
-        else
-          Session.SetFeedRate(FeedRate.Value);
+        else if ProtocolType.ItemIndex = 0 then
+          Log('Porta aberta. Aguardando resposta GRBL; consulta de estado (?) sem movimento.');
       end
       else
       begin
@@ -2402,7 +2420,9 @@ begin
     OK := Session.Send(EditCommand.Text);
     if OK then EditCommand.Clear;
   end;
-  if OK then Log(TSuiteButton(Sender).Caption + ': OK')
+  if OK and (Sender = BtnSend) then
+    Log('Comando aceito para envio. A confirmacao da controladora aparece como ok/error no log.')
+  else if OK then Log(TSuiteButton(Sender).Caption + ': OK')
   else Log('Action rejected: ' + Session.LastError);
   UpdateControls;
 end;

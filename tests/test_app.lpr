@@ -5,6 +5,7 @@ uses Interfaces, Forms, Controls, StdCtrls, SysUtils, Classes, LCLType, mainform
 var F: TMainForm; I, FirstMatch, SecondMatch: Integer;
   ConnectButton, StartButton, JogZ, PauseButton, StopButton: TSuiteButton;
   ProgramView, Console: TMemo; Search: TEdit; FindNext: TSuiteButton;
+  Brand, Model, Protocol: TComboBox;
   Lines: TStringList; FN: string; Key: Word; Env: TMachineEnvelope;
 procedure Check(Value: Boolean; const Msg: string);
 begin
@@ -30,9 +31,21 @@ begin
         end;
     Check(Assigned(ConnectButton) and Assigned(StartButton) and Assigned(JogZ), 'Controls exist');
     Check(not StartButton.Enabled and not JogZ.Enabled, 'Disconnected controls');
+    Brand := TComboBox(F.FindComponent('RouterBrand'));
+    Model := TComboBox(F.FindComponent('RouterModel'));
+    Protocol := TComboBox(F.FindComponent('ProtocolType'));
+    Brand.ItemIndex := Brand.Items.IndexOf('TwoTrees');
+    Brand.OnChange(Brand);
+    Check(Model.Items.IndexOf('TTC3018') >= 0, 'TTC3018 listed in TwoTrees');
+    Protocol.ItemIndex := 1;
+    Model.ItemIndex := Model.Items.IndexOf('TTC3018');
+    Model.Text := 'TTC3018';
+    Model.OnChange(Model);
+    Check(Protocol.ItemIndex = 0, 'TTC3018 selects GRBL instead of stale Marlin');
     TComboBox(F.FindComponent('CommunicationMode')).ItemIndex := 2;
     ConnectButton.Click;
     Check(JogZ.Enabled and not StartButton.Enabled, 'Connected controls');
+    Check(not TSuiteButton(F.FindComponent('PhysicalHoming')).Enabled, 'TTC3018 physical homing disabled');
     ProgramView := TMemo(F.FindComponent('ProgramText'));
     Console := TMemo(F.FindComponent('ConsoleLog'));
     Search := TEdit(F.FindComponent('ProgramSearch'));

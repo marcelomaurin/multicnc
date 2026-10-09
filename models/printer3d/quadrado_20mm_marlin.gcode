@@ -1,0 +1,27 @@
+; MultiCNC public test model - CC0-1.0
+; Demonstracao de duas camadas, como cube_marlin.gcode.
+; Extrusao estimada: filamento 1.75 mm, linha 0.45 mm, camada 0.20 mm.
+; Revise o perfil e os limites da sua impressora antes de executar.
+G21
+G90
+M82
+G28
+M104 S200
+M109 S200
+G92 E0
+; Camada 1
+G1 Z0.20 F1200
+G1 X20.000 Y20.000 F6000
+G1 X40.000 Y20.000 E0.74835 F1800
+G1 X40.000 Y40.000 E1.49671 F1800
+G1 X20.000 Y40.000 E2.24506 F1800
+G1 X20.000 Y20.000 E2.99341 F1800
+; Camada 2
+G1 Z0.40 F1200
+G1 X20.000 Y20.000 F6000
+G1 X40.000 Y20.000 E3.74177 F1800
+G1 X40.000 Y40.000 E4.49012 F1800
+G1 X20.000 Y40.000 E5.23847 F1800
+G1 X20.000 Y20.000 E5.98682 F1800
+M104 S0
+M84

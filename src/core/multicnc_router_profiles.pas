@@ -24,11 +24,12 @@ type
     SpindleMaxRPM: Integer;
     ColletType: string;
     Firmware: string;
+    DisablePhysicalHoming: Boolean;
     Notes: string;
   end;
 
 const
-  ROUTER_PROFILE_COUNT = 22;
+  ROUTER_PROFILE_COUNT = 23;
 
 procedure GetRouterBrands(AList: TStrings);
 procedure GetRouterModels(const ABrand: string; AList: TStrings);
@@ -50,6 +51,7 @@ const
       SpindlePowerW: 0; SpindleMaxRPM: 0;
       ColletType: '';
       Firmware: 'GRBL 1.1';
+      DisablePhysicalHoming: False;
       Notes: 'Generic machine: adjust the X/Y/Z travel fields to your machine before jogging'
     ),
     (
@@ -60,6 +62,7 @@ const
       SpindlePowerW: 0; SpindleMaxRPM: 0;
       ColletType: '';
       Firmware: 'GRBL 1.1';
+      DisablePhysicalHoming: False;
       Notes: 'Unbranded 3018 kit (typically 775 spindle); confirm travel and $30 on your board'
     ),
     // SainSmart / Genmitsu
@@ -71,6 +74,7 @@ const
       SpindlePowerW: 0; SpindleMaxRPM: 20000;
       ColletType: '';
       Firmware: 'GRBL 1.1f';
+      DisablePhysicalHoming: False;
       Notes: 'V2 control board; early units shipped with a 775 spindle (about 9000-10000 RPM)'
     ),
     (
@@ -81,6 +85,7 @@ const
       SpindlePowerW: 120; SpindleMaxRPM: 10000;
       ColletType: '';
       Firmware: 'GRBL';
+      DisablePhysicalHoming: False;
       Notes: '775 spindle, 60 W rated / 120 W max, 12-24 V; effective engraving area'
     ),
     (
@@ -91,6 +96,7 @@ const
       SpindlePowerW: 300; SpindleMaxRPM: 12000;
       ColletType: '';
       Firmware: 'GRBL';
+      DisablePhysicalHoming: False;
       Notes: '300 W spindle'
     ),
     (
@@ -101,6 +107,7 @@ const
       SpindlePowerW: 400; SpindleMaxRPM: 10000;
       ColletType: '';
       Firmware: 'GRBL 1.1h';
+      DisablePhysicalHoming: False;
       Notes: '400 W DC spindle (0-48 V); max feed 5000 mm/min'
     ),
     (
@@ -111,6 +118,7 @@ const
       SpindlePowerW: 75; SpindleMaxRPM: 9000;
       ColletType: '';
       Firmware: 'GRBL (32-bit MCU)';
+      DisablePhysicalHoming: False;
       Notes: '75 W spindle, 42/52 mm mounts; max feed 2000 mm/min'
     ),
     // Carbide 3D
@@ -122,6 +130,7 @@ const
       SpindlePowerW: 0; SpindleMaxRPM: 0;
       ColletType: '';
       Firmware: 'GRBL 1.1';
+      DisablePhysicalHoming: False;
       Notes: 'Router not included: fit a 65 mm trim router or VFD spindle'
     ),
     (
@@ -132,6 +141,7 @@ const
       SpindlePowerW: 0; SpindleMaxRPM: 0;
       ColletType: '';
       Firmware: 'GRBL 1.1';
+      DisablePhysicalHoming: False;
       Notes: 'Router not included: fit a 65 mm trim router or VFD spindle'
     ),
     (
@@ -142,6 +152,7 @@ const
       SpindlePowerW: 0; SpindleMaxRPM: 0;
       ColletType: '';
       Firmware: 'GRBL 1.1';
+      DisablePhysicalHoming: False;
       Notes: 'Router not included: fit a 65 mm trim router or VFD spindle'
     ),
     (
@@ -152,6 +163,7 @@ const
       SpindlePowerW: 0; SpindleMaxRPM: 0;
       ColletType: '';
       Firmware: 'GRBL 1.1';
+      DisablePhysicalHoming: False;
       Notes: 'Linear rails; router not included (65 mm trim router or VFD spindle)'
     ),
     (
@@ -162,6 +174,7 @@ const
       SpindlePowerW: 0; SpindleMaxRPM: 0;
       ColletType: '';
       Firmware: 'GRBL 1.1';
+      DisablePhysicalHoming: False;
       Notes: 'Linear rails; router not included (65 mm trim router or VFD spindle)'
     ),
     (
@@ -172,6 +185,7 @@ const
       SpindlePowerW: 0; SpindleMaxRPM: 0;
       ColletType: '';
       Firmware: 'GRBL 1.1';
+      DisablePhysicalHoming: False;
       Notes: 'Linear rails; router not included (65 mm trim router or VFD spindle)'
     ),
     // Inventables
@@ -183,6 +197,7 @@ const
       SpindlePowerW: 0; SpindleMaxRPM: 27000;
       ColletType: '';
       Firmware: 'GRBL (X-Controller)';
+      DisablePhysicalHoming: False;
       Notes: 'DeWalt 26200 trim router, 16000-27000 RPM'
     ),
     (
@@ -193,6 +208,7 @@ const
       SpindlePowerW: 1500; SpindleMaxRPM: 24000;
       ColletType: 'ER16';
       Firmware: 'GRBL 1.1h (XCPd)';
+      DisablePhysicalHoming: False;
       Notes: '2 HP air-cooled VFD spindle, 8000-24000 RPM'
     ),
     (
@@ -203,6 +219,7 @@ const
       SpindlePowerW: 1500; SpindleMaxRPM: 24000;
       ColletType: 'ER16';
       Firmware: 'GRBL 1.1h (XCPd)';
+      DisablePhysicalHoming: False;
       Notes: '2 HP air-cooled VFD spindle, 8000-24000 RPM'
     ),
     // FoxAlien
@@ -214,6 +231,7 @@ const
       SpindlePowerW: 0; SpindleMaxRPM: 10000;
       ColletType: '';
       Firmware: 'GRBL';
+      DisablePhysicalHoming: False;
       Notes: '775 spindle; 52 mm and 65 mm clamps for spindle or laser upgrades'
     ),
     (
@@ -224,6 +242,7 @@ const
       SpindlePowerW: 300; SpindleMaxRPM: 0;
       ColletType: '';
       Firmware: 'GRBL';
+      DisablePhysicalHoming: False;
       Notes: '300 W spindle; manufacturer does not publish its RPM'
     ),
     (
@@ -234,6 +253,7 @@ const
       SpindlePowerW: 400; SpindleMaxRPM: 0;
       ColletType: '';
       Firmware: 'GRBL';
+      DisablePhysicalHoming: False;
       Notes: '400 W spindle; manufacturer does not publish its RPM'
     ),
     // OpenBuilds
@@ -245,6 +265,7 @@ const
       SpindlePowerW: 0; SpindleMaxRPM: 0;
       ColletType: '';
       Firmware: 'GRBL (OpenBuilds Control)';
+      DisablePhysicalHoming: False;
       Notes: 'Z travel approximate; spindle/router chosen by the builder'
     ),
     (
@@ -255,9 +276,21 @@ const
       SpindlePowerW: 0; SpindleMaxRPM: 0;
       ColletType: '';
       Firmware: 'GRBL (OpenBuilds Control)';
+      DisablePhysicalHoming: False;
       Notes: 'About 60 mm workable material height with spoilboard'
     ),
-    // TwoTrees
+    // TwoTrees TTC3018: https://twotrees3d.com/products/twotrees-ttc3018-cnc-router-machine
+    (
+      Brand: 'TwoTrees';
+      Model: 'TTC3018';
+      WorkX: 300.0; WorkY: 180.0; WorkZ: 40.0;
+      BaudRate: 115200;
+      SpindlePowerW: 0; SpindleMaxRPM: 0;
+      ColletType: '';
+      Firmware: 'GRBL';
+      DisablePhysicalHoming: True;
+      Notes: 'Working range: 300x180x40 mm. No homing switches in this configuration; set work origin manually. USB/CH340; default connection 115200 8N1. Confirm firmware version and spindle settings on your board.'
+    ),
     (
       Brand: 'TwoTrees';
       Model: 'TTC450';
@@ -266,6 +299,7 @@ const
       SpindlePowerW: 80; SpindleMaxRPM: 8000;
       ColletType: 'ER11';
       Firmware: 'GRBL (MKS DLC32)';
+      DisablePhysicalHoming: False;
       Notes: '80 W 775 spindle; optional 500 W spindle reaches 12000 RPM'
     )
   );

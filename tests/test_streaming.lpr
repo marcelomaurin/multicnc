@@ -322,10 +322,10 @@ begin
     { Controladora muda por 5 s: aviso de silencio, uma unica vez. }
     Sleep(5200);
     S.Poll;
-    Check(Sink.Has('[MultiCNC] No reply from the controller'), 'aviso de controladora sem resposta');
+    Check(Sink.Has('[MultiCNC] No recognized GRBL reply'), 'aviso de controladora sem resposta');
     Sink.Lines.Clear;
     S.Poll;
-    Check(not Sink.Has('No reply'), 'aviso de silencio nao se repete');
+    Check(not Sink.Has('No recognized GRBL reply'), 'aviso de silencio nao se repete');
     { Linhas recebidas com prefixo RX; relatorio de temperatura filtrado. }
     F.Reply('Grbl 1.1h [''$'' for help]' + #10);
     Check(Sink.Has('RX  Grbl 1.1h'), 'linha recebida com prefixo RX');

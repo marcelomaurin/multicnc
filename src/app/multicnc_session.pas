@@ -46,6 +46,8 @@ type
     FLastTempQuery: QWord;
     FConnectedAt, FLastRxAt: QWord;
     FSilenceWarned: Boolean;
+    FPhysicalHomingAllowed: Boolean;
+    FRequireGrblReply, FGrblProbeLogged, FGrblConfirmedLogged: Boolean;
     FMarlinReadyAt: QWord;
     FMarlinHandshakeSent: Boolean;
     FEnvelopeX, FEnvelopeY, FEnvelopeZ: Double;
@@ -74,7 +76,8 @@ type
     { Conecta usando um transporte ja criado (testes, simuladores). A sessao
       passa a ser dona de ATransportObject. }
     function ConnectTransport(Kind: TMachineType; ProtocolKind: TProtocolKind;
-      ATransportObject: TObject; const ATransport: IMultiCNCTransport): Boolean;
+      ATransportObject: TObject; const ATransport: IMultiCNCTransport;
+      RequireGrblReply: Boolean = False): Boolean;
     procedure Disconnect;
     procedure LoadFile(const FileName: string);
     function Start: Boolean;
@@ -115,6 +118,7 @@ type
     function QueryTemperatures: Boolean;
     function SetHotendTemperature(ATemp: Double): Boolean;
     function SetBedTemperature(ATemp: Double): Boolean;
+    property PhysicalHomingAllowed: Boolean read FPhysicalHomingAllowed write FPhysicalHomingAllowed;
     property EnvelopeX: Double read FEnvelopeX;
     property EnvelopeY: Double read FEnvelopeY;
     property EnvelopeZ: Double read FEnvelopeZ;
@@ -140,6 +144,7 @@ begin
   FMarlinReadyAt := 0;
   FMarlinHandshakeSent := False;
   FState := ssDisconnected;
+  FPhysicalHomingAllowed := True;
 end;
 
 destructor TSimulationSession.Destroy;
@@ -206,29 +211,42 @@ end;
 procedure TSimulationSession.CheckControllerSilence(ANow: QWord);
 var StartAt: QWord;
 begin
-  if FSilenceWarned or (FLastRxAt <> 0) or not Connected then Exit;
+  if FSilenceWarned or not Connected then Exit;
+  if (FLastRxAt <> 0) and (not FRequireGrblReply or FMachine.HasControllerReply) then Exit;
   if FProtocolKind = pkMarlin then
   begin
     if FMarlinReadyAt = 0 then Exit;
+    if (FMachineKind = mtPrinter3D) and not FMarlinHandshakeSent then Exit;
     StartAt := FMarlinReadyAt;
   end
-  else
+  else begin
     StartAt := FConnectedAt;
+    if FRequireGrblReply then Inc(StartAt, 2000);
+  end;
   if ANow < StartAt + 5000 then Exit;
   FSilenceWarned := True;
-  if FProtocolKind = pkMarlin then
+  if (FProtocolKind = pkMarlin) and (FMachineKind <> mtPrinter3D) then
+    Diag('No reply from the CNC controller after connecting. Marlin is selected; ' +
+      'for a GRBL router select GRBL. No printer handshake was sent.')
+  else if FProtocolKind = pkMarlin then
     Diag('No reply from the controller 5 s after M115. Port opened, but nothing came back: ' +
       'check the baud rate (Creality/Ender stock firmware: 115200; some boards use 250000), ' +
       'that this COM port is the printer, and that Protocol is Marlin.')
   else
-    Diag('No reply from the controller 5 s after connecting (no GRBL banner or status). ' +
+    Diag('No recognized GRBL reply after status queries (no GRBL banner or status). ' +
       'Check the baud rate (GRBL 1.1: 115200), that this COM port is the machine, ' +
       'and that Protocol is GRBL.');
 end;
 
 procedure TSimulationSession.Receive(const Data: string);
-var Lines: TStringList; I: Integer; Shown: string;
+var Lines: TStringList; I: Integer; Shown: string; FirstReply: Boolean;
 begin
+  FirstReply := FLastRxAt = 0;
+  if FRequireGrblReply and FMachine.HasControllerReply and not FGrblConfirmedLogged then begin
+    FGrblConfirmedLogged := True;
+    FirstReply := True;
+    Diag('Resposta GRBL reconhecida. Comunicacao com a controladora confirmada.');
+  end;
   FLastRxAt := GetTickCount64;
   if not Assigned(FOnLog) then Exit;
   { Relatorios de estado periodicos do GRBL nao poluem o console. }
@@ -237,8 +255,8 @@ begin
     Lines.Text := Data;
     Shown := '';
     for I := 0 to Lines.Count - 1 do
-      if (Trim(Lines[I]) <> '') and (Copy(Trim(Lines[I]), 1, 1) <> '<') and
-         not IsTemperatureReport(Trim(Lines[I])) then
+      if (Trim(Lines[I]) <> '') and (FirstReply or
+         ((Copy(Trim(Lines[I]), 1, 1) <> '<') and not IsTemperatureReport(Trim(Lines[I])))) then
         Shown := Shown + 'RX  ' + Trim(Lines[I]) + LineEnding;
   finally
     Lines.Free;
@@ -272,15 +290,16 @@ begin
   begin
     Serial := TChatGPTSerialTransport.Create(Device, BaudRate);
     Serial.Serial.OnTXSend := @SerialTX;
-    Result := ConnectTransport(Kind, ProtocolKind, Serial, Serial);
+    Result := ConnectTransport(Kind, ProtocolKind, Serial, Serial, ProtocolKind = pkGRBL);
     { O transporte continua vivo ate a proxima conexao: traz o motivo real. }
-    if not Result and (Serial.Serial.LastError <> '') then
-      FLastError := Serial.Serial.LastError;
+    if not Result and (Serial.LastError <> '') then
+      FLastError := Serial.LastError;
   end;
 end;
 
 function TSimulationSession.ConnectTransport(Kind: TMachineType; ProtocolKind: TProtocolKind;
-  ATransportObject: TObject; const ATransport: IMultiCNCTransport): Boolean;
+  ATransportObject: TObject; const ATransport: IMultiCNCTransport;
+  RequireGrblReply: Boolean): Boolean;
 var Protocol: IMultiCNCProtocol;
 begin
   Result := False;
@@ -293,6 +312,9 @@ begin
   FTransportObject := ATransportObject;
   FTransport := ATransport;
   FProtocolKind := ProtocolKind;
+  FRequireGrblReply := RequireGrblReply and (ProtocolKind = pkGRBL);
+  FGrblProbeLogged := False;
+  FGrblConfirmedLogged := False;
   FMachineKind := Kind;
   if ProtocolKind = pkMarlin then
   begin
@@ -311,6 +333,7 @@ begin
   FAlarmBase := 0;
   FLastError := '';
   FLastTempQuery := 0;
+  FLastPoll := 0;
   FConnectedAt := GetTickCount64;
   FLastRxAt := 0;
   FSilenceWarned := False;
@@ -324,6 +347,11 @@ begin
       de enviar o primeiro comando; GRBL continua imediato. }
     if ProtocolKind = pkMarlin then
       FMarlinReadyAt := GetTickCount64 + 2500;
+    if FRequireGrblReply then begin
+      if not FTransport.Send(#13#10#13#10) then
+        Diag('Falha ao enviar a inicializacao GRBL.');
+      Diag('GRBL: inicializacao enviada (CR/LF). Aguardando boot e resposta de estado.');
+    end;
   end
   else
   begin
@@ -347,6 +375,7 @@ end;
 function TSimulationSession.GetControllerReady: Boolean;
 begin
   Result := Connected;
+  if Result and FRequireGrblReply then Result := FMachine.HasControllerReply;
   if Result and (FProtocolKind = pkMarlin) then
     Result := (FMarlinReadyAt = 0) or (GetTickCount64 >= FMarlinReadyAt);
 end;
@@ -427,6 +456,8 @@ end;
 
 function TSimulationSession.RunFraming(const AFramingLines: TStrings): Boolean;
 begin
+  if FRequireGrblReply and not ControllerReady then
+    Exit(Fail('Aguarde a resposta GRBL antes de enviar comandos.'));
   if not Connected then Exit(Fail('Machine disconnected'));
   if (AFramingLines = nil) or (AFramingLines.Count = 0) then Exit(Fail('No framing path available'));
   if FState in [ssRunning, ssPaused] then Exit(Fail('Machine is busy with another program'));
@@ -451,7 +482,7 @@ function TSimulationSession.Start: Boolean;
 var Transformed: TStringList;
 begin
   if not Connected then Exit(Fail('Machine disconnected'));
-  if not ControllerReady then Exit(Fail('Aguarde a inicializacao do firmware Marlin'));
+  if not ControllerReady then Exit(Fail('Aguarde a resposta e inicializacao da controladora'));
   if FLoadedLines.Count = 0 then Exit(Fail('No program loaded'));
   if FState in [ssRunning, ssPaused] then Exit(Fail('Program is already running'));
   if FMachine.GetState in [msAlarm, msError] then
@@ -544,11 +575,23 @@ var Now64: QWord;
 begin
   if not Assigned(FTransport) then Exit;
   FTransport.Poll;
+  if not FTransport.IsConnected then begin
+    if FTransportObject is TChatGPTSerialTransport then begin
+      FLastError := TChatGPTSerialTransport(FTransportObject).LastError;
+      if FLastError <> '' then Diag(FLastError);
+    end;
+    FState := ssError; Exit;
+  end;
   CheckControllerSilence(GetTickCount64);
   { GRBL: '?' e de tempo real e nao ocupa o buffer. }
   if (FProtocolKind = pkGRBL) and Connected then
   begin
     Now64 := GetTickCount64;
+    if FRequireGrblReply and (Now64 < FConnectedAt + 2000) then Exit;
+    if FRequireGrblReply and not FGrblProbeLogged then begin
+      FGrblProbeLogged := True;
+      Diag('GRBL TX ? (consulta de estado, sem movimento).');
+    end;
     if Now64 - FLastPoll >= StatusPollMS then
     begin
       FLastPoll := Now64;
@@ -663,6 +706,8 @@ end;
 function TSimulationSession.SetHome(out AHomePos: TMachinePosition): Boolean;
 begin
   AHomePos := EmptyPosition;
+  if FRequireGrblReply and not ControllerReady then
+    Exit(Fail('Aguarde a resposta GRBL antes de enviar comandos.'));
   if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Unavailable while program is running'));
   Result := FMachine.SetHome(AHomePos);
   if not Result then FLastError := FMachine.LastError;
@@ -670,6 +715,10 @@ end;
 
 function TSimulationSession.PhysicalHoming: Boolean;
 begin
+  if not FPhysicalHomingAllowed then
+    Exit(Fail('Este perfil nao possui homing fisico. Defina a origem manualmente.'));
+  if FRequireGrblReply and not ControllerReady then
+    Exit(Fail('Aguarde a resposta GRBL antes de enviar comandos.'));
   if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Unavailable while program is running'));
   Result := FMachine.PhysicalHoming;
   if Result then RequestPositionAfterMotion
@@ -678,6 +727,10 @@ end;
 
 function TSimulationSession.Home(AFeed: Double = 0): Boolean;
 begin
+  if not FPhysicalHomingAllowed and not HomePositionSet then
+    Exit(Fail('Defina uma referencia manual antes de retornar a ela.'));
+  if FRequireGrblReply and not ControllerReady then
+    Exit(Fail('Aguarde a resposta GRBL antes de enviar comandos.'));
   if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Unavailable while program is running'));
   Result := FMachine.Home(AFeed);
   if Result then RequestPositionAfterMotion
@@ -686,6 +739,8 @@ end;
 
 function TSimulationSession.SetFeedRate(AFeed: Double): Boolean;
 begin
+  if FRequireGrblReply and not ControllerReady then
+    Exit(Fail('Aguarde a resposta GRBL antes de enviar comandos.'));
   if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Unavailable while program is running'));
   Result := FMachine.SetFeedRate(AFeed);
   if not Result then FLastError := FMachine.LastError;
@@ -693,6 +748,8 @@ end;
 
 function TSimulationSession.Zero: Boolean;
 begin
+  if FRequireGrblReply and not ControllerReady then
+    Exit(Fail('Aguarde a resposta GRBL antes de enviar comandos.'));
   if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Unavailable while program is running'));
   if Assigned(FMachine) and (FMachine.GetMachineType = mtPrinter3D) then
     Exit(Fail('Referenciamento de zero indisponivel para impressora 3D'));
@@ -708,6 +765,8 @@ end;
 
 function TSimulationSession.Unlock: Boolean;
 begin
+  if FRequireGrblReply and not ControllerReady then
+    Exit(Fail('Aguarde a resposta GRBL antes de enviar comandos.'));
   if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Unavailable while program is running'));
   Result := FMachine.Unlock;
   if Result then
@@ -725,7 +784,7 @@ end;
 
 function TSimulationSession.Jog(Axis: TAxis; Distance, Feed: Double): Boolean;
 begin
-  if not ControllerReady then Exit(Fail('Aguarde a inicializacao do firmware Marlin'));
+  if not ControllerReady then Exit(Fail('Aguarde a resposta e inicializacao da controladora'));
   if not SupportsAxis(Axis) then Exit(Fail('Eixo indisponivel'));
   if FState in [ssRunning, ssPaused] then Exit(Fail('Unavailable while program is running'));
   if not ((Abs(Distance) > 0) and (Abs(Distance) <= 100) and (Feed >= 1) and (Feed <= 10000)) then
@@ -738,7 +797,7 @@ end;
 function TSimulationSession.MoveTo(X, Y, Z, Feed: Double): Boolean;
 begin
   if not Connected then Exit(Fail('Maquina desconectada'));
-  if not ControllerReady then Exit(Fail('Aguarde a inicializacao do firmware Marlin'));
+  if not ControllerReady then Exit(Fail('Aguarde a resposta e inicializacao da controladora'));
   if FState in [ssRunning, ssPaused] then Exit(Fail('Unavailable while program is running'));
   if not ((Feed >= 1) and (Feed <= 10000)) then
     Exit(Fail('Avanco fora dos limites (1-10000 mm/min)'));
@@ -749,8 +808,10 @@ end;
 
 function TSimulationSession.Send(const Line: string): Boolean;
 begin
+  if not FPhysicalHomingAllowed and SameText(Trim(Line), '$H') then
+    Exit(Fail('Este perfil nao possui homing fisico.'));
   if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Unavailable while program is running'));
-  if not ControllerReady then Exit(Fail('Aguarde a inicializacao do firmware Marlin'));
+  if not ControllerReady then Exit(Fail('Aguarde a resposta e inicializacao da controladora'));
   if (Trim(Line) = '') or (Pos(#10, Line) > 0) or (Pos(#13, Line) > 0) then
     Exit(Fail('Informe um unico comando'));
   Result := FMachine.SendGCode(Line);
@@ -777,14 +838,14 @@ end;
 
 function TSimulationSession.SetHotendTemperature(ATemp: Double): Boolean;
 begin
-  if not ControllerReady then Exit(Fail('Aguarde a inicializacao do firmware Marlin'));
+  if not ControllerReady then Exit(Fail('Aguarde a resposta e inicializacao da controladora'));
   if Assigned(FMachine) then Result := FMachine.SetHotendTemperature(ATemp)
   else Result := False;
 end;
 
 function TSimulationSession.SetBedTemperature(ATemp: Double): Boolean;
 begin
-  if not ControllerReady then Exit(Fail('Aguarde a inicializacao do firmware Marlin'));
+  if not ControllerReady then Exit(Fail('Aguarde a resposta e inicializacao da controladora'));
   if Assigned(FMachine) then Result := FMachine.SetBedTemperature(ATemp)
   else Result := False;
 end;
