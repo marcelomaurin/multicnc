@@ -70,14 +70,31 @@ andamento registrado neste arquivo. Mesmo procedimento do RouterPCB e do MakeRou
       detectado, tangência linha-arco, perfil com furo vira região com ilha.
 
 ### Fase 2: operações básicas (≈ 6 h)
-- [ ] Planos de referência (deslocado, em ângulo, pela face).
-- [ ] Ressalto e corte extrudado: cego, passante, até a face, plano médio, inclinação,
-      direção 2.
-- [ ] Ressalto e corte revolucionado.
+- [ ] Referencial local dos planos padrão e de faces planas (tabela em `ARCHITECTURE.md` 3A).
+- [ ] Plano de referência: deslocado (com número de planos), paralelo por ponto, em ângulo,
+      plano médio, por três pontos, por linha e ponto, normal à curva, tangente à face
+      cilíndrica. Eixo de referência e eixos temporários.
+- [ ] Ressalto/Base e Corte extrudado com o PropertyManager completo (`ARCHITECTURE.md` 3B):
+      De (plano do esboço, face, vértice, deslocamento); condições Cego, Passante, Passante -
+      ambos, Até o próximo, Até o vértice, Até a superfície, Deslocamento da superfície, Até o
+      corpo, Plano médio; inverter direção; direção por aresta; inclinação; Direção 2;
+      Mesclar resultado; Inverter lado a cortar; Recurso fino; Contornos selecionados;
+      Escopo do recurso.
+- [ ] Mensagens de erro e aviso do SolidWorks (perfil aberto, corte sem interseção,
+      multicorpo, inclinação grande, "até" sem face).
+- [ ] Ressalto e corte revolucionado no mesmo padrão.
 - [ ] Booleanas BSP (D2) e nomes estáveis das faces.
 - [ ] Reconstrução com cache a partir da primeira operação alterada; erros por operação.
-- [ ] Testes: volumes analíticos (bloco, furo passante, cilindro revolucionado), malha sempre
-      fechada, nome de face mantido depois de um corte, cota alterada reconstrói.
+- [ ] Testes:
+  - volume de cada condição final (cego, plano médio, até o próximo, até a superfície
+    inclinada, deslocamento da superfície, passante - ambos);
+  - inclinação de 5° em bloco: volume do tronco de pirâmide;
+  - recurso fino de um retângulo aberto e de um fechado com tampas;
+  - contornos selecionados (só uma das regiões extrudada);
+  - inverter lado a cortar; corte sem interseção gera aviso; perfil aberto gera erro;
+  - plano deslocado, em ângulo e plano médio na posição exata; referencial local da tabela;
+  - nome de face `lat:E` mantido ao acrescentar entidade no sketch;
+  - malha sempre fechada; cota alterada reconstrói.
 
 ### Fase 3: vista 3D e árvore (≈ 6 h)
 - [ ] `TOpenGLControl` com Y para cima; orbitar (meio), deslocar (Ctrl + meio), zoom no
@@ -90,7 +107,12 @@ andamento registrado neste arquivo. Mesmo procedimento do RouterPCB e do MakeRou
 - [ ] Vista de seção dinâmica (plano, deslocamento, ângulo, face hachurada).
 - [ ] Vistas com nome no `.mcad` e tela dividida em 1, 2 ou 4 janelas.
 - [ ] Seleção por cor (face, aresta, vértice) e realce.
-- [ ] Modo *sketch*: gira para o plano, grade, relações, cotas editáveis com duplo clique.
+- [ ] Modo *sketch*: gira para "Normal a" o plano ao entrar (opção), Ctrl+8 duas vezes vê pelo
+      outro lado, vista de seção do esboço, peça semitransparente, Converter entidades e Offset
+      de entidades, canto de confirmação (sair / cancelar), grade, relações e cotas editáveis.
+- [ ] PropertyManager no painel esquerdo com árvore suspensa sobre a vista; pré-visualização
+      amarela (corte vermelho), seta de arraste e cota na tela; sketch absorvido sob a operação;
+      Editar operação / Editar esboço.
 - [ ] *Sketch* sobre face plana.
 - [ ] Árvore de operações: editar, suprimir, excluir, renomear, barra de retrocesso.
 - [ ] Painel de propriedades e abas de comandos (padrão visual da suíte).
