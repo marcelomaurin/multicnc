@@ -1,0 +1,12 @@
+data/
+node_modules/
+*.log
+apps/control/bin/
+apps/control/lib/
+apps/control/.lazarus-build/
+*.lps
+*.bak
+*.compiled
+*.res
+*.o
+*.ppu
