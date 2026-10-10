@@ -10,7 +10,7 @@ uses
   SysUtils, Classes, Math, multicad_types, multicad_units, multicad_materials,
   multicad_feature, multicad_refgeom, multicad_sketch, multicad_extrude,
   multicad_document, multicad_mesh, multicad_kernel, multicad_solver,
-  multicad_profile, multicad_triangulate, multicad_sweep, multicad_bridge, multicad_csg;
+  multicad_profile, multicad_triangulate, multicad_sweep, multicad_bridge, multicad_csg, multicad_revolve, multicad_rebuild;
 
 var
   Passed, Failed: Integer;
@@ -1156,6 +1156,330 @@ begin
   end;
 end;
 
+{ ---------- fase 2C: reconstrucao e operacoes ---------- }
+
+{ Retangulo totalmente definido no plano dado. }
+function RectSketch(D: TCadDocument; const APlane: string; X0, Y0, W, H: Double): TCadSketch;
+var
+  L: Integer;
+begin
+  Result := D.AddSketch(APlane);
+  L := Result.AddRectangle(X0, Y0, X0 + W, Y0 + H);
+  Result.AddFixed(L, 1);
+  Result.AddDimension(ckHorizontalDistance, L, 0, 0, 0, W);
+  Result.AddDimension(ckVerticalDistance, L + 1, 0, 0, 0, H);
+end;
+
+function RegionsArea(S: TCadSketch): Double;
+var
+  P: TCadProfileResult;
+  I: Integer;
+begin
+  P := CadSketchProfiles(S, 0.01);
+  Result := 0;
+  for I := 0 to High(P.Regions) do
+    Result := Result + P.Regions[I].Area;
+end;
+
+procedure TestRebuild;
+var
+  D, D2: TCadDocument;
+  RB, RB2: TCadRebuilder;
+  S1, S2, S3, S4: TCadSketch;
+  X1, X2, X3, X4: TCadExtrude;
+  RV: TCadRevolve;
+  P30, PM, PA: TCadPlane;
+  E, J: string;
+  V, Exact, HolesArea, Dl: Double;
+  B: TCadBox3;
+  Bd: TCadBody;
+  F, I, L: Integer;
+begin
+  { ----- suporte: base + dois furos num esboco sobre a face de cima ----- }
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  try
+    S1 := RectSketch(D, 'plane:1', 0, 0, 80, 50);
+    X1 := D.AddExtrude(S1.Id, 10);
+    Check(RB.Rebuild = 0, 'base reconstruida sem erro: ' + X1.Message);
+    Check((RB.BodyCount = 1) and Near(RB.TotalVolume, 40000, 1E-6), 'base 80x50x10 = 40000 mm3');
+    Check(S1.State = fsOk, 'esboço da base ok');
+    Check(RB.FindFace('Ressalto-Extrusão1/fim', Bd, F), 'face do fim da base com nome estavel');
+    S2 := D.AddSketch('face:Ressalto-Extrusão1/fim');
+    S2.AddCircle(20, 25, 4);
+    S2.AddCircle(60, 25, 4);
+    X2 := D.AddExtrude(S2.Id, 0, True);
+    X2.Dir1.EndCond := ecThroughAll;
+    Check(RB.Rebuild = 0, 'furos passantes sem erro: ' + X2.Message);
+    HolesArea := RegionsArea(S2);
+    Check(Near(RB.TotalVolume, 40000 - HolesArea * 10, 1E-4),
+      Format('volume com 2 furos (%.4f x %.4f)', [RB.TotalVolume, 40000 - HolesArea * 10]));
+    Check(RB.FindFace('Corte-Extrusão1/lat:' + IntToStr(S2.Entity(0).Id), Bd, F) and
+      (Bd.Mesh.Faces[F].Surf = skCylinder), 'parede do furo e cilindrica e tem nome estavel');
+    Check(Near(RB.MassKg, CadMassKg(D.MaterialData, RB.TotalVolume), 1E-12), 'massa pelo material');
+    { cache: nada mudou }
+    RB.Rebuild;
+    Check(RB.Recomputed = 0, Format('sem mudanca nada e recalculado (%d)', [RB.Recomputed]));
+    { mudar a cota da base }
+    S1.SetDimension('D1', 100);
+    Check(RB.Rebuild = 0, 'reconstroi depois de mudar a cota');
+    Check(Near(RB.TotalVolume, 50000 - HolesArea * 10, 1E-4), 'base 100 mm: volume atualizado e furos mantidos');
+    Check(RB.Recomputed >= 2, 'recalcula a base e os furos');
+    { retrocesso: antes dos furos }
+    D.RollbackIndex := D.IndexOfId(X2.Id);
+    RB.Rebuild;
+    Check(Near(RB.TotalVolume, 50000, 1E-6), 'barra de retrocesso antes dos furos');
+    D.RollbackIndex := -1;
+    { suprimir os furos }
+    X2.Suppressed := True;
+    RB.Rebuild;
+    Check(Near(RB.TotalVolume, 50000, 1E-6), 'furos suprimidos');
+    X2.Suppressed := False;
+    RB.Rebuild;
+    { JSON ida e volta reconstroi igual }
+    J := D.ToJSON;
+    D2 := TCadDocument.Create;
+    RB2 := TCadRebuilder.Create(D2);
+    try
+      Check(D2.LoadFromJSON(J, E), 'le o suporte do JSON: ' + E);
+      Check((RB2.Rebuild = 0) and Near(RB2.TotalVolume, RB.TotalVolume, 1E-6), 'arquivo reaberto reconstroi o mesmo solido');
+    finally
+      RB2.Free;
+      D2.Free;
+    end;
+    { referencia perdida: face apagada }
+    S2.PlaneRef := 'face:Ressalto-Extrusão1/naoexiste';
+    Check(RB.Rebuild >= 1, 'face inexistente gera erro');
+    Check((S2.State = fsOk) and (X2.State = fsError) and (Pos('não existe', X2.Message) > 0),
+      'operacao com referencia perdida fica com erro na arvore: ' + X2.Message);
+    Check(Near(RB.TotalVolume, 50000, 1E-6), 'operacao com erro nao muda o solido');
+  finally
+    RB.Free;
+    D.Free;
+  end;
+
+  { ----- condicoes finais ----- }
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  try
+    S1 := RectSketch(D, 'plane:1', 0, 0, 80, 50);
+    X1 := D.AddExtrude(S1.Id, 10);
+    X1.Dir1.EndCond := ecMidPlane;
+    RB.Rebuild;
+    B := RB.Body(0).Mesh.Bounds;
+    Check(Near(B.Min.Z, -5, 1E-9) and Near(B.Max.Z, 5, 1E-9), 'plano medio: Z de -5 a 5');
+    X1.Dir1.EndCond := ecBlind;
+    { plano a 30 mm e plano medio entre Frontal e ele }
+    P30 := D.AddPlane(ptOffset, ['plane:1'], 30);
+    PM := D.AddPlane(ptMidPlane, ['plane:1', 'plane:' + IntToStr(P30.Id)]);
+    RB.Rebuild;
+    Check(P30.FrameValid and Near(P30.Frame.Origin.Z, 30, 1E-9), 'plano deslocado a 30 mm');
+    Check(PM.FrameValid and Near(PM.Frame.Origin.Z, 15, 1E-9) and NearV(PM.Frame.Normal, V3(0, 0, 1)), 'plano medio a 15 mm');
+    { ate a superficie (plano paralelo) }
+    S3 := RectSketch(D, 'plane:1', 100, 0, 10, 10);
+    X3 := D.AddExtrude(S3.Id, 0);
+    X3.Dir1.EndCond := ecUpToSurface;
+    X3.Dir1.Target := 'plane:' + IntToStr(P30.Id);
+    RB.Rebuild;
+    Check((X3.State = fsWarning) and (Pos('corpo separado', X3.Message) > 0), 'ressalto separado avisa multicorpo');
+    Check((RB.BodyCount = 2) and Near(RB.TotalVolume, 40000 + 3000, 1E-6), 'ate a superficie: 10x10x30');
+    { deslocamento da superficie }
+    X3.Dir1.EndCond := ecOffsetFromSurface;
+    X3.Dir1.Offset := 5;
+    RB.Rebuild;
+    Check(Near(RB.TotalVolume, 40000 + 2500, 1E-6), 'deslocamento de 5 mm da superficie: 25 mm');
+    { ate o vertice }
+    S4 := D.AddSketch('plane:' + IntToStr(P30.Id));
+    I := S4.AddPoint(0, 0);
+    X3.Dir1.EndCond := ecUpToVertex;
+    X3.Dir1.Target := Format('sketch:%d/%d.1', [S4.Id, I]);
+    RB.Rebuild;
+    Check((X3.State <> fsError) and Near(RB.TotalVolume, 43000, 1E-6), 'ate o vertice a 30 mm: ' + X3.Message);
+    X3.Suppressed := True;
+    { ate o proximo: placa em z=30..35, ressalto partindo do topo da base }
+    S4 := RectSketch(D, 'plane:' + IntToStr(P30.Id), 0, 0, 80, 50);
+    X4 := D.AddExtrude(S4.Id, 5);
+    S3 := RectSketch(D, 'face:Ressalto-Extrusão1/fim', 10, 10, 10, 10);
+    X2 := D.AddExtrude(S3.Id, 0);
+    X2.Dir1.EndCond := ecUpToNext;
+    RB.Rebuild;
+    Check(X2.State = fsOk, 'ate o proximo sem erro: ' + X2.Message);
+    Check((RB.BodyCount = 1) and Near(RB.TotalVolume, 40000 + 20000 + 10 * 10 * 20, 1E-5),
+      Format('ate o proximo une base, coluna de 20 mm e placa (%d corpos, %.3f)', [RB.BodyCount, RB.TotalVolume]));
+    X4.Suppressed := True;
+    RB.Rebuild;
+    Check((X2.State = fsError) and (Pos('inverta', X2.Message) > 0), 'ate o proximo sem face a frente gera erro');
+    X4.Suppressed := False;
+    { corte passante nos dois sentidos a partir do plano medio }
+    S3 := D.AddSketch('plane:' + IntToStr(PM.Id));
+    S3.AddCircle(40, 25, 3);
+    X3 := D.AddExtrude(S3.Id, 0, True);
+    X3.Dir1.EndCond := ecThroughAllBoth;
+    RB.Rebuild;
+    V := RegionsArea(S3);
+    Check((X3.State = fsOk) and Near(RB.TotalVolume, 40000 + 20000 + 2000 - V * 15, 1E-4),
+      Format('passante nos dois sentidos fura base e placa (%.4f)', [RB.TotalVolume]));
+  finally
+    RB.Free;
+    D.Free;
+  end;
+
+  { ----- ate superficie inclinada ----- }
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  try
+    S1 := D.AddSketch('plane:1');
+    L := S1.AddLine(0, 40, 100, 40, True);
+    PA := D.AddPlane(ptAngle, ['plane:2', Format('sketch:%d/%d', [S1.Id, L])], 30);
+    S2 := RectSketch(D, 'plane:2', 0, -10, 10, 10);
+    X1 := D.AddExtrude(S2.Id, 0);
+    X1.Dir1.EndCond := ecUpToSurface;
+    X1.Dir1.Target := 'plane:' + IntToStr(PA.Id);
+    RB.Rebuild;
+    Check(PA.FrameValid, 'plano em angulo: ' + PA.Message);
+    Exact := 100 * (40 - 5 * Tan(30 * Pi / 180));
+    Check((X1.State <> fsError) and RelNear(RB.TotalVolume, Exact, 1E-6),
+      Format('ate superficie inclinada (%.4f x %.4f) %s', [RB.TotalVolume, Exact, X1.Message]));
+    Check(RB.FindFace('Ressalto-Extrusão1/fim', Bd, F) and (Bd.Mesh.Faces[F].Surf = skPlane),
+      'face inclinada do fim com nome estavel');
+  finally
+    RB.Free;
+    D.Free;
+  end;
+
+  { ----- inclinacao, recurso fino, contornos, inverter lado ----- }
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  try
+    S1 := RectSketch(D, 'plane:1', 0, 0, 80, 50);
+    X1 := D.AddExtrude(S1.Id, 10);
+    X1.Dir1.Draft := 5;
+    RB.Rebuild;
+    Dl := 10 * Tan(5 * Pi / 180);
+    Check(Near(RB.TotalVolume, 10 * (4000 - Dl * 130 + 4 / 3 * Dl * Dl), 1E-6), 'ressalto com inclinacao de 5 graus');
+    X1.Dir1.Draft := 0;
+    { inverter lado a cortar: sobra so o quadrado }
+    S2 := RectSketch(D, 'plane:1', 10, 10, 20, 20);
+    X2 := D.AddExtrude(S2.Id, 0, True);
+    X2.Dir1.EndCond := ecThroughAllBoth;
+    X2.FlipSide := True;
+    RB.Rebuild;
+    Check(Near(RB.TotalVolume, 4000, 1E-6), 'inverter lado a cortar deixa so o quadrado');
+    X2.FlipSide := False;
+    RB.Rebuild;
+    Check(Near(RB.TotalVolume, 36000, 1E-6), 'corte normal tira o quadrado');
+    { corte que nao toca }
+    S3 := RectSketch(D, 'plane:1', 200, 0, 10, 10);
+    X3 := D.AddExtrude(S3.Id, 5, True);
+    RB.Rebuild;
+    Check((X3.State = fsWarning) and (Pos('não intercepta', X3.Message) > 0), 'corte fora avisa: ' + X3.Message);
+    X3.Suppressed := True;
+    { contornos selecionados }
+    S3 := D.AddSketch('plane:1');
+    S3.AddRectangle(100, 0, 110, 10);
+    S3.AddRectangle(120, 0, 140, 10);
+    X3 := D.AddExtrude(S3.Id, 5);
+    X3.Merge := False;
+    X3.Contours := ['region:' + IntToStr(S3.Entity(4).Id)];
+    RB.Rebuild;
+    Check(Near(RB.TotalVolume, 36000 + 1000, 1E-6), 'contornos selecionados: so o segundo retangulo (200x5)');
+    X3.Contours := ['region:999'];
+    RB.Rebuild;
+    Check(X3.State = fsError, 'contorno inexistente gera erro');
+  finally
+    RB.Free;
+    D.Free;
+  end;
+
+  { ----- recurso fino ----- }
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  try
+    S1 := RectSketch(D, 'plane:1', 0, 0, 20, 20);
+    X1 := D.AddExtrude(S1.Id, 10);
+    X1.Thin := True;
+    X1.ThinType := ttOneDirection;
+    X1.ThinT1 := 2;
+    RB.Rebuild;
+    Check(Near(RB.TotalVolume, (24 * 24 - 20 * 20) * 10, 1E-6), 'fino fechado para fora: 1760 ' + X1.Message);
+    Check(RB.FindFace(Format('Ressalto-Extrusão1/lat:%d/out', [S1.Entity(0).Id]), Bd, F) and
+      RB.FindFace(Format('Ressalto-Extrusão1/lat:%d/in', [S1.Entity(0).Id]), Bd, F), 'faces /out e /in do fino');
+    X1.ThinType := ttMidPlane;
+    RB.Rebuild;
+    Check(Near(RB.TotalVolume, (22 * 22 - 18 * 18) * 10, 1E-6), 'fino plano medio: 1600');
+    X1.ThinType := ttOneDirection;
+    X1.CapEnds := True;
+    X1.CapThickness := 1;
+    RB.Rebuild;
+    Check(Near(RB.TotalVolume, 24 * 24 * 10 - 20 * 20 * 8, 1E-6),
+      Format('tampar extremidades (%.3f) %s', [RB.TotalVolume, X1.Message]));
+  finally
+    RB.Free;
+    D.Free;
+  end;
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  try
+    S1 := D.AddSketch('plane:1');
+    S1.AddLine(0, 0, 20, 0);
+    S1.AddLine(20, 0, 20, 20);
+    X1 := D.AddExtrude(S1.Id, 5);
+    RB.Rebuild;
+    Check((X1.State = fsError) and (Pos('Recurso fino', X1.Message) > 0), 'perfil aberto sem fino: erro ' + X1.Message);
+    X1.Thin := True;
+    X1.ThinT1 := 2;
+    RB.Rebuild;
+    Check((X1.State = fsOk) and Near(RB.TotalVolume, 76 * 5, 1E-6), Format('fino aberto em L (%.4f) %s', [RB.TotalVolume, X1.Message]));
+    Check(RB.FindFace('Ressalto-Extrusão1/ponta1', Bd, F) and RB.FindFace('Ressalto-Extrusão1/ponta2', Bd, F), 'pontas do fino aberto');
+  finally
+    RB.Free;
+    D.Free;
+  end;
+
+  { ----- revolucao e corte revolucionado ----- }
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  try
+    S1 := D.AddSketch('plane:1');
+    S1.AddRectangle(0, 0, 10, 40);
+    S1.AddCenterline(0, -5, 0, 50);
+    RV := D.AddRevolve(S1.Id, 360);
+    RB.Rebuild;
+    Check(RV.State = fsOk, 'revolucao sem erro: ' + RV.Message);
+    Check(RelNear(RB.TotalVolume, Pi * 100 * 40, 0.005), Format('eixo revolucionado r10 x 40 (%.2f)', [RB.TotalVolume]));
+    S2 := D.AddSketch('plane:1');
+    S2.AddRectangle(6, 30, 12, 40);
+    S2.AddCenterline(0, 0, 0, 10);
+    RV := D.AddRevolve(S2.Id, 360, True);
+    RB.Rebuild;
+    Check(RV.State = fsOk, 'corte revolucionado sem erro: ' + RV.Message);
+    Check(RelNear(RB.TotalVolume, Pi * 100 * 40 - Pi * (100 - 36) * 10, 0.005), 'rebaixo revolucionado na ponta');
+    S3 := D.AddSketch('plane:1');
+    S3.AddRectangle(20, 0, 30, 10);
+    RV := D.AddRevolve(S3.Id, 90);
+    RB.Rebuild;
+    Check((RV.State = fsError) and (Pos('linha de centro', RV.Message) > 0), 'revolucao sem eixo: erro');
+    RV.AxisRef := Format('sketch:%d/%d', [S1.Id, S1.Entity(4).Id]);
+    RB.Rebuild;
+    Check(RV.State <> fsError, 'eixo de outro esboço no mesmo plano: ' + RV.Message);
+  finally
+    RB.Free;
+    D.Free;
+  end;
+
+  { ----- primeira operacao como corte ----- }
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  try
+    S1 := RectSketch(D, 'plane:1', 0, 0, 10, 10);
+    X1 := D.AddExtrude(S1.Id, 5, True);
+    Check((RB.Rebuild = 1) and (Pos('Corte sem corpo', X1.Message) > 0), 'corte como primeira operacao: erro');
+  finally
+    RB.Free;
+    D.Free;
+  end;
+end;
+
 begin
   Passed := 0;
   Failed := 0;
@@ -1169,6 +1493,7 @@ begin
   TestProfiles;
   TestSweep;
   TestCSG;
+  TestRebuild;
   Writeln(Format('MultiCAD: %d checks, %d falhas', [Passed + Failed, Failed]));
   if Failed > 0 then
     Halt(1);

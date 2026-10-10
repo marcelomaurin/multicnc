@@ -25,7 +25,8 @@ uses
 type
   TCadSweepLoop = record
     Poly: TCadPoly2;               { anti-horario no externo, horario nas ilhas }
-    SegEntity: array of Integer;   { entidade do segmento i -> i+1 }
+    SegEntity: array of Integer;   { entidade do segmento i -> i+1 (<0: ponta -E) }
+    SegSuffix: array of string;    { opcional: sufixo do nome ("/in", "/out") }
   end;
 
   TCadSweepRegion = record
@@ -60,6 +61,16 @@ function CadSweepRevolve(const Frame: TCadFrame; const Region: TCadSweepRegion;
   StartDeg, AngleDeg: Double; const Prefix: string; out AError: string): TCadMesh;
 
 implementation
+
+{ Nome da face lateral do segmento I: "<p>/lat:E[sufixo]" ou "<p>/ponta<k>". }
+function SideName(const Prefix, Kind: string; const L: TCadSweepLoop; I: Integer): string;
+begin
+  if L.SegEntity[I] < 0 then
+    Exit(Prefix + '/ponta' + IntToStr(-L.SegEntity[I]));
+  Result := Prefix + '/' + Kind + ':' + IntToStr(L.SegEntity[I]);
+  if (I < Length(L.SegSuffix)) and (L.SegSuffix[I] <> '') then
+    Result := Result + L.SegSuffix[I];
+end;
 
 function FindSurf(const Surfs: TCadSegSurfaces; AEnt: Integer; out S: TCadSegSurface): Boolean;
 var
@@ -260,7 +271,7 @@ begin
       B1 := VAdd(FrameToWorld(Frame, Loops[L].Poly[J]), S0);
       T0 := VAdd(FrameToWorld(Frame, Tops[L][I]), S1);
       T1 := VAdd(FrameToWorld(Frame, Tops[L][J]), S1);
-      Name := Prefix + '/lat:' + IntToStr(Loops[L].SegEntity[I]);
+      Name := SideName(Prefix, 'lat', Loops[L], I);
       F := M.FaceIndex(Name);
       if F < 0 then
       begin
@@ -386,7 +397,7 @@ begin
     for I := 0 to N - 1 do
     begin
       J := (I + 1) mod N;
-      Name := Prefix + '/rev:' + IntToStr(Loops[L].SegEntity[I]);
+      Name := SideName(Prefix, 'rev', Loops[L], I);
       F := M.FaceIndex(Name);
       if F < 0 then
       begin

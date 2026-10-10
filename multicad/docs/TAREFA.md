@@ -23,7 +23,7 @@ documento, *feature* e *sketch*.
 |---|---|---|
 | 0 Base | concluída (09/10) | `multicad_types` (vetores, matrizes, referenciais dos planos padrão como no SolidWorks, regra das faces), `multicad_units` (mm, cm, m, in, ", graus, rad, vírgula ou ponto, expressões, `D1@Esboço1`), `multicad_materials` (12 materiais, extensão por JSON), `multicad_feature` (Id persistente, estado ok/aviso/erro, registro de tipos), `multicad_refgeom` (origem, planos e eixos com os tipos da seção 3A), `multicad_sketch` (entidades com Id, restrições e cotas `D1`), `multicad_extrude` (PropertyManager completo da seção 3B e regras de validação), `multicad_document` (`.mcad` JSON, planos padrão Ids 1-3 e origem 4, nomes automáticos "Esboço1"/"Ressalto-Extrusão1", dependências, barra de retrocesso, gravação segura), `multicad_mesh` (malha rotulada, solda a 0,001 mm, malha fechada, volume, área, centro de massa, bloco e cilindro) e `multicad_kernel` (`ICadKernel` + núcleo Pascal). Central de Testes e CI `multicad-ci.yml`. |
 | 1 Sketch e solver | concluída (09/10) | `multicad_sketch` (ponto, linha, arco por centro e por 3 pontos, círculo, retângulo, ranhura, polígono, construção, linha de centro; 11 restrições e 6 tipos de cota com `D1@Esboço1`, dirigente/dirigida, fixa guardando a posição, simétrica pela linha), `multicad_solver` (passo de norma mínima amortecido, GL pelo posto do jacobiano, redundância e conflito por restrição, azul/preto/vermelho por entidade, conflito não deforma o esboço), `multicad_profile` (laços fechados, ilhas, região com Id estável, entidade de cada segmento, erros de contorno aberto, ramificação e cruzamento), documento avalia expressões e resolve os esboços. |
-| 2 Operações básicas | pendente | |
+| 2 Operações básicas | concluída (10/10) | `multicad_triangulate`, `multicad_sweep` (extrusão com inclinação, revolução), `multicad_csg` (booleanas BSP com nomes de face e malha fechada), `multicad_revolve`, `multicad_rebuild` (planos, eixos, esboço em face, todas as condições finais, recurso fino, contornos, inverter lado, multicorpo, avisos, cache, retrocesso, supressão). Limites anotados abaixo. |
 | 3 Vista 3D e árvore | pendente | |
 | 4 Exportação e suíte | pendente | |
 | 5 Furo, padrões, espelho | pendente | |
@@ -126,23 +126,23 @@ Fica para depois:
 - Ferramentas de desenho na tela (arco tangente, aparar, estender, Converter entidades,
   Offset de entidades) entram com a interface, na fase 3.
 
-### Fase 2: operações básicas (≈ 6 h)
-- [ ] Referencial local dos planos padrão e de faces planas (tabela em `ARCHITECTURE.md` 3A).
-- [ ] Plano de referência: deslocado (com número de planos), paralelo por ponto, em ângulo,
+### Fase 2: operações básicas (≈ 6 h) — concluída em 10/10/2026
+- [x] Referencial local dos planos padrão e de faces planas (tabela em `ARCHITECTURE.md` 3A).
+- [x] Plano de referência: deslocado (com número de planos), paralelo por ponto, em ângulo,
       plano médio, por três pontos, por linha e ponto, normal à curva, tangente à face
       cilíndrica. Eixo de referência e eixos temporários.
-- [ ] Ressalto/Base e Corte extrudado com o PropertyManager completo (`ARCHITECTURE.md` 3B):
+- [x] Ressalto/Base e Corte extrudado com o PropertyManager completo (`ARCHITECTURE.md` 3B):
       De (plano do esboço, face, vértice, deslocamento); condições Cego, Passante, Passante -
       ambos, Até o próximo, Até o vértice, Até a superfície, Deslocamento da superfície, Até o
       corpo, Plano médio; inverter direção; direção por aresta; inclinação; Direção 2;
       Mesclar resultado; Inverter lado a cortar; Recurso fino; Contornos selecionados;
       Escopo do recurso.
-- [ ] Mensagens de erro e aviso do SolidWorks (perfil aberto, corte sem interseção,
+- [x] Mensagens de erro e aviso do SolidWorks (perfil aberto, corte sem interseção,
       multicorpo, inclinação grande, "até" sem face).
-- [ ] Ressalto e corte revolucionado no mesmo padrão.
-- [ ] Booleanas BSP (D2) e nomes estáveis das faces.
-- [ ] Reconstrução com cache a partir da primeira operação alterada; erros por operação.
-- [ ] Testes:
+- [x] Ressalto e corte revolucionado no mesmo padrão.
+- [x] Booleanas BSP (D2) e nomes estáveis das faces.
+- [x] Reconstrução com cache a partir da primeira operação alterada; erros por operação.
+- [x] Testes:
   - volume de cada condição final (cego, plano médio, até o próximo, até a superfície
     inclinada, deslocamento da superfície, passante - ambos);
   - inclinação de 5° em bloco: volume do tronco de pirâmide;
@@ -152,6 +152,36 @@ Fica para depois:
   - plano deslocado, em ângulo e plano médio na posição exata; referencial local da tabela;
   - nome de face `lat:E` mantido ao acrescentar entidade no sketch;
   - malha sempre fechada; cota alterada reconstrói.
+
+Como ficou (fase 2):
+- **Varredura** (`multicad_sweep`): extrusão com direção qualquer, deslocamento do início e
+  inclinação para dentro/fora (laterais planas, cantos em esquadria); revolução parcial ou de
+  360° (cilindro, cone, plano, esfera e toro rotulados). Tampas por triangulação com furos
+  (`multicad_triangulate`: pontes + recorte de orelhas).
+- **Booleanas** (`multicad_csg`): BSP iterativa (algoritmo do csg.js). Depois de cada
+  booleana: solda a 0,2 µm, fusão de cada face plana pelo contorno (arestas quebradas em todos
+  os vértices em uso, cancelamento a→b/b→a, retriangulação), reparo de junções em T só nas
+  faces curvas, em uma passada, com triangulação validada contra inversão. Placa com 4 furos
+  sucessivos: ~0,5 s por furo, volume exato.
+- **Reconstrução** (`multicad_rebuild`): planos (deslocado, paralelo por ponto, em ângulo,
+  plano médio paralelo e bissetor, 3 pontos, linha e ponto, normal à curva, tangente a
+  cilindro, coincidente), eixos (face cilíndrica, linha, 2 planos, 2 pontos, ponto e face),
+  esboço em face plana (`face:<nome>`), todas as condições finais (inclusive "Até a
+  superfície" inclinada por recorte em semiespaço e "Até o próximo" por raios), Direção 2,
+  inclinação, recurso fino aberto e fechado com "Tampar extremidades", contornos
+  selecionados, inverter lado a cortar, mesclar/multicorpo, escopo, revolução com linha de
+  centro ou eixo, avisos e erros do SolidWorks, cache por assinatura, retrocesso e supressão.
+- Corte extrudado entra na peça por padrão (contra a normal do esboço), como no SolidWorks.
+- Testes: **352 checks**, Linux e Win64, sem vazamento.
+
+Limites desta versão (próximas fases):
+- **Furos que se cruzam** (cilindro cortando cilindro) ainda são recusados com mensagem: as
+  lascas da BSP nas faces curvas passam da tolerância. Solução prevista: fundir também as
+  faces curvas no espaço paramétrico (cilindro desenrolado) ou usar o OpenCascade (fase 8).
+- "Até o próximo"/"Até o corpo" em face curva terminam num plano (com aviso).
+- Vértices e arestas do sólido ainda não são referências (pontos e linhas vêm dos esboços).
+- Início em superfície não paralela ao esboço; recurso fino na revolução; "número de
+  planos" > 1 cria só o primeiro plano.
 
 ### Fase 3: vista 3D e árvore (≈ 6 h)
 - [ ] `TOpenGLControl` com Y para cima; orbitar (meio), deslocar (Ctrl + meio), zoom no
