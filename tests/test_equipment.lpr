@@ -1,0 +1,61 @@
+program test_equipment;
+{$mode objfpc}{$H+}
+uses Classes, SysUtils, multicnc_types, multicnc_equipment;
+procedure Check(Condition: Boolean; const Msg: string);
+begin if not Condition then raise Exception.Create(Msg); end;
+var Store: TEquipmentStore; P: TEquipmentProfile; FN, BeforeText: string;
+    Lines: TStringList; Failed: Boolean;
+begin
+  FN := GetTempFileName(GetTempDir, 'mce');
+  DeleteFile(FN);
+  Store := nil; Lines := TStringList.Create;
+  try
+    Store := TEquipmentStore.Create(FN); Store.Load;
+    Check(Store.Count=0, 'Empty store');
+    P:=DefaultEquipmentProfile; P.Name:='Router da oficina';
+    P.Brand:='TwoTrees'; P.Model:='TTC3018'; P.SerialPort:='COM27';
+    P.WorkX:=300; P.WorkY:=180; P.WorkZ:=40; Store.Put(P);
+    P:=DefaultEquipmentProfile; P.Name:='Laser de gravação';
+    P.MachineType:=mtLaser; P.ConnectionMode:=1; P.Host:='192.168.1.50'; P.TCPPort:=23; Store.Put(P);
+    P:=DefaultEquipmentProfile; P.Name:='Impressora 3D';
+    P.MachineType:=mtPrinter3D; P.ProtocolIndex:=1; P.SerialPort:='COM31'; P.BaudRate:=250000; Store.Put(P);
+    Check(Store.Count=3,'Three equipment'); Check(FileExists(FN+'.bak'),'Backup');
+    FreeAndNil(Store); Store:=TEquipmentStore.Create(FN); Store.Load;
+    Check(Store.Count=3,'Reload');
+    P:=Store.Item(Store.Find('Router da oficina'));
+    Check((P.Brand='TwoTrees') and (P.Model='TTC3018') and (P.SerialPort='COM27') and (P.WorkZ=40), 'Router fields');
+    Check(Store.Find('Laser de gravação')>=0,'UTF8 name');
+    P:=Store.Item(Store.Find('Impressora 3D'));
+    Check((P.MachineType=mtPrinter3D) and (P.ProtocolIndex=1) and (P.BaudRate=250000),'Printer fields');
+    P.Name:='  IMPRESSORA 3D  '; P.SerialPort:='COM32'; Store.Put(P);
+    Check((Store.Count=3) and (Store.Item(Store.Find('impressora 3d')).SerialPort='COM32'),'Update by name');
+    Store.Remove(Store.Find('Laser de gravação')); Store.Load;
+    Check((Store.Count=2) and (Store.Find('Laser de gravação')<0),'Remove');
+    Lines.LoadFromFile(FN); BeforeText:=Lines.Text;
+    P.Name:=' '; Failed:=False;
+    try Store.Put(P); except Failed:=True; end;
+    Lines.LoadFromFile(FN);
+    Check(Failed and (Store.Count=2) and (Lines.Text=BeforeText),'Validation preserves disk');
+    Check(RenameFile(FN+'.bak',FN+'.saved-backup'),'Preserve backup');
+    Check(CreateDir(FN+'.bak'),'Create write failure');
+    P:=Store.Item(0); P.Name:='Novo'; Failed:=False;
+    try Store.Put(P); except Failed:=True; end;
+    Lines.LoadFromFile(FN);
+    Check(Failed and (Store.Count=2) and (Lines.Text=BeforeText),'Write failure rollback');
+    RemoveDir(FN+'.bak'); RenameFile(FN+'.saved-backup',FN+'.bak');
+    Lines.Text:='{invalid json'; Lines.SaveToFile(FN);
+    Failed:=False; try Store.Load; except Failed:=True; end;
+    Check(Failed and Store.LoadFailed,'Corrupt file detected');
+    P:=DefaultEquipmentProfile; P.Name:='Preserve'; P.ConnectionMode:=2;
+    Failed:=False; try Store.Put(P); except Failed:=True; end;
+    Lines.LoadFromFile(FN);
+    Check(Failed and (Pos('{invalid json',Lines.Text)>0),'Corrupt file preserved');
+    DeleteFile(FN); FreeAndNil(Store);
+    Store:=TEquipmentStore.Create(FN); Store.Load;
+    Check(Store.Count>0,'Backup recovery');
+    Writeln('Equipment OK');
+  finally
+    Store.Free; Lines.Free;
+    DeleteFile(FN); RemoveDir(FN+'.bak'); DeleteFile(FN+'.bak'); DeleteFile(FN+'.saved-backup');
+  end;
+end.

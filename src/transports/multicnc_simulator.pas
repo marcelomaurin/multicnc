@@ -58,6 +58,7 @@ function TSimulatorTransport.Connect: Boolean;
 begin
   FConnected := True;
   if Assigned(FOnState) then FOnState(True);
+  if Assigned(FOnData) then FOnData('Grbl 1.1h [''$'' for help]'+LineEnding);
   Result := True;
 end;
 

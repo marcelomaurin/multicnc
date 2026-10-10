@@ -76,11 +76,13 @@ function TGRBLProtocol.BuildStatusQuery: string; begin Result := '?'; end;
 
 function TGRBLProtocol.BuildFeedOverride(APercent: Integer): string;
 begin
+  if FParser.Compatibility<>gcModern then Exit('');
   Result := multicnc_realtime.BuildFeedOverride(FParser.Status.FeedOverride, APercent);
 end;
 
 function TGRBLProtocol.BuildSpindleOverride(APercent: Integer): string;
 begin
+  if FParser.Compatibility<>gcModern then Exit('');
   Result := multicnc_realtime.BuildSpindleOverride(FParser.Status.SpindleOverride, APercent);
 end;
 
@@ -97,11 +99,13 @@ end;
 
 function TGRBLProtocol.BuildJogCancel: string;
 begin
-  Result := RealtimeByte(rtJogCancel);
+  Result := BuildRealtime(rtJogCancel);
 end;
 
 function TGRBLProtocol.BuildRealtime(ACmd: TRealtimeCommand): string;
 begin
+  if (FParser.Compatibility<>gcModern) and
+     not (ACmd in [rtStatusQuery,rtCycleStart,rtFeedHold,rtSoftReset]) then Exit('');
   if RealtimeSupported(ACmd, FParser.Firmware) or
     ((FParser.Firmware = gfUnknown) and (Self is TGrblHALProtocol)) then
     Result := RealtimeByte(ACmd)
@@ -141,7 +145,7 @@ procedure TGRBLProtocol.ParseStatus(const S: string);
 var Body, Field, StateName: string; P, C: Integer; MPos, WPos, W: TMachinePosition;
   HasM, HasW: Boolean;
 begin
-  Body := Copy(S, 2, Length(S) - 2);
+  Body := NormalizeGrblStatusBody(Copy(S, 2, Length(S) - 2));
   HasM := False; HasW := False;
   P := Pos('|', Body);
   if P = 0 then begin StateName := Body; Body := ''; end
@@ -252,7 +256,12 @@ function TGRBLProtocol.BuildStopCommand: string; begin Result := #24; end;
 function TGRBLProtocol.BuildJogCommand(AAxis: TAxis; ADistance, AFeed: Double): string;
 const N: array[TAxis] of string = ('X', 'Y', 'Z', 'A', 'E');
 begin
-  Result := Format('$J=G91 G21 %s%.3f F%.0f%s', [N[AAxis], ADistance, AFeed, LineEnding], InvariantFS);
+  if FParser.Compatibility=gcModern then
+    Result := Format('$J=G91 G21 %s%.3f F%.0f%s', [N[AAxis], ADistance, AFeed, LineEnding], InvariantFS)
+  else if (FParser.Compatibility=gcLegacy) and (FParser.ReportInches=0) and (FParser.ModalRestore<>'') then
+    Result := Format('G91 G21 G94 G1 %s%.3f F%.0f%s%s%s',
+      [N[AAxis], ADistance, AFeed, LineEnding, FParser.ModalRestore, LineEnding], InvariantFS)
+  else Result:='';
 end;
 
 function TGRBLProtocol.BuildFeedRateCommand(AFeed: Double): string;

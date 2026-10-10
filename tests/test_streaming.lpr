@@ -108,6 +108,7 @@ begin
   if Marlin then P := TMarlinProtocol.Create else P := TGRBLProtocol.Create;
   Result := TMultiCNCMachine.Create(Kind, F, P);
   Check(Result.Connect, 'conectar');
+  if not Marlin then F.Reply('Grbl 1.1h'+#10);
 end;
 
 procedure TestGRBLCharacterCounting;
@@ -242,6 +243,7 @@ procedure TestJogUsesDecimalPoint;
 var M: TMultiCNCMachine; F: TFakeController;
 begin
   M := NewMachine(mtRouter, False, F);
+  F.Reply('Grbl 1.1h' + #10);
   Check(M.Jog(axX, 10.5, 600), 'jog');
   Check(F.Sent[F.Sent.Count - 1] = '$J=G91 G21 X10.500 F600', 'jog com ponto decimal: ' + F.Sent[F.Sent.Count - 1]);
   M.Free; F.Free;

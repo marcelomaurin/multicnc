@@ -38,3 +38,21 @@ xvfb-run -a tests/test_app  # Linux GTK2
 ```
 
 O teste da tela cobre conexão, arquivo recebido, prévia de arco, limites editáveis, bloqueio de erro, preservação de comentários, busca/UTF-8, drag/drop e bloqueios de estado. Execução em hardware exige validação própria.
+
+## Equipamentos salvos
+
+No cabeçalho, o status de conexão fica à esquerda da lista de equipamentos, seguida pelo botão Connect Device. Escolher um nome restaura a configuração; a conexão só começa ao clicar em Connect Device.
+
+Em Config, configure o tipo de máquina, fabricante, modelo, protocolo e conexão. Dê um nome em Equipamentos salvos e clique em Salvar. Salvar com o mesmo nome atualiza o cadastro. Novo nome mantém a configuração atual para cadastrar outro equipamento. Excluir pede confirmação. Desconecte antes de trocar de equipamento.
+
+Os cadastros ficam em %LOCALAPPDATA%\Maurinsoft\MultiCNC\multicnc.json, com a versão anterior em multicnc.json.bak. São guardados tipo, fabricante, modelo, protocolo, conexão serial ou TCP e curso da máquina. As receitas de trabalho, como potência do laser e temperaturas desejadas, continuam nos controles de cada máquina.
+
+Uma porta serial salva permanece selecionada mesmo se estiver ausente; o programa não escolhe outro dispositivo automaticamente.
+
+## Compatibilidade automática com GRBL
+
+Ao conectar, o MultiCNC identifica a versão pelo banner da placa. Se o banner não chegar, reconhece o formato do estado e consulta $I quando a máquina está ociosa. O Console mostra a versão e o conjunto de comandos escolhido. Reconectar descarta a identificação da placa anterior.
+
+GRBL anterior a 1.1: lê o formato antigo com vírgulas, preserva erros textuais e não envia overrides nem cancelamento de jog exclusivos da versão 1.1. Antes de um movimento manual, consulta $$ e $G; usa G-code incremental e restaura distância, modo de movimento e avanço. Esse movimento manual requer relatórios e unidades em milímetros ($13=0, G21), avanço por minuto (G94) e modo G0, G1 ou G80. Se não confirmar os modos ou eles não puderem ser restaurados, o movimento é recusado com uma mensagem.
+
+GRBL 1.1: usa movimento manual nativo $J e os comandos de tempo real compatíveis. grblHAL e FluidNC também são identificados. A adaptação não grava firmware nem altera parâmetros da placa, e não converte automaticamente recursos incompatíveis dentro de programas G-code.

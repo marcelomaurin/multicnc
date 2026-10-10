@@ -7,7 +7,7 @@ interface
 uses Classes, SysUtils, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls,
   Dialogs, Graphics, Spin, Math, StrUtils, LazUTF8, LCLType, multisuite_numfmt,
   multicnc_types, multicnc_session, multicnc_simulator, multicnc_gcode_analyzer, multicnc_laser_config,
-  multicnc_printer_profiles, multicnc_router_profiles, ailistserialdevices, multisuite_icons,
+  multicnc_printer_profiles, multicnc_router_profiles, multicnc_equipment, ailistserialdevices, multisuite_icons,
   multisuite_controls, multisuite_gcode_writer, multicnc_preview;
 
 type
@@ -29,6 +29,13 @@ type
     procedure ExportAnalysisClick(Sender: TObject);
 
   private
+    FEquipmentFile: string;
+    EquipmentStore: TEquipmentStore;
+    EquipmentCombo: TComboBox;
+    EquipmentName: TEdit;
+    EquipmentGroup: TGroupBox;
+    EquipmentSummary: TLabel;
+    BtnSaveEquipment, BtnDeleteEquipment, BtnNewEquipment: TSuiteButton;
     MachineType, ProtocolType: TComboBox;
     DeviceEdit, BaudCombo: TComboBox;
     HostEdit, PortEdit: TEdit;
@@ -97,6 +104,15 @@ type
     SpKerf: TFloatSpinEdit;
     ChkFrameBeforeStart: TCheckBox;
 
+    procedure CreateEquipmentControls;
+    procedure RefreshEquipmentList(const SelectedName: string);
+    procedure EquipmentSelected(Sender: TObject);
+    procedure EquipmentNameChanged(Sender: TObject);
+    procedure SaveEquipmentClick(Sender: TObject);
+    procedure DeleteEquipmentClick(Sender: TObject);
+    procedure NewEquipmentClick(Sender: TObject);
+    function CaptureEquipment: TEquipmentProfile;
+    procedure ApplyEquipment(const Profile: TEquipmentProfile);
     function Panel(ParentControl: TWinControl; Alignment: TAlign; Size: Integer): TPanel;
     function LabelAt(ParentControl: TWinControl; const AText: string; X, Y: Integer): TLabel;
     function ButtonAt(ParentControl: TWinControl; const AText: string;
@@ -145,6 +161,7 @@ type
     procedure CooldownTempsClick(Sender: TObject);
   public
     constructor Create(AOwner: TComponent); override;
+    constructor CreateWithEquipmentFile(AOwner: TComponent; const AFileName: string);
     procedure OpenProgramFile(const AFileName: string);
     procedure OpenFile(const AFileName: string);
     procedure SetAnalysisEnvelope(const Value: TMachineEnvelope);
@@ -190,9 +207,14 @@ procedure TMainForm.HeaderResize(Sender: TObject);
 begin
   if (HeaderBar = nil) or (BtnConnect = nil) then Exit;
   BtnConnect.Left := HeaderBar.ClientWidth - BtnConnect.Width - 20;
+  if EquipmentCombo <> nil then
+    EquipmentCombo.Left := BtnConnect.Left - EquipmentCombo.Width - 14;
   if StateLabel <> nil then
   begin
-    StateLabel.AnchorRight := BtnConnect.Left - 14;
+    if EquipmentCombo <> nil then
+      StateLabel.AnchorRight := EquipmentCombo.Left - 14
+    else
+      StateLabel.AnchorRight := BtnConnect.Left - 14;
     StateLabel.AutoFit;
   end;
 end;
@@ -275,6 +297,11 @@ const
   ROW_H   = 36;
 
 constructor TMainForm.Create(AOwner: TComponent);
+begin
+  CreateWithEquipmentFile(AOwner, EquipmentFileName);
+end;
+
+constructor TMainForm.CreateWithEquipmentFile(AOwner: TComponent; const AFileName: string);
 var
   Header: TSuiteHeader;
   Body, Side, Workspace, Actions, Footer, ConsoleBar, SearchBar, LogBar: TPanel;
@@ -287,6 +314,7 @@ const
     sikArrowDown, sikArrowUp, sikArrowDown, sikArrowUp);
 begin
   inherited CreateNew(AOwner);
+  FEquipmentFile := AFileName;
   Caption := 'MultiCNC | Control Panel';
   Position := poScreenCenter;
   SetBounds(0, 0, 1180, 800);
@@ -310,7 +338,7 @@ begin
   Header.Parent := Self;
   Header.Align := alTop;
   Header.Height := 76;
-  Header.Setup('MultiCNC', 'CONTROL  /  Program execution with controller handshake', sikCNC);
+  Header.Setup('MultiCNC', 'Equipamentos e programas CNC', sikCNC);
   Header.OnResize := @HeaderResize;
   HeaderBar := Header;
 
@@ -320,6 +348,7 @@ begin
   BtnConnect.SetLook(sbsSolid, clSuitePrimary, sikPlug);
 
   StateLabel := TSuiteBadge.Create(Self);
+  StateLabel.Name := 'ConnectionState';
   StateLabel.Parent := Header;
   StateLabel.SetBounds(600, 23, 160, 30);
   StateLabel.Caption := 'Disconnected';
@@ -617,6 +646,7 @@ begin
 
   LabelAt(GbConnection, 'Machine', 15, 5);
   MachineType := TComboBox.Create(Self);
+  MachineType.Name := 'MachineType';
   MachineType.Parent := GbConnection;
   MachineType.SetBounds(15, 29, 140, 30);
   MachineType.Style := csDropDownList;
@@ -666,6 +696,7 @@ begin
 
   LabelAt(SerialPanel, 'COM Port', 0, 5);
   DeviceEdit := TComboBox.Create(Self);
+  DeviceEdit.Name := 'SerialPort';
   DeviceEdit.Parent := SerialPanel;
   DeviceEdit.SetBounds(0, 29, 140, 30);
   DeviceEdit.Style := csDropDownList;
@@ -676,6 +707,7 @@ begin
 
   LabelAt(SerialPanel, 'Baud Rate', 150, 5);
   BaudCombo := TComboBox.Create(Self);
+  BaudCombo.Name := 'BaudRate';
   BaudCombo.Parent := SerialPanel;
   BaudCombo.SetBounds(150, 29, 130, 30);
   BaudCombo.Style := csDropDown;
@@ -691,12 +723,14 @@ begin
 
   LabelAt(TCPPanel, 'Device IP Address', 0, 5);
   HostEdit := TEdit.Create(Self);
+  HostEdit.Name := 'TCPHost';
   HostEdit.Parent := TCPPanel;
   HostEdit.SetBounds(0, 29, 160, 30);
   HostEdit.Text := '127.0.0.1';
 
   LabelAt(TCPPanel, 'TCP Port', 170, 5);
   PortEdit := TEdit.Create(Self);
+  PortEdit.Name := 'TCPPort';
   PortEdit.Parent := TCPPanel;
   PortEdit.SetBounds(170, 29, 90, 30);
   PortEdit.Text := '9000';
@@ -760,6 +794,7 @@ begin
 
   LabelAt(GbPrinterProfile, 'Brand:', 15, 8);
   PrinterBrandCombo := TComboBox.Create(Self);
+  PrinterBrandCombo.Name := 'PrinterBrand';
   PrinterBrandCombo.Parent := GbPrinterProfile;
   PrinterBrandCombo.SetBounds(15, 30, 220, 30);
   PrinterBrandCombo.Style := csDropDownList;
@@ -767,6 +802,7 @@ begin
 
   LabelAt(GbPrinterProfile, 'Model:', 250, 8);
   PrinterModelCombo := TComboBox.Create(Self);
+  PrinterModelCombo.Name := 'PrinterModel';
   PrinterModelCombo.Parent := GbPrinterProfile;
   PrinterModelCombo.SetBounds(250, 30, 260, 30);
   PrinterModelCombo.Style := csDropDownList;
@@ -1161,15 +1197,237 @@ begin
   UpdateMachineTypeLayout;
   UpdateControls;
   HeaderResize(nil);
+  CreateEquipmentControls;
+  UpdateControls;
 end;
 
 destructor TMainForm.Destroy;
 begin
   if Assigned(Timer) then Timer.Enabled := False;
+  EquipmentStore.Free;
   Session.Free;
   Trace.Free;
   SerialDeviceList.Free;
   inherited Destroy;
+end;
+
+procedure TMainForm.CreateEquipmentControls;
+var I: Integer;
+begin
+  EquipmentStore := TEquipmentStore.Create(FEquipmentFile);
+  for I := 0 to ConfigScrollBox.ControlCount - 1 do
+    ConfigScrollBox.Controls[I].Top := ConfigScrollBox.Controls[I].Top + 150;
+  EquipmentGroup := TGroupBox.Create(Self);
+  EquipmentGroup.Parent := ConfigScrollBox;
+  EquipmentGroup.Caption := 'Equipamentos salvos';
+  EquipmentGroup.SetBounds(15, 10, 715, 140);
+  EquipmentGroup.Hint := 'Arquivo do cadastro: ' + EquipmentStore.FileName;
+  EquipmentGroup.ShowHint := True;
+  LabelAt(EquipmentGroup, 'Dê um nome à configuração atual', 15, 5);
+  EquipmentCombo := TComboBox.Create(Self);
+  EquipmentCombo.Name := 'SavedEquipment';
+  EquipmentCombo.Parent := HeaderBar;
+  EquipmentCombo.SetBounds(0, 24, 245, 28);
+  EquipmentCombo.TextHint := 'Escolha um equipamento salvo';
+  EquipmentCombo.Hint := 'Selecione o nome salvo para carregar a configuracao.';
+  EquipmentCombo.ShowHint := True;
+  EquipmentCombo.Style := csDropDownList;
+  EquipmentCombo.OnChange := @EquipmentSelected;
+
+  EquipmentName := TEdit.Create(Self);
+  EquipmentName.Name := 'EquipmentName';
+  EquipmentName.Parent := EquipmentGroup;
+  EquipmentName.SetBounds(15, 29, 680, 28);
+  EquipmentName.Text := '';
+  EquipmentName.TextHint := 'Ex.: Router TTC3018';
+  EquipmentName.MaxLength := 120;
+  BtnSaveEquipment := ButtonAt(EquipmentGroup, 'Salvar', 15, 66, 130, @SaveEquipmentClick);
+  BtnSaveEquipment.Name := 'SaveEquipment';
+  BtnSaveEquipment.SetLook(sbsSolid, clSuitePrimary, sikSave);
+  BtnNewEquipment := ButtonAt(EquipmentGroup, 'Novo nome', 155, 66, 140, @NewEquipmentClick);
+  BtnNewEquipment.Name := 'NewEquipment';
+  BtnNewEquipment.SetLook(sbsOutline, clSuitePrimary, sikGear);
+  BtnDeleteEquipment := ButtonAt(EquipmentGroup, 'Excluir', 305, 66, 130, @DeleteEquipmentClick);
+  BtnDeleteEquipment.Name := 'DeleteEquipment';
+  BtnDeleteEquipment.SetLook(sbsOutline, clSuiteDanger, sikTrash);
+  EquipmentSummary := LabelAt(EquipmentGroup, 'Configure abaixo, informe um nome e clique em Salvar.', 15, 108);
+  EquipmentSummary.AutoSize := False;
+  EquipmentSummary.SetBounds(15, 108, 680, 23);
+  EquipmentSummary.ShowAccelChar := False;
+  EquipmentSummary.Font.Size := 9;
+  EquipmentName.OnChange := @EquipmentNameChanged;
+  try
+    EquipmentStore.Load;
+    RefreshEquipmentList('');
+  except
+    on E: Exception do
+    begin
+      EquipmentSummary.Caption := 'Nao foi possivel ler o cadastro. Consulte o Console.';
+      Log('Cadastro de equipamentos preservado: ' + E.Message + ' | ' + EquipmentStore.FileName);
+    end;
+  end;
+  HeaderResize(nil);
+end;
+
+procedure TMainForm.RefreshEquipmentList(const SelectedName: string);
+var I: Integer;
+begin
+  EquipmentCombo.Items.BeginUpdate;
+  try
+    EquipmentCombo.Items.Clear;
+    for I := 0 to EquipmentStore.Count - 1 do EquipmentCombo.Items.Add(EquipmentStore.Item(I).Name);
+    EquipmentCombo.ItemIndex := EquipmentStore.Find(SelectedName);
+  finally
+    EquipmentCombo.Items.EndUpdate;
+  end;
+end;
+
+function TMainForm.CaptureEquipment: TEquipmentProfile;
+begin
+  Result := DefaultEquipmentProfile;
+  Result.Name := Trim(EquipmentName.Text);
+  Result.MachineType := TMachineType(MachineType.ItemIndex);
+  Result.ProtocolIndex := ProtocolType.ItemIndex;
+  Result.ConnectionMode := CommunicationMode.ItemIndex;
+  Result.SerialPort := Trim(DeviceEdit.Text);
+  Result.BaudRate := StrToIntDef(Trim(BaudCombo.Text), 0);
+  Result.Host := Trim(HostEdit.Text);
+  Result.TCPPort := StrToIntDef(Trim(PortEdit.Text), 0);
+  if Result.MachineType = mtRouter then
+  begin
+    Result.Brand := RouterBrandCombo.Text;
+    Result.Model := RouterModelCombo.Text;
+    Result.WorkX := SpRouterX.Value; Result.WorkY := SpRouterY.Value; Result.WorkZ := SpRouterZ.Value;
+  end
+  else
+  begin
+    if Result.MachineType = mtPrinter3D then
+    begin
+      Result.Brand := PrinterBrandCombo.Text;
+      Result.Model := PrinterModelCombo.Text;
+    end;
+    Result.WorkX := Session.EnvelopeX; Result.WorkY := Session.EnvelopeY; Result.WorkZ := Session.EnvelopeZ;
+  end;
+end;
+
+procedure TMainForm.ApplyEquipment(const Profile: TEquipmentProfile);
+var Router: TRouterProfile; Printer: TPrinterProfile;
+begin
+  if Session.Connected then raise Exception.Create('Desconecte o equipamento atual para escolher outro.');
+  ValidateEquipment(Profile);
+  { Confere o perfil antes de alterar qualquer campo da tela. }
+  if (Profile.MachineType = mtRouter) and
+     not FindRouterProfile(Profile.Brand, Profile.Model, Router) then
+    raise Exception.Create('O perfil de Router salvo nao esta disponivel nesta versao.');
+  if (Profile.MachineType = mtPrinter3D) and
+     not FindPrinterProfile(Profile.Brand, Profile.Model, Printer) then
+    raise Exception.Create('O perfil de impressora salvo nao esta disponivel nesta versao.');
+  MachineType.ItemIndex := Ord(Profile.MachineType);
+  if Profile.MachineType = mtRouter then
+  begin
+    RouterBrandCombo.ItemIndex := RouterBrandCombo.Items.IndexOf(Profile.Brand);
+    GetRouterModels(Profile.Brand, RouterModelCombo.Items);
+    RouterModelCombo.ItemIndex := RouterModelCombo.Items.IndexOf(Profile.Model);
+  end
+  else if Profile.MachineType = mtPrinter3D then
+  begin
+    PrinterBrandCombo.ItemIndex := PrinterBrandCombo.Items.IndexOf(Profile.Brand);
+    GetPrinterModels(Profile.Brand, PrinterModelCombo.Items);
+    PrinterModelCombo.ItemIndex := PrinterModelCombo.Items.IndexOf(Profile.Model);
+  end;
+  SelectionChanged(MachineType);
+  { Os perfis preenchem valores de fabrica: os valores salvos prevalecem. }
+  ProtocolType.ItemIndex := Profile.ProtocolIndex;
+  CommunicationMode.ItemIndex := Profile.ConnectionMode;
+  CommunicationChanged(nil);
+  if Profile.SerialPort <> '' then
+  begin
+    DeviceEdit.ItemIndex := DeviceEdit.Items.IndexOf(Profile.SerialPort);
+    if DeviceEdit.ItemIndex < 0 then DeviceEdit.ItemIndex := DeviceEdit.Items.Add(Profile.SerialPort);
+  end
+  else DeviceEdit.ItemIndex := -1;
+  BaudCombo.Text := IntToStr(Profile.BaudRate);
+  HostEdit.Text := Profile.Host; PortEdit.Text := IntToStr(Profile.TCPPort);
+  if Profile.MachineType = mtRouter then
+  begin
+    SpRouterX.Value := Profile.WorkX; SpRouterY.Value := Profile.WorkY; SpRouterZ.Value := Profile.WorkZ;
+  end;
+  Session.SetWorkEnvelope(Profile.WorkX, Profile.WorkY, Profile.WorkZ);
+  EquipmentName.Text := Profile.Name;
+  EquipmentSummary.Caption := Profile.Name + ' | ' + MachineType.Text + ' | ' +
+    Trim(Profile.Brand + ' ' + Profile.Model) + ' | ' +
+    IfThen(Profile.ConnectionMode = 1, Profile.Host + ':' + IntToStr(Profile.TCPPort), Profile.SerialPort);
+  Log('Equipamento selecionado: ' + Profile.Name + '. Configuracao carregada; clique em Connect Device para conectar.');
+  UpdateControls;
+end;
+
+procedure TMainForm.EquipmentSelected(Sender: TObject);
+begin
+  if EquipmentCombo.ItemIndex < 0 then Exit;
+  try
+    ApplyEquipment(EquipmentStore.Item(EquipmentCombo.ItemIndex));
+  except
+    on E: Exception do begin Log('Equipamento nao carregado: ' + E.Message); UpdateControls; end;
+  end;
+end;
+
+procedure TMainForm.EquipmentNameChanged(Sender: TObject);
+begin
+  if Assigned(BtnSaveEquipment) then UpdateControls;
+end;
+
+procedure TMainForm.SaveEquipmentClick(Sender: TObject);
+var Profile: TEquipmentProfile;
+begin
+  if Session.State in [ssRunning, ssPaused] then Exit;
+  try
+    Profile := CaptureEquipment;
+    EquipmentStore.Put(Profile);
+    EquipmentName.Text := Trim(Profile.Name);
+    RefreshEquipmentList(Profile.Name);
+    EquipmentSummary.Caption := 'Salvo: ' + Profile.Name + ' | ' + MachineType.Text +
+      '. Selecione este nome na proxima vez.';
+    Log('Equipamento salvo: ' + Profile.Name + ' | ' + EquipmentStore.FileName);
+  except
+    on E: Exception do
+    begin
+      EquipmentSummary.Caption := 'Nao foi possivel salvar: ' + E.Message;
+      EquipmentSummary.Hint := EquipmentSummary.Caption;
+      EquipmentSummary.ShowHint := True;
+      Log(EquipmentSummary.Caption);
+    end;
+  end;
+  UpdateControls;
+end;
+
+procedure TMainForm.NewEquipmentClick(Sender: TObject);
+begin
+  if Session.Connected then Exit;
+  EquipmentCombo.ItemIndex := -1;
+  EquipmentName.Text := '';
+  EquipmentSummary.Caption := 'A configuracao atual foi mantida. Informe outro nome para salvar um novo equipamento.';
+  EquipmentName.SetFocus;
+  UpdateControls;
+end;
+
+procedure TMainForm.DeleteEquipmentClick(Sender: TObject);
+var Index: Integer; EquipmentTitle: string;
+begin
+  if Session.Connected then Exit;
+  Index := EquipmentCombo.ItemIndex;
+  if Index < 0 then Exit;
+  EquipmentTitle := EquipmentStore.Item(Index).Name;
+  if MessageDlg('Excluir equipamento', 'Excluir "' + EquipmentTitle + '" do cadastro?', mtConfirmation, [mbYes, mbNo], 0) <> mrYes then Exit;
+  try
+    EquipmentStore.Remove(Index);
+    RefreshEquipmentList('');
+    EquipmentName.Text := '';
+    EquipmentSummary.Caption := 'Equipamento excluido: ' + EquipmentTitle;
+    Log('Equipamento excluido do cadastro: ' + EquipmentTitle);
+  except
+    on E: Exception do Log('Nao foi possivel excluir: ' + E.Message);
+  end;
+  UpdateControls;
 end;
 
 procedure TMainForm.RefreshSerialPorts;
@@ -1194,7 +1452,12 @@ begin
     end;
 
     if CurrentPort <> '' then
+    begin
       DeviceEdit.ItemIndex := DeviceEdit.Items.IndexOf(CurrentPort);
+      { Nunca substitui uma porta salva ausente por outro equipamento. }
+      if DeviceEdit.ItemIndex < 0 then
+        DeviceEdit.ItemIndex := DeviceEdit.Items.Add(CurrentPort);
+    end;
 
     if (DeviceEdit.ItemIndex < 0) and (DeviceEdit.Items.Count > 0) then
       DeviceEdit.ItemIndex := 0;
@@ -1622,6 +1885,15 @@ begin
     end;
   end;
 
+  if Assigned(EquipmentCombo) then
+  begin
+    EquipmentCombo.Enabled := not Session.Connected and not EquipmentStore.LoadFailed;
+    EquipmentName.Enabled := not Busy and not EquipmentStore.LoadFailed;
+    BtnSaveEquipment.Enabled := not Busy and not EquipmentStore.LoadFailed and (Trim(EquipmentName.Text) <> '');
+    BtnDeleteEquipment.Enabled := not Session.Connected and not EquipmentStore.LoadFailed and
+      (EquipmentCombo.ItemIndex >= 0);
+    BtnNewEquipment.Enabled := not Session.Connected and not EquipmentStore.LoadFailed;
+  end;
   MachineType.Enabled := not Session.Connected;
   ProtocolType.Enabled := not Session.Connected;
   CommunicationMode.Enabled := not Session.Connected;

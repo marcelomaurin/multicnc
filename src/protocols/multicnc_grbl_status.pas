@@ -22,6 +22,8 @@ uses
 type
   TGrblFirmware = (gfUnknown, gfGrbl, gfGrblHAL, gfFluidNC);
 
+  TGrblCompatibility = (gcUnknown, gcLegacy, gcModern);
+
   TGrblMachineState = (gsUnknown, gsIdle, gsRun, gsHold, gsJog, gsAlarm,
     gsDoor, gsCheck, gsHome, gsSleep, gsTool);
 
@@ -52,7 +54,13 @@ type
     FStatus: TGrblStatus;
     FFirmware: TGrblFirmware;
     FVersion: string;
+    FCompatibility: TGrblCompatibility;
+    FModalRestore: string;
+    FModalReportSerial: Integer;
+    FReportInches:Integer;
     FLastAlarm, FLastError: Integer;
+    procedure DetectVersion(const Value: string);
+    procedure ParseModalReport(const Value: string);
     procedure ParseStatus(const Body: string);
   public
     constructor Create;
@@ -61,6 +69,10 @@ type
     property Status: TGrblStatus read FStatus;
     property Firmware: TGrblFirmware read FFirmware;
     property Version: string read FVersion;
+    property Compatibility: TGrblCompatibility read FCompatibility;
+    property ModalRestore: string read FModalRestore;
+    property ReportInches:Integer read FReportInches;
+    property ModalReportSerial: Integer read FModalReportSerial;
     property LastAlarm: Integer read FLastAlarm;
     property LastError: Integer read FLastError;
   end;
@@ -70,6 +82,7 @@ function GrblStateToMachineState(S: TGrblMachineState): TMachineState;
 function GrblErrorText(Code: Integer): string;
 function GrblAlarmText(Code: Integer): string;
 function GrblFirmwareName(F: TGrblFirmware): string;
+function NormalizeGrblStatusBody(const Body: string): string;
 function ParseAxisList(const S: string; out P: TMachinePosition): Boolean;
 
 implementation
@@ -80,6 +93,17 @@ begin
   FS := DefaultFormatSettings;
   FS.DecimalSeparator := '.';
   if not TryStrToFloat(Trim(S), Result, FS) then Result := Default;
+end;
+
+function NormalizeGrblStatusBody(const Body: string): string;
+var I: Integer;
+begin
+  Result := Body;
+  { GRBL 0.9: virgulas separam campos e eixos. Apenas a virgula antes
+    de uma chave alfabetica e delimitador de campo; as coordenadas ficam intactas. }
+  if Pos('|', Body) > 0 then Exit;
+  for I := 1 to Length(Body) - 1 do
+    if (Body[I] = ',') and (Body[I + 1] in ['A'..'Z', 'a'..'z']) then Result[I] := '|';
 end;
 
 function ParseAxisList(const S: string; out P: TMachinePosition): Boolean;
@@ -203,8 +227,53 @@ begin
   Reset;
 end;
 
+procedure TGrblStatusParser.DetectVersion(const Value: string);
+var P, I, Major, Minor: Integer;
+begin
+  FVersion := Value;
+  P := Pos('.', Value);
+  if P = 0 then Exit;
+  Major := StrToIntDef(Copy(Value, 1, P-1), -1);
+  I := P+1;
+  while (I<=Length(Value)) and (Value[I] in ['0'..'9']) do Inc(I);
+  Minor := StrToIntDef(Copy(Value,P+1,I-P-1),-1);
+  if (Major<0) or (Minor<0) then Exit;
+  if (Major>1) or ((Major=1) and (Minor>=1)) then FCompatibility:=gcModern
+  else FCompatibility:=gcLegacy;
+end;
+
+procedure TGrblStatusParser.ParseModalReport(const Value: string);
+var Tokens:TStringArray; Token, Motion, Units, Distance, FeedMode, FeedValue:string;
+    Number:Double;
+begin
+  Inc(FModalReportSerial);
+  FModalRestore := '';
+  Tokens := Value.Split([' ']);
+  Motion:=''; Units:=''; Distance:=''; FeedMode:=''; FeedValue:='';
+  for Token in Tokens do
+  begin
+    if (Token='G0') or (Token='G1') or (Token='G2') or (Token='G3') or (Token='G80') then Motion:=Token
+    else if (Token='G20') or (Token='G21') then Units:=Token
+    else if (Token='G90') or (Token='G91') then Distance:=Token
+    else if (Token='G93') or (Token='G94') then FeedMode:=Token
+    else if (Copy(Token,1,1)='F') and (Length(Token)>1) then
+    begin
+      Number:=InvariantFloat(Copy(Token,2,MaxInt),-1);
+      if Number>=0 then FeedValue:=Token;
+    end;
+  end;
+  { Em firmware antigo nao ha jog isolado. Nao modifica modos que nao podem
+    ser restaurados com seguranca, como arcos, polegadas ou tempo inverso. }
+  if ((Motion='G0') or (Motion='G1') or (Motion='G80')) and
+     (Units='G21') and (Distance<>'') and (FeedMode='G94') and (FeedValue<>'') and
+     ((Motion<>'G1') or (InvariantFloat(Copy(FeedValue,2,MaxInt),0)>0)) then
+    FModalRestore := Units+' '+Distance+' '+FeedMode+' '+Motion+' '+FeedValue;
+end;
+
 procedure TGrblStatusParser.Reset;
 begin
+  FFirmware:=gfUnknown; FVersion:=''; FCompatibility:=gcUnknown;
+  FModalRestore:=''; FModalReportSerial:=0; FReportInches:=-1;
   FillChar(FStatus, SizeOf(FStatus), 0);
   FStatus.State := gsUnknown;
   FStatus.PlannerFree := -1;
@@ -221,7 +290,12 @@ procedure TGrblStatusParser.ParseStatus(const Body: string);
 var Fields, Pair: TStringArray; I, P: Integer; Key, Value, StateText: string;
   Pos3: TMachinePosition;
 begin
-  Fields := Body.Split(['|']);
+  if FCompatibility=gcUnknown then
+  begin
+    if Pos('|',Body)>0 then FCompatibility:=gcModern
+    else if NormalizeGrblStatusBody(Body)<>Body then FCompatibility:=gcLegacy;
+  end;
+  Fields := NormalizeGrblStatusBody(Body).Split(['|']);
   if Length(Fields) = 0 then Exit;
   StateText := Fields[0];
   P := Pos(':', StateText);
@@ -307,28 +381,28 @@ begin
     Result.Kind := grkError;
     Result.Code := StrToIntDef(Trim(Copy(L, 7, MaxInt)), 0);
     FLastError := Result.Code;
-    Result.Text := GrblErrorText(Result.Code);
+    if Result.Code>0 then Result.Text := GrblErrorText(Result.Code) else Result.Text:=Copy(L,7,MaxInt);
   end else if Copy(Low, 1, 6) = 'alarm:' then begin
     Result.Kind := grkAlarm;
     Result.Code := StrToIntDef(Trim(Copy(L, 7, MaxInt)), 0);
     FLastAlarm := Result.Code;
     FStatus.State := gsAlarm;
-    Result.Text := GrblAlarmText(Result.Code);
+    if Result.Code>0 then Result.Text := GrblAlarmText(Result.Code) else Result.Text:=Copy(L,7,MaxInt);
   end else if (L[1] = '<') and (L[Length(L)] = '>') then begin
     Result.Kind := grkStatus;
     ParseStatus(Copy(L, 2, Length(L) - 2));
   end else if Pos('fluidnc', Low) > 0 then begin
     Result.Kind := grkWelcome;
-    FFirmware := gfFluidNC;
+    Reset; FFirmware := gfFluidNC; FCompatibility:=gcModern;
     P := Pos('fluidnc v', Low);
     if P > 0 then begin
       Q := P + 9;
       while (Q <= Length(L)) and (L[Q] <> ' ') and (L[Q] <> ')') do Inc(Q);
       FVersion := Copy(L, P + 9, Q - P - 9);
     end;
-    Reset;
   end else if (Copy(Low, 1, 8) = 'grblhal ') or (Copy(Low, 1, 5) = 'grbl ') then begin
     Result.Kind := grkWelcome;
+    Reset;
     if Copy(Low, 1, 8) = 'grblhal ' then begin
       FFirmware := gfGrblHAL;
       P := 9;
@@ -338,16 +412,42 @@ begin
     end;
     Q := P;
     while (Q <= Length(L)) and (L[Q] <> ' ') do Inc(Q);
-    FVersion := Copy(L, P, Q - P);
-    Reset;
+    DetectVersion(Copy(L, P, Q - P));
+    if FFirmware=gfGrblHAL then FCompatibility:=gcModern;
   end else if Copy(L, 1, 5) = '[MSG:' then
     Result.Kind := grkMessage
   else if L[1] = '[' then begin
     Result.Kind := grkFeedback;
     // grblHAL anuncia-se em [FIRMWARE:grblHAL] na resposta de $I
-    if Pos('[firmware:grblhal]', Low) > 0 then FFirmware := gfGrblHAL;
+    if Pos('[firmware:grblhal]', Low) > 0 then begin FFirmware:=gfGrblHAL; FCompatibility:=gcModern; end;
+    if Copy(L,1,4)='[GC:' then ParseModalReport(Copy(L,5,Length(L)-5))
+    else if Copy(L,1,2)='[G' then ParseModalReport(Copy(L,2,Length(L)-2));
+    if Copy(L,1,5)='[VER:' then
+    begin
+      P:=Pos(':',Copy(L,6,MaxInt));
+      if P>0 then begin DetectVersion(Copy(L,6,P-1)); if FFirmware=gfUnknown then FFirmware:=gfGrbl; end;
+    end;
+    if (Length(L)>2) and (L[2] in ['0'..'9']) and (Pos(':',L)>0) then
+    begin
+      P:=Pos(':',L);
+      Q:=Pos('.',Copy(L,2,P-2));
+      if Q>0 then
+      begin
+        Q:=Q+2;
+        while (Q<P) and (L[Q]<>'.') do Inc(Q);
+        DetectVersion(Copy(L,2,Q-2));
+        FFirmware:=gfGrbl;
+      end;
+    end;
   end else if (L[1] = '$') and (Pos('=', L) > 0) then
-    Result.Kind := grkSetting
+  begin
+    Result.Kind := grkSetting;
+    if Copy(L,1,4)='$13=' then
+    begin
+      P:=Pos(' ',L); if P=0 then P:=Length(L)+1;
+      FReportInches:=StrToIntDef(Copy(L,5,P-5),-1);
+    end;
+  end
   else
     Result.Kind := grkOther;
 end;

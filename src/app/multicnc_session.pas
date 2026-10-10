@@ -12,7 +12,7 @@ interface
 uses Classes, SysUtils, multicnc_types, multicnc_interfaces, multicnc_machine,
   multicnc_gcode_analyzer, multicnc_laser_config,
   multicnc_simulator, multicnc_chatgpt_serial, multicnc_tcp_transport,
-  multicnc_grbl, multicnc_marlin;
+  multicnc_grbl, multicnc_grbl_status, multicnc_marlin;
 
 const
   { Linhas mantidas na fila do host alem das que estao na controladora. }
@@ -48,7 +48,9 @@ type
     FConnectedAt, FLastRxAt: QWord;
     FSilenceWarned: Boolean;
     FPhysicalHomingAllowed: Boolean;
-    FRequireGrblReply, FGrblProbeLogged, FGrblConfirmedLogged: Boolean;
+    FRequireGrblReply, FGrblProbeLogged, FGrblConfirmedLogged, FGrblStatusLogged: Boolean;
+    FGrblInfoRequested:Boolean;
+    FGrblDescription:string;
     FMarlinReadyAt: QWord;
     FMarlinHandshakeSent: Boolean;
     FEnvelopeX, FEnvelopeY, FEnvelopeZ: Double;
@@ -68,6 +70,8 @@ type
     function GetHomePosition: TMachinePosition;
     function GetHomePositionSet: Boolean;
     function GetControllerReady: Boolean;
+    function RefreshLegacyModalState:Boolean;
+    function GetFirmwareDescription:string;
     function Fail(const Reason: string): Boolean;
     procedure RequestPositionAfterMotion;
   public
@@ -106,6 +110,7 @@ type
     procedure SetThermalLimits(AMaxHotend, AMaxBed: Integer);
     property Connected: Boolean read GetConnected;
     property ControllerReady: Boolean read GetControllerReady;
+    property FirmwareDescription:string read GetFirmwareDescription;
     property State: TSessionState read FState;
     { Linhas do programa confirmadas pela controladora. }
     property Completed: Integer read GetCompleted;
@@ -251,6 +256,11 @@ begin
     Diag('Resposta GRBL reconhecida. Comunicacao com a controladora confirmada.');
   end;
   FLastRxAt := GetTickCount64;
+  if (FProtocolKind=pkGRBL) and (GetFirmwareDescription<>FGrblDescription) then
+  begin
+    FGrblDescription:=GetFirmwareDescription;
+    if FGrblDescription<>'' then Diag('Compatibilidade automatica: '+FGrblDescription);
+  end;
   if not Assigned(FOnLog) then Exit;
   { Relatorios de estado periodicos do GRBL nao poluem o console. }
   Lines := TStringList.Create;
@@ -258,9 +268,13 @@ begin
     Lines.Text := Data;
     Shown := '';
     for I := 0 to Lines.Count - 1 do
+    begin
       if (Trim(Lines[I]) <> '') and (FirstReply or
+         ((Copy(Trim(Lines[I]), 1, 1) = '<') and not FGrblStatusLogged) or
          ((Copy(Trim(Lines[I]), 1, 1) <> '<') and not IsTemperatureReport(Trim(Lines[I])))) then
         Shown := Shown + 'RX  ' + Trim(Lines[I]) + LineEnding;
+      if Copy(Trim(Lines[I]), 1, 1) = '<' then FGrblStatusLogged := True;
+    end;
   finally
     Lines.Free;
   end;
@@ -318,6 +332,8 @@ begin
   FRequireGrblReply := RequireGrblReply and (ProtocolKind = pkGRBL);
   FGrblProbeLogged := False;
   FGrblConfirmedLogged := False;
+  FGrblStatusLogged := False;
+  FGrblInfoRequested:=False; FGrblDescription:='';
   FMachineKind := Kind;
   if ProtocolKind = pkMarlin then
   begin
@@ -373,6 +389,45 @@ end;
 function TSimulationSession.GetConnected: Boolean;
 begin
   Result := Assigned(FTransport) and FTransport.IsConnected;
+end;
+
+function TSimulationSession.GetFirmwareDescription:string;
+var P:TGrblStatusParser;
+begin
+  Result:='';
+  if not (FProtocol is TGRBLProtocol) then Exit;
+  P:=TGRBLProtocol(FProtocol).Parser;
+  if P.Compatibility=gcUnknown then Exit;
+  if P.Version<>'' then Result:=GrblFirmwareName(P.Firmware)+' '+P.Version
+  else Result:='GRBL (versao exata nao informada)';
+  if P.Compatibility=gcLegacy then Result:=Result+' | comandos anteriores a 1.1'
+  else Result:=Result+' | comandos 1.1';
+end;
+
+function TSimulationSession.RefreshLegacyModalState:Boolean;
+var P:TGrblStatusParser; Serial, Errors:Integer; Deadline:QWord;
+begin
+  Result:=False;
+  if (FMachine.GetState<>msIdle) or (FMachine.PendingLines<>0) then
+    Exit(Fail('Aguarde a maquina ficar ociosa para movimento manual.'));
+  P:=TGRBLProtocol(FProtocol).Parser;
+  Serial:=P.ModalReportSerial; Errors:=FMachine.ErrorCount;
+  if not FMachine.SendGCode('$$'+LineEnding+'$G') then Exit(Fail(FMachine.LastError));
+  Deadline:=GetTickCount64+1000;
+  repeat
+    FTransport.Poll;
+    if not Connected or (FMachine.ErrorCount<>Errors) then Break;
+    if (P.ModalReportSerial<>Serial) and (FMachine.PendingLines=0) then
+    begin
+      if P.ReportInches<>0 then
+        Exit(Fail('GRBL antigo: movimento manual requer relatorios em milimetros ($13=0).'));
+      if P.ModalRestore='' then
+        Exit(Fail('GRBL antigo: movimento manual requer G21, G94 e modo G0/G1/G80 para preservar os modos atuais.'));
+      Exit(True);
+    end;
+    Sleep(10);
+  until GetTickCount64>=Deadline;
+  Fail('GRBL antigo: nao foi possivel consultar os modos ($G). Movimento manual nao enviado.');
 end;
 
 function TSimulationSession.GetControllerReady: Boolean;
@@ -625,6 +680,12 @@ begin
     begin
       FLastPoll := Now64;
       FMachine.Status;
+      if FRequireGrblReply and ControllerReady and not FGrblInfoRequested and
+         (FMachine.PendingLines=0) and (FMachine.GetState=msIdle) then
+      begin
+        FGrblInfoRequested:=True;
+        if TGRBLProtocol(FProtocol).Parser.Version='' then FMachine.SendGCode('$I');
+      end;
     end;
   end;
 
@@ -818,6 +879,9 @@ begin
   if FState in [ssRunning, ssPaused] then Exit(Fail('Unavailable while program is running'));
   if not ((Abs(Distance) > 0) and (Abs(Distance) <= 100) and (Feed >= 1) and (Feed <= 10000)) then
     Exit(Fail('Passo ou avanco fora dos limites (0-100 mm, 1-10000 mm/min)'));
+  if (FProtocol is TGRBLProtocol) and
+     (TGRBLProtocol(FProtocol).Parser.Compatibility=gcLegacy) and
+     not RefreshLegacyModalState then Exit(False);
   Result := FMachine.Jog(Axis, Distance, Feed);
   if Result then RequestPositionAfterMotion
   else FLastError := FMachine.LastError;

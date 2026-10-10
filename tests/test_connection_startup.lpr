@@ -5,7 +5,7 @@ uses Classes, SysUtils, multicnc_types, multicnc_interfaces, multicnc_session;
 type
   TPort = class(TInterfacedObject, IMultiCNCTransport)
   public
-    Opened, Reply: Boolean;
+    Opened, Reply, ReplyModal: Boolean;
     Sent: string;
     OnData: TTransportDataEvent;
     function Connect: Boolean;
@@ -27,6 +27,12 @@ function TPort.IsConnected: Boolean; begin Result := Opened; end;
 function TPort.Send(const Data: string): Boolean;
 begin
   Sent := Sent + Data; Result := Opened;
+  if ReplyModal and (Data='$$'+#10) and Assigned(OnData) then
+    OnData('$13=0 (report inches, bool)'#13#10'ok'#13#10);
+  if ReplyModal and (Data='$G'+#10) and Assigned(OnData) then
+    OnData('[G0 G54 G17 G21 G90 G94 M5 M9 T0 F0.0 S0.0]'#13#10'ok'#13#10);
+  if Reply and (Data='$I'+#10) and Assigned(OnData) then
+    OnData('[VER:1.1h.20190825:]'#13#10'ok'#13#10);
   if Reply and (Data = '?') and Assigned(OnData) then
     OnData('<Idle|MPos:1.000,2.000,3.000|FS:0,0>'#13#10);
 end;
@@ -102,6 +108,37 @@ begin
     Check(not S.ControllerReady, 'ok antigo nao libera reset');
     P.OnData('Grbl 1.1h'#13#10);
     Check(S.ControllerReady, 'Banner confirma reinicio');
+
+    S.Disconnect;
+    L.Text := ''; P := TPort.Create;
+    Check(S.ConnectTransport(mtRouter, pkGRBL, P, P, True), 'Connect legacy GRBL');
+    P.OnData('Grbl 0.9j [''$'' for help]'#13#10);
+    P.OnData('<Idle,MPos:0.000,0.000,0.000,WPos:-3.056,-5.238,26.256>'#13#10);
+    Check(S.ControllerReady and (S.MachineState=msIdle), 'Legacy controller ready');
+    Check(Abs(S.Position.X+3.056)<0.001, 'Legacy X work coordinate');
+    Check(Abs(S.Position.Y+5.238)<0.001, 'Legacy Y work coordinate');
+    Check(Abs(S.Position.Z-26.256)<0.001, 'Legacy Z work coordinate');
+    Check(Pos('RX  <Idle,MPos:',L.Text)>0,'First legacy status visible after banner');
+    Check(Pos('0.9j',S.FirmwareDescription)>0,'Firmware version available in session');
+    Check(Pos('Compatibilidade automatica:',L.Text)>0,'Automatic compatibility visible');
+    L.Text := ''; P.ReplyModal:=True;
+    Check(S.Jog(axX,1,500),'Legacy session queries modes and jogs');
+    Check(Pos('$G'#10'G91 G21 G94 G1 X1.000 F500'#10'G21 G90 G94 G0 F0.0'#10,P.Sent)>0,
+      'Legacy command sequence including restoration');
+    P.OnData('ok'#13#10'ok'#13#10);
+    P.ReplyModal:=False; P.OnData('<Idle,MPos:0,0,0,WPos:0,0,0>'#13#10);
+    Check(not S.Jog(axX,1,500),'No legacy movement without fresh modal response');
+    Check(Pos('nao enviado',S.LastError)>0,'Clear diagnostic for missing modal response');
+    P.OnData('ok'#13#10);
+    L.Text := '';
+    P.OnData('<Run,MPos:1,2,3,WPos:4,5,6>'#13#10);
+    Check(S.MachineState=msRunning,'Legacy Run');
+    Check(Pos('RX  <Run',L.Text)=0,'Repeated status remains quiet');
+    P.OnData('<Hold,MPos:1,2,3,WPos:4,5,6>'#13#10);
+    Check(S.MachineState=msPaused,'Legacy Hold');
+    P.OnData('<Alarm,MPos:1,2,3,WPos:4,5,6>'#13#10);
+    Check(S.MachineState=msAlarm,'Legacy Alarm never interpreted as Idle');
+    Check(not S.Jog(axX,1,500),'Legacy alarm blocks motion');
 
     S.Disconnect;
     L.Text := ''; P := TPort.Create;
