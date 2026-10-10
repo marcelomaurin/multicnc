@@ -59,6 +59,11 @@ type
 
 { Acha os perfis. ChordTol = erro maximo de corda na discretizacao dos arcos. }
 function CadSketchProfiles(S: TCadSketch; ChordTol: Double = 0.01): TCadProfileResult;
+{ Um unico contorno aberto (para Recurso fino com perfil aberto): linhas e
+  arcos encadeados com duas pontas soltas. Poly vai de uma ponta a outra;
+  SegEntity[i] e a entidade do trecho Poly[i] -> Poly[i+1]. }
+function CadSketchOpenChain(S: TCadSketch; out Chain: TCadLoop; out AError: string;
+  ChordTol: Double = 0.01): Boolean;
 function CadPolyArea(const P: array of TCadVec2): Double;
 function CadPointInPoly(const P: TCadVec2; const Poly: array of TCadVec2): Boolean;
 function CadFindRegion(const R: TCadProfileResult; const AId: string): Integer;
@@ -205,6 +210,156 @@ begin
   end;
   L.Edges := E;
   L.Area := -L.Area;
+end;
+
+
+function CadSketchOpenChain(S: TCadSketch; out Chain: TCadLoop; out AError: string;
+  ChordTol: Double): Boolean;
+type
+  TItem = record
+    EI, N0, N1: Integer;
+  end;
+var
+  Pts: array of TCadVec2;
+  Deg: array of Integer;
+  Items: array of TItem;
+  Used: array of Boolean;
+  I, K, Node, Start, Cur, Guard: Integer;
+  E: TSketchEntity;
+  A0, A1, Sweep: Double;
+  Rev: Boolean;
+  function NodeFor(const P: TCadVec2): Integer;
+  var
+    Q: Integer;
+  begin
+    for Q := 0 to High(Pts) do
+      if Dist2(Pts[Q], P) <= PROFILE_TOL then
+        Exit(Q);
+    Result := Length(Pts);
+    SetLength(Pts, Result + 1);
+    SetLength(Deg, Result + 1);
+    Pts[Result] := P;
+    Deg[Result] := 0;
+  end;
+  procedure AddP(const P: TCadVec2; AEnt: Integer);
+  var
+    N: Integer;
+  begin
+    N := Length(Chain.Poly);
+    if (N > 0) and (Dist2(Chain.Poly[N - 1], P) < 1E-9) then
+      Exit;
+    SetLength(Chain.Poly, N + 1);
+    SetLength(Chain.SegEntity, N + 1);
+    Chain.Poly[N] := P;
+    Chain.SegEntity[N] := AEnt;
+  end;
+begin
+  Result := False;
+  AError := '';
+  Chain := Default(TCadLoop);
+  Pts := nil;
+  Items := nil;
+  for I := 0 to S.EntityCount - 1 do
+  begin
+    E := S.Entity(I);
+    if E.Construction then
+      Continue;
+    if E.Kind = seCircle then
+    begin
+      AError := 'Contorno aberto não pode ter círculos';
+      Exit;
+    end;
+    if not (E.Kind in [seLine, seArc]) then
+      Continue;
+    K := Length(Items);
+    SetLength(Items, K + 1);
+    Items[K].EI := I;
+    if E.Kind = seLine then
+    begin
+      Items[K].N0 := NodeFor(E.P1);
+      Items[K].N1 := NodeFor(E.P2);
+    end
+    else
+    begin
+      Items[K].N0 := NodeFor(E.P2);
+      Items[K].N1 := NodeFor(E.P3);
+    end;
+    Inc(Deg[Items[K].N0]);
+    Inc(Deg[Items[K].N1]);
+  end;
+  if Length(Items) = 0 then
+  begin
+    AError := 'O esboço não tem linhas ou arcos';
+    Exit;
+  end;
+  Start := -1;
+  K := 0;
+  for I := 0 to High(Deg) do
+  begin
+    if Deg[I] > 2 then
+    begin
+      AError := 'O contorno aberto tem ramificação';
+      Exit;
+    end;
+    if Deg[I] = 1 then
+    begin
+      Inc(K);
+      if Start < 0 then
+        Start := I;
+    end;
+  end;
+  if K <> 2 then
+  begin
+    if K = 0 then
+      AError := 'O contorno é fechado (use o perfil normal)'
+    else
+      AError := 'O esboço tem mais de um contorno aberto';
+    Exit;
+  end;
+  SetLength(Used, Length(Items));
+  Node := Start;
+  Guard := 0;
+  repeat
+    Cur := -1;
+    for I := 0 to High(Items) do
+      if not Used[I] and ((Items[I].N0 = Node) or (Items[I].N1 = Node)) then
+      begin
+        Cur := I;
+        Break;
+      end;
+    if Cur < 0 then
+      Break;
+    Used[Cur] := True;
+    E := S.Entity(Items[Cur].EI);
+    Rev := Items[Cur].N0 <> Node;
+    case E.Kind of
+      seLine:
+        if Rev then AddP(E.P2, E.Id) else AddP(E.P1, E.Id);
+      seArc:
+        begin
+          A0 := ArcTan2(E.P2.Y - E.P1.Y, E.P2.X - E.P1.X);
+          A1 := ArcTan2(E.P3.Y - E.P1.Y, E.P3.X - E.P1.X);
+          Sweep := A1 - A0;
+          while Sweep <= 1E-12 do
+            Sweep := Sweep + 2 * Pi;
+          ArcPoints(Chain, E.P1, E.Radius, A0, Sweep, E.Id, Rev, ChordTol);
+        end;
+    end;
+    if Rev then Node := Items[Cur].N0 else Node := Items[Cur].N1;
+    Inc(Guard);
+  until Guard > Length(Items);
+  for I := 0 to High(Used) do
+    if not Used[I] then
+    begin
+      AError := 'O esboço tem mais de um contorno';
+      Exit;
+    end;
+  { ultimo ponto (a outra ponta) }
+  SetLength(Chain.Poly, Length(Chain.Poly) + 1);
+  Chain.Poly[High(Chain.Poly)] := Pts[Node];
+  SetLength(Chain.SegEntity, Length(Chain.Poly));
+  Chain.SegEntity[High(Chain.SegEntity)] := -1;
+  Result := Length(Chain.Poly) >= 2;
 end;
 
 function CadSketchProfiles(S: TCadSketch; ChordTol: Double): TCadProfileResult;

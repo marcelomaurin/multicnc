@@ -86,6 +86,8 @@ type
     function AddDimension(AKind: TConstraintKind; AEntA, APtA, AEntB, APtB: Integer;
       AValue: Double): Integer;
     procedure DeleteConstraint(AId: Integer);
+    { Apaga a entidade e as restricoes/cotas que a usam. }
+    procedure DeleteEntity(AId: Integer);
     function EntityCount: Integer;
     function ConstraintCount: Integer;
     function Entity(I: Integer): TSketchEntity;
@@ -417,6 +419,22 @@ begin
   for J := I to High(FConstraints) - 1 do
     FConstraints[J] := FConstraints[J + 1];
   SetLength(FConstraints, Length(FConstraints) - 1);
+end;
+
+procedure TCadSketch.DeleteEntity(AId: Integer);
+var
+  I, J: Integer;
+begin
+  I := EntityIndex(AId);
+  if I < 0 then
+    Exit;
+  for J := I to High(FEntities) - 1 do
+    FEntities[J] := FEntities[J + 1];
+  SetLength(FEntities, Length(FEntities) - 1);
+  for J := High(FConstraints) downto 0 do
+    if (FConstraints[J].EntityA = AId) or (FConstraints[J].EntityB = AId) or
+      (FConstraints[J].EntityC = AId) then
+      DeleteConstraint(FConstraints[J].Id);
 end;
 
 function TCadSketch.EntityCount: Integer;

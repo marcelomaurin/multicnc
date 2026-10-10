@@ -199,6 +199,9 @@ Condições finais disponíveis por operação:
 - Inclinação que fecha o perfil antes da profundidade: erro "Ângulo de inclinação muito
   grande".
 
+Sentido padrão: o ressalto sai pela normal do esboço; o **corte entra na peça** (contra a
+normal), como no SolidWorks. "Inverter direção" troca os dois.
+
 ### Geometria (núcleo Pascal)
 
 - O perfil (regiões com ilhas) é varrido na direção escolhida: tampas inicial e final

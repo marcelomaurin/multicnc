@@ -19,8 +19,8 @@ interface
 
 uses
   Classes, SysUtils, fpjson, jsonparser, multicad_types, multicad_feature,
-  multicad_refgeom, multicad_sketch, multicad_extrude, multicad_materials,
-  multicad_solver;
+  multicad_refgeom, multicad_sketch, multicad_extrude, multicad_revolve,
+  multicad_materials, multicad_solver;
 
 const
   MCAD_FORMAT = 'multicad';
@@ -66,6 +66,8 @@ type
     procedure AddFeature(F: TCadFeature);
     function AddSketch(const APlaneRef: string = 'plane:1'; const AName: string = ''): TCadSketch;
     function AddExtrude(ASketchId: Integer; ADepth: Double; AIsCut: Boolean = False): TCadExtrude;
+    function AddRevolve(ASketchId: Integer; AAngle: Double; AIsCut: Boolean = False): TCadRevolve;
+    function AddPlane(AType: TCadPlaneType; const ARefs: array of string; AValue: Double = 0): TCadPlane;
     { Remove; recusa (False + mensagem) se outra operacao depende dela. }
     function DeleteFeature(AId: Integer; out AError: string): Boolean;
     { Operacoes que dependem (direta ou indiretamente) de AId. }
@@ -267,6 +269,34 @@ begin
   Result.Dir1.Depth := ADepth;
   if AIsCut then
     Result.Dir1.EndCond := ecBlind;
+  AddFeature(Result);
+end;
+
+function TCadDocument.AddRevolve(ASketchId: Integer; AAngle: Double; AIsCut: Boolean): TCadRevolve;
+begin
+  if AIsCut then
+    Result := TCadRevolveCut.Create
+  else
+    Result := TCadRevolve.Create;
+  Result.SketchId := ASketchId;
+  Result.Angle := AAngle;
+  AddFeature(Result);
+end;
+
+function TCadDocument.AddPlane(AType: TCadPlaneType; const ARefs: array of string;
+  AValue: Double): TCadPlane;
+var
+  I: Integer;
+begin
+  Result := TCadPlane.Create;
+  Result.PlaneType := AType;
+  SetLength(Result.Refs, Length(ARefs));
+  for I := 0 to High(ARefs) do
+    Result.Refs[I] := ARefs[I];
+  if AType = ptAngle then
+    Result.Angle := AValue
+  else
+    Result.Distance := AValue;
   AddFeature(Result);
 end;
 

@@ -5,8 +5,9 @@ MultiCAD e o autor CAD da suite. Seu objetivo e criar e editar a geometria que r
 
 ## Estado (09/10/2026)
 Em implementacao: decisoes D1 a D10 aprovadas, fases 0 (base, Ids, JSON, unidades,
-materiais, malha rotulada, ICadKernel) e 1 (esboco com solver, graus de liberdade e perfis)
-concluidas; 223 checks. Proxima: fase 2 (extrusao, corte e revolucao em solido). O plano completo esta em `TAREFA.md` (decisoes D1 a D8 aguardando
+materiais, malha rotulada, ICadKernel), 1 (esboco com solver, graus de liberdade e perfis) e
+2 (extrusao, corte, revolucao, planos, booleanas, reconstrucao) concluidas; 352 checks.
+Proxima: fase 3 (vista 3D e arvore). Limites da fase 2 em TAREFA.md. O plano completo esta em `TAREFA.md` (decisoes D1 a D8 aguardando
 aprovacao, fases 0 a 8) e o projeto tecnico em `ARCHITECTURE.md` (modelo `.mcad`, solver
 Newton/LM, nucleo em malha rotulada + CSG BSP atras de `ICadKernel`, OpenGL, exportacao).
 Referencia de fluxo: SolidWorks 2014 (sketch com restricoes e cotas, arvore de operacoes,
@@ -28,6 +29,12 @@ Documento CAD, features, sketches, extrusoes, transformacoes geometricas, viewpo
 - src/sketch/multicad_profile.pas: lacos fechados, regioes com ilhas (CadSketchProfiles).
 - src/kernel/multicad_kernel.pas: interface ICadKernel e nucleo Pascal.
 - src/kernel/multicad_mesh.pas: malha com faces rotuladas, solda, malha fechada, volume.
+- src/kernel/multicad_triangulate.pas: poligono com furos -> triangulos.
+- src/kernel/multicad_sweep.pas: extrusao (inclinacao) e revolucao com faces rotuladas.
+- src/kernel/multicad_csg.pas: booleanas BSP + fusao de faces planas + reparo de juncoes T.
+- src/features/multicad_revolve.pas: parametros da revolucao.
+- src/features/multicad_bridge.pas: perfis do esboco -> regioes de varredura.
+- src/features/multicad_rebuild.pas: TCadRebuilder (arvore -> corpos, referencias, cache).
 - src/ui/multicad_viewport.pas e src/app/: tela provisoria (interface real na fase 3).
 - tests/test_multicad.lpr: testes do nucleo (sem LCL).
 
@@ -49,4 +56,7 @@ Mantenha geometria independente da UI. Nao acople o documento CAD a uma maquina 
   nome estavel (`Extrude2/topo`).
 - O nucleo geometrico so e acessado por `ICadKernel`.
 - Toda booleana deixa a malha fechada; teste com volume analitico.
+- Corte extrudado entra na peca por padrao (contra a normal do esboco), como no SolidWorks.
+- Referencias por texto: plane:<id>, face:<nome>, axis:<id>, sketch:<id>/<entidade>[.<ponto>],
+  body:<nome>, origin.
 - Programas: `Application.CreateForm` no `.lpr` (regra 12 de `docs/AI_TOOLS_GUIDE.md`).

@@ -10,7 +10,8 @@ uses
   SysUtils, Classes, Math, multicad_types, multicad_units, multicad_materials,
   multicad_feature, multicad_refgeom, multicad_sketch, multicad_extrude,
   multicad_document, multicad_mesh, multicad_kernel, multicad_solver,
-  multicad_profile;
+  multicad_profile, multicad_triangulate, multicad_sweep, multicad_bridge, multicad_csg, multicad_revolve, multicad_rebuild,
+  multicad_camera, multicad_softrender, multicad_sketchtools;
 
 var
   Passed, Failed: Integer;
@@ -795,6 +796,958 @@ begin
   end;
 end;
 
+{ ---------- fase 2A: triangulacao e varredura ---------- }
+
+function SketchRegion(S: TCadSketch; ChordTol: Double = 0.002): TCadSweepRegion;
+var
+  P: TCadProfileResult;
+begin
+  P := CadSketchProfiles(S, ChordTol);
+  if not P.Ok then
+    raise Exception.Create('perfil invalido no teste: ' + P.Message);
+  Result := CadRegionToSweep(P.Regions[0]);
+end;
+
+function RelNear(A, B, Rel: Double): Boolean;
+begin
+  Result := Abs(A - B) <= Rel * Abs(B);
+end;
+
+procedure TestSweep;
+var
+  Outer: TCadPoly2;
+  Holes: TCadPoly2Array;
+  Pts: TCadPoly2;
+  Tris: TCadTriIdxArray;
+  E: string;
+  I, L1, C: Integer;
+  A, A1, A2, Dl, Exact: Double;
+  S: TCadSketch;
+  M: TCadMesh;
+  R: TCadSweepRegion;
+  B: TCadBox3;
+  F: Integer;
+  Off: TCadPoly2;
+begin
+  { triangulacao com furo }
+  Outer := [V2(0, 0), V2(10, 0), V2(10, 10), V2(0, 10)];
+  SetLength(Holes, 1);
+  Holes[0] := [V2(3, 3), V2(3, 7), V2(7, 7), V2(7, 3)];
+  Check(CadTriangulate(Outer, Holes, Pts, Tris, E), 'triangula quadrado com furo: ' + E);
+  A := 0;
+  for I := 0 to High(Tris) do
+  begin
+    A1 := ((Pts[Tris[I].B].X - Pts[Tris[I].A].X) * (Pts[Tris[I].C].Y - Pts[Tris[I].A].Y) -
+      (Pts[Tris[I].B].Y - Pts[Tris[I].A].Y) * (Pts[Tris[I].C].X - Pts[Tris[I].A].X)) / 2;
+    Check(A1 > 0, 'triangulo anti-horario');
+    A := A + A1;
+  end;
+  Check(Near(A, 100 - 16, 1E-9), Format('soma das areas = 84 (%.6f)', [A]));
+  Check(Length(Tris) = 8, Format('8 triangulos (%d)', [Length(Tris)]));
+  Outer := [V2(0, 0), V2(10, 0), V2(10, 4), V2(5, 1), V2(0, 4)];
+  Check(CadTriangulate(Outer, nil, Pts, Tris, E) and (Length(Tris) = 3), 'poligono concavo');
+  Check(not CadTriangulate([V2(0, 0), V2(1, 1), V2(2, 2)], nil, Pts, Tris, E), 'area nula recusada');
+
+  { offset }
+  Check(CadOffsetLoop([V2(0, 0), V2(10, 0), V2(10, 10), V2(0, 10)], 1, Off) and
+    NearP(Off[0], V2(1, 1), 1E-12) and NearP(Off[2], V2(9, 9), 1E-12), 'offset para dentro em esquadria');
+  Check(not CadOffsetLoop([V2(0, 0), V2(10, 0), V2(10, 10), V2(0, 10)], 6, Off), 'offset maior que a metade recusado');
+
+  { extrusao simples no Plano Frontal }
+  S := TCadSketch.Create;
+  try
+    L1 := S.AddRectangle(0, 0, 80, 50);
+    R := SketchRegion(S);
+    M := CadSweepExtrude(StdFrame(spFrontal), R, CadSketchSurfaces(S), V3(0, 0, 1), 0, 10, 0, False, 'Ext1', E);
+    try
+      Check(M <> nil, 'extrusao do retangulo: ' + E);
+      Check(M.IsClosed and Near(M.Volume, 40000, 1E-6), 'bloco 80x50x10 fechado com 40000 mm3');
+      Check(M.FaceCount = 6, Format('6 faces (%d)', [M.FaceCount]));
+      Check((M.FaceIndex('Ext1/inicio') >= 0) and (M.FaceIndex('Ext1/fim') >= 0), 'faces inicio e fim');
+      for I := 0 to 3 do
+        Check(M.FaceIndex('Ext1/lat:' + IntToStr(L1 + I)) >= 0, 'face lateral da linha ' + IntToStr(L1 + I));
+      F := M.FaceIndex('Ext1/lat:' + IntToStr(L1));
+      Check(NearV(M.Faces[F].Axis, V3(0, -1, 0), 1E-9), 'lateral da linha inferior com normal -Y');
+      Check(NearV(M.Faces[M.FaceIndex('Ext1/fim')].Axis, V3(0, 0, 1), 1E-9), 'tampa do fim com normal +Z');
+      B := M.Bounds;
+      Check(Near(B.Min.Z, 0, 1E-9) and Near(B.Max.Z, 10, 1E-9), 'Z de 0 a 10');
+    finally
+      M.Free;
+    end;
+    { sentido contrario }
+    M := CadSweepExtrude(StdFrame(spFrontal), R, nil, V3(0, 0, -1), 0, 10, 0, False, 'Ext1', E);
+    try
+      B := M.Bounds;
+      Check((M <> nil) and M.IsClosed and Near(M.Volume, 40000, 1E-6) and Near(B.Min.Z, -10, 1E-9),
+        'extrusao invertida fechada e com volume positivo');
+      Check(NearV(M.Faces[M.FaceIndex('Ext1/fim')].Axis, V3(0, 0, -1), 1E-9), 'fim invertido aponta para -Z');
+    finally
+      M.Free;
+    end;
+    { deslocamento do inicio }
+    M := CadSweepExtrude(StdFrame(spFrontal), R, nil, V3(0, 0, 1), 5, 10, 0, False, 'Ext1', E);
+    try
+      B := M.Bounds;
+      Check(Near(B.Min.Z, 5, 1E-9) and Near(B.Max.Z, 15, 1E-9), 'inicio deslocado 5 mm');
+    finally
+      M.Free;
+    end;
+    { plano Superior e Lateral }
+    M := CadSweepExtrude(StdFrame(spSuperior), R, nil, StdFrame(spSuperior).Normal, 0, 10, 0, False, 'E', E);
+    try
+      B := M.Bounds;
+      Check(M.IsClosed and Near(B.Max.Y, 10, 1E-9) and Near(B.Min.Z, -50, 1E-9), 'Superior: sobe em Y, desenho em -Z');
+    finally
+      M.Free;
+    end;
+    M := CadSweepExtrude(StdFrame(spLateral), R, nil, StdFrame(spLateral).Normal, 0, 10, 0, False, 'E', E);
+    try
+      B := M.Bounds;
+      Check(M.IsClosed and Near(B.Max.X, 10, 1E-9) and Near(B.Min.Z, -80, 1E-9), 'Lateral: sai em X, desenho em -Z');
+    finally
+      M.Free;
+    end;
+    { direcao obliqua }
+    M := CadSweepExtrude(StdFrame(spFrontal), R, nil, VNorm(V3(1, 0, 1)), 0, 10, 0, False, 'E', E);
+    try
+      Check(M.IsClosed and RelNear(M.Volume, 4000 * 10 / Sqrt(2), 1E-9), 'extrusao obliqua: area x altura');
+    finally
+      M.Free;
+    end;
+    { inclinacao: tronco de piramide }
+    M := CadSweepExtrude(StdFrame(spFrontal), R, CadSketchSurfaces(S), V3(0, 0, 1), 0, 10, 5, False, 'E', E);
+    try
+      Dl := 10 * Tan(5 * Pi / 180);
+      { cada lado encolhe 2.Dl linearmente: integral de (80-2Dl.t/h)(50-2Dl.t/h) }
+      Exact := 10 * (80 * 50 - Dl * (80 + 50) + 4 / 3 * Dl * Dl);
+      Check((M <> nil) and M.IsClosed and RelNear(M.Volume, Exact, 1E-9),
+        Format('inclinacao de 5 graus: volume do tronco (%.4f x %.4f)', [M.Volume, Exact]));
+    finally
+      M.Free;
+    end;
+    M := CadSweepExtrude(StdFrame(spFrontal), R, nil, V3(0, 0, 1), 0, 10, 5, True, 'E', E);
+    try
+      Check((M <> nil) and (M.Volume > 40000), 'inclinacao para fora aumenta o volume');
+    finally
+      M.Free;
+    end;
+    M := CadSweepExtrude(StdFrame(spFrontal), R, nil, V3(0, 0, 1), 0, 300, 10, False, 'E', E);
+    Check((M = nil) and (Pos('inclinação muito grande', E) > 0), 'inclinacao grande demais recusada');
+    M := CadSweepExtrude(StdFrame(spFrontal), R, nil, V3(1, 0, 0), 0, 10, 0, False, 'E', E);
+    Check(M = nil, 'direcao paralela ao plano recusada');
+    { com furo }
+    C := S.AddCircle(20, 25, 4);
+    R := SketchRegion(S, 0.001);
+    M := CadSweepExtrude(StdFrame(spFrontal), R, CadSketchSurfaces(S), V3(0, 0, 1), 0, 10, 0, False, 'Ext1', E);
+    try
+      Exact := (4000 - Pi * 16) * 10;
+      Check((M <> nil) and M.IsClosed and RelNear(M.Volume, Exact, 0.005),
+        Format('placa com furo dentro de 0,5%% (%.2f x %.2f)', [M.Volume, Exact]));
+      F := M.FaceIndex('Ext1/lat:' + IntToStr(C));
+      Check((F >= 0) and (M.Faces[F].Surf = skCylinder) and Near(M.Faces[F].Radius, 4), 'furo vira face cilindrica de raio 4');
+    finally
+      M.Free;
+    end;
+  finally
+    S.Free;
+  end;
+
+  { revolucao: tubo }
+  S := TCadSketch.Create;
+  try
+    S.AddRectangle(10, 0, 20, 30);
+    R := SketchRegion(S);
+    M := CadSweepRevolve(StdFrame(spFrontal), R, CadSketchSurfaces(S), V2(0, 0), V2(0, 1), 0, 360, 'Rev1', E);
+    try
+      Exact := Pi * (400 - 100) * 30;
+      Check((M <> nil) and M.IsClosed and RelNear(M.Volume, Exact, 0.005),
+        Format('tubo revolucionado dentro de 0,5%% (%.1f x %.1f)', [M.Volume, Exact]));
+      Check(M.FaceIndex('Rev1/inicio') < 0, '360 graus sem tampas');
+      F := M.FaceIndex('Rev1/rev:' + IntToStr(S.Entity(1).Id));
+      Check((F >= 0) and (M.Faces[F].Surf = skCylinder) and Near(M.Faces[F].Radius, 20, 1E-9), 'parede externa cilindrica r=20');
+      F := M.FaceIndex('Rev1/rev:' + IntToStr(S.Entity(0).Id));
+      Check((F >= 0) and (M.Faces[F].Surf = skPlane), 'base plana');
+      B := M.Bounds;
+      Check(Near(B.Max.Y, 30, 1E-9) and Near(B.Min.Y, 0, 1E-9), 'tubo ao longo de Y');
+    finally
+      M.Free;
+    end;
+    M := CadSweepRevolve(StdFrame(spFrontal), R, nil, V2(0, 0), V2(0, 1), 0, 90, 'Rev1', E);
+    try
+      Check((M <> nil) and M.IsClosed and RelNear(M.Volume, Exact / 4, 0.005), 'um quarto de tubo: ' + E);
+      Check((M.FaceIndex('Rev1/inicio') >= 0) and (M.FaceIndex('Rev1/fim') >= 0), '90 graus com tampas');
+    finally
+      M.Free;
+    end;
+    M := CadSweepRevolve(StdFrame(spFrontal), R, nil, V2(0, 0), V2(0, -1), 0, 90, 'Rev1', E);
+    try
+      Check((M <> nil) and M.IsClosed and (M.Volume > 0), 'eixo invertido tambem fecha');
+    finally
+      M.Free;
+    end;
+    M := CadSweepRevolve(StdFrame(spFrontal), R, nil, V2(15, 0), V2(15, 1), 0, 360, 'Rev1', E);
+    Check((M = nil) and (Pos('cruza o eixo', E) > 0), 'perfil cruzando o eixo recusado');
+  finally
+    S.Free;
+  end;
+
+  { toro }
+  S := TCadSketch.Create;
+  try
+    S.AddCircle(20, 0, 5);
+    R := SketchRegion(S, 0.001);
+    M := CadSweepRevolve(StdFrame(spSuperior), R, CadSketchSurfaces(S), V2(0, -10), V2(0, 10), 0, 360, 'Toro', E);
+    try
+      Exact := 2 * Pi * Pi * 20 * 25;
+      Check((M <> nil) and M.IsClosed and RelNear(M.Volume, Exact, 0.005),
+        Format('toro dentro de 0,5%% (%.1f x %.1f)', [M.Volume, Exact]));
+      Check(M.Faces[0].Surf = skTorus, 'face toroidal rotulada');
+    finally
+      M.Free;
+    end;
+  finally
+    S.Free;
+  end;
+
+  { ranhura extrudada }
+  S := TCadSketch.Create;
+  try
+    S.AddSlot(0, 0, 40, 0, 10);
+    R := SketchRegion(S, 0.0005);
+    M := CadSweepExtrude(StdFrame(spFrontal), R, CadSketchSurfaces(S), V3(0, 0, 1), 0, 6, 0, False, 'Ras', E);
+    try
+      Check((M <> nil) and M.IsClosed and RelNear(M.Volume, (400 + Pi * 25) * 6, 0.005), 'ranhura extrudada');
+      Check(M.FaceCount = 6, 'ranhura: 2 tampas + 2 planas + 2 cilindricas');
+    finally
+      M.Free;
+    end;
+  finally
+    S.Free;
+  end;
+end;
+
+{ ---------- fase 2B: booleanas ---------- }
+
+procedure TestCSG;
+var
+  A, B, R, C, Cyl: TCadMesh;
+  E: string;
+  Parts: TList;
+  I: Integer;
+  T0: QWord;
+  Exact, V0: Double;
+  procedure FreeAll;
+  begin
+    FreeAndNil(B);
+    FreeAndNil(R);
+  end;
+begin
+  B := nil; R := nil;
+  A := CadMakeBox(V3(0, 0, 0), V3(80, 50, 10), 'Base');
+  try
+    { furo passante }
+    Cyl := CadMakeCylinder(V3(20, 25, -1), V3(0, 0, 1), 4, 12, 'Furo');
+    try
+      R := CadBoolean(A, Cyl, boDifference, E);
+      Exact := 40000 - Cyl.Volume / 12 * 10;
+      Check((R <> nil) and R.IsClosed, 'furo passante: malha fechada ' + E);
+      Check(Near(R.Volume, Exact, 1E-6), Format('volume do bloco furado (%.6f x %.6f)', [R.Volume, Exact]));
+      Check((R.FaceIndex('Base/zmax') >= 0) and (R.FaceIndex('Furo/cil') >= 0), 'nomes das faces mantidos (Base/zmax, Furo/cil)');
+      Check(CadMeshComponents(R) = 1, 'uma peca');
+      Check(NearV(R.Faces[R.FaceIndex('Base/zmax')].Axis, V3(0, 0, 1), 1E-9), 'normal da face de cima mantida');
+    finally
+      Cyl.Free;
+      FreeAndNil(R);
+    end;
+    { bolsao a partir da face de cima (faces coplanares) }
+    B := CadMakeBox(V3(10, 10, 6), V3(30, 30, 10), 'Bolsao');
+    R := CadBoolean(A, B, boDifference, E);
+    Check((R <> nil) and R.IsClosed and Near(R.Volume, 40000 - 20 * 20 * 4, 1E-6),
+      'bolsao com topo coplanar: fechado e volume certo ' + E);
+    Check(R.FaceIndex('Bolsao/zmin') >= 0, 'fundo do bolsao vem da ferramenta');
+    FreeAll;
+    { ressalto em cima (encostado) }
+    B := CadMakeBox(V3(10, 10, 10), V3(30, 30, 20), 'Ressalto');
+    R := CadBoolean(A, B, boUnion, E);
+    Check((R <> nil) and R.IsClosed and Near(R.Volume, 40000 + 4000, 1E-6), 'ressalto encostado: uniao fechada ' + E);
+    Check(CadMeshComponents(R) = 1, 'ressalto encostado vira uma peca so');
+    FreeAll;
+    { lado a lado, face inteira em comum }
+    B := CadMakeBox(V3(80, 0, 0), V3(120, 50, 10), 'Lado');
+    R := CadBoolean(A, B, boUnion, E);
+    Check((R <> nil) and R.IsClosed and Near(R.Volume, 60000, 1E-6) and (CadMeshComponents(R) = 1),
+      'blocos lado a lado se fundem ' + E);
+    FreeAll;
+    { separados }
+    B := CadMakeBox(V3(200, 0, 0), V3(210, 10, 10), 'Longe');
+    R := CadBoolean(A, B, boUnion, E);
+    Check((R <> nil) and Near(R.Volume, 41000, 1E-6) and (CadMeshComponents(R) = 2), 'uniao de pecas separadas: 2 componentes');
+    Parts := CadSplitComponents(R);
+    try
+      Check(Parts.Count = 2, 'separa em 2 malhas');
+      V0 := 0;
+      for I := 0 to Parts.Count - 1 do
+      begin
+        Check(TCadMesh(Parts[I]).IsClosed, 'parte fechada');
+        V0 := V0 + TCadMesh(Parts[I]).Volume;
+      end;
+      Check(Near(V0, 41000, 1E-6), 'volumes das partes somam o total');
+    finally
+      for I := 0 to Parts.Count - 1 do
+        TCadMesh(Parts[I]).Free;
+      Parts.Free;
+    end;
+    FreeAll;
+    { intersecao }
+    B := CadMakeBox(V3(70, 40, -5), V3(100, 60, 5), 'X');
+    R := CadBoolean(A, B, boIntersection, E);
+    Check((R <> nil) and R.IsClosed and Near(R.Volume, 10 * 10 * 5, 1E-6), 'intersecao de blocos ' + E);
+    FreeAll;
+    { corte que nao toca }
+    B := CadMakeBox(V3(200, 0, 0), V3(210, 10, 10), 'Fora');
+    R := CadBoolean(A, B, boDifference, E);
+    Check((R <> nil) and Near(R.Volume, 40000, 1E-6), 'corte fora da peca nao muda o volume');
+    FreeAll;
+    { corte que remove tudo }
+    B := CadMakeBox(V3(-10, -10, -10), V3(100, 100, 100), 'Tudo');
+    R := CadBoolean(A, B, boDifference, E);
+    Check((R <> nil) and (R.TriCount = 0), 'corte que remove tudo deixa malha vazia');
+    FreeAll;
+  finally
+    A.Free;
+  end;
+
+  { placa com 4 furos sucessivos (desempenho e robustez) }
+  A := CadMakeBox(V3(0, 0, 0), V3(100, 60, 8), 'Placa');
+  T0 := GetTickCount64;
+  try
+    for I := 0 to 3 do
+    begin
+      Cyl := CadMakeCylinder(V3(15 + I * 23, 30, -2), V3(0, 0, 1), 5, 12, 'F' + IntToStr(I));
+      try
+        R := CadBoolean(A, Cyl, boDifference, E);
+        Check(R <> nil, 'furo ' + IntToStr(I) + ': ' + E);
+        Exact := Cyl.Volume / 12 * 8;
+      finally
+        Cyl.Free;
+      end;
+      if R = nil then
+        Exit;
+      A.Free;
+      A := R;
+      R := nil;
+    end;
+    Check(A.IsClosed and Near(A.Volume, 48000 - 4 * Exact, 1E-5), Format('placa com 4 furos (%.4f)', [A.Volume]));
+    Check(GetTickCount64 - T0 < 10000, Format('4 furos em menos de 10 s (%d ms)', [GetTickCount64 - T0]));
+    { cilindro cruzando cilindro (furo transversal) }
+    Cyl := CadMakeCylinder(V3(-5, 30, 4), V3(1, 0, 0), 2, 110, 'Trans');
+    try
+      { limite conhecido (TAREFA.md): cilindro cortando cilindro gera lascas
+        demais para a malha; a operacao deve falhar com mensagem, sem quebrar
+        e sem devolver malha aberta }
+      R := CadBoolean(A, Cyl, boDifference, E);
+      Check(((R <> nil) and R.IsClosed and (R.Volume < A.Volume)) or ((R = nil) and (E <> '')),
+        'furo transversal: fechado ou recusado com mensagem');
+    finally
+      Cyl.Free;
+      FreeAndNil(R);
+    end;
+  finally
+    A.Free;
+  end;
+end;
+
+{ ---------- fase 2C: reconstrucao e operacoes ---------- }
+
+{ Retangulo totalmente definido no plano dado. }
+function RectSketch(D: TCadDocument; const APlane: string; X0, Y0, W, H: Double): TCadSketch;
+var
+  L: Integer;
+begin
+  Result := D.AddSketch(APlane);
+  L := Result.AddRectangle(X0, Y0, X0 + W, Y0 + H);
+  Result.AddFixed(L, 1);
+  Result.AddDimension(ckHorizontalDistance, L, 0, 0, 0, W);
+  Result.AddDimension(ckVerticalDistance, L + 1, 0, 0, 0, H);
+end;
+
+function RegionsArea(S: TCadSketch): Double;
+var
+  P: TCadProfileResult;
+  I: Integer;
+begin
+  P := CadSketchProfiles(S, 0.01);
+  Result := 0;
+  for I := 0 to High(P.Regions) do
+    Result := Result + P.Regions[I].Area;
+end;
+
+procedure TestRebuild;
+var
+  D, D2: TCadDocument;
+  RB, RB2: TCadRebuilder;
+  S1, S2, S3, S4: TCadSketch;
+  X1, X2, X3, X4: TCadExtrude;
+  RV: TCadRevolve;
+  P30, PM, PA: TCadPlane;
+  E, J: string;
+  V, Exact, HolesArea, Dl: Double;
+  B: TCadBox3;
+  Bd: TCadBody;
+  F, I, L: Integer;
+begin
+  { ----- suporte: base + dois furos num esboco sobre a face de cima ----- }
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  try
+    S1 := RectSketch(D, 'plane:1', 0, 0, 80, 50);
+    X1 := D.AddExtrude(S1.Id, 10);
+    Check(RB.Rebuild = 0, 'base reconstruida sem erro: ' + X1.Message);
+    Check((RB.BodyCount = 1) and Near(RB.TotalVolume, 40000, 1E-6), 'base 80x50x10 = 40000 mm3');
+    Check(S1.State = fsOk, 'esboço da base ok');
+    Check(RB.FindFace('Ressalto-Extrusão1/fim', Bd, F), 'face do fim da base com nome estavel');
+    S2 := D.AddSketch('face:Ressalto-Extrusão1/fim');
+    S2.AddCircle(20, 25, 4);
+    S2.AddCircle(60, 25, 4);
+    X2 := D.AddExtrude(S2.Id, 0, True);
+    X2.Dir1.EndCond := ecThroughAll;
+    Check(RB.Rebuild = 0, 'furos passantes sem erro: ' + X2.Message);
+    HolesArea := RegionsArea(S2);
+    Check(Near(RB.TotalVolume, 40000 - HolesArea * 10, 1E-4),
+      Format('volume com 2 furos (%.4f x %.4f)', [RB.TotalVolume, 40000 - HolesArea * 10]));
+    Check(RB.FindFace('Corte-Extrusão1/lat:' + IntToStr(S2.Entity(0).Id), Bd, F) and
+      (Bd.Mesh.Faces[F].Surf = skCylinder), 'parede do furo e cilindrica e tem nome estavel');
+    Check(Near(RB.MassKg, CadMassKg(D.MaterialData, RB.TotalVolume), 1E-12), 'massa pelo material');
+    { cache: nada mudou }
+    RB.Rebuild;
+    Check(RB.Recomputed = 0, Format('sem mudanca nada e recalculado (%d)', [RB.Recomputed]));
+    { mudar a cota da base }
+    S1.SetDimension('D1', 100);
+    Check(RB.Rebuild = 0, 'reconstroi depois de mudar a cota');
+    Check(Near(RB.TotalVolume, 50000 - HolesArea * 10, 1E-4), 'base 100 mm: volume atualizado e furos mantidos');
+    Check(RB.Recomputed >= 2, 'recalcula a base e os furos');
+    { retrocesso: antes dos furos }
+    D.RollbackIndex := D.IndexOfId(X2.Id);
+    RB.Rebuild;
+    Check(Near(RB.TotalVolume, 50000, 1E-6), 'barra de retrocesso antes dos furos');
+    D.RollbackIndex := -1;
+    { suprimir os furos }
+    X2.Suppressed := True;
+    RB.Rebuild;
+    Check(Near(RB.TotalVolume, 50000, 1E-6), 'furos suprimidos');
+    X2.Suppressed := False;
+    RB.Rebuild;
+    { JSON ida e volta reconstroi igual }
+    J := D.ToJSON;
+    D2 := TCadDocument.Create;
+    RB2 := TCadRebuilder.Create(D2);
+    try
+      Check(D2.LoadFromJSON(J, E), 'le o suporte do JSON: ' + E);
+      Check((RB2.Rebuild = 0) and Near(RB2.TotalVolume, RB.TotalVolume, 1E-6), 'arquivo reaberto reconstroi o mesmo solido');
+    finally
+      RB2.Free;
+      D2.Free;
+    end;
+    { referencia perdida: face apagada }
+    S2.PlaneRef := 'face:Ressalto-Extrusão1/naoexiste';
+    Check(RB.Rebuild >= 1, 'face inexistente gera erro');
+    Check((S2.State = fsOk) and (X2.State = fsError) and (Pos('não existe', X2.Message) > 0),
+      'operacao com referencia perdida fica com erro na arvore: ' + X2.Message);
+    Check(Near(RB.TotalVolume, 50000, 1E-6), 'operacao com erro nao muda o solido');
+  finally
+    RB.Free;
+    D.Free;
+  end;
+
+  { ----- condicoes finais ----- }
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  try
+    S1 := RectSketch(D, 'plane:1', 0, 0, 80, 50);
+    X1 := D.AddExtrude(S1.Id, 10);
+    X1.Dir1.EndCond := ecMidPlane;
+    RB.Rebuild;
+    B := RB.Body(0).Mesh.Bounds;
+    Check(Near(B.Min.Z, -5, 1E-9) and Near(B.Max.Z, 5, 1E-9), 'plano medio: Z de -5 a 5');
+    X1.Dir1.EndCond := ecBlind;
+    { plano a 30 mm e plano medio entre Frontal e ele }
+    P30 := D.AddPlane(ptOffset, ['plane:1'], 30);
+    PM := D.AddPlane(ptMidPlane, ['plane:1', 'plane:' + IntToStr(P30.Id)]);
+    RB.Rebuild;
+    Check(P30.FrameValid and Near(P30.Frame.Origin.Z, 30, 1E-9), 'plano deslocado a 30 mm');
+    Check(PM.FrameValid and Near(PM.Frame.Origin.Z, 15, 1E-9) and NearV(PM.Frame.Normal, V3(0, 0, 1)), 'plano medio a 15 mm');
+    { ate a superficie (plano paralelo) }
+    S3 := RectSketch(D, 'plane:1', 100, 0, 10, 10);
+    X3 := D.AddExtrude(S3.Id, 0);
+    X3.Dir1.EndCond := ecUpToSurface;
+    X3.Dir1.Target := 'plane:' + IntToStr(P30.Id);
+    RB.Rebuild;
+    Check((X3.State = fsWarning) and (Pos('corpo separado', X3.Message) > 0), 'ressalto separado avisa multicorpo');
+    Check((RB.BodyCount = 2) and Near(RB.TotalVolume, 40000 + 3000, 1E-6), 'ate a superficie: 10x10x30');
+    { deslocamento da superficie }
+    X3.Dir1.EndCond := ecOffsetFromSurface;
+    X3.Dir1.Offset := 5;
+    RB.Rebuild;
+    Check(Near(RB.TotalVolume, 40000 + 2500, 1E-6), 'deslocamento de 5 mm da superficie: 25 mm');
+    { ate o vertice }
+    S4 := D.AddSketch('plane:' + IntToStr(P30.Id));
+    I := S4.AddPoint(0, 0);
+    X3.Dir1.EndCond := ecUpToVertex;
+    X3.Dir1.Target := Format('sketch:%d/%d.1', [S4.Id, I]);
+    RB.Rebuild;
+    Check((X3.State <> fsError) and Near(RB.TotalVolume, 43000, 1E-6), 'ate o vertice a 30 mm: ' + X3.Message);
+    X3.Suppressed := True;
+    { ate o proximo: placa em z=30..35, ressalto partindo do topo da base }
+    S4 := RectSketch(D, 'plane:' + IntToStr(P30.Id), 0, 0, 80, 50);
+    X4 := D.AddExtrude(S4.Id, 5);
+    S3 := RectSketch(D, 'face:Ressalto-Extrusão1/fim', 10, 10, 10, 10);
+    X2 := D.AddExtrude(S3.Id, 0);
+    X2.Dir1.EndCond := ecUpToNext;
+    RB.Rebuild;
+    Check(X2.State = fsOk, 'ate o proximo sem erro: ' + X2.Message);
+    Check((RB.BodyCount = 1) and Near(RB.TotalVolume, 40000 + 20000 + 10 * 10 * 20, 1E-5),
+      Format('ate o proximo une base, coluna de 20 mm e placa (%d corpos, %.3f)', [RB.BodyCount, RB.TotalVolume]));
+    X4.Suppressed := True;
+    RB.Rebuild;
+    Check((X2.State = fsError) and (Pos('inverta', X2.Message) > 0), 'ate o proximo sem face a frente gera erro');
+    X4.Suppressed := False;
+    { corte passante nos dois sentidos a partir do plano medio }
+    S3 := D.AddSketch('plane:' + IntToStr(PM.Id));
+    S3.AddCircle(40, 25, 3);
+    X3 := D.AddExtrude(S3.Id, 0, True);
+    X3.Dir1.EndCond := ecThroughAllBoth;
+    RB.Rebuild;
+    V := RegionsArea(S3);
+    Check((X3.State = fsOk) and Near(RB.TotalVolume, 40000 + 20000 + 2000 - V * 15, 1E-4),
+      Format('passante nos dois sentidos fura base e placa (%.4f)', [RB.TotalVolume]));
+  finally
+    RB.Free;
+    D.Free;
+  end;
+
+  { ----- ate superficie inclinada ----- }
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  try
+    S1 := D.AddSketch('plane:1');
+    L := S1.AddLine(0, 40, 100, 40, True);
+    PA := D.AddPlane(ptAngle, ['plane:2', Format('sketch:%d/%d', [S1.Id, L])], 30);
+    S2 := RectSketch(D, 'plane:2', 0, -10, 10, 10);
+    X1 := D.AddExtrude(S2.Id, 0);
+    X1.Dir1.EndCond := ecUpToSurface;
+    X1.Dir1.Target := 'plane:' + IntToStr(PA.Id);
+    RB.Rebuild;
+    Check(PA.FrameValid, 'plano em angulo: ' + PA.Message);
+    Exact := 100 * (40 - 5 * Tan(30 * Pi / 180));
+    Check((X1.State <> fsError) and RelNear(RB.TotalVolume, Exact, 1E-6),
+      Format('ate superficie inclinada (%.4f x %.4f) %s', [RB.TotalVolume, Exact, X1.Message]));
+    Check(RB.FindFace('Ressalto-Extrusão1/fim', Bd, F) and (Bd.Mesh.Faces[F].Surf = skPlane),
+      'face inclinada do fim com nome estavel');
+  finally
+    RB.Free;
+    D.Free;
+  end;
+
+  { ----- inclinacao, recurso fino, contornos, inverter lado ----- }
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  try
+    S1 := RectSketch(D, 'plane:1', 0, 0, 80, 50);
+    X1 := D.AddExtrude(S1.Id, 10);
+    X1.Dir1.Draft := 5;
+    RB.Rebuild;
+    Dl := 10 * Tan(5 * Pi / 180);
+    Check(Near(RB.TotalVolume, 10 * (4000 - Dl * 130 + 4 / 3 * Dl * Dl), 1E-6), 'ressalto com inclinacao de 5 graus');
+    X1.Dir1.Draft := 0;
+    { inverter lado a cortar: sobra so o quadrado }
+    S2 := RectSketch(D, 'plane:1', 10, 10, 20, 20);
+    X2 := D.AddExtrude(S2.Id, 0, True);
+    X2.Dir1.EndCond := ecThroughAllBoth;
+    X2.FlipSide := True;
+    RB.Rebuild;
+    Check(Near(RB.TotalVolume, 4000, 1E-6), 'inverter lado a cortar deixa so o quadrado');
+    X2.FlipSide := False;
+    RB.Rebuild;
+    Check(Near(RB.TotalVolume, 36000, 1E-6), 'corte normal tira o quadrado');
+    { corte que nao toca }
+    S3 := RectSketch(D, 'plane:1', 200, 0, 10, 10);
+    X3 := D.AddExtrude(S3.Id, 5, True);
+    RB.Rebuild;
+    Check((X3.State = fsWarning) and (Pos('não intercepta', X3.Message) > 0), 'corte fora avisa: ' + X3.Message);
+    X3.Suppressed := True;
+    { contornos selecionados }
+    S3 := D.AddSketch('plane:1');
+    S3.AddRectangle(100, 0, 110, 10);
+    S3.AddRectangle(120, 0, 140, 10);
+    X3 := D.AddExtrude(S3.Id, 5);
+    X3.Merge := False;
+    X3.Contours := ['region:' + IntToStr(S3.Entity(4).Id)];
+    RB.Rebuild;
+    Check(Near(RB.TotalVolume, 36000 + 1000, 1E-6), 'contornos selecionados: so o segundo retangulo (200x5)');
+    X3.Contours := ['region:999'];
+    RB.Rebuild;
+    Check(X3.State = fsError, 'contorno inexistente gera erro');
+  finally
+    RB.Free;
+    D.Free;
+  end;
+
+  { ----- recurso fino ----- }
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  try
+    S1 := RectSketch(D, 'plane:1', 0, 0, 20, 20);
+    X1 := D.AddExtrude(S1.Id, 10);
+    X1.Thin := True;
+    X1.ThinType := ttOneDirection;
+    X1.ThinT1 := 2;
+    RB.Rebuild;
+    Check(Near(RB.TotalVolume, (24 * 24 - 20 * 20) * 10, 1E-6), 'fino fechado para fora: 1760 ' + X1.Message);
+    Check(RB.FindFace(Format('Ressalto-Extrusão1/lat:%d/out', [S1.Entity(0).Id]), Bd, F) and
+      RB.FindFace(Format('Ressalto-Extrusão1/lat:%d/in', [S1.Entity(0).Id]), Bd, F), 'faces /out e /in do fino');
+    X1.ThinType := ttMidPlane;
+    RB.Rebuild;
+    Check(Near(RB.TotalVolume, (22 * 22 - 18 * 18) * 10, 1E-6), 'fino plano medio: 1600');
+    X1.ThinType := ttOneDirection;
+    X1.CapEnds := True;
+    X1.CapThickness := 1;
+    RB.Rebuild;
+    Check(Near(RB.TotalVolume, 24 * 24 * 10 - 20 * 20 * 8, 1E-6),
+      Format('tampar extremidades (%.3f) %s', [RB.TotalVolume, X1.Message]));
+  finally
+    RB.Free;
+    D.Free;
+  end;
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  try
+    S1 := D.AddSketch('plane:1');
+    S1.AddLine(0, 0, 20, 0);
+    S1.AddLine(20, 0, 20, 20);
+    X1 := D.AddExtrude(S1.Id, 5);
+    RB.Rebuild;
+    Check((X1.State = fsError) and (Pos('Recurso fino', X1.Message) > 0), 'perfil aberto sem fino: erro ' + X1.Message);
+    X1.Thin := True;
+    X1.ThinT1 := 2;
+    RB.Rebuild;
+    Check((X1.State = fsOk) and Near(RB.TotalVolume, 76 * 5, 1E-6), Format('fino aberto em L (%.4f) %s', [RB.TotalVolume, X1.Message]));
+    Check(RB.FindFace('Ressalto-Extrusão1/ponta1', Bd, F) and RB.FindFace('Ressalto-Extrusão1/ponta2', Bd, F), 'pontas do fino aberto');
+  finally
+    RB.Free;
+    D.Free;
+  end;
+
+  { ----- revolucao e corte revolucionado ----- }
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  try
+    S1 := D.AddSketch('plane:1');
+    S1.AddRectangle(0, 0, 10, 40);
+    S1.AddCenterline(0, -5, 0, 50);
+    RV := D.AddRevolve(S1.Id, 360);
+    RB.Rebuild;
+    Check(RV.State = fsOk, 'revolucao sem erro: ' + RV.Message);
+    Check(RelNear(RB.TotalVolume, Pi * 100 * 40, 0.005), Format('eixo revolucionado r10 x 40 (%.2f)', [RB.TotalVolume]));
+    S2 := D.AddSketch('plane:1');
+    S2.AddRectangle(6, 30, 12, 40);
+    S2.AddCenterline(0, 0, 0, 10);
+    RV := D.AddRevolve(S2.Id, 360, True);
+    RB.Rebuild;
+    Check(RV.State = fsOk, 'corte revolucionado sem erro: ' + RV.Message);
+    Check(RelNear(RB.TotalVolume, Pi * 100 * 40 - Pi * (100 - 36) * 10, 0.005), 'rebaixo revolucionado na ponta');
+    S3 := D.AddSketch('plane:1');
+    S3.AddRectangle(20, 0, 30, 10);
+    RV := D.AddRevolve(S3.Id, 90);
+    RB.Rebuild;
+    Check((RV.State = fsError) and (Pos('linha de centro', RV.Message) > 0), 'revolucao sem eixo: erro');
+    RV.AxisRef := Format('sketch:%d/%d', [S1.Id, S1.Entity(4).Id]);
+    RB.Rebuild;
+    Check(RV.State <> fsError, 'eixo de outro esboço no mesmo plano: ' + RV.Message);
+  finally
+    RB.Free;
+    D.Free;
+  end;
+
+  { ----- primeira operacao como corte ----- }
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  try
+    S1 := RectSketch(D, 'plane:1', 0, 0, 10, 10);
+    X1 := D.AddExtrude(S1.Id, 5, True);
+    Check((RB.Rebuild = 1) and (Pos('Corte sem corpo', X1.Message) > 0), 'corte como primeira operacao: erro');
+  finally
+    RB.Free;
+    D.Free;
+  end;
+end;
+
+procedure TestCamera;
+var
+  C: TCadCamera;
+  F: TCadFrame;
+  P, O, D, Q: TCadVec3;
+  S, S2: TCadScreenPt;
+  B: TCadBox3;
+  I: Integer;
+  AllIn: Boolean;
+begin
+  C := TCadCamera.Create;
+  try
+    C.SetViewport(800, 600);
+    C.StdView(svFront);
+    Check(NearV(C.Back, V3(0, 0, 1)) and NearV(C.Up, V3(0, 1, 0)) and NearV(C.Right, V3(1, 0, 0)),
+      'vista Frontal: olha de +Z, X a direita, Y para cima');
+    C.StdView(svTop);
+    Check(NearV(C.Back, V3(0, 1, 0)) and NearV(C.Right, V3(1, 0, 0)) and NearV(C.Up, V3(0, 0, -1)),
+      'vista Superior: olha de +Y, X a direita, -Z para cima');
+    C.StdView(svRight);
+    Check(NearV(C.Right, V3(0, 0, -1)), 'vista Direita: -Z a direita');
+    C.StdView(svIso);
+    Check(NearV(C.Back, VNorm(V3(1, 1, 1))) and (C.Up.Y > 0), 'isometrica com Y para cima');
+    Check(Near(VDot(C.Right, C.Up), 0) and Near(VLen(C.Right), 1), 'base ortonormal');
+    F := StdFrame(spSuperior);
+    C.NormalTo(F, False);
+    Check(NearV(C.Back, F.Normal) and NearV(C.Right, F.XDir) and NearV(C.Up, F.YDir),
+      'Normal a: x do plano a direita, y para cima');
+    C.NormalTo(F, True);
+    Check(NearV(C.Back, VNeg(F.Normal)) and NearV(C.Up, F.YDir), 'Normal a repetido vira o lado');
+    { projecao e raio }
+    C.StdView(svIso);
+    C.Scale := 3;
+    P := V3(12, -7, 30);
+    S := C.Project(P);
+    C.ScreenRay(S.X, S.Y, O, D);
+    Q := VSub(P, O);
+    Check(VLen(VCross(Q, D)) < 1E-6, 'raio do pixel passa pelo ponto projetado (ortografica)');
+    C.Perspective := True;
+    S := C.Project(P);
+    C.ScreenRay(S.X, S.Y, O, D);
+    Check(VLen(VCross(VSub(P, O), D)) < 1E-6 * VLen(VSub(P, O)) + 1E-6,
+      'raio do pixel passa pelo ponto projetado (perspectiva)');
+    C.Perspective := False;
+    { zoom no cursor }
+    S := C.Project(P);
+    C.ZoomAt(1.7, S.X, S.Y);
+    S2 := C.Project(P);
+    Check(Near(S.X, S2.X, 1E-6) and Near(S.Y, S2.Y, 1E-6) and Near(C.Scale, 5.1),
+      'zoom mantem o ponto sob o cursor');
+    { orbita mantem a base }
+    C.Orbit(37, -21);
+    Check(Near(VDot(C.Right, C.Up), 0) and Near(VDot(C.Back, C.Up), 0) and
+      Near(VLen(C.Back), 1) and Near(VDot(VCross(C.Right, C.Up), C.Back), 1), 'orbita mantem a base direita');
+    { pan }
+    S := C.Project(P);
+    C.Pan(10, 5);
+    S2 := C.Project(P);
+    Check(Near(S2.X - S.X, 10, 1E-6) and Near(S2.Y - S.Y, 5, 1E-6), 'pan segue o mouse');
+    { enquadrar }
+    B := BoxEmpty;
+    BoxAdd(B, V3(-50, 0, 0));
+    BoxAdd(B, V3(150, 80, 40));
+    C.Fit(B);
+    AllIn := True;
+    for I := 0 to 7 do
+    begin
+      if (I and 1) = 0 then Q.X := B.Min.X else Q.X := B.Max.X;
+      if (I and 2) = 0 then Q.Y := B.Min.Y else Q.Y := B.Max.Y;
+      if (I and 4) = 0 then Q.Z := B.Min.Z else Q.Z := B.Max.Z;
+      S := C.Project(Q);
+      if (S.X < 0) or (S.X > 800) or (S.Y < 0) or (S.Y > 600) then
+        AllIn := False;
+    end;
+    Check(AllIn and (C.Scale > 2), 'enquadrar (F) deixa a caixa toda na tela');
+  finally
+    C.Free;
+  end;
+end;
+
+procedure TestRender;
+var
+  C: TCadCamera;
+  R: TCadRaster;
+  M: TCadMesh;
+  Cache: TCadMeshCache;
+  Opt: TCadDrawOptions;
+  S: TCadScreenPt;
+  Tag, Face, I, NF, Code, Cnt: Integer;
+  T: Double;
+  O, D: TCadVec3;
+  Nm: string;
+begin
+  C := TCadCamera.Create;
+  R := TCadRaster.Create;
+  M := CadMakeBox(V3(0, 0, 0), V3(40, 30, 20), 'Caixa');
+  Cache := TCadMeshCache.Create(M);
+  try
+    NF := 0;
+    for I := 0 to High(Cache.Edges) do
+      if Cache.Edges[I].Feature then
+        Inc(NF);
+    Check(NF = 12, Format('caixa: 12 arestas de recurso (%d)', [NF]));
+    R.SetSize(200, 150);
+    C.SetViewport(200, 150);
+    C.StdView(svFront);
+    C.Fit(M.Bounds);
+    R.BeginFrame(C);
+    Opt := CadDrawOptions(CAD_PART_COLOR, 3);
+    R.DrawMesh(Cache, Opt);
+    Code := R.IdAt(100, 75);
+    CadPickDecode(Code, Tag, Face);
+    Nm := '';
+    if Face >= 0 then
+      Nm := M.Faces[Face].Name;
+    Check((Tag = 3) and (Face >= 0) and (Abs(M.Faces[Face].Axis.Z - 1) < 1E-6),
+      'selecao no centro da vista Frontal pega a face +Z (' + Nm + ')');
+    Check(R.IdAt(2, 2) = 0, 'canto da tela e fundo');
+    Check(R.DepthAt(100, 75) < 1E29, 'profundidade escrita');
+    { a borda da peca tem aresta escura }
+    S := C.Project(V3(0, 15, 20));
+    Check(R.ColorAt(Round(S.X), Round(S.Y)) = CAD_EDGE_COLOR, 'aresta desenhada na borda');
+    { raio pelo pixel acha a mesma face }
+    C.ScreenRay(100.5, 75.5, O, D);
+    I := CadRayMesh(M, O, D, T);
+    Check((I >= 0) and (M.Tris[I].Face = Face), 'raio de selecao acha a mesma face');
+    { secao: corta metade em X }
+    R.SetSection(True, V3(20, 0, 0), V3(1, 0, 0));
+    R.BeginFrame(C);
+    R.DrawMesh(Cache, Opt);
+    S := C.Project(V3(30, 15, 20));
+    Check(R.IdAt(Round(S.X), Round(S.Y)) = 0, 'secao remove o lado positivo');
+    S := C.Project(V3(10, 15, 20));
+    Check(R.IdAt(Round(S.X), Round(S.Y)) <> 0, 'secao mantem o lado negativo');
+    R.SetSection(False, V3(0, 0, 0), V3(1, 0, 0));
+    { arame nao preenche }
+    R.Style := dsWireframe;
+    R.BeginFrame(C);
+    R.DrawMesh(Cache, Opt);
+    Check(R.IdAt(100, 75) = 0, 'arame: centro vazio');
+    { linhas ocultas removidas: Id mas cor de fundo }
+    R.Style := dsHiddenRemoved;
+    R.BeginFrame(C);
+    R.DrawMesh(Cache, Opt);
+    Check((R.IdAt(100, 75) <> 0) and (R.ColorAt(100, 75) <> CAD_PART_COLOR), 'HLR: superficie sem cor de peca');
+    { previa translucida nao escreve profundidade }
+    R.Style := dsShadedEdges;
+    R.BeginFrame(C);
+    Opt.Alpha := 0.5;
+    R.DrawMesh(Cache, Opt);
+    Check(R.DepthAt(100, 75) > 1E29, 'previa translucida nao ocupa profundidade');
+    { cilindro: silhueta e aresta suave }
+    Cache.Free;
+    M.Free;
+    M := CadMakeCylinder(V3(0, 0, 0), V3(0, 1, 0), 10, 30, 'Cil', 32);
+    Cache := TCadMeshCache.Create(M);
+    Cnt := 0;
+    for I := 0 to High(Cache.Edges) do
+      if Cache.Edges[I].Feature then
+        Inc(Cnt);
+    Check(Cnt = 64, Format('cilindro: so os dois circulos sao arestas de recurso (%d)', [Cnt]));
+  finally
+    Cache.Free;
+    M.Free;
+    R.Free;
+    C.Free;
+  end;
+end;
+
+procedure TestSketchTools;
+var
+  D: TCadDocument;
+  S: TCadSketch;
+  T: TCadSketchSession;
+  E: TSketchEntity;
+  N0, I, CntH, CntV, CntC: Integer;
+  C: TSketchConstraint;
+  V: Double;
+begin
+  D := TCadDocument.Create;
+  try
+    D.NewPart;
+    S := D.AddSketch('plane:1');
+    T := TCadSketchSession.Create(D, S);
+    try
+      T.PickTol := 1.5;
+      { linha em cadeia partindo da origem, quase horizontal e depois vertical }
+      T.Tool := tkLine;
+      T.Click(V2(0.4, -0.3));
+      T.Click(V2(50, 1.2));
+      T.Click(V2(51, 30));
+      T.Click(V2(0.5, 0.2));   { fecha na origem? nao: a origem ja e o inicio }
+      Check(S.EntityCount = 3, Format('linha em cadeia: 3 linhas (%d)', [S.EntityCount]));
+      E := S.Entity(0);
+      Check(Near(E.P1.X, 0) and Near(E.P1.Y, 0), 'inicio capturado na origem');
+      Check(Near(E.P2.Y, 0, 1E-6), 'linha quase horizontal travada');
+      CntH := 0; CntV := 0; CntC := 0;
+      for I := 0 to S.ConstraintCount - 1 do
+      begin
+        C := S.Constraint(I);
+        case C.Kind of
+          ckHorizontal: Inc(CntH);
+          ckVertical: Inc(CntV);
+          ckCoincident: Inc(CntC);
+        end;
+      end;
+      Check((CntH = 1) and (CntV = 1), Format('relacoes automaticas H=%d V=%d', [CntH, CntV]));
+      Check(CntC = 4, Format('coincidentes: origem, 2 juncoes e fechamento (%d)', [CntC]));
+      Check(T.ClickCount = 0, 'fechar num ponto existente encerra a cadeia');
+      Check(T.LastSolve.Status = ssUnderDefined, 'triangulo ainda subdefinido');
+      { cota inteligente: comprimento da linha horizontal = 60 }
+      N0 := S.ConstraintCount;
+      I := T.AddSmartDimension(PickItem(S.Entity(0).Id, 0), PickItem(0, 0), False, '60');
+      Check((I > 0) and (S.ConstraintCount = N0 + 1), 'cota de comprimento criada');
+      E := S.Entity(0);
+      Check(Near(Sqrt(Sqr(E.P2.X - E.P1.X) + Sqr(E.P2.Y - E.P1.Y)), 60, 1E-6), 'cota dirige o comprimento (60)');
+      I := T.AddSmartDimension(PickItem(S.Entity(1).Id, 0), PickItem(0, 0), False, '40');
+      Check(T.LastSolve.Status = ssFullyDefined, 'triangulo com 2 cotas: totalmente definido (' +
+        CAD_SKETCH_STATUS_NAMES[T.LastSolve.Status] + ')');
+      { terceira cota superdefine: vira dirigida }
+      I := T.AddSmartDimension(PickItem(S.Entity(2).Id, 0), PickItem(0, 0), False, '');
+      C := S.Constraint(S.ConstraintIndex(I));
+      Check(not C.Driving and Near(C.Value, Sqrt(60 * 60 + 40 * 40), 1E-6), 'cota extra vira dirigida com o valor medido');
+      { circulo e cota de diametro }
+      T.Tool := tkCircle;
+      T.Click(V2(20, 10));
+      T.Click(V2(25, 10));
+      Check(S.Entity(S.EntityCount - 1).Kind = seCircle, 'circulo pelo centro e raio');
+      I := T.AddSmartDimension(PickItem(S.Entity(S.EntityCount - 1).Id, 0), PickItem(0, 0), False, '8');
+      Check(Near(S.Entity(S.EntityCount - 1).Radius, 4, 1E-6), 'cota de diametro 8');
+      { relacao pela selecao: ponto medio nao cabe em circulo }
+      T.Tool := tkSelect;
+      T.Click(V2(24, 10));
+      Check(Length(T.Selection) = 1, 'selecionar o circulo');
+      Check(not T.AddRelation(ckMidpoint), 'relacao que nao cabe e recusada');
+      { retangulo }
+      T.Tool := tkRectangle;
+      N0 := S.EntityCount;
+      T.Click(V2(-30, -20));
+      T.Click(V2(-10, -5));
+      Check(S.EntityCount = N0 + 4, 'retangulo de canto: 4 linhas');
+      { arco de 3 pontos ligado ao fim de uma linha }
+      T.Tool := tkArc3P;
+      N0 := S.EntityCount;
+      T.Click(V2(-10, -5));
+      T.Click(V2(-10, 15));
+      T.Click(V2(0, 5));
+      Check(S.EntityCount = N0 + 1, 'arco de 3 pontos');
+      E := S.Entity(S.EntityCount - 1);
+      Check(Near(E.Radius, 10, 1E-6), 'arco de raio 10');
+      { apagar }
+      T.Tool := tkSelect;
+      T.Click(V2(-10 + 10, 5 + 0.0001));
+      N0 := S.EntityCount;
+      Check(T.DeleteSelection and (S.EntityCount = N0 - 1), 'apagar a entidade selecionada');
+      { angulo entre duas linhas }
+      I := T.AddSmartDimension(PickItem(S.Entity(0).Id, 0), PickItem(S.Entity(1).Id, 0), True, '');
+      Check((I > 0) and (S.Constraint(S.ConstraintIndex(I)).Kind = ckAngle), 'duas linhas: cota angular');
+      Check(CadMeasureDimension(S, S.ConstraintIndex(I), V) and (V > 0), 'angulo medido');
+    finally
+      T.Free;
+    end;
+  finally
+    D.Free;
+  end;
+end;
+
 begin
   Passed := 0;
   Failed := 0;
@@ -806,6 +1759,12 @@ begin
   TestMesh;
   TestSolver;
   TestProfiles;
+  TestSweep;
+  TestCSG;
+  TestRebuild;
+  TestCamera;
+  TestRender;
+  TestSketchTools;
   Writeln(Format('MultiCAD: %d checks, %d falhas', [Passed + Failed, Failed]));
   if Failed > 0 then
     Halt(1);
