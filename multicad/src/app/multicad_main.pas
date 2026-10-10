@@ -55,6 +55,8 @@ type
     FPendingSketch: Boolean;    { esperando escolher plano/face para o esboco }
     FNormalFlip: Boolean;
     FToolButtons: array[TCadSketchToolKind] of TSuiteButton;
+    FRibX, FRibY: Integer;
+    FGridBtn, FGridSnapBtn, FWheelBtn: TSuiteButton;
     FRefreshingTree: Boolean;
     procedure BuildUI;
     procedure ShowTab(T: TCadTab);
@@ -108,6 +110,14 @@ type
     procedure RelationClick(Sender: TObject);
     procedure RelationMenuClick(Sender: TObject);
     procedure DeleteSketchClick(Sender: TObject);
+    procedure ConstructionClick(Sender: TObject);
+    procedure GridClick(Sender: TObject);
+    procedure GridSnapClick(Sender: TObject);
+    procedure PrevViewClick(Sender: TObject);
+    procedure WheelClick(Sender: TObject);
+    procedure FormKeyPress(Sender: TObject; var Key: Char);
+    procedure LoadSettings;
+    procedure SaveSettings;
     procedure EditorChanged(Sender: TObject);
     procedure EditorStatus(Sender: TObject);
     procedure ExtrudeClick(Sender: TObject);
@@ -153,6 +163,7 @@ type
     property Rebuilder: TCadRebuilder read RB;
     property View3D: TCadView3D read View;
     property FeatureTree: TTreeView read Tree;
+    property SketchEditor: TCadSketchEditor read FEditor;
     procedure EditSketchById(AId: Integer);
     procedure EditFeatureById(AId: Integer);
     procedure CancelEdit;
@@ -179,12 +190,14 @@ begin
   KeyPreview := True;
   OnKeyDown := @FormKeyDown;
   OnCloseQuery := @FormCloseQuery;
+  OnKeyPress := @FormKeyPress;
   Color := clSuiteSurface;
   Font.Name := SUITE_FONT;
   Doc := TCadDocument.Create;
   Doc.NewPart;
   RB := TCadRebuilder.Create(Doc);
   BuildUI;
+  LoadSettings;
   RebuildModel;
   View.SetView(svIso);
   UpdateCaption;
@@ -352,17 +365,19 @@ end;
 
 function TMainForm.RibbonButton(const ACaption: string; AIcon: TSuiteIconKind;
   AHandler: TNotifyEvent; ATag: Integer; AWidth: Integer): TSuiteButton;
-var
-  X, I: Integer;
 begin
-  X := 8;
-  for I := 0 to Ribbon.ControlCount - 1 do
-    X := Max(X, Ribbon.Controls[I].Left + Ribbon.Controls[I].Width + 6);
   Result := TSuiteButton.Create(Ribbon);
   Result.Parent := Ribbon;
   if AWidth = 0 then
     AWidth := Max(84, Round(Result.Canvas.TextWidth(ACaption) * 1.12) + 54);
-  Result.SetBounds(X, 8, AWidth, 34);
+  { quebra de linha quando nao cabe (aba Esboco tem duas linhas) }
+  if (FRibX > 8) and (FRibX + AWidth > Max(Ribbon.ClientWidth, ClientWidth) - 8) then
+  begin
+    FRibX := 8;
+    Inc(FRibY, 40);
+  end;
+  Result.SetBounds(FRibX, FRibY, AWidth, 34);
+  Inc(FRibX, AWidth + 6);
   Result.Caption := ACaption;
   Result.Tag := ATag;
   Result.SetLook(sbsSoft, clSuitePrimary, AIcon);
@@ -371,16 +386,15 @@ end;
 
 procedure TMainForm.RibbonSep;
 var
-  X, I: Integer;
   B: TBevel;
 begin
-  X := 8;
-  for I := 0 to Ribbon.ControlCount - 1 do
-    X := Max(X, Ribbon.Controls[I].Left + Ribbon.Controls[I].Width + 6);
+  if FRibX <= 8 then
+    Exit;
   B := TBevel.Create(Ribbon);
   B.Parent := Ribbon;
   B.Shape := bsLeftLine;
-  B.SetBounds(X, 10, 4, 30);
+  B.SetBounds(FRibX, FRibY + 2, 4, 30);
+  Inc(FRibX, 8);
 end;
 
 procedure TMainForm.ShowTab(T: TCadTab);
@@ -398,6 +412,11 @@ begin
       TabButtons[TT].SetLook(sbsSoft, clSuitePrimary);
   for I := Ribbon.ControlCount - 1 downto 0 do
     Ribbon.Controls[I].Free;
+  FRibX := 8;
+  FRibY := 8;
+  FGridBtn := nil;
+  FGridSnapBtn := nil;
+  FWheelBtn := nil;
   for K := Low(TCadSketchToolKind) to High(TCadSketchToolKind) do
     FToolButtons[K] := nil;
   InSketch := Assigned(FEditor);
@@ -423,13 +442,28 @@ begin
         FToolButtons[tkLine] := RibbonButton('Linha', sikPen, @ToolClick, Ord(tkLine));
         FToolButtons[tkRectangle] := RibbonButton('Retângulo', sikRect, @ToolClick, Ord(tkRectangle));
         FToolButtons[tkCircle] := RibbonButton('Círculo', sikCircle, @ToolClick, Ord(tkCircle));
+        FToolButtons[tkArcCenter] := RibbonButton('Arco pelo centro', sikRedo, @ToolClick, Ord(tkArcCenter));
+        FToolButtons[tkArcTangent] := RibbonButton('Arco tangente', sikRedo, @ToolClick, Ord(tkArcTangent));
         FToolButtons[tkArc3P] := RibbonButton('Arco 3 pontos', sikRedo, @ToolClick, Ord(tkArc3P));
         FToolButtons[tkCenterline] := RibbonButton('Linha de centro', sikMirrorV, @ToolClick, Ord(tkCenterline));
         FToolButtons[tkPoint] := RibbonButton('Ponto', sikTarget, @ToolClick, Ord(tkPoint));
         RibbonSep;
+        FToolButtons[tkFillet] := RibbonButton('Filete', sikCircle, @ToolClick, Ord(tkFillet));
+        FToolButtons[tkChamfer] := RibbonButton('Chanfro', sikRect, @ToolClick, Ord(tkChamfer));
+        RibbonSep;
         FToolButtons[tkDimension] := RibbonButton('Cota inteligente', sikGauge, @ToolClick, Ord(tkDimension));
         RibbonButton('Adicionar relação', sikLayers, @RelationMenuClick).Enabled := InSketch;
+        RibbonButton('Construção', sikMirrorH, @ConstructionClick).Enabled := InSketch;
         RibbonButton('Apagar', sikTrash, @DeleteSketchClick, 0, 90).Enabled := InSketch;
+        RibbonSep;
+        FGridBtn := RibbonButton('Grade', sikFrame, @GridClick, 0);
+        FGridSnapBtn := RibbonButton('Capturar na grade', sikTarget, @GridSnapClick, 0);
+        FGridBtn.Enabled := InSketch;
+        FGridSnapBtn.Enabled := InSketch;
+        if InSketch and FEditor.Grid then
+          FGridBtn.SetLook(sbsSolid, clSuitePrimary, sikFrame);
+        if InSketch and FEditor.Session.GridSnap then
+          FGridSnapBtn.SetLook(sbsSolid, clSuitePrimary, sikTarget);
         for K := Low(TCadSketchToolKind) to High(TCadSketchToolKind) do
           if Assigned(FToolButtons[K]) then
           begin
@@ -462,6 +496,10 @@ begin
         RibbonSep;
         RibbonButton('Perspectiva', sikEye, @PerspectiveClick);
         RibbonButton('Planos padrão', sikLayers, @PlanesClick);
+        RibbonButton('Vista anterior', sikUndo, @PrevViewClick);
+        FWheelBtn := RibbonButton('Inverter zoom da roda', sikZoomIn, @WheelClick);
+        if View.ReverseWheel then
+          FWheelBtn.SetLook(sbsSolid, clSuitePrimary, sikZoomIn);
       end;
     ctExport:
       begin
@@ -472,6 +510,7 @@ begin
           clSuitePrimary, sikSlicer);
       end;
   end;
+  Ribbon.Height := FRibY + 34 + 8;
 end;
 
 procedure TMainForm.TabClick(Sender: TObject);
@@ -1179,6 +1218,99 @@ begin
   RelMenu.PopUp(P.X, P.Y);
 end;
 
+procedure TMainForm.ConstructionClick(Sender: TObject);
+begin
+  if Assigned(FEditor) then
+    FEditor.ToggleConstruction;
+end;
+
+procedure TMainForm.GridClick(Sender: TObject);
+begin
+  if Assigned(FEditor) then
+  begin
+    FEditor.SetGrid(not FEditor.Grid, FEditor.Session.GridSnap);
+    ShowTab(ctSketch);
+  end;
+end;
+
+procedure TMainForm.GridSnapClick(Sender: TObject);
+begin
+  if Assigned(FEditor) then
+  begin
+    FEditor.SetGrid(True, not FEditor.Session.GridSnap);
+    ShowTab(ctSketch);
+  end;
+end;
+
+procedure TMainForm.PrevViewClick(Sender: TObject);
+begin
+  View.PreviousView;
+end;
+
+procedure TMainForm.WheelClick(Sender: TObject);
+begin
+  View.ReverseWheel := not View.ReverseWheel;
+  SaveSettings;
+  ShowTab(ctView);
+end;
+
+function SettingsFile: string;
+begin
+  Result := IncludeTrailingPathDelimiter(GetAppConfigDir(False)) + 'multicad.ini';
+end;
+
+procedure TMainForm.LoadSettings;
+var
+  L: TStringList;
+begin
+  if not FileExists(SettingsFile) then
+    Exit;
+  L := TStringList.Create;
+  try
+    try
+      L.LoadFromFile(SettingsFile);
+      View.ReverseWheel := L.Values['reverse_wheel'] = '1';
+    except
+      { configuracao ilegivel: fica o padrao }
+    end;
+  finally
+    L.Free;
+  end;
+end;
+
+procedure TMainForm.SaveSettings;
+var
+  L: TStringList;
+begin
+  L := TStringList.Create;
+  try
+    try
+      ForceDirectories(ExtractFilePath(SettingsFile));
+      if View.ReverseWheel then
+        L.Values['reverse_wheel'] := '1'
+      else
+        L.Values['reverse_wheel'] := '0';
+      L.SaveToFile(SettingsFile);
+    except
+      { sem permissao: so nao grava }
+    end;
+  finally
+    L.Free;
+  end;
+end;
+
+procedure TMainForm.FormKeyPress(Sender: TObject; var Key: Char);
+begin
+  { com a ferramenta no meio (1 clique), digitar um numero abre a caixa da
+    medida, como no SolidWorks }
+  if Assigned(FEditor) and not FEditor.Typing and not (ActiveControl is TCustomEdit) and
+    (Key in ['0'..'9', '.', ',']) and FEditor.Session.CanType then
+  begin
+    if FEditor.BeginTyping(Key) then
+      Key := #0;
+  end;
+end;
+
 procedure TMainForm.DeleteSketchClick(Sender: TObject);
 begin
   if Assigned(FEditor) then
@@ -1195,7 +1327,7 @@ begin
   if Assigned(FEditor) then
   begin
     SetStatus(1, FEditor.StatusText);
-    SetStatus(0, 'Ferramenta: ' + CAD_TOOL_NAMES[FEditor.Session.Tool]);
+    SetStatus(0, CAD_TOOL_NAMES[FEditor.Session.Tool] + '   |   ' + FEditor.CursorText);
   end;
 end;
 
@@ -1859,7 +1991,7 @@ end;
 
 procedure TMainForm.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 begin
-  if Tree.IsEditing then
+  if Tree.IsEditing or (Assigned(FEditor) and FEditor.Typing) then
     Exit;
   if (ActiveControl is TCustomEdit) or (ActiveControl is TCustomComboBox) then
   begin

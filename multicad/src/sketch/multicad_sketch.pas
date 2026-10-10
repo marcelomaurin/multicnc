@@ -46,6 +46,8 @@ type
     DimName: string;     { "D1" (nome completo: D1@<sketch>) }
     Driving: Boolean;    { cota dirigente (comanda) ou dirigida (so mostra) }
     Fix: array of Double; { fixa: coordenadas guardadas }
+    TextOff: TCadVec2;   { cota: posicao do texto relativa ao ponto base (mm) }
+    HasTextOff: Boolean; { False = posicao automatica }
   end;
 
   TCadSketch = class(TCadFeature)
@@ -96,6 +98,10 @@ type
     procedure SetConstraintValue(I: Integer; AValue: Double);
     procedure SetConstraintExpr(I: Integer; const AExpr: string);
     procedure SetConstraintDriving(I: Integer; ADriving: Boolean);
+    { Posicao do texto da cota (arrastar), relativa ao ponto base. }
+    procedure SetConstraintTextOffset(I: Integer; const AOff: TCadVec2);
+    { Troca as referencias da restricao (filete/chanfro: canto virtual). }
+    procedure SetConstraintRefs(I, AEntA, APtA, AEntB, APtB: Integer);
     function EntityIndex(AId: Integer): Integer;
     function ConstraintIndex(AId: Integer): Integer;
     function DimensionIndex(const ADimName: string): Integer;
@@ -477,6 +483,20 @@ begin
   FConstraints[I].Expr := AExpr;
 end;
 
+procedure TCadSketch.SetConstraintTextOffset(I: Integer; const AOff: TCadVec2);
+begin
+  FConstraints[I].TextOff := AOff;
+  FConstraints[I].HasTextOff := True;
+end;
+
+procedure TCadSketch.SetConstraintRefs(I, AEntA, APtA, AEntB, APtB: Integer);
+begin
+  FConstraints[I].EntityA := AEntA;
+  FConstraints[I].PointA := APtA;
+  FConstraints[I].EntityB := AEntB;
+  FConstraints[I].PointB := APtB;
+end;
+
 procedure TCadSketch.SetConstraintDriving(I: Integer; ADriving: Boolean);
 begin
   FConstraints[I].Driving := ADriving;
@@ -656,6 +676,8 @@ begin
       if FConstraints[I].Expr <> '' then
         E.Add('expr', FConstraints[I].Expr);
       E.Add('driving', FConstraints[I].Driving);
+      if FConstraints[I].HasTextOff then
+        E.Add('text', TJSONArray.Create([FConstraints[I].TextOff.X, FConstraints[I].TextOff.Y]));
     end;
     Cons.Add(E);
   end;
@@ -746,6 +768,12 @@ begin
       C.DimName := JStr(EO, 'dim', '');
       C.Expr := JStr(EO, 'expr', '');
       C.Driving := JBool(EO, 'driving', True);
+      Fx := EO.Find('text');
+      if (Fx is TJSONArray) and (Fx.Count = 2) then
+      begin
+        C.TextOff := V2(Fx.Items[0].AsFloat, Fx.Items[1].AsFloat);
+        C.HasTextOff := True;
+      end;
       SetLength(FConstraints, Length(FConstraints) + 1);
       FConstraints[High(FConstraints)] := C;
     end;

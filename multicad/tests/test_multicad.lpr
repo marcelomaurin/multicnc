@@ -1536,6 +1536,22 @@ begin
     C.Orbit(37, -21);
     Check(Near(VDot(C.Right, C.Up), 0) and Near(VDot(C.Back, C.Up), 0) and
       Near(VLen(C.Back), 1) and Near(VDot(VCross(C.Right, C.Up), C.Back), 1), 'orbita mantem a base direita');
+    { girar em torno de um ponto: o ponto fica parado na tela }
+    Q := V3(30, 10, -5);
+    S := C.Project(Q);
+    C.OrbitAbout(55, -30, Q);
+    S2 := C.Project(Q);
+    Check(Near(S.X, S2.X, 1E-6) and Near(S.Y, S2.Y, 1E-6), 'girar em torno do centro escolhido');
+    C.Roll(40);
+    Check(Near(VDot(C.Right, C.Up), 0) and Near(VLen(C.Up), 1), 'rolar mantem a base');
+    S := C.Project(P);
+    Q := C.Unproject(S.X, S.Y, S.Depth);
+    Check(NearV(Q, P, 1E-6), 'desprojetar o pixel com a profundidade devolve o ponto');
+    C.Perspective := True;
+    S := C.Project(P);
+    Q := C.Unproject(S.X, S.Y, S.Depth);
+    Check(NearV(Q, P, 1E-6), 'desprojetar em perspectiva');
+    C.Perspective := False;
     { pan }
     S := C.Project(P);
     C.Pan(10, 5);
@@ -1929,6 +1945,122 @@ begin
   end;
 end;
 
+procedure TestSketchTools2;
+var
+  D: TCadDocument;
+  S: TCadSketch;
+  T: TCadSketchSession;
+  E: TSketchEntity;
+  G: TCadDimGeom;
+  I, N0, NArc, NLine: Integer;
+  C: TSketchConstraint;
+  Sn: TCadSnap;
+  Len: Double;
+begin
+  D := TCadDocument.Create;
+  try
+    D.NewPart;
+    S := D.AddSketch('plane:1');
+    T := TCadSketchSession.Create(D, S);
+    try
+      T.PickTol := 1.5;
+      { digitar o comprimento: 80 na horizontal a partir da origem }
+      T.Tool := tkLine;
+      T.Click(V2(0.2, 0.1));
+      T.MouseMove(V2(30, 0.5));
+      Check(T.CanType, 'linha com 1 clique aceita medida digitada');
+      Check(T.ApplyTyped('80'), 'digitar 80 cria a linha ' + T.LastMessage);
+      E := S.Entity(0);
+      Check(Near(E.P2.X, 80, 1E-6) and Near(E.P2.Y, 0, 1E-6), 'linha de 80 mm na horizontal');
+      C := S.Constraint(S.ConstraintCount - 1);
+      Check((C.Kind = ckDistance) and Near(C.Value, 80), 'cota de 80 criada junto');
+      Check(CadDimText(C) = '80 mm', 'texto da cota com mm: ' + CadDimText(C));
+      { a cadeia continua: 50 para cima com angulo }
+      T.MouseMove(V2(80.3, 20));
+      Check(T.ApplyTyped('50<90'), 'digitar 50<90');
+      E := S.Entity(1);
+      Check(Near(E.P2.X, 80, 1E-6) and Near(E.P2.Y, 50, 1E-6), 'segunda linha vai para (80, 50)');
+      T.Cancel;
+      { geometria da cota: linha de cota paralela, texto afastado }
+      Check(T.DimGeometry(S.ConstraintCount - 1, G) and (G.Kind = dgLinear), 'geometria de cota linear');
+      Check(Near(Abs(G.DA.X - G.A.X), 3.3, 1E-6) or (Abs(G.DA.X - G.A.X) > 0.1), 'linha de cota afastada da medida');
+      T.MoveDimText(S.ConstraintCount - 1, V2(100, 25));
+      T.DimGeometry(S.ConstraintCount - 1, G);
+      Check(Near(G.T.X, 100, 1E-9) and Near(G.T.Y, 25, 1E-9) and Near(G.DA.X, 100, 1E-9),
+        'arrastar o texto da cota leva a linha de cota junto');
+      { retangulo digitado }
+      T.Tool := tkRectangle;
+      T.Click(V2(-60, -40));
+      T.MouseMove(V2(-50, -30));
+      Check(T.ApplyTyped('40 x 30'), 'retangulo 40 x 30 ' + T.LastMessage);
+      E := S.Entity(S.EntityCount - 4);
+      Check(Near(Abs(S.Entity(S.EntityCount - 4).P2.X - S.Entity(S.EntityCount - 4).P1.X), 40, 1E-6), 'largura 40');
+      { circulo digitado: diametro }
+      T.Tool := tkCircle;
+      T.Click(V2(-40, -25));
+      Check(T.ApplyTyped('12'), 'circulo de diametro 12');
+      Check(Near(S.Entity(S.EntityCount - 1).Radius, 6, 1E-6), 'raio 6');
+      Check(CadDimText(S.Constraint(S.ConstraintCount - 1)) = 'Ø12 mm', 'texto Ø12 mm');
+      { filete no canto do retangulo (-60,-40) }
+      N0 := S.EntityCount;
+      Check(T.FilletCorner(V2(-60, -40), 5), 'filete no canto ' + T.LastMessage);
+      Check(S.EntityCount = N0 + 2, 'filete acrescenta o arco e o canto virtual');
+      E := S.Entity(S.EntityCount - 1);
+      Check((E.Kind = seArc) and Near(E.Radius, 5, 1E-6) and NearV(V3(E.P1.X, E.P1.Y, 0), V3(-55, -35, 0), 1E-6),
+        Format('arco R5 com centro em (-55, -35): R=%.4f c=(%.4f, %.4f)', [E.Radius, E.P1.X, E.P1.Y]));
+      Check(T.LastSolve.Status <> ssConflict, 'filete sem conflito');
+      { chanfro no canto oposto (-20,-10) }
+      N0 := S.EntityCount;
+      Check(T.ChamferCorner(V2(-20, -10), 3, 3), 'chanfro no canto ' + T.LastMessage);
+      E := S.Entity(S.EntityCount - 1);
+      Len := Sqrt(Sqr(E.P2.X - E.P1.X) + Sqr(E.P2.Y - E.P1.Y));
+      Check((S.EntityCount = N0 + 2) and Near(Len, 3 * Sqrt(2), 1E-6), 'chanfro 3 x 3 (linha de 4,24)');
+      Len := S.Entity(S.EntityIndex(4)).P1.X - S.Entity(S.EntityIndex(6)).P1.X;
+      Check(Near(Len, 40, 1E-6), Format('largura 40 mantida pelo canto virtual (%.4f)', [Len]));
+      Check(not T.ChamferCorner(V2(500, 500), 1, 1), 'chanfro longe de canto e recusado');
+      { o perfil continua fechado: retangulo com filete e chanfro vira regiao }
+      NArc := 0; NLine := 0;
+      for I := 0 to S.EntityCount - 1 do
+        if S.Entity(I).Kind = seArc then Inc(NArc) else if S.Entity(I).Kind = seLine then Inc(NLine);
+      Check((NArc = 1) and (NLine = 2 + 4 + 1), Format('entidades: %d arcos, %d linhas', [NArc, NLine]));
+      { arco tangente saindo do fim da linha de 80 (para cima a partir de (80,50)) }
+      T.Tool := tkArcTangent;
+      T.Click(V2(80, 50));
+      T.Click(V2(60, 70));
+      E := S.Entity(S.EntityCount - 1);
+      Check((E.Kind = seArc) and Near(E.Radius, 20, 1E-6) and Near(E.P1.X, 60, 1E-6) and Near(E.P1.Y, 50, 1E-6),
+        Format('arco tangente R20 com centro (60,50): R=%.3f', [E.Radius]));
+      { arco pelo centro }
+      T.Tool := tkArcCenter;
+      N0 := S.EntityCount;
+      T.Click(V2(150, 0));
+      T.Click(V2(160, 0));
+      T.Click(V2(150, 10));
+      Check((S.EntityCount = N0 + 1) and Near(S.Entity(N0).Radius, 10, 1E-6), 'arco pelo centro R10');
+      { inferencia: alinhado na vertical com (80, 50) }
+      T.Tool := tkLine;
+      Sn := T.Snap(V2(80.7, 120));
+      Check(Sn.GuideX and Near(Sn.P.X, 80, 1E-9), 'linha de inferencia alinha com o ponto existente');
+      { ponto medio da linha de 80 }
+      Sn := T.Snap(V2(40.3, 0.2));
+      Check((Sn.Pt = -1) and Near(Sn.P.X, 40, 1E-9), 'captura do ponto medio');
+      { grade }
+      T.GridStep := 5;
+      T.GridSnap := True;
+      Sn := T.Snap(V2(212.2, 208.9));
+      Check(Sn.OnGrid and Near(Sn.P.X, 210) and Near(Sn.P.Y, 210), 'captura na grade de 5 mm');
+      { construcao }
+      T.Tool := tkSelect;
+      T.Click(V2(40, -0.1));
+      Check(T.ToggleConstruction and S.Entity(0).Construction, 'linha vira construcao');
+    finally
+      T.Free;
+    end;
+  finally
+    D.Free;
+  end;
+end;
+
 begin
   Passed := 0;
   Failed := 0;
@@ -1946,6 +2078,7 @@ begin
   TestCamera;
   TestRender;
   TestSketchTools;
+  TestSketchTools2;
   TestExport;
   Writeln(Format('MultiCAD: %d checks, %d falhas', [Passed + Failed, Failed]));
   if Failed > 0 then

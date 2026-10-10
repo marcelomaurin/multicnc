@@ -10,6 +10,7 @@ program test_multicad_ui;
 uses
   {$IFDEF UNIX}cthreads,{$ENDIF}
   Interfaces, Forms, Graphics, SysUtils, ComCtrls, multicad_types, multicad_document, multicad_feature,
+  multicad_sketchtools,
   multicad_sketch, multicad_extrude, multicad_rebuild, multicad_camera,
   multicad_softrender, multicad_view3d, multicad_main;
 
@@ -95,6 +96,8 @@ end;
 
 var
   F: TMainForm;
+  S: TCadSketch;
+  Ses: TCadSketchSession;
   Fn: string;
   St: TCadDisplayStyle;
   I, Errs: Integer;
@@ -148,6 +151,33 @@ begin
     Pump;
     Shot(F, '04_secao');
     F.View3D.SetSection(False, StdFrame(spFrontal));
+    { esboco da base: cotas em mm, filete e chanfro, grade }
+    F.EditSketchById(F.Document.Feature(4).Id);
+    Pump;
+    Check(Assigned(F.SketchEditor), 'editando o esboco da base');
+    if Assigned(F.SketchEditor) then
+    begin
+      S := F.SketchEditor.Sketch;
+      Ses := F.SketchEditor.Session;
+      Ses.AddSmartDimension(PickItem(S.Entity(0).Id, 0), PickItem(0, 0), False, '');
+      Check(Ses.FilletCorner(V2(-40, -25), 6), 'filete R6 no canto ' + Ses.LastMessage);
+      Check(Ses.ChamferCorner(V2(40, 25), 5, 5), 'chanfro 5 x 5 no canto ' + Ses.LastMessage);
+      F.SketchEditor.SetGrid(True, True);
+      F.View3D.Invalidate;
+      Pump;
+      Shot(F, '05a_esboco_cotas_filete');
+      F.ExitSketchMode;
+      Pump;
+      Errs := 0;
+      for I := 0 to F.Document.Count - 1 do
+        if F.Document.Feature(I).State = fsError then
+        begin
+          Inc(Errs);
+          Writeln('  erro: ', F.Document.Feature(I).Name, ': ', F.Document.Feature(I).Message);
+        end;
+      Check(Errs = 0, 'peca reconstruida com filete e chanfro na base');
+      Shot(F, '05b_peca_filete_chanfro');
+    end;
     { editar esboco do furo }
     F.EditSketchById(F.Document.Feature(F.Document.Count - 2).Id);
     Pump;

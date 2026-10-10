@@ -8,8 +8,9 @@ Em implementacao: decisoes D1 a D10 aprovadas, fases 0 (base, Ids, JSON, unidade
 materiais, malha rotulada, ICadKernel), 1 (esboco com solver, graus de liberdade e perfis),
 2 (extrusao, corte, revolucao, planos, booleanas, reconstrucao) e 3 (vista 3D por software,
 arvore, PropertyManager, modo esboco) e 4 (STL/DXF, medir, Abrir no MultiSlicer) concluidas;
-425 checks no nucleo + teste de interface. Primeira entrega pronta. Proxima: fase 5 (furo,
-padroes, espelho); pendencias da vista na 3E. Limites em TAREFA.md.
+e 5A (cotas em mm, digitar medidas, grade, inferencia, arcos, filete/chanfro de esboco,
+mouse do SolidWorks) concluidas; 459 checks no nucleo + teste de interface. Proxima: 5B
+(furo, padroes, espelho); pendencias da vista na 3E. Limites em TAREFA.md.
 O plano completo esta em `TAREFA.md` (fases 0 a 8) e o projeto tecnico em `ARCHITECTURE.md` (modelo `.mcad`, solver
 Newton/LM, nucleo em malha rotulada + CSG BSP atras de `ICadKernel`, OpenGL, exportacao).
 Referencia de fluxo: SolidWorks 2014 (sketch com restricoes e cotas, arvore de operacoes,
@@ -40,7 +41,8 @@ Documento CAD, features, sketches, extrusoes, transformacoes geometricas, viewpo
 - src/features/multicad_export.pas: STL (orientacao Y->Z / face na mesa) e DXF R12.
 - src/features/multicad_measure.pas: Medir (area, diametro, distancias, angulos).
 - src/sketch/multicad_sketchtools.pas: ferramentas do modo esboco sem LCL (cliques -> entidades,
-  captura, H/V automaticas, cota inteligente, relacoes, apagar).
+  captura, inferencia, grade, H/V automaticas, cota inteligente e desenho das cotas, medida
+  digitada, arcos, filete/chanfro com canto virtual, relacoes, construcao, apagar).
 - src/ui/multicad_camera.pas: camera (vistas padrao, Normal a, orbitar, zoom no cursor, raio).
 - src/ui/multicad_softrender.pas: z-buffer por software, 5 estilos, arestas, Id por pixel, secao.
 - src/ui/multicad_view3d.pas: controle TCadView3D (mouse, teclado, cubo, triade, planos, esbocos).

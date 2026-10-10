@@ -71,6 +71,11 @@ type
     FActiveSketchId: Integer;
     FHighlightPrefix: string;
     FNeedFit: Boolean;           { enquadrar quando a vista tiver tamanho }
+    FMoved: Boolean;             { arrastou (nao foi so clique) }
+    FPivot: TCadVec3;            { centro de giro escolhido (clique do meio) }
+    FPivotSet, FShowPivot: Boolean;
+    FReverseWheel, FSkipPush: Boolean;
+    FHistory: TFPObjectList;     { vistas anteriores (Ctrl+Shift+Z) }
     FOnPick: TCadPickEvent;
     FOnNormalTo: TNotifyEvent;
     FOnOverlay3D: TCadOverlay3DEvent;
@@ -93,6 +98,7 @@ type
     function PlaneVisible(P: TCadPlane): Boolean;
     function FeatureCode(AIndex: Integer): Integer;
     procedure UpdateHover(X, Y: Integer);
+    function PivotPoint: TCadVec3;
   protected
     procedure Paint; override;
     procedure Resize; override;
@@ -119,6 +125,11 @@ type
     function CodeToRef(ACode: Integer): string;
     { Atalhos da vista (Ctrl+1..8, F, setas). Key = 0 se tratou. }
     procedure HandleKey(var Key: Word; Shift: TShiftState);
+    { Guarda a vista atual para "Vista anterior". }
+    procedure PushView;
+    procedure PreviousView;
+    { Roda do mouse invertida (padrao SolidWorks: para frente afasta). }
+    property ReverseWheel: Boolean read FReverseWheel write FReverseWheel;
     procedure ShowStdPlane(AId: Integer; AShow: Boolean);
     function IsHidden(AId: Integer): Boolean;
     procedure SetHidden(AId: Integer; AHidden: Boolean);
@@ -187,6 +198,7 @@ begin
   FRaster := TCadRaster.Create;
   FBmp := TBitmap.Create;
   FCaches := TFPObjectList.Create(True);
+  FHistory := TFPObjectList.Create(True);
   FSelected := TStringList.Create;
   FShown := TStringList.Create;
   FHiddenIds := TStringList.Create;
@@ -202,6 +214,7 @@ destructor TCadView3D.Destroy;
 begin
   FPreviewCache.Free;
   FCaches.Free;
+  FHistory.Free;
   FSelected.Free;
   FShown.Free;
   FHiddenIds.Free;
@@ -275,6 +288,8 @@ begin
     Exit;
   end;
   FNeedFit := False;
+  if not FSkipPush and (FCam.Width > 1) then
+    PushView;
   B := FModelBox;
   if B.Empty then
   begin
@@ -288,8 +303,14 @@ end;
 
 procedure TCadView3D.SetView(V: TCadStdView);
 begin
+  PushView;
   FCam.StdView(V);
-  FitAll;
+  FSkipPush := True;
+  try
+    FitAll;
+  finally
+    FSkipPush := False;
+  end;
 end;
 
 procedure TCadView3D.SetPreview(AMesh: TCadMesh; AIsCut: Boolean);
@@ -837,6 +858,18 @@ begin
     FOnOverlay(Self, Canvas);
   PaintTriad(Canvas);
   PaintCube(Canvas);
+  if FShowPivot then
+    with FCam.Project(PivotPoint) do
+    begin
+      Canvas.Pen.Color := RGBToColor(220, 60, 40);
+      Canvas.Pen.Width := 2;
+      Canvas.Brush.Style := bsClear;
+      Canvas.Ellipse(Round(X) - 6, Round(Y) - 6, Round(X) + 7, Round(Y) + 7);
+      Canvas.Line(Round(X) - 10, Round(Y), Round(X) + 11, Round(Y));
+      Canvas.Line(Round(X), Round(Y) - 10, Round(X), Round(Y) + 11);
+      Canvas.Pen.Width := 1;
+      Canvas.Brush.Style := bsSolid;
+    end;
   if FSectionOn then
   begin
     S := 'Vista de seção';
@@ -872,6 +905,41 @@ begin
   end;
 end;
 
+function TCadView3D.PivotPoint: TCadVec3;
+begin
+  if FPivotSet then
+    Result := FPivot
+  else if not FModelBox.Empty then
+    Result := VScale(VAdd(FModelBox.Min, FModelBox.Max), 0.5)
+  else
+    Result := FCam.Target;
+end;
+
+procedure TCadView3D.PushView;
+var
+  C: TCadCamera;
+begin
+  C := TCadCamera.Create;
+  C.Assign(FCam);
+  FHistory.Add(C);
+  while FHistory.Count > 30 do
+    FHistory.Delete(0);
+end;
+
+procedure TCadView3D.PreviousView;
+var
+  W, H: Integer;
+begin
+  if FHistory.Count = 0 then
+    Exit;
+  W := FCam.Width;
+  H := FCam.Height;
+  FCam.Assign(TCadCamera(FHistory[FHistory.Count - 1]));
+  FCam.SetViewport(W, H);
+  FHistory.Delete(FHistory.Count - 1);
+  Redraw;
+end;
+
 procedure TCadView3D.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
   Handled: Boolean;
@@ -884,13 +952,36 @@ begin
   FLastY := Y;
   FDownX := X;
   FDownY := Y;
+  FMoved := False;
   if (Button = mbLeft) and CubeHit(X, Y, V) then
   begin
     SetView(V);
     Exit;
   end;
-  if (Button = mbMiddle) or ((Button = mbLeft) and (ssAlt in Shift)) then
+  if Button = mbMiddle then
   begin
+    { duplo clique do meio: enquadrar (SolidWorks) }
+    if ssDouble in Shift then
+    begin
+      FitAll;
+      Exit;
+    end;
+    FDragging := True;
+    FDragBtn := Button;
+    if ssCtrl in Shift then
+      FDragMode := 1        { deslocar }
+    else if ssShift in Shift then
+      FDragMode := 2        { zoom }
+    else if ssAlt in Shift then
+      FDragMode := 3        { rolar }
+    else
+      FDragMode := 0;       { girar }
+    PushView;
+    Exit;
+  end;
+  if (Button = mbLeft) and (ssAlt in Shift) then
+  begin
+    { sem botao do meio: Alt + esquerdo gira, Alt+Ctrl desloca, Alt+Shift zoom }
     FDragging := True;
     FDragBtn := Button;
     if ssCtrl in Shift then
@@ -899,6 +990,7 @@ begin
       FDragMode := 2
     else
       FDragMode := 0;
+    PushView;
     Exit;
   end;
   Handled := False;
@@ -918,10 +1010,20 @@ begin
   FLastY := Y;
   if FDragging then
   begin
+    if (Abs(X - FDownX) > 2) or (Abs(Y - FDownY) > 2) then
+      FMoved := True;
+    if not FMoved then
+      Exit;
     case FDragMode of
-      0: FCam.Orbit(DX, DY);
+      0:
+        begin
+          FCam.OrbitAbout(DX, DY, PivotPoint);
+          FShowPivot := True;
+        end;
       1: FCam.Pan(DX, DY);
+      { arrastar para cima aproxima (Zoom do SolidWorks) }
       2: FCam.ZoomAt(Power(1.01, -DY), FDownX, FDownY);
+      3: FCam.Roll(DX);
     end;
     Redraw;
     Exit;
@@ -944,6 +1046,24 @@ begin
   if FDragging and (Button = FDragBtn) then
   begin
     FDragging := False;
+    FShowPivot := False;
+    if not FMoved then
+    begin
+      { so clicou: some o historico desta "vista" }
+      if FHistory.Count > 0 then
+        FHistory.Delete(FHistory.Count - 1);
+      if Button = mbMiddle then
+      begin
+        { clique do meio numa entidade: passa a girar em torno dela; no
+          fundo: volta para o centro da peca }
+        if FDirty then
+          RenderScene;
+        FPivotSet := FRaster.DepthAt(X, Y) < 1E29;
+        if FPivotSet then
+          FPivot := FCam.Unproject(X + 0.5, Y + 0.5, FRaster.DepthAt(X, Y));
+      end;
+    end;
+    Redraw;
     Exit;
   end;
   Handled := False;
@@ -989,8 +1109,12 @@ end;
 
 function TCadView3D.DoMouseWheel(Shift: TShiftState; WheelDelta: Integer; MousePos: TPoint): Boolean;
 begin
-  { ARCHITECTURE 6.2: rolar para frente aproxima }
-  FCam.ZoomAt(Power(1.15, WheelDelta / 120), MousePos.X, MousePos.Y);
+  { SolidWorks: rolar para frente (para longe) afasta, para tras aproxima,
+    sempre em torno do cursor; ReverseWheel inverte }
+  if FReverseWheel then
+    FCam.ZoomAt(Power(1.15, WheelDelta / 120), MousePos.X, MousePos.Y)
+  else
+    FCam.ZoomAt(Power(1.15, -WheelDelta / 120), MousePos.X, MousePos.Y);
   Redraw;
   Result := True;
 end;
@@ -1002,7 +1126,18 @@ begin
 end;
 
 procedure TCadView3D.HandleKey(var Key: Word; Shift: TShiftState);
+var
+  St: Double;
 begin
+  { setas: 15 graus; Shift + setas: 90 graus; Alt + esquerda/direita: rolar;
+    Ctrl + setas: deslocar; Z / Shift+Z: afastar/aproximar;
+    Ctrl+Shift+Z: vista anterior (como no SolidWorks) }
+  if (ssCtrl in Shift) and (ssShift in Shift) and (Key = VK_Z) then
+  begin
+    PreviousView;
+    Key := 0;
+    Exit;
+  end;
   if ssCtrl in Shift then
     case Key of
       VK_1..VK_7:
@@ -1016,6 +1151,18 @@ begin
             FOnNormalTo(Self);
           Key := 0;
         end;
+      VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN:
+        begin
+          St := Max(ClientWidth, ClientHeight) * 0.1;
+          case Key of
+            VK_LEFT: FCam.Pan(-St, 0);
+            VK_RIGHT: FCam.Pan(St, 0);
+            VK_UP: FCam.Pan(0, -St);
+            VK_DOWN: FCam.Pan(0, St);
+          end;
+          Redraw;
+          Key := 0;
+        end;
     end
   else
     case Key of
@@ -1024,14 +1171,34 @@ begin
           FitAll;
           Key := 0;
         end;
+      VK_Z:
+        begin
+          PushView;
+          if ssShift in Shift then
+            FCam.ZoomAt(1.25, ClientWidth / 2, ClientHeight / 2)
+          else
+            FCam.ZoomAt(1 / 1.25, ClientWidth / 2, ClientHeight / 2);
+          Redraw;
+          Key := 0;
+        end;
       VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN:
         begin
-          case Key of
-            VK_LEFT: FCam.Orbit(-37.5, 0);
-            VK_RIGHT: FCam.Orbit(37.5, 0);
-            VK_UP: FCam.Orbit(0, -37.5);
-            VK_DOWN: FCam.Orbit(0, 37.5);
-          end;
+          PushView;
+          if ssShift in Shift then
+            St := 225       { 90 graus (0,4 grau por unidade) }
+          else
+            St := 37.5;     { 15 graus }
+          if (ssAlt in Shift) and (Key in [VK_LEFT, VK_RIGHT]) then
+          begin
+            if Key = VK_LEFT then FCam.Roll(-37.5) else FCam.Roll(37.5);
+          end
+          else
+            case Key of
+              VK_LEFT: FCam.OrbitAbout(-St, 0, PivotPoint);
+              VK_RIGHT: FCam.OrbitAbout(St, 0, PivotPoint);
+              VK_UP: FCam.OrbitAbout(0, -St, PivotPoint);
+              VK_DOWN: FCam.OrbitAbout(0, St, PivotPoint);
+            end;
           Redraw;
           Key := 0;
         end;

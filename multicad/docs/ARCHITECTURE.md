@@ -295,11 +295,14 @@ Alt + Ctrl + esquerdo desloca; as setas giram 15°.
 
 | Ação | Comando |
 |---|---|
-| Orbitar | botão do meio |
+| Orbitar | botão do meio (em torno do centro da peça) |
+| Girar em torno de uma entidade | clique do meio na face e depois arrastar; clique no fundo volta ao centro |
 | Deslocar | Ctrl + botão do meio |
-| Zoom no cursor | roda (para frente aproxima, como no SolidWorks) |
-| Girar em torno de aresta/vértice | botão do meio sobre a entidade (fixa o centro de giro) |
+| Zoom | Shift + botão do meio (para cima aproxima) |
+| Zoom no cursor | roda: para frente (para longe) afasta, para trás aproxima, como o padrão do SolidWorks; "Inverter zoom da roda" na aba Exibir |
 | Rolar no plano da tela | Alt + botão do meio |
+| Enquadrar | duplo clique do meio ou F |
+| Sem botão do meio | Alt + esquerdo gira, Alt+Ctrl desloca, Alt+Shift zoom |
 
 ### 6.3 Orientação e atalhos
 
@@ -313,6 +316,10 @@ Alt + Ctrl + esquerdo desloca; as setas giram 15°.
 | Zoom para ajustar (peça inteira) | F |
 | Diálogo de orientação (vistas padrão + vistas salvas) | barra de espaço |
 | Vista anterior | Ctrl+Shift+Z |
+| Girar 15° / 90° | setas / Shift + setas |
+| Rolar 15° | Alt + ← / → |
+| Deslocar | Ctrl + setas |
+| Afastar / aproximar | Z / Shift+Z |
 
 - **Cubo de vistas** no canto superior direito (clicar em face, aresta ou vértice orienta) e
   **tríade de eixos** no canto inferior esquerdo.

@@ -26,7 +26,8 @@ documento, *feature* e *sketch*.
 | 2 Operações básicas | concluída (10/10) | `multicad_triangulate`, `multicad_sweep` (extrusão com inclinação, revolução), `multicad_csg` (booleanas BSP com nomes de face e malha fechada), `multicad_revolve`, `multicad_rebuild` (planos, eixos, esboço em face, todas as condições finais, recurso fino, contornos, inverter lado, multicorpo, avisos, cache, retrocesso, supressão). Limites anotados abaixo. |
 | 3 Vista 3D e árvore | concluída (10/10), com pendências na 3E | `multicad_camera` (Y para cima, vistas padrão, Normal a, orbitar, deslocar, zoom no cursor, enquadrar, raio do pixel), `multicad_softrender` (z-buffer por software, 5 estilos, arestas de recurso e silhuetas, seleção exata por buffer de Id, seção), `multicad_view3d` (controle da vista, cubo de vistas, tríade, planos, esboços, origem, prévia), `multicad_sketchtools` (ferramentas do esboço sem LCL: linha em cadeia com H/V automáticas, retângulo, círculo, arco 3 pontos, linha de centro, ponto, captura com coincidente, cota inteligente, relações, apagar), `multicad_sketchedit` (modo esboço na vista), `multicad_propman` (PropertyManager de extrusão, corte, revolução e plano) e janela principal no padrão da suíte. `multicad.exe` Win64 em `bin/`. |
 | 4 Exportação e suíte | concluída (10/10) | `multicad_export` (STL binário e texto com orientação Y→Z, face na mesa ou como no modelo, apoiado em Z = 0 e centrado; DXF R12 do esboço e do contorno de face plana), `multicad_measure` (área, diâmetro, distância entre planos e eixos, ângulos), aba Exportar com "Abrir no MultiSlicer", Medir na aba Avaliar, booleana tenta de novo com a árvore BSP em outra ordem quando a malha sai aberta, critério de pronto coberto por `TestExport`. Instalador e bandeja já incluem o MultiCAD; Central de Testes com o teste do núcleo e o de interface. |
-| 5 Furo, padrões, espelho | pendente | |
+| 5A Esboço com medidas e mouse | concluída (10/10) | Pedido do usuário antes do furo: cotas desenhadas em mm (linhas de chamada, setas, arrastar o texto), digitar a medida durante o desenho, grade em mm com captura, linhas de inferência, ponto médio, construção, arco tangente e pelo centro, filete e chanfro de esboço com canto virtual, mouse e teclado como no SolidWorks (roda para frente afasta, giro em torno do centro da peça ou da entidade clicada com o botão do meio, rolar, duplo clique do meio enquadra, Z/Shift+Z, vista anterior). |
+| 5B Furo, padrões, espelho | pendente | |
 | 6 Filete, chanfro, casca | pendente | |
 | 7 Desenho 2D | pendente | |
 | 8 OpenCascade (opcional) | pendente | |
@@ -253,7 +254,28 @@ Como ficou (fase 3):
       importador do MultiSlicer com volume a 0,5% e altura em pé; salvar/abrir com mesma
       árvore, Ids e sólido) e pelo teste de interface (navegação, estilos, seção).
 
-### Fase 5: furo, padrões e espelho (≈ 4 h)
+### Fase 5A: esboço com medidas e mouse do SolidWorks (pedido em 10/10)
+- [x] Cotas desenhadas como no SolidWorks: linhas de chamada, linha de cota com setas (por
+      fora quando não cabem), valor com unidade ("80 mm", "Ø12 mm", "R6 mm", "45°"), fora do
+      desenho por padrão; arrastar o texto muda a posição (gravada no `.mcad`), clicar edita.
+- [x] Digitar a medida durante o desenho: com a linha começada, digitar 80 e Enter (ou 80<30
+      para 30°), no retângulo "80 x 50", no círculo o diâmetro; a cota já é criada (aceita
+      expressões). Medida ao lado do cursor enquanto desenha e coordenadas em mm no rodapé.
+- [x] Grade em mm com passo pelo zoom (linhas fortes a cada 5) e "Capturar na grade".
+- [x] Linhas de apoio: inferência pontilhada alinhando com pontos existentes, captura de ponto
+      médio (relação Ponto médio), botão Construção (tracejada, não vira sólido).
+- [x] Arco pelo centro (centro, início, fim) e arco tangente (do fim de linha ou arco, com
+      relação Tangente), além do arco de 3 pontos.
+- [x] Filete de esboço (raio) e chanfro de esboço (distância ou "d1 x d2") no canto entre duas
+      linhas; um ponto de construção guarda o canto virtual, então as cotas da peça não mudam.
+- [x] Mouse como no SolidWorks: meio gira (em torno do centro da peça; clique do meio numa
+      face muda o centro de giro, no fundo volta), Ctrl+meio desloca, Shift+meio zoom
+      (para cima aproxima), Alt+meio rola, duplo clique do meio enquadra, roda com zoom no
+      cursor (para frente afasta; "Inverter zoom da roda" na aba Exibir, guardado na
+      configuração). Teclado: setas 15°, Shift+setas 90°, Alt+←/→ rola, Ctrl+setas desloca,
+      Z/Shift+Z afasta/aproxima, Ctrl+Shift+Z vista anterior.
+
+### Fase 5B: furo, padrões e espelho (≈ 4 h)
 - [ ] `multicad_threads` com tabelas em `data/*.json`: roscas ISO 261/262 M2 a M24 (passo
       normal e fino), broca para rosca, folgas ISO 273 (fina, normal, larga), rebaixo ISO 4762,
       escareado 90° ISO 10642.
