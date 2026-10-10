@@ -10,7 +10,8 @@ uses
   SysUtils, Classes, Math, multicad_types, multicad_units, multicad_materials,
   multicad_feature, multicad_refgeom, multicad_sketch, multicad_extrude,
   multicad_document, multicad_mesh, multicad_kernel, multicad_solver,
-  multicad_profile, multicad_triangulate, multicad_sweep, multicad_bridge, multicad_csg, multicad_revolve, multicad_rebuild;
+  multicad_profile, multicad_triangulate, multicad_sweep, multicad_bridge, multicad_csg, multicad_revolve, multicad_rebuild,
+  multicad_camera, multicad_softrender, multicad_sketchtools;
 
 var
   Passed, Failed: Integer;
@@ -1480,6 +1481,273 @@ begin
   end;
 end;
 
+procedure TestCamera;
+var
+  C: TCadCamera;
+  F: TCadFrame;
+  P, O, D, Q: TCadVec3;
+  S, S2: TCadScreenPt;
+  B: TCadBox3;
+  I: Integer;
+  AllIn: Boolean;
+begin
+  C := TCadCamera.Create;
+  try
+    C.SetViewport(800, 600);
+    C.StdView(svFront);
+    Check(NearV(C.Back, V3(0, 0, 1)) and NearV(C.Up, V3(0, 1, 0)) and NearV(C.Right, V3(1, 0, 0)),
+      'vista Frontal: olha de +Z, X a direita, Y para cima');
+    C.StdView(svTop);
+    Check(NearV(C.Back, V3(0, 1, 0)) and NearV(C.Right, V3(1, 0, 0)) and NearV(C.Up, V3(0, 0, -1)),
+      'vista Superior: olha de +Y, X a direita, -Z para cima');
+    C.StdView(svRight);
+    Check(NearV(C.Right, V3(0, 0, -1)), 'vista Direita: -Z a direita');
+    C.StdView(svIso);
+    Check(NearV(C.Back, VNorm(V3(1, 1, 1))) and (C.Up.Y > 0), 'isometrica com Y para cima');
+    Check(Near(VDot(C.Right, C.Up), 0) and Near(VLen(C.Right), 1), 'base ortonormal');
+    F := StdFrame(spSuperior);
+    C.NormalTo(F, False);
+    Check(NearV(C.Back, F.Normal) and NearV(C.Right, F.XDir) and NearV(C.Up, F.YDir),
+      'Normal a: x do plano a direita, y para cima');
+    C.NormalTo(F, True);
+    Check(NearV(C.Back, VNeg(F.Normal)) and NearV(C.Up, F.YDir), 'Normal a repetido vira o lado');
+    { projecao e raio }
+    C.StdView(svIso);
+    C.Scale := 3;
+    P := V3(12, -7, 30);
+    S := C.Project(P);
+    C.ScreenRay(S.X, S.Y, O, D);
+    Q := VSub(P, O);
+    Check(VLen(VCross(Q, D)) < 1E-6, 'raio do pixel passa pelo ponto projetado (ortografica)');
+    C.Perspective := True;
+    S := C.Project(P);
+    C.ScreenRay(S.X, S.Y, O, D);
+    Check(VLen(VCross(VSub(P, O), D)) < 1E-6 * VLen(VSub(P, O)) + 1E-6,
+      'raio do pixel passa pelo ponto projetado (perspectiva)');
+    C.Perspective := False;
+    { zoom no cursor }
+    S := C.Project(P);
+    C.ZoomAt(1.7, S.X, S.Y);
+    S2 := C.Project(P);
+    Check(Near(S.X, S2.X, 1E-6) and Near(S.Y, S2.Y, 1E-6) and Near(C.Scale, 5.1),
+      'zoom mantem o ponto sob o cursor');
+    { orbita mantem a base }
+    C.Orbit(37, -21);
+    Check(Near(VDot(C.Right, C.Up), 0) and Near(VDot(C.Back, C.Up), 0) and
+      Near(VLen(C.Back), 1) and Near(VDot(VCross(C.Right, C.Up), C.Back), 1), 'orbita mantem a base direita');
+    { pan }
+    S := C.Project(P);
+    C.Pan(10, 5);
+    S2 := C.Project(P);
+    Check(Near(S2.X - S.X, 10, 1E-6) and Near(S2.Y - S.Y, 5, 1E-6), 'pan segue o mouse');
+    { enquadrar }
+    B := BoxEmpty;
+    BoxAdd(B, V3(-50, 0, 0));
+    BoxAdd(B, V3(150, 80, 40));
+    C.Fit(B);
+    AllIn := True;
+    for I := 0 to 7 do
+    begin
+      if (I and 1) = 0 then Q.X := B.Min.X else Q.X := B.Max.X;
+      if (I and 2) = 0 then Q.Y := B.Min.Y else Q.Y := B.Max.Y;
+      if (I and 4) = 0 then Q.Z := B.Min.Z else Q.Z := B.Max.Z;
+      S := C.Project(Q);
+      if (S.X < 0) or (S.X > 800) or (S.Y < 0) or (S.Y > 600) then
+        AllIn := False;
+    end;
+    Check(AllIn and (C.Scale > 2), 'enquadrar (F) deixa a caixa toda na tela');
+  finally
+    C.Free;
+  end;
+end;
+
+procedure TestRender;
+var
+  C: TCadCamera;
+  R: TCadRaster;
+  M: TCadMesh;
+  Cache: TCadMeshCache;
+  Opt: TCadDrawOptions;
+  S: TCadScreenPt;
+  Tag, Face, I, NF, Code, Cnt: Integer;
+  T: Double;
+  O, D: TCadVec3;
+  Nm: string;
+begin
+  C := TCadCamera.Create;
+  R := TCadRaster.Create;
+  M := CadMakeBox(V3(0, 0, 0), V3(40, 30, 20), 'Caixa');
+  Cache := TCadMeshCache.Create(M);
+  try
+    NF := 0;
+    for I := 0 to High(Cache.Edges) do
+      if Cache.Edges[I].Feature then
+        Inc(NF);
+    Check(NF = 12, Format('caixa: 12 arestas de recurso (%d)', [NF]));
+    R.SetSize(200, 150);
+    C.SetViewport(200, 150);
+    C.StdView(svFront);
+    C.Fit(M.Bounds);
+    R.BeginFrame(C);
+    Opt := CadDrawOptions(CAD_PART_COLOR, 3);
+    R.DrawMesh(Cache, Opt);
+    Code := R.IdAt(100, 75);
+    CadPickDecode(Code, Tag, Face);
+    Nm := '';
+    if Face >= 0 then
+      Nm := M.Faces[Face].Name;
+    Check((Tag = 3) and (Face >= 0) and (Abs(M.Faces[Face].Axis.Z - 1) < 1E-6),
+      'selecao no centro da vista Frontal pega a face +Z (' + Nm + ')');
+    Check(R.IdAt(2, 2) = 0, 'canto da tela e fundo');
+    Check(R.DepthAt(100, 75) < 1E29, 'profundidade escrita');
+    { a borda da peca tem aresta escura }
+    S := C.Project(V3(0, 15, 20));
+    Check(R.ColorAt(Round(S.X), Round(S.Y)) = CAD_EDGE_COLOR, 'aresta desenhada na borda');
+    { raio pelo pixel acha a mesma face }
+    C.ScreenRay(100.5, 75.5, O, D);
+    I := CadRayMesh(M, O, D, T);
+    Check((I >= 0) and (M.Tris[I].Face = Face), 'raio de selecao acha a mesma face');
+    { secao: corta metade em X }
+    R.SetSection(True, V3(20, 0, 0), V3(1, 0, 0));
+    R.BeginFrame(C);
+    R.DrawMesh(Cache, Opt);
+    S := C.Project(V3(30, 15, 20));
+    Check(R.IdAt(Round(S.X), Round(S.Y)) = 0, 'secao remove o lado positivo');
+    S := C.Project(V3(10, 15, 20));
+    Check(R.IdAt(Round(S.X), Round(S.Y)) <> 0, 'secao mantem o lado negativo');
+    R.SetSection(False, V3(0, 0, 0), V3(1, 0, 0));
+    { arame nao preenche }
+    R.Style := dsWireframe;
+    R.BeginFrame(C);
+    R.DrawMesh(Cache, Opt);
+    Check(R.IdAt(100, 75) = 0, 'arame: centro vazio');
+    { linhas ocultas removidas: Id mas cor de fundo }
+    R.Style := dsHiddenRemoved;
+    R.BeginFrame(C);
+    R.DrawMesh(Cache, Opt);
+    Check((R.IdAt(100, 75) <> 0) and (R.ColorAt(100, 75) <> CAD_PART_COLOR), 'HLR: superficie sem cor de peca');
+    { previa translucida nao escreve profundidade }
+    R.Style := dsShadedEdges;
+    R.BeginFrame(C);
+    Opt.Alpha := 0.5;
+    R.DrawMesh(Cache, Opt);
+    Check(R.DepthAt(100, 75) > 1E29, 'previa translucida nao ocupa profundidade');
+    { cilindro: silhueta e aresta suave }
+    Cache.Free;
+    M.Free;
+    M := CadMakeCylinder(V3(0, 0, 0), V3(0, 1, 0), 10, 30, 'Cil', 32);
+    Cache := TCadMeshCache.Create(M);
+    Cnt := 0;
+    for I := 0 to High(Cache.Edges) do
+      if Cache.Edges[I].Feature then
+        Inc(Cnt);
+    Check(Cnt = 64, Format('cilindro: so os dois circulos sao arestas de recurso (%d)', [Cnt]));
+  finally
+    Cache.Free;
+    M.Free;
+    R.Free;
+    C.Free;
+  end;
+end;
+
+procedure TestSketchTools;
+var
+  D: TCadDocument;
+  S: TCadSketch;
+  T: TCadSketchSession;
+  E: TSketchEntity;
+  N0, I, CntH, CntV, CntC: Integer;
+  C: TSketchConstraint;
+  V: Double;
+begin
+  D := TCadDocument.Create;
+  try
+    D.NewPart;
+    S := D.AddSketch('plane:1');
+    T := TCadSketchSession.Create(D, S);
+    try
+      T.PickTol := 1.5;
+      { linha em cadeia partindo da origem, quase horizontal e depois vertical }
+      T.Tool := tkLine;
+      T.Click(V2(0.4, -0.3));
+      T.Click(V2(50, 1.2));
+      T.Click(V2(51, 30));
+      T.Click(V2(0.5, 0.2));   { fecha na origem? nao: a origem ja e o inicio }
+      Check(S.EntityCount = 3, Format('linha em cadeia: 3 linhas (%d)', [S.EntityCount]));
+      E := S.Entity(0);
+      Check(Near(E.P1.X, 0) and Near(E.P1.Y, 0), 'inicio capturado na origem');
+      Check(Near(E.P2.Y, 0, 1E-6), 'linha quase horizontal travada');
+      CntH := 0; CntV := 0; CntC := 0;
+      for I := 0 to S.ConstraintCount - 1 do
+      begin
+        C := S.Constraint(I);
+        case C.Kind of
+          ckHorizontal: Inc(CntH);
+          ckVertical: Inc(CntV);
+          ckCoincident: Inc(CntC);
+        end;
+      end;
+      Check((CntH = 1) and (CntV = 1), Format('relacoes automaticas H=%d V=%d', [CntH, CntV]));
+      Check(CntC = 4, Format('coincidentes: origem, 2 juncoes e fechamento (%d)', [CntC]));
+      Check(T.ClickCount = 0, 'fechar num ponto existente encerra a cadeia');
+      Check(T.LastSolve.Status = ssUnderDefined, 'triangulo ainda subdefinido');
+      { cota inteligente: comprimento da linha horizontal = 60 }
+      N0 := S.ConstraintCount;
+      I := T.AddSmartDimension(PickItem(S.Entity(0).Id, 0), PickItem(0, 0), False, '60');
+      Check((I > 0) and (S.ConstraintCount = N0 + 1), 'cota de comprimento criada');
+      E := S.Entity(0);
+      Check(Near(Sqrt(Sqr(E.P2.X - E.P1.X) + Sqr(E.P2.Y - E.P1.Y)), 60, 1E-6), 'cota dirige o comprimento (60)');
+      I := T.AddSmartDimension(PickItem(S.Entity(1).Id, 0), PickItem(0, 0), False, '40');
+      Check(T.LastSolve.Status = ssFullyDefined, 'triangulo com 2 cotas: totalmente definido (' +
+        CAD_SKETCH_STATUS_NAMES[T.LastSolve.Status] + ')');
+      { terceira cota superdefine: vira dirigida }
+      I := T.AddSmartDimension(PickItem(S.Entity(2).Id, 0), PickItem(0, 0), False, '');
+      C := S.Constraint(S.ConstraintIndex(I));
+      Check(not C.Driving and Near(C.Value, Sqrt(60 * 60 + 40 * 40), 1E-6), 'cota extra vira dirigida com o valor medido');
+      { circulo e cota de diametro }
+      T.Tool := tkCircle;
+      T.Click(V2(20, 10));
+      T.Click(V2(25, 10));
+      Check(S.Entity(S.EntityCount - 1).Kind = seCircle, 'circulo pelo centro e raio');
+      I := T.AddSmartDimension(PickItem(S.Entity(S.EntityCount - 1).Id, 0), PickItem(0, 0), False, '8');
+      Check(Near(S.Entity(S.EntityCount - 1).Radius, 4, 1E-6), 'cota de diametro 8');
+      { relacao pela selecao: ponto medio nao cabe em circulo }
+      T.Tool := tkSelect;
+      T.Click(V2(24, 10));
+      Check(Length(T.Selection) = 1, 'selecionar o circulo');
+      Check(not T.AddRelation(ckMidpoint), 'relacao que nao cabe e recusada');
+      { retangulo }
+      T.Tool := tkRectangle;
+      N0 := S.EntityCount;
+      T.Click(V2(-30, -20));
+      T.Click(V2(-10, -5));
+      Check(S.EntityCount = N0 + 4, 'retangulo de canto: 4 linhas');
+      { arco de 3 pontos ligado ao fim de uma linha }
+      T.Tool := tkArc3P;
+      N0 := S.EntityCount;
+      T.Click(V2(-10, -5));
+      T.Click(V2(-10, 15));
+      T.Click(V2(0, 5));
+      Check(S.EntityCount = N0 + 1, 'arco de 3 pontos');
+      E := S.Entity(S.EntityCount - 1);
+      Check(Near(E.Radius, 10, 1E-6), 'arco de raio 10');
+      { apagar }
+      T.Tool := tkSelect;
+      T.Click(V2(-10 + 10, 5 + 0.0001));
+      N0 := S.EntityCount;
+      Check(T.DeleteSelection and (S.EntityCount = N0 - 1), 'apagar a entidade selecionada');
+      { angulo entre duas linhas }
+      I := T.AddSmartDimension(PickItem(S.Entity(0).Id, 0), PickItem(S.Entity(1).Id, 0), True, '');
+      Check((I > 0) and (S.Constraint(S.ConstraintIndex(I)).Kind = ckAngle), 'duas linhas: cota angular');
+      Check(CadMeasureDimension(S, S.ConstraintIndex(I), V) and (V > 0), 'angulo medido');
+    finally
+      T.Free;
+    end;
+  finally
+    D.Free;
+  end;
+end;
+
 begin
   Passed := 0;
   Failed := 0;
@@ -1494,6 +1762,9 @@ begin
   TestSweep;
   TestCSG;
   TestRebuild;
+  TestCamera;
+  TestRender;
+  TestSketchTools;
   Writeln(Format('MultiCAD: %d checks, %d falhas', [Passed + Failed, Failed]));
   if Failed > 0 then
     Halt(1);
