@@ -36,6 +36,7 @@ type
     FLaserSettings: TLaserSettings;
     FMachineKind: TMachineType;
     FFramingActive: Boolean;
+    FFinishing: Boolean;     { aguarda confirmacao dos comandos de desligamento }
     FIndex: Integer;          { proxima linha do programa a enfileirar }
     FState: TSessionState;
     FFileName: string;
@@ -131,6 +132,8 @@ type
   end;
 
 implementation
+
+uses multicnc_streamer;
 
 constructor TSimulationSession.Create;
 begin
@@ -376,6 +379,9 @@ function TSimulationSession.GetControllerReady: Boolean;
 begin
   Result := Connected;
   if Result and FRequireGrblReply then Result := FMachine.HasControllerReply;
+  { Uma resposta antiga nao libera comandos durante uma parada/reset. }
+  if Result and (FProtocolKind = pkGRBL) then
+    Result := FMachine.GetState <> msConnecting;
   if Result and (FProtocolKind = pkMarlin) then
     Result := (FMarlinReadyAt = 0) or (GetTickCount64 >= FMarlinReadyAt);
 end;
@@ -391,7 +397,7 @@ end;
 function TSimulationSession.GetCompleted: Integer;
 begin
   Result := FIndex;
-  if (FState in [ssRunning, ssPaused]) and Assigned(FMachine) then
+  if (FState in [ssRunning, ssPaused]) and Assigned(FMachine) and not FFinishing then
     Dec(Result, FMachine.PendingLines);
   if Result < 0 then Result := 0;
 end;
@@ -467,6 +473,7 @@ begin
     Exit(Fail('Aguarde a controladora concluir os comandos pendentes'));
 
   FFramingActive := True;
+  FFinishing := False;
   FLines.Assign(AFramingLines);
   FIndex := 0;
   FErrorBase := FMachine.ErrorCount;
@@ -479,18 +486,26 @@ begin
 end;
 
 function TSimulationSession.Start: Boolean;
-var Transformed: TStringList;
+var Transformed: TStringList; I: Integer;
 begin
   if not Connected then Exit(Fail('Machine disconnected'));
   if not ControllerReady then Exit(Fail('Aguarde a resposta e inicializacao da controladora'));
   if FLoadedLines.Count = 0 then Exit(Fail('No program loaded'));
   if FState in [ssRunning, ssPaused] then Exit(Fail('Program is already running'));
+  { O perfil sem sensores tambem vale para arquivos, nao so para o console.
+    Valida antes de transmitir qualquer linha, inclusive M3 e movimentos. }
+  if (FProtocolKind = pkGRBL) and not FPhysicalHomingAllowed then
+    for I := 0 to FLoadedLines.Count - 1 do
+      if SameText(TGCodeStreamer.CleanLine(FLoadedLines[I]), '$H') then
+        Exit(Fail(Format('Comando %d ($H): homing fisico desativado neste perfil. ' +
+          'Remova $H e defina a origem da peca manualmente.', [I + 1])));
   if FMachine.GetState in [msAlarm, msError] then
     Exit(Fail('Machine in alarm: unlock or home before starting'));
   if FMachine.PendingLines > 0 then
     Exit(Fail('Aguarde a controladora concluir os comandos pendentes'));
 
   FFramingActive := False;
+  FFinishing := False;
   if FMachineKind = mtLaser then
   begin
     Transformed := TransformGCodeForLaser(FLoadedLines, FLaserSettings);
@@ -532,6 +547,7 @@ begin
 end;
 
 procedure TSimulationSession.FeedJob;
+var FinishCommands: string;
 begin
   CheckFirmwareFaults;
   if FState <> ssRunning then Exit;
@@ -549,7 +565,7 @@ begin
   CheckFirmwareFaults;
   if (FState = ssRunning) and (FIndex >= Count) and (FMachine.PendingLines = 0) then
   begin
-        if FFramingActive then
+    if FFramingActive then
     begin
       FLines.Assign(FLoadedLines);
       FIndex := 0;
@@ -559,11 +575,24 @@ begin
     end
     else
     begin
-      if (FMachineKind = mtLaser) and Assigned(FMachine) then
+      if not FFinishing and (FMachineKind in [mtRouter, mtLaser]) then
       begin
-        FMachine.SendGCode('M5');
-        if FLaserSettings.AirAssist and (Trim(FLaserSettings.AirAssistOffCmd) <> '') then
-          FMachine.SendGCode(Trim(FLaserSettings.AirAssistOffCmd));
+        { M5 fica depois dos movimentos; no GRBL, sincroniza com o planner.
+          EOF sozinho nao desliga o spindle. Nao concluir antes do "ok". }
+        FinishCommands := 'M5';
+        if (FMachineKind = mtLaser) and FLaserSettings.AirAssist and
+           (Trim(FLaserSettings.AirAssistOffCmd) <> '') then
+          FinishCommands := FinishCommands + LineEnding + Trim(FLaserSettings.AirAssistOffCmd);
+        FFinishing := True;
+        if not FMachine.SendGCode(FinishCommands) then
+        begin
+          FMachine.ClearQueue;
+          FState := ssError;
+          FLastError := 'Falha no desligamento ao encerrar o programa: ' + FMachine.LastError;
+          Exit;
+        end;
+        CheckFirmwareFaults;
+        if (FState <> ssRunning) or (FMachine.PendingLines > 0) then Exit;
       end;
       FState := ssDone;
     end;

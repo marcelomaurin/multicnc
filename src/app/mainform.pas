@@ -1552,7 +1552,9 @@ begin
   StateLabel.Caption := StateNames[Session.State];
   if Session.Connected and not Session.ControllerReady then
     StateLabel.Caption := 'Aguardando controladora...';
-  if Alarm then StateLabel.Caption := StateLabel.Caption + ' | ALARM';
+  if Alarm then StateLabel.Caption := 'Conectada | ALARME (Unlock)';
+  if Session.Connected and (Session.MachineState = msConnecting) then
+    StateLabel.Caption := 'Aguardando reinicio do GRBL...';
   if Alarm or (Session.State = ssError) then
     StateLabel.DotColor := clSuiteDanger
   else if not Session.Connected then
@@ -1650,8 +1652,8 @@ begin
   end;
   BtnConnect.Enabled := not Busy;
   BtnOpen.Enabled := not Busy;
-  BtnFraming.Enabled := Session.Connected and Session.ControllerReady and not Busy and (Session.Count > 0);
-  BtnStart.Enabled := Session.Connected and Session.ControllerReady and not Busy and (Session.Count > 0) and
+  BtnFraming.Enabled := Session.Connected and Session.ControllerReady and not Busy and not Alarm and (Session.Count > 0);
+  BtnStart.Enabled := Session.Connected and Session.ControllerReady and not Busy and not Alarm and (Session.Count > 0) and
     ((CommunicationMode.ItemIndex <> 2) or (Report.Errors = 0));
   BtnPause.Enabled := Session.State = ssRunning;
   BtnResume.Enabled := Session.State = ssPaused;
@@ -1669,6 +1671,10 @@ begin
   BtnZero.Enabled := Manual and not Alarm and (MachineType.ItemIndex <> 2);
   BtnStatus.Enabled := Session.Connected;
   BtnUnlock.Enabled := Manual;
+  if Alarm then
+    BtnUnlock.Hint := 'Controladora reconhecida em alarme. Verifique a causa e use Unlock ($X) para desbloquear.'
+  else
+    BtnUnlock.Hint := 'Unlock machine from alarm state ($X in GRBL / M999 in Marlin).';
   BtnSend.Enabled := Manual;
   EditCommand.Enabled := Manual;
   StepSize.Enabled := Manual and not Alarm;

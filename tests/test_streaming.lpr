@@ -6,7 +6,7 @@ program test_streaming;
 uses
   Classes, SysUtils, multisuite_numfmt, multicnc_types, multicnc_interfaces,
   multicnc_machine, multicnc_safety, multicnc_grbl, multicnc_marlin,
-  multicnc_session;
+  multicnc_session, multicnc_laser_config;
 
 type
   { Controladora falsa: guarda o que foi enviado e so responde quando o teste
@@ -18,6 +18,7 @@ type
     OnData: TTransportDataEvent;
     Sent: TStringList;       { linhas recebidas (sem LF) }
     Realtime: string;        { bytes de tempo real recebidos }
+    FailedLine: string;      { simula falha de transporte no encerramento }
     Pending: TStringList;    { linhas sem resposta }
     PendingBytes, MaxPendingBytes, MaxPendingLines: Integer;
     constructor Create;
@@ -73,6 +74,7 @@ begin
   begin
     L := Copy(AData, 1, Length(AData) - 1);
     Check(Pos(#10, L) = 0, 'uma linha por Send');
+    if (FailedLine <> '') and (L = FailedLine) then Exit(False);
     Sent.Add(L);
     Pending.Add(L);
     Inc(PendingBytes, Length(AData));
@@ -376,7 +378,8 @@ begin
     end;
     Check(S.State = ssDone, 'programa concluido apos todos os ok');
     Check(S.Completed = 42, 'progresso = linhas confirmadas');
-    Check(F.Sent.Count = 42, 'todas as linhas enviadas uma vez');
+    Check(F.Sent.Count = 43, 'programa e desligamento enviados uma vez');
+    Check(F.Sent[42] = 'M5', 'router termina com spindle desligado');
     Check(F.MaxPendingBytes <= 127, 'buffer nunca excedido');
     { Erro no meio do programa interrompe o envio. }
     Check(S.Start, 'reiniciar programa');
@@ -386,6 +389,7 @@ begin
     S.Tick;
     Check(S.State = ssError, 'erro do firmware interrompe o programa');
     Check(Pos('error:33', S.LastError) > 0, 'motivo exibido');
+    Check(Pos(#24, F.Realtime) = 0, 'erro nao reinicia automaticamente a controladora');
     F.Ack(100);
     S.Tick;
     Check(F.Sent.Count - I < 42, 'linhas restantes nao enviadas');
@@ -406,6 +410,104 @@ begin
     S.Free;
     L.Free;
     DeleteFile(FN);
+  end;
+end;
+
+procedure TestSessionEndCommands(Kind: TMachineType; FirmwareError, SendFailure: Boolean);
+var S: TSimulationSession; F: TFakeController; L: TStringList; FN: string;
+    Settings: TLaserSettings; N: Integer;
+begin
+  FN := GetTempFileName(GetTempDir, 'end');
+  L := TStringList.Create;
+  S := TSimulationSession.Create;
+  try
+    if Kind <> mtPrinter3D then L.Add('M3 S8000');
+    L.Add('G90'); L.Add('G1 X20 F900');
+    L.SaveToFile(FN);
+    S.LoadFile(FN);
+    F := TFakeController.Create;
+    Check(S.ConnectTransport(Kind, pkGRBL, F, F), 'conectar para encerramento');
+    if Kind = mtLaser then
+    begin
+      Settings := S.LaserSettings;
+      Settings.AirAssist := True;
+      Settings.AirAssistOnCmd := 'M8';
+      Settings.AirAssistOffCmd := 'M9';
+      S.LaserSettings := Settings;
+    end;
+    Check(S.Start, 'iniciar programa sem M5');
+    Check(S.State = ssRunning, 'aguarda confirmacoes do programa');
+    Check(F.Sent.IndexOf('M5') < 0, 'nao desliga antes das linhas do programa');
+    F.Ack(100);
+    if SendFailure then F.FailedLine := 'M5';
+    S.Tick;
+    if Kind = mtPrinter3D then
+    begin
+      Check(S.State = ssDone, 'impressora conclui sem desligamento de spindle');
+      Check(F.Sent.IndexOf('M5') < 0, 'impressora nao recebe M5 automatico');
+      Exit;
+    end;
+    if SendFailure then
+    begin
+      Check(S.State = ssError, 'falha no envio de M5 nao conclui o programa');
+      Check(S.LastError <> '', 'falha de desligamento informada');
+      Exit;
+    end;
+    Check(F.Sent.IndexOf('M5') >= 0, 'M5 automatico apos o programa');
+    Check(S.State = ssRunning, 'aguarda confirmacao do desligamento');
+    Check(S.Completed = S.Count, 'desligamento nao reduz progresso do programa');
+    N := F.Sent.Count;
+    S.Tick;
+    Check(F.Sent.Count = N, 'M5 enviado uma unica vez enquanto aguarda resposta');
+    if FirmwareError then
+    begin
+      F.Reply('error:20' + #10);
+      S.Tick;
+      Check(S.State = ssError, 'M5 recusado nao aparece como concluido');
+      Check(Pos('error:20', S.LastError) > 0, 'erro do desligamento informado');
+      Check(Pos(#24, F.Realtime) = 0, 'M5 recusado nao dispara reset automatico');
+      Exit;
+    end;
+    if Kind = mtLaser then
+    begin
+      Check(F.Sent[N - 2] = 'M5', 'laser desliga antes do ar');
+      Check(F.Sent[N - 1] = 'M9', 'desliga ar assistido ao terminar');
+      F.Ack(1); S.Tick;
+      Check(S.State = ssRunning, 'aguarda tambem confirmacao do ar assistido');
+    end;
+    F.Ack(100); S.Tick;
+    Check(S.State = ssDone, 'conclui apos confirmar desligamento');
+    Check(S.Completed = S.Count, 'progresso final preservado');
+    S.Tick;
+    Check(F.Sent.Count = N, 'nao repete desligamento depois de concluir');
+  finally
+    S.Free; L.Free; DeleteFile(FN);
+  end;
+end;
+
+procedure TestNoHomingProfileProgram;
+var S: TSimulationSession; F: TFakeController; L: TStringList; FN: string;
+begin
+  FN := GetTempFileName(GetTempDir, 'hom');
+  L := TStringList.Create;
+  S := TSimulationSession.Create;
+  try
+    L.Add('; MultiCNC public test model - CC0-1.0');
+    L.Add('M3 S8000');
+    L.Add('$H ; home');
+    L.Add('G1 X20 F900');
+    L.SaveToFile(FN);
+    S.LoadFile(FN);
+    Check(S.Count = 3, 'comentario de cabecalho nao e comando');
+    F := TFakeController.Create;
+    Check(S.ConnectTransport(mtRouter, pkGRBL, F, F), 'conectar perfil TTC3018');
+    S.PhysicalHomingAllowed := False;
+    Check(not S.Start, 'perfil sem homing rejeita arquivo com $H');
+    Check(Pos('Comando 2 ($H)', S.LastError) > 0, 'identifica comando real sem contar comentario');
+    Check(F.Sent.Count = 0, 'nenhum spindle ou movimento enviado antes da validacao');
+    Check(Pos(#24, F.Realtime) = 0, 'validacao nao reinicia a maquina');
+  finally
+    S.Free; L.Free; DeleteFile(FN);
   end;
 end;
 
@@ -442,6 +544,12 @@ begin
   TestMoveTo;
   TestConsoleLog;
   TestSessionJob;
+  TestSessionEndCommands(mtRouter, False, False);
+  TestSessionEndCommands(mtRouter, True, False);
+  TestSessionEndCommands(mtRouter, False, True);
+  TestSessionEndCommands(mtLaser, False, False);
+  TestSessionEndCommands(mtPrinter3D, False, False);
+  TestNoHomingProfileProgram;
   TestSessionRejectsBadProgram;
   if Failures > 0 then begin Writeln(Failures, ' falha(s)'); Halt(1); end;
   Writeln('PASS: controle de fluxo, erros, alarmes, estado, seguranca e parada');

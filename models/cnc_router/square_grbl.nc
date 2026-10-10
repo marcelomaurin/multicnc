@@ -1,5 +1,5 @@
 ; MultiCNC public test model - CC0-1.0
-$H
+; Posicione a ferramenta na origem da peca antes de iniciar (G92 abaixo).
 G21
 G90
 G92 X0 Y0 Z0

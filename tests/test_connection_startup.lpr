@@ -86,6 +86,23 @@ begin
     Check(P.Sent = L.Text, 'Rejected homing commands never transmitted');
     S.PhysicalHomingAllowed := True;
 
+    { Resposta exata da TTC3018: reconhecida, mas em alarme. }
+    P.Reply := False;
+    P.OnData('<Alarm|MPos:-22.000,9.000,-2.447|FS:0,1000|Pn:PXYZ>'#13#10);
+    Check(S.ControllerReady, 'Alarme tambem confirma GRBL');
+    Check(S.MachineState = msAlarm, 'Alarme nao e falha de conexao');
+    Check(not S.Jog(axX, 1, 500), 'Movimento permanece bloqueado em alarme');
+    Check(S.Unlock, 'Desbloqueio manual disponivel em alarme');
+    Check(Pos('$X'#10, P.Sent) > 0, 'Desbloqueio usa $X');
+    P.OnData('ok'#13#10'<Idle|MPos:-22.000,9.000,-2.447|FS:0,0>'#13#10);
+    Check(S.ControllerReady and (S.MachineState = msIdle), 'Idle confirmado apos desbloqueio');
+    Check(S.Stop, 'Parada solicitada pelo operador');
+    Check(not S.ControllerReady, 'Reset pendente nao usa resposta antiga');
+    P.OnData('ok'#13#10);
+    Check(not S.ControllerReady, 'ok antigo nao libera reset');
+    P.OnData('Grbl 1.1h'#13#10);
+    Check(S.ControllerReady, 'Banner confirma reinicio');
+
     S.Disconnect;
     L.Text := ''; P := TPort.Create;
     Check(S.ConnectTransport(mtRouter, pkMarlin, P, P), 'Connect CNC with Marlin');
