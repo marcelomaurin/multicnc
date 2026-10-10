@@ -25,7 +25,7 @@ documento, *feature* e *sketch*.
 | 1 Sketch e solver | concluída (09/10) | `multicad_sketch` (ponto, linha, arco por centro e por 3 pontos, círculo, retângulo, ranhura, polígono, construção, linha de centro; 11 restrições e 6 tipos de cota com `D1@Esboço1`, dirigente/dirigida, fixa guardando a posição, simétrica pela linha), `multicad_solver` (passo de norma mínima amortecido, GL pelo posto do jacobiano, redundância e conflito por restrição, azul/preto/vermelho por entidade, conflito não deforma o esboço), `multicad_profile` (laços fechados, ilhas, região com Id estável, entidade de cada segmento, erros de contorno aberto, ramificação e cruzamento), documento avalia expressões e resolve os esboços. |
 | 2 Operações básicas | concluída (10/10) | `multicad_triangulate`, `multicad_sweep` (extrusão com inclinação, revolução), `multicad_csg` (booleanas BSP com nomes de face e malha fechada), `multicad_revolve`, `multicad_rebuild` (planos, eixos, esboço em face, todas as condições finais, recurso fino, contornos, inverter lado, multicorpo, avisos, cache, retrocesso, supressão). Limites anotados abaixo. |
 | 3 Vista 3D e árvore | concluída (10/10), com pendências na 3E | `multicad_camera` (Y para cima, vistas padrão, Normal a, orbitar, deslocar, zoom no cursor, enquadrar, raio do pixel), `multicad_softrender` (z-buffer por software, 5 estilos, arestas de recurso e silhuetas, seleção exata por buffer de Id, seção), `multicad_view3d` (controle da vista, cubo de vistas, tríade, planos, esboços, origem, prévia), `multicad_sketchtools` (ferramentas do esboço sem LCL: linha em cadeia com H/V automáticas, retângulo, círculo, arco 3 pontos, linha de centro, ponto, captura com coincidente, cota inteligente, relações, apagar), `multicad_sketchedit` (modo esboço na vista), `multicad_propman` (PropertyManager de extrusão, corte, revolução e plano) e janela principal no padrão da suíte. `multicad.exe` Win64 em `bin/`. |
-| 4 Exportação e suíte | pendente | |
+| 4 Exportação e suíte | concluída (10/10) | `multicad_export` (STL binário e texto com orientação Y→Z, face na mesa ou como no modelo, apoiado em Z = 0 e centrado; DXF R12 do esboço e do contorno de face plana), `multicad_measure` (área, diâmetro, distância entre planos e eixos, ângulos), aba Exportar com "Abrir no MultiSlicer", Medir na aba Avaliar, booleana tenta de novo com a árvore BSP em outra ordem quando a malha sai aberta, critério de pronto coberto por `TestExport`. Instalador e bandeja já incluem o MultiCAD; Central de Testes com o teste do núcleo e o de interface. |
 | 5 Furo, padrões, espelho | pendente | |
 | 6 Filete, chanfro, casca | pendente | |
 | 7 Desenho 2D | pendente | |
@@ -237,13 +237,21 @@ Como ficou (fase 3):
 - [ ] Desfazer/refazer.
 
 ### Fase 4: exportação e suíte (≈ 3 h)
-- [ ] STL binário e ASCII com orientação (Y→Z ou face selecionada na mesa); DXF do *sketch*
-      ou de face plana.
-- [ ] Propriedades de massa (volume, área, centro de massa, massa pelo material) e medir.
-- [ ] "Abrir no MultiSlicer" e "Abrir no MakeRouter" (mesmo padrão do `OpenInTool` do MakePCB).
-- [ ] Suíte: `Application.CreateForm`, ícone, bandeja, MultiSuite, Central de Testes, CI,
-      instalador e documentação.
-- [ ] **Primeira entrega** (ver critério abaixo).
+- [x] STL binário e ASCII com orientação (Y→Z, face selecionada na mesa ou sem girar),
+      apoiado em Z = 0 e centrado; DXF R12 (mm, ponto decimal) do *sketch* (camadas
+      CONTORNO e CONSTRUCAO) ou do contorno de face plana (POLYLINE por laço).
+- [x] Propriedades de massa (volume, área, centro de massa, massa pelo material) e Medir
+      (área, diâmetro e eixo, distância entre planos paralelos e entre eixos, ângulos).
+- [x] "Abrir no MultiSlicer" (grava o STL em pé ao lado do `.mcad` e abre pelo
+      `TSuiteLauncher`, como no MakePCB).
+- [ ] "Abrir no MakeRouter": o DXF já sai, mas o MakeRouter e o LaserArt ainda não importam
+      DXF (trabalho desses aplicativos; fica anotado para eles).
+- [x] Suíte: ícone, bandeja, MultiSuite e instalador já incluem o MultiCAD; Central de Testes
+      com `test_multicad` e `test_multicad_ui`; CI; documentação.
+- [x] **Primeira entrega**: critério de pronto abaixo coberto por `TestExport` (suporte
+      80 × 50 × 10 com furos Ø8, bolso e ressalto revolucionado; base 80 → 100; STL lido pelo
+      importador do MultiSlicer com volume a 0,5% e altura em pé; salvar/abrir com mesma
+      árvore, Ids e sólido) e pelo teste de interface (navegação, estilos, seção).
 
 ### Fase 5: furo, padrões e espelho (≈ 4 h)
 - [ ] `multicad_threads` com tabelas em `data/*.json`: roscas ISO 261/262 M2 a M24 (passo

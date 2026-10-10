@@ -7,8 +7,9 @@ MultiCAD e o autor CAD da suite. Seu objetivo e criar e editar a geometria que r
 Em implementacao: decisoes D1 a D10 aprovadas, fases 0 (base, Ids, JSON, unidades,
 materiais, malha rotulada, ICadKernel), 1 (esboco com solver, graus de liberdade e perfis),
 2 (extrusao, corte, revolucao, planos, booleanas, reconstrucao) e 3 (vista 3D por software,
-arvore, PropertyManager, modo esboco) concluidas; 398 checks no nucleo + teste de interface.
-Proxima: fase 4 (STL/DXF e suite); pendencias da vista na 3E. Limites em TAREFA.md.
+arvore, PropertyManager, modo esboco) e 4 (STL/DXF, medir, Abrir no MultiSlicer) concluidas;
+425 checks no nucleo + teste de interface. Primeira entrega pronta. Proxima: fase 5 (furo,
+padroes, espelho); pendencias da vista na 3E. Limites em TAREFA.md.
 O plano completo esta em `TAREFA.md` (fases 0 a 8) e o projeto tecnico em `ARCHITECTURE.md` (modelo `.mcad`, solver
 Newton/LM, nucleo em malha rotulada + CSG BSP atras de `ICadKernel`, OpenGL, exportacao).
 Referencia de fluxo: SolidWorks 2014 (sketch com restricoes e cotas, arvore de operacoes,
@@ -36,6 +37,8 @@ Documento CAD, features, sketches, extrusoes, transformacoes geometricas, viewpo
 - src/features/multicad_revolve.pas: parametros da revolucao.
 - src/features/multicad_bridge.pas: perfis do esboco -> regioes de varredura.
 - src/features/multicad_rebuild.pas: TCadRebuilder (arvore -> corpos, referencias, cache).
+- src/features/multicad_export.pas: STL (orientacao Y->Z / face na mesa) e DXF R12.
+- src/features/multicad_measure.pas: Medir (area, diametro, distancias, angulos).
 - src/sketch/multicad_sketchtools.pas: ferramentas do modo esboco sem LCL (cliques -> entidades,
   captura, H/V automaticas, cota inteligente, relacoes, apagar).
 - src/ui/multicad_camera.pas: camera (vistas padrao, Normal a, orbitar, zoom no cursor, raio).
