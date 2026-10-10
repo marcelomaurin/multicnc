@@ -3,12 +3,13 @@
 ## Missao
 MultiCAD e o autor CAD da suite. Seu objetivo e criar e editar a geometria que representa pecas mecanicas. A direcao funcional e um CAD parametrico simplificado, semelhante conceitualmente a ferramentas como SolidWorks, sem tentar duplicar CAM ou controle de maquina.
 
-## Estado (09/10/2026)
+## Estado (10/10/2026)
 Em implementacao: decisoes D1 a D10 aprovadas, fases 0 (base, Ids, JSON, unidades,
-materiais, malha rotulada, ICadKernel), 1 (esboco com solver, graus de liberdade e perfis) e
-2 (extrusao, corte, revolucao, planos, booleanas, reconstrucao) concluidas; 352 checks.
-Proxima: fase 3 (vista 3D e arvore). Limites da fase 2 em TAREFA.md. O plano completo esta em `TAREFA.md` (decisoes D1 a D8 aguardando
-aprovacao, fases 0 a 8) e o projeto tecnico em `ARCHITECTURE.md` (modelo `.mcad`, solver
+materiais, malha rotulada, ICadKernel), 1 (esboco com solver, graus de liberdade e perfis),
+2 (extrusao, corte, revolucao, planos, booleanas, reconstrucao) e 3 (vista 3D por software,
+arvore, PropertyManager, modo esboco) concluidas; 398 checks no nucleo + teste de interface.
+Proxima: fase 4 (STL/DXF e suite); pendencias da vista na 3E. Limites em TAREFA.md.
+O plano completo esta em `TAREFA.md` (fases 0 a 8) e o projeto tecnico em `ARCHITECTURE.md` (modelo `.mcad`, solver
 Newton/LM, nucleo em malha rotulada + CSG BSP atras de `ICadKernel`, OpenGL, exportacao).
 Referencia de fluxo: SolidWorks 2014 (sketch com restricoes e cotas, arvore de operacoes,
 reconstrucao), sem copiar.
@@ -35,8 +36,17 @@ Documento CAD, features, sketches, extrusoes, transformacoes geometricas, viewpo
 - src/features/multicad_revolve.pas: parametros da revolucao.
 - src/features/multicad_bridge.pas: perfis do esboco -> regioes de varredura.
 - src/features/multicad_rebuild.pas: TCadRebuilder (arvore -> corpos, referencias, cache).
-- src/ui/multicad_viewport.pas e src/app/: tela provisoria (interface real na fase 3).
+- src/sketch/multicad_sketchtools.pas: ferramentas do modo esboco sem LCL (cliques -> entidades,
+  captura, H/V automaticas, cota inteligente, relacoes, apagar).
+- src/ui/multicad_camera.pas: camera (vistas padrao, Normal a, orbitar, zoom no cursor, raio).
+- src/ui/multicad_softrender.pas: z-buffer por software, 5 estilos, arestas, Id por pixel, secao.
+- src/ui/multicad_view3d.pas: controle TCadView3D (mouse, teclado, cubo, triade, planos, esbocos).
+- src/ui/multicad_sketchedit.pas: liga a sessao de esboco a vista (desenho, cotas na tela).
+- src/ui/multicad_propman.pas: PropertyManager (extrusao, corte, revolucao, plano).
+- src/app/multicad_main.pas: janela principal (abas, arvore, PropertyManager, arquivo).
 - tests/test_multicad.lpr: testes do nucleo (sem LCL).
+- tests/test_multicad_ui.lpr: teste da janela (Xvfb/Wine), grava capturas e o exemplo.
+- examples/suporte.mcad: peca de exemplo.
 
 ## Entradas e saidas
 Entrada: comandos de modelagem e, futuramente, formatos CAD/mesh suportados.
@@ -51,7 +61,8 @@ G-code, comunicacao serial, GRBL/Marlin, STEP/DIR, controle de spindle, PCB, sli
 MultiAssembly referencia as pecas CAD na montagem. MultiCAM consome geometria para criar operacoes de usinagem.
 
 ## Regras para alteracao
-Mantenha geometria independente da UI. Nao acople o documento CAD a uma maquina fisica. Preserve compatibilidade de dados e crie testes para operacoes geometricas.
+Mantenha geometria independente da UI (camera, renderizador e ferramentas de esboco nao usam
+LCL e tem testes no test_multicad). Nao acople o documento CAD a uma maquina fisica. Preserve compatibilidade de dados e crie testes para operacoes geometricas.
 - Ids persistentes no arquivo (nunca endereco de objeto) e referencias a faces/arestas por
   nome estavel (`Extrude2/topo`).
 - O nucleo geometrico so e acessado por `ICadKernel`.

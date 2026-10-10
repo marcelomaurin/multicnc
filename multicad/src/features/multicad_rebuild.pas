@@ -58,6 +58,7 @@ type
     procedure ApplyTool(F: TCadFeature; Tool: TCadMesh; IsCut, Merge, FlipSide, ScopeAll: Boolean;
       const ScopeBodies: TCadStrArray);
     function ModelBounds: TCadBox3;
+    procedure EvalExprs(F: TCadFeature);
   public
     constructor Create(ADoc: TCadDocument);
     destructor Destroy; override;
@@ -1484,6 +1485,23 @@ end;
 
 { ---------- reconstrucao ---------- }
 
+{ Profundidades digitadas como expressao ("D1@Esboço1*2", "1in") sao
+  recalculadas a cada reconstrucao (o valor numerico entra na assinatura). }
+procedure TCadRebuilder.EvalExprs(F: TCadFeature);
+var
+  X: TCadExtrude;
+  V: Double;
+  Err: string;
+begin
+  if not (F is TCadExtrude) then
+    Exit;
+  X := TCadExtrude(F);
+  if (X.Dir1.DepthExpr <> '') and FDoc.Eval(X.Dir1.DepthExpr, V, Err) then
+    X.Dir1.Depth := V;
+  if (X.Dir2.DepthExpr <> '') and FDoc.Eval(X.Dir2.DepthExpr, V, Err) then
+    X.Dir2.Depth := V;
+end;
+
 function TCadRebuilder.Rebuild: Integer;
 var
   I, Last, J: Integer;
@@ -1510,6 +1528,7 @@ begin
       F.SetState(fsOk, 'Abaixo da barra de retrocesso');
       Continue;
     end;
+    EvalExprs(F);
     Sig := MD5Print(MD5String(Prev + '|' + FeatureSig(F)));
     { esbocos dependem do proprio estado resolvido: assinatura inclui a geometria }
     Prev := Sig;

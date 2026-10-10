@@ -30,7 +30,7 @@
    <Filename Value="multicad" />
   </Target>
   <SearchPaths>
-   <OtherUnitFiles Value="../core;../sketch;../features;../kernel;../ui;../../../src/shared" />
+   <OtherUnitFiles Value="../core;../sketch;../features;../kernel;../ui;../../../src/shared;../../../multisuite/src/core" />
    <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
   </SearchPaths>
   <Parsing>

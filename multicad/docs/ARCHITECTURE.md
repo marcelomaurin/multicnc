@@ -277,6 +277,12 @@ entidade) e, abaixo de 360°, `Revolve1/inicio` e `Revolve1/fim`.
 - Alternativa por *software* (z-buffer em Pascal) para miniaturas, testes sem GPU e máquinas
   sem OpenGL.
 
+**Como está (fase 3):** a vista usa hoje só o renderizador por software
+(`multicad_softrender`: z-buffer, buffer de Id por pixel para a seleção, arestas de recurso e
+silhuetas, seção). É o mesmo código no Windows e no Linux e não depende de driver; o caminho
+OpenGL entra na fase 3E com o software como reserva. Sem botão do meio: Alt + esquerdo orbita,
+Alt + Ctrl + esquerdo desloca; as setas giram 15°.
+
 ### 6.1 Sistema de coordenadas
 
 - Igual ao SolidWorks: **Y para cima**. Plano Frontal = XY (olhando de +Z), Superior = XZ,

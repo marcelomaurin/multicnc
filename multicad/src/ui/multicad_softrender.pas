@@ -394,26 +394,34 @@ begin
     Color[I] := CadMix(C, Color[I], Alpha);
   if WriteDepth then
     Self.Depth[I] := Depth;
-  if AId <> 0 then
+  { translucido (planos, previa) so marca a selecao onde nao ha nada }
+  if (AId <> 0) and ((Alpha >= 1) or (Id[I] = 0)) then
     Id[I] := AId;
 end;
 
 function TCadRaster.Shade(const N, P: TCadVec3; out Inside: Boolean): Double;
 var
-  L, H: TCadVec3;
-  D, S: Double;
+  L, K, H: TCadVec3;
+  D, DK, S: Double;
+  NN: TCadVec3;
 begin
-  { farol: luz vinda da camera }
+  { farol (luz na camera) + luz principal acima e a esquerda do observador,
+    para as faces de uma vista isometrica terem tons diferentes }
   if FCam.Perspective then
     L := VNorm(VSub(FCam.Eye, P))
   else
     L := FCam.Back;
   D := VDot(N, L);
   Inside := D < 0;
+  NN := N;
+  if Inside then
+    NN := VNeg(N);
   D := Abs(D);
-  H := VNorm(VAdd(L, FCam.Back));
-  S := Power(Max(0, Abs(VDot(N, H))), 40);
-  Result := 0.30 + 0.62 * D + 0.18 * S;
+  K := VNorm(VAdd(VAdd(VScale(FCam.Right, -0.45), VScale(FCam.Up, 0.8)), VScale(FCam.Back, 0.55)));
+  DK := Max(0, VDot(NN, K));
+  H := VNorm(VAdd(K, FCam.Back));
+  S := Power(Max(0, VDot(NN, H)), 30);
+  Result := 0.30 + 0.32 * D + 0.48 * DK + 0.22 * S;
 end;
 
 procedure TCadRaster.FillTri(const P0, P1, P2: TCadScreenPt; I0, I1, I2: Double;
@@ -538,7 +546,7 @@ var
   Lt: array[0..8] of Double;
   Base: LongWord;
   Inside, Front1, Front2, FillCol, Visible: Boolean;
-  Alpha, Bias, T: Double;
+  Alpha, Bias, EBias, T: Double;
   A, B: TCadVec3;
   E: TCadEdge;
   Sa, Sb: TCadScreenPt;
@@ -657,16 +665,22 @@ begin
       Sb := FCam.Project(B);
       if (Sa.Depth <= 1E-3) or (Sb.Depth <= 1E-3) then
         Continue;
+      { silhueta: a face vizinha esta quase de perfil e a profundidade muda
+        muito dentro de um pixel; a folga cobre ~10 px de inclinacao }
+      if E.Feature then
+        EBias := Bias
+      else
+        EBias := Max(Bias, 10 / Max(FCam.Scale, 1E-6));
       case Style of
         dsWireframe:
           Line2(Sa, Sb, Opt.EdgeColor, 1, False, 0, 0, 0);
         dsHiddenVisible:
           begin
             Line2(Sa, Sb, CadRGB(150, 156, 166), 1, False, 4, 0, 0);
-            Line2(Sa, Sb, Opt.EdgeColor, 1, True, 0, Bias, 0);
+            Line2(Sa, Sb, Opt.EdgeColor, 1, True, 0, EBias, 0);
           end;
       else
-        Line2(Sa, Sb, Opt.EdgeColor, 1, True, 0, Bias, 0);
+        Line2(Sa, Sb, Opt.EdgeColor, 1, True, 0, EBias, 0);
       end;
     end;
   finally

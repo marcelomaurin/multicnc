@@ -75,3 +75,5 @@ __pycache__/
 !/tests/test_*.py
 !/*/tests/test_*.lpr
 !/*/tests/test_*.lpi
+/multicad/tests/test_multicad_ui
+/multicad/tests/shots/

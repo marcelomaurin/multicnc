@@ -24,7 +24,7 @@ documento, *feature* e *sketch*.
 | 0 Base | concluída (09/10) | `multicad_types` (vetores, matrizes, referenciais dos planos padrão como no SolidWorks, regra das faces), `multicad_units` (mm, cm, m, in, ", graus, rad, vírgula ou ponto, expressões, `D1@Esboço1`), `multicad_materials` (12 materiais, extensão por JSON), `multicad_feature` (Id persistente, estado ok/aviso/erro, registro de tipos), `multicad_refgeom` (origem, planos e eixos com os tipos da seção 3A), `multicad_sketch` (entidades com Id, restrições e cotas `D1`), `multicad_extrude` (PropertyManager completo da seção 3B e regras de validação), `multicad_document` (`.mcad` JSON, planos padrão Ids 1-3 e origem 4, nomes automáticos "Esboço1"/"Ressalto-Extrusão1", dependências, barra de retrocesso, gravação segura), `multicad_mesh` (malha rotulada, solda a 0,001 mm, malha fechada, volume, área, centro de massa, bloco e cilindro) e `multicad_kernel` (`ICadKernel` + núcleo Pascal). Central de Testes e CI `multicad-ci.yml`. |
 | 1 Sketch e solver | concluída (09/10) | `multicad_sketch` (ponto, linha, arco por centro e por 3 pontos, círculo, retângulo, ranhura, polígono, construção, linha de centro; 11 restrições e 6 tipos de cota com `D1@Esboço1`, dirigente/dirigida, fixa guardando a posição, simétrica pela linha), `multicad_solver` (passo de norma mínima amortecido, GL pelo posto do jacobiano, redundância e conflito por restrição, azul/preto/vermelho por entidade, conflito não deforma o esboço), `multicad_profile` (laços fechados, ilhas, região com Id estável, entidade de cada segmento, erros de contorno aberto, ramificação e cruzamento), documento avalia expressões e resolve os esboços. |
 | 2 Operações básicas | concluída (10/10) | `multicad_triangulate`, `multicad_sweep` (extrusão com inclinação, revolução), `multicad_csg` (booleanas BSP com nomes de face e malha fechada), `multicad_revolve`, `multicad_rebuild` (planos, eixos, esboço em face, todas as condições finais, recurso fino, contornos, inverter lado, multicorpo, avisos, cache, retrocesso, supressão). Limites anotados abaixo. |
-| 3 Vista 3D e árvore | pendente | |
+| 3 Vista 3D e árvore | concluída (10/10), com pendências na 3E | `multicad_camera` (Y para cima, vistas padrão, Normal a, orbitar, deslocar, zoom no cursor, enquadrar, raio do pixel), `multicad_softrender` (z-buffer por software, 5 estilos, arestas de recurso e silhuetas, seleção exata por buffer de Id, seção), `multicad_view3d` (controle da vista, cubo de vistas, tríade, planos, esboços, origem, prévia), `multicad_sketchtools` (ferramentas do esboço sem LCL: linha em cadeia com H/V automáticas, retângulo, círculo, arco 3 pontos, linha de centro, ponto, captura com coincidente, cota inteligente, relações, apagar), `multicad_sketchedit` (modo esboço na vista), `multicad_propman` (PropertyManager de extrusão, corte, revolução e plano) e janela principal no padrão da suíte. `multicad.exe` Win64 em `bin/`. |
 | 4 Exportação e suíte | pendente | |
 | 5 Furo, padrões, espelho | pendente | |
 | 6 Filete, chanfro, casca | pendente | |
@@ -184,26 +184,57 @@ Limites desta versão (próximas fases):
   planos" > 1 cria só o primeiro plano.
 
 ### Fase 3: vista 3D e árvore (≈ 6 h)
-- [ ] `TOpenGLControl` com Y para cima; orbitar (meio), deslocar (Ctrl + meio), zoom no
-      cursor (roda), girar em torno de aresta/vértice, rolar (Alt + meio).
-- [ ] Orientação: Ctrl+1..7 (vistas padrão e isométrica), Ctrl+8 (Normal a), F (ajustar),
-      barra de espaço (diálogo com vistas salvas), vista anterior, transição animada.
-- [ ] Cubo de vistas, tríade de eixos, barra de vista sobre a área 3D.
-- [ ] Estilos: sombreado com arestas, sombreado, linhas ocultas removidas, linhas ocultas
+- [x] Vista com Y para cima; orbitar (botão do meio ou Alt + esquerdo), deslocar (Ctrl + meio),
+      zoom (Shift + meio, roda no cursor), setas giram 15°.
+- [x] Orientação: Ctrl+1..7 (vistas padrão e isométrica), Ctrl+8 (Normal a; de novo vira o
+      lado), F (enquadrar).
+- [x] Cubo de vistas (clicar numa face muda a vista) e tríade de eixos.
+- [x] Estilos: sombreado com arestas, sombreado, linhas ocultas removidas, linhas ocultas
       visíveis, arame; ortográfica/perspectiva.
-- [ ] Vista de seção dinâmica (plano, deslocamento, ângulo, face hachurada).
-- [ ] Vistas com nome no `.mcad` e tela dividida em 1, 2 ou 4 janelas.
-- [ ] Seleção por cor (face, aresta, vértice) e realce.
-- [ ] Modo *sketch*: gira para "Normal a" o plano ao entrar (opção), Ctrl+8 duas vezes vê pelo
-      outro lado, vista de seção do esboço, peça semitransparente, Converter entidades e Offset
-      de entidades, canto de confirmação (sair / cancelar), grade, relações e cotas editáveis.
-- [ ] PropertyManager no painel esquerdo com árvore suspensa sobre a vista; pré-visualização
-      amarela (corte vermelho), seta de arraste e cota na tela; sketch absorvido sob a operação;
-      Editar operação / Editar esboço.
-- [ ] *Sketch* sobre face plana.
-- [ ] Árvore de operações: editar, suprimir, excluir, renomear, barra de retrocesso.
-- [ ] Painel de propriedades e abas de comandos (padrão visual da suíte).
-- [ ] Renderização por *software* para miniatura e teste sem GPU.
+- [x] Vista de seção pelo plano selecionado (ou Frontal pelo centro), faces internas na cor
+      de seção.
+- [x] Seleção de face, plano, esboço e origem com pré-seleção laranja e seleção azul
+      (Ctrl soma).
+- [x] Modo *sketch*: Normal a ao entrar, linha (cadeia, H/V automáticas), retângulo,
+      círculo, arco 3 pontos, linha de centro, ponto, captura (coincidente na origem, em pontos
+      e sobre curvas), cota inteligente (comprimento, diâmetro, raio, ângulo, distância; a que
+      superdefine vira dirigida), clicar na cota edita o valor (aceita expressão), relações
+      pela seleção, apagar, cores azul/preto/vermelho e estado na barra.
+- [x] PropertyManager no painel esquerdo com OK/Cancelar, prévia ao vivo (a peça é
+      reconstruída a cada mudança e as faces da operação ficam amarelas), campos de
+      referência rosa que recebem o clique na vista, expressões nos campos numéricos;
+      esboço absorvido sob a operação; Editar operação / Editar esboço.
+- [x] *Sketch* sobre face plana (escolher a face na vista ao criar o esboço).
+- [x] Árvore de operações: editar, suprimir, ocultar, excluir, renomear (atualiza nomes de
+      faces e cotas), barra de retrocesso, cores de erro/aviso/suprimida, material.
+- [x] Abas de comandos (Operações, Esboço, Avaliar, Exibir) no padrão visual da suíte;
+      Novo/Abrir/Salvar/Salvar como; propriedades de massa; Ctrl+S/N/O/B.
+- [x] Renderização por *software* (a mesma no Windows e no Linux, sem driver de vídeo).
+- [x] Teste de interface `tests/test_multicad_ui` (Xvfb no Linux, Wine/Windows) com
+      capturas de tela; `examples/suporte.mcad`.
+
+Como ficou (fase 3):
+- A vista usa só o renderizador por software (z-buffer em Pascal, `TLazIntfImage` para
+  copiar). Funciona igual no Windows, no Linux e em máquina sem OpenGL; peças de alguns
+  milhares de triângulos giram sem atraso. O caminho OpenGL (D3) ficou para a 3E.
+- O Id de cada pixel diz qual face/plano/esboço está ali, então a seleção é exata e sem
+  custo; `CadRayMesh` faz o mesmo por raio (usado nos testes).
+- Silhuetas de faces curvas usam folga de profundidade proporcional ao pixel, para não
+  sumirem quando a face vizinha está quase de perfil.
+- Profundidade digitada como expressão (`D1@Esboço1*2`) é recalculada a cada reconstrução.
+- Cancelar no PropertyManager restaura os parâmetros (ou apaga a operação nova).
+
+### Fase 3E: pendências da vista (próximas)
+- [ ] Caminho OpenGL (`TOpenGLControl`) com o software como reserva.
+- [ ] Barra de espaço (vistas com nome no `.mcad`), vista anterior, transição animada,
+      girar em torno de aresta/vértice, rolar, tela dividida 1/2/4.
+- [ ] Seleção de arestas e vértices (hoje: faces, planos, esboços e origem).
+- [ ] Seção com deslocamento/ângulo arrastáveis e face hachurada.
+- [ ] Esboço: grade, Converter entidades, Offset de entidades, ranhura e polígono pela
+      interface, aparar/estender, peça semitransparente, canto de confirmação na vista,
+      desenhar relações (glifos) na tela.
+- [ ] Seta de arraste e cota na tela na prévia; prévia separada em amarelo/vermelho.
+- [ ] Desfazer/refazer.
 
 ### Fase 4: exportação e suíte (≈ 3 h)
 - [ ] STL binário e ASCII com orientação (Y→Z ou face selecionada na mesa); DXF do *sketch*

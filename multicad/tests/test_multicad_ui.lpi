@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+ <ProjectOptions>
+  <Version Value="12"/>
+  <General><Flags><MainUnitHasCreateFormStatements Value="False"/><MainUnitHasTitleStatement Value="False"/><MainUnitHasScaledStatement Value="False"/></Flags><Title Value="test_multicad_ui"/></General>
+  <BuildModes><Item Name="Default" Default="True"/></BuildModes>
+  <RequiredPackages Count="1"><Item1><PackageName Value="LCL"/></Item1></RequiredPackages>
+  <Units Count="1"><Unit0><Filename Value="test_multicad_ui.lpr"/><IsPartOfProject Value="True"/></Unit0></Units>
+ </ProjectOptions>
+ <CompilerOptions>
+  <Version Value="11"/>
+  <Target><Filename Value="test_multicad_ui"/></Target>
+  <SearchPaths><OtherUnitFiles Value="../src/core;../src/sketch;../src/features;../src/kernel;../src/ui;../src/app;../../src/shared;../../multisuite/src/core"/><UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)/test_multicad_ui"/></SearchPaths>
+  <Parsing><SyntaxOptions><SyntaxMode Value="ObjFPC"/></SyntaxOptions></Parsing>
+ </CompilerOptions>
+</CONFIG>

@@ -48,6 +48,7 @@ type
     FCam: TCadCamera;
     FRaster: TCadRaster;
     FBmp: TBitmap;
+    FImg: TLazIntfImage;
     FCaches: TFPObjectList;
     FPreview: TCadMesh;
     FPreviewCache: TCadMeshCache;
@@ -68,6 +69,8 @@ type
     FSection: TCadFrame;
     FShowOrigin: Boolean;
     FActiveSketchId: Integer;
+    FHighlightPrefix: string;
+    FNeedFit: Boolean;           { enquadrar quando a vista tiver tamanho }
     FOnPick: TCadPickEvent;
     FOnNormalTo: TNotifyEvent;
     FOnOverlay3D: TCadOverlay3DEvent;
@@ -114,6 +117,8 @@ type
     { Referencia sob o pixel ("face:...", "plane:2", "sketch:5", "origin"). }
     function RefAt(X, Y: Integer): string;
     function CodeToRef(ACode: Integer): string;
+    { Atalhos da vista (Ctrl+1..8, F, setas). Key = 0 se tratou. }
+    procedure HandleKey(var Key: Word; Shift: TShiftState);
     procedure ShowStdPlane(AId: Integer; AShow: Boolean);
     function IsHidden(AId: Integer): Boolean;
     procedure SetHidden(AId: Integer; AHidden: Boolean);
@@ -127,6 +132,9 @@ type
     { Esboco em edicao (desenhado pelo editor, nao pela vista). }
     property ActiveSketchId: Integer read FActiveSketchId write FActiveSketchId;
     property ModelBox: TCadBox3 read FModelBox;
+    { Faces cujo nome comeca com este prefixo ("Extrude2/") ficam na cor da
+      previa (operacao em edicao). }
+    property HighlightPrefix: string read FHighlightPrefix write FHighlightPrefix;
     property OnPick: TCadPickEvent read FOnPick write FOnPick;
     property OnNormalTo: TNotifyEvent read FOnNormalTo write FOnNormalTo;
     property OnOverlay3D: TCadOverlay3DEvent read FOnOverlay3D write FOnOverlay3D;
@@ -143,7 +151,7 @@ function CadToColor(C: LongWord): TColor;
 implementation
 
 const
-  CUBE_SIZE = 46;
+  CUBE_SIZE = 44;
   CUBE_MARGIN = 14;
   CUBE_FACES: array[0..5] of TCadStdView = (svFront, svBack, svLeft, svRight, svTop, svBottom);
   CUBE_LABELS: array[0..5] of string = ('Frontal', 'Posterior', 'Esquerda', 'Direita',
@@ -197,6 +205,7 @@ begin
   FSelected.Free;
   FShown.Free;
   FHiddenIds.Free;
+  FImg.Free;
   FBmp.Free;
   FRaster.Free;
   FCam.Free;
@@ -260,6 +269,12 @@ procedure TCadView3D.FitAll;
 var
   B: TCadBox3;
 begin
+  if (ClientWidth < 50) or (ClientHeight < 50) then
+  begin
+    FNeedFit := True;
+    Exit;
+  end;
+  FNeedFit := False;
   B := FModelBox;
   if B.Empty then
   begin
@@ -332,15 +347,15 @@ end;
 
 function TCadView3D.CodeToRef(ACode: Integer): string;
 var
-  Tag, Face: Integer;
+  PTag, Face: Integer;
   F: TCadFeature;
   M: TCadMesh;
 begin
   Result := '';
-  CadPickDecode(ACode, Tag, Face);
-  if (Tag < 0) or (Face < 0) then
+  CadPickDecode(ACode, PTag, Face);
+  if (PTag < 0) or (Face < 0) then
     Exit;
-  if Tag = CAD_TAG_FEATURE then
+  if PTag = CAD_TAG_FEATURE then
   begin
     if (FDoc = nil) or (Face >= FDoc.Count) then
       Exit;
@@ -352,9 +367,9 @@ begin
       cfOrigin: Result := 'origin';
     end;
   end
-  else if Assigned(FRB) and (Tag >= 1) and (Tag <= FRB.BodyCount) then
+  else if Assigned(FRB) and (PTag >= 1) and (PTag <= FRB.BodyCount) then
   begin
-    M := FRB.Body(Tag - 1).Mesh;
+    M := FRB.Body(PTag - 1).Mesh;
     if Face < M.FaceCount then
       Result := 'face:' + M.Faces[Face].Name;
   end;
@@ -362,7 +377,7 @@ end;
 
 function TCadView3D.RefAt(X, Y: Integer): string;
 var
-  DX, DY, Code, Tag, Face, Best, D: Integer;
+  DX, DY, Code, PTag, Face, Best, D: Integer;
 begin
   { geometria fina (planos, esbocos) tem prioridade num raio de 4 px }
   Best := MaxInt;
@@ -370,8 +385,8 @@ begin
   for DY := -4 to 4 do
     for DX := -4 to 4 do
     begin
-      CadPickDecode(FRaster.IdAt(X + DX, Y + DY), Tag, Face);
-      if Tag = CAD_TAG_FEATURE then
+      CadPickDecode(FRaster.IdAt(X + DX, Y + DY), PTag, Face);
+      if PTag = CAD_TAG_FEATURE then
       begin
         D := DX * DX + DY * DY;
         if D < Best then
@@ -463,7 +478,7 @@ begin
       Border := CAD_HOVER_COLOR;
       W := 2;
     end;
-    FRaster.DrawQuad3D(A, B, C, D, CadRGB(120, 170, 230), 0.16);
+    FRaster.DrawQuad3D(A, B, C, D, CadRGB(120, 170, 230), 0.16, FeatureCode(I));
     FRaster.DrawLine3D(A, B, Border, W, False, 0, FeatureCode(I));
     FRaster.DrawLine3D(B, C, Border, W, False, 0, FeatureCode(I));
     FRaster.DrawLine3D(C, D, Border, W, False, 0, FeatureCode(I));
@@ -569,7 +584,7 @@ end;
 
 procedure TCadView3D.RenderScene;
 var
-  I, K, Tag, Face: Integer;
+  I, K, PTag, Face: Integer;
   Opt: TCadDrawOptions;
   M: TCadMesh;
   N: Integer;
@@ -578,20 +593,23 @@ begin
   FCam.SetViewport(FRaster.Width, FRaster.Height);
   FRaster.BeginFrame(FCam);
   FRaster.SetSection(FSectionOn, FSection.Origin, FSection.Normal);
-  CadPickDecode(FHoverCode, Tag, Face);
+  CadPickDecode(FHoverCode, PTag, Face);
   for I := 0 to FCaches.Count - 1 do
   begin
     M := TCadMeshCache(FCaches[I]).Mesh;
     Opt := CadDrawOptions(CAD_PART_COLOR, I + 1);
     N := 0;
+    if FHighlightPrefix <> '' then
+      Opt.HiColor := CAD_PREVIEW_COLOR;
     for K := 0 to M.FaceCount - 1 do
-      if FSelected.IndexOf('face:' + M.Faces[K].Name) >= 0 then
+      if ((FHighlightPrefix <> '') and (Pos(FHighlightPrefix, M.Faces[K].Name) = 1)) or
+        ((FHighlightPrefix = '') and (FSelected.IndexOf('face:' + M.Faces[K].Name) >= 0)) then
       begin
         SetLength(Opt.HiFaces, N + 1);
         Opt.HiFaces[N] := K;
         Inc(N);
       end;
-    if (Tag = I + 1) and (FHover <> '') then
+    if (PTag = I + 1) and (FHover <> '') then
       Opt.HoverFace := Face;
     FRaster.DrawMesh(TCadMeshCache(FCaches[I]), Opt);
   end;
@@ -621,58 +639,23 @@ end;
 
 procedure TCadView3D.Blit;
 var
-  W, H, X, Y, RS, GS, BS, AS_, BPP: Integer;
+  W, H, Y: Integer;
   Desc: TRawImageDescription;
-  Line: PByte;
-  C, V, AMask: LongWord;
-  P32: PLongWord;
 begin
+  { raster $00RRGGBB = bytes B,G,R,0 em little-endian: mesmo formato de
+    BPP32_B8G8R8; a LCL converte para o formato do dispositivo }
   W := FRaster.Width;
   H := FRaster.Height;
-  if (FBmp.Width <> W) or (FBmp.Height <> H) then
+  if (FImg = nil) or (FImg.Width <> W) or (FImg.Height <> H) then
   begin
-    FBmp.PixelFormat := pf32bit;
-    FBmp.SetSize(W, H);
+    FreeAndNil(FImg);
+    Desc.Init_BPP32_B8G8R8_BIO_TTB(W, H);
+    FImg := TLazIntfImage.Create(0, 0);
+    FImg.DataDescription := Desc;
   end;
-  FBmp.BeginUpdate(False);
-  try
-    Desc := FBmp.RawImage.Description;
-    BPP := Desc.BitsPerPixel;
-    RS := Desc.RedShift;
-    GS := Desc.GreenShift;
-    BS := Desc.BlueShift;
-    AS_ := Desc.AlphaShift;
-    AMask := 0;
-    if Desc.AlphaPrec > 0 then
-      AMask := LongWord($FF) shl AS_;
-    for Y := 0 to H - 1 do
-    begin
-      Line := FBmp.RawImage.GetLineStart(Y);
-      if BPP = 32 then
-      begin
-        P32 := PLongWord(Line);
-        for X := 0 to W - 1 do
-        begin
-          C := FRaster.Color[Y * W + X];
-          V := (((C shr 16) and $FF) shl RS) or (((C shr 8) and $FF) shl GS) or
-            ((C and $FF) shl BS) or AMask;
-          P32^ := V;
-          Inc(P32);
-        end;
-      end
-      else
-        for X := 0 to W - 1 do
-        begin
-          C := FRaster.Color[Y * W + X];
-          Line[RS div 8] := (C shr 16) and $FF;
-          Line[GS div 8] := (C shr 8) and $FF;
-          Line[BS div 8] := C and $FF;
-          Inc(Line, BPP div 8);
-        end;
-    end;
-  finally
-    FBmp.EndUpdate(False);
-  end;
+  for Y := 0 to H - 1 do
+    Move(FRaster.Color[Y * W], FImg.GetDataLineStart(Y)^, W * 4);
+  FBmp.LoadFromIntfImage(FImg);
 end;
 
 procedure TCadView3D.PaintTriad(C: TCanvas);
@@ -731,8 +714,8 @@ begin
     else
       P := VAdd(N, VAdd(VNeg(U), V));
     end;
-    Pts[K].X := CX + Round(VDot(P, Cam.Right) * S * 0.62);
-    Pts[K].Y := CY - Round(VDot(P, Cam.Up) * S * 0.62);
+    Pts[K].X := CX + Round(VDot(P, Cam.Right) * S * 0.75);
+    Pts[K].Y := CY - Round(VDot(P, Cam.Up) * S * 0.75);
   end;
   Depth := VDot(N, Cam.Back);
 end;
@@ -768,7 +751,7 @@ begin
         Order[I] := Order[J];
         Order[J] := K;
       end;
-  C.Font.Height := -9;
+  C.Font.Height := -10;
   C.Font.Style := [];
   Cnt := 0;
   for I := 0 to 5 do
@@ -785,7 +768,7 @@ begin
       C.Brush.Color := RGBToColor(Round(200 + 40 * D), Round(208 + 38 * D), Round(222 + 30 * D));
     C.Brush.Style := bsSolid;
     C.Polygon(Pts);
-    if D > 0.45 then
+    if D > 0.62 then
     begin
       Lbl := CUBE_LABELS[K];
       C.Brush.Style := bsClear;
@@ -845,6 +828,8 @@ procedure TCadView3D.Paint;
 var
   S: string;
 begin
+  if FNeedFit and (ClientWidth >= 50) and (ClientHeight >= 50) then
+    FitAll;
   if FDirty or (FRaster.Width <> ClientWidth) or (FRaster.Height <> ClientHeight) then
     RenderScene;
   Canvas.Draw(0, 0, FBmp);
@@ -1004,13 +989,19 @@ end;
 
 function TCadView3D.DoMouseWheel(Shift: TShiftState; WheelDelta: Integer; MousePos: TPoint): Boolean;
 begin
-  { como no SolidWorks: rolar para frente afasta }
-  FCam.ZoomAt(Power(1.15, -WheelDelta / 120), MousePos.X, MousePos.Y);
+  { ARCHITECTURE 6.2: rolar para frente aproxima }
+  FCam.ZoomAt(Power(1.15, WheelDelta / 120), MousePos.X, MousePos.Y);
   Redraw;
   Result := True;
 end;
 
 procedure TCadView3D.KeyDown(var Key: Word; Shift: TShiftState);
+begin
+  HandleKey(Key, Shift);
+  inherited KeyDown(Key, Shift);
+end;
+
+procedure TCadView3D.HandleKey(var Key: Word; Shift: TShiftState);
 begin
   if ssCtrl in Shift then
     case Key of
@@ -1045,7 +1036,6 @@ begin
           Key := 0;
         end;
     end;
-  inherited KeyDown(Key, Shift);
 end;
 
 end.

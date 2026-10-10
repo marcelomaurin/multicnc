@@ -1,9 +1,11 @@
 # MultiCAD
 
-> **Estado (09/10/2026):** em análise. Hoje há só um esqueleto (cerca de 120 linhas):
-> documento, lista de *features*, *sketch* com linha, círculo e retângulo (sem restrições
-> resolvidas), uma extrusão que guarda só a profundidade e uma vista 2D. O plano completo está
-> em [docs/TAREFA.md](docs/TAREFA.md), com as decisões que precisam de aprovação.
+> **Estado (10/10/2026):** fases 0 a 3 prontas. Já dá para abrir o `bin/multicad.exe`,
+> criar esboços com cotas e relações (no plano ou numa face), fazer ressalto e corte
+> extrudados ou revolucionados, planos de referência, editar pela árvore e pelo
+> PropertyManager, ver em 5 estilos e em seção, e salvar em `.mcad`. Exemplo:
+> `examples/suporte.mcad`. Próxima: exportação STL/DXF e integração com a suíte (fase 4).
+> Plano e pendências em [docs/TAREFA.md](docs/TAREFA.md).
 
 O **MultiCAD** é o CAD **paramétrico de peças mecânicas** da suíte. O fluxo de referência é o do
 **SolidWorks 2014**, sem copiá-lo:
