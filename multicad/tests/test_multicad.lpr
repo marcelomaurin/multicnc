@@ -11,7 +11,8 @@ uses
   multicad_feature, multicad_refgeom, multicad_sketch, multicad_extrude,
   multicad_document, multicad_mesh, multicad_kernel, multicad_solver,
   multicad_profile, multicad_triangulate, multicad_sweep, multicad_bridge, multicad_csg, multicad_revolve, multicad_rebuild,
-  multicad_camera, multicad_softrender, multicad_sketchtools;
+  multicad_camera, multicad_softrender, multicad_sketchtools, multicad_export,
+  multicad_measure, multislicer_types, multislicer_mesh, multislicer_stl;
 
 var
   Passed, Failed: Integer;
@@ -1748,6 +1749,186 @@ begin
   end;
 end;
 
+{ Suporte do criterio de pronto (TAREFA): base 80 x 50 x 10, dois furos
+  Ø8 passantes, bolso retangular 20 x 7 x 5 e ressalto revolucionado
+  Ø20 x 15. Devolve o volume analitico. }
+function BuildSupport(D: TCadDocument; out BaseSketch: TCadSketch): Double;
+var
+  S2, S3, S4: TCadSketch;
+  L, C: Integer;
+  X: TCadExtrude;
+  E1: TCadExtrude;
+  R: TCadRevolve;
+begin
+  D.NewPart;
+  D.Name := 'Suporte';
+  BaseSketch := D.AddSketch('plane:2');
+  L := BaseSketch.AddRectangle(-40, -25, 40, 25);
+  BaseSketch.AddFixed(L, 1);
+  BaseSketch.AddDimension(ckHorizontalDistance, L, 0, 0, 0, 80);
+  BaseSketch.AddDimension(ckVerticalDistance, L + 1, 0, 0, 0, 50);
+  E1 := D.AddExtrude(BaseSketch.Id, 10);
+  { furos }
+  S2 := D.AddSketch('plane:2');
+  C := S2.AddCircle(-30, 0, 4);
+  S2.AddDimension(ckDiameter, C, 0, 0, 0, 8);
+  C := S2.AddCircle(30, 0, 4);
+  S2.AddDimension(ckDiameter, C, 0, 0, 0, 8);
+  X := D.AddExtrude(S2.Id, 10, True);
+  X.Dir1.EndCond := ecThroughAll;
+  X.Dir1.Reverse := True;
+  { bolso na face de cima }
+  S3 := D.AddSketch('face:' + E1.Name + '/fim');
+  S3.AddRectangle(-10, 15, 10, 22);
+  D.AddExtrude(S3.Id, 5, True);
+  { ressalto revolucionado no plano Frontal }
+  S4 := D.AddSketch('plane:1');
+  S4.AddCenterline(0, 10, 0, 30);
+  S4.AddRectangle(0, 10, 10, 25);
+  R := D.AddRevolve(S4.Id, 360);
+  if R = nil then;
+  Result := 80 * 50 * 10 - 2 * Pi * 16 * 10 - 20 * 7 * 5 + Pi * 100 * 15;
+end;
+
+procedure TestExport;
+var
+  D: TCadDocument;
+  RB: TCadRebuilder;
+  Base: TCadSketch;
+  V0, V, Vs, Z0, Z1: Double;
+  Fn, Err, J1, Txt: string;
+  Ms: TMesh;
+  I, Loops, F: Integer;
+  T: TTriangle;
+  Meshes: array of TCadMesh;
+  B: TCadBody;
+  L: TStringList;
+  MR: TCadMeasureResult;
+  Refs: TStringList;
+  D2: TCadDocument;
+begin
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  Refs := TStringList.Create;
+  try
+    V0 := BuildSupport(D, Base);
+    Check(RB.Rebuild = 0, 'suporte: reconstrucao sem erros');
+    for I := 0 to D.Count - 1 do
+      if D.Feature(I).State = fsError then
+        Writeln('  ', D.Feature(I).Name, ': ', D.Feature(I).Message);
+    Check(RB.BodyCount = 1, 'suporte: um corpo');
+    V := RB.TotalVolume;
+    Check(Abs(V - V0) / V0 < 0.005, Format('suporte: volume %.1f x analitico %.1f (0,5%%)', [V, V0]));
+    { STL binario em pe, lido pelo importador do MultiSlicer }
+    SetLength(Meshes, 1);
+    Meshes[0] := RB.Body(0).Mesh;
+    Fn := GetTempDir + 'mcad_teste.stl';
+    Check(CadExportSTL(Meshes, Fn, True, soYToZ, V3(0, 0, 0), 'Suporte', Err), 'STL binario gravado ' + Err);
+    Ms := TMesh.Create;
+    try
+      Check(TSTLImporter.Load(Fn, Ms) and (Ms.Count = Meshes[0].TriCount), 'MultiSlicer le o STL binario');
+      Vs := 0;
+      for I := 0 to Ms.Count - 1 do
+      begin
+        T := Ms.Triangle(I);
+        Vs := Vs + (T.A.X * (T.B.Y * T.C.Z - T.B.Z * T.C.Y) - T.A.Y * (T.B.X * T.C.Z - T.B.Z * T.C.X) +
+          T.A.Z * (T.B.X * T.C.Y - T.B.Y * T.C.X)) / 6;
+      end;
+      Check(Abs(Vs - V0) / V0 < 0.005, Format('STL: volume %.1f dentro de 0,5%%', [Vs]));
+      Z0 := Ms.MinZ;
+      Z1 := Ms.MaxZ;
+      Check((Abs(Z0) < 1E-4) and (Abs(Z1 - 25) < 1E-3), Format('STL em pe: Z de %.3f a %.3f (altura 25)', [Z0, Z1]));
+    finally
+      Ms.Free;
+    end;
+    { STL texto }
+    Check(CadExportSTL(Meshes, Fn, False, soYToZ, V3(0, 0, 0), 'Suporte', Err), 'STL texto gravado');
+    Ms := TMesh.Create;
+    try
+      Check(TSTLImporter.Load(Fn, Ms) and (Ms.Count = Meshes[0].TriCount), 'MultiSlicer le o STL texto');
+    finally
+      Ms.Free;
+    end;
+    { face de cima apoiada na mesa: altura vira 25 tambem, mas de cabeca para baixo }
+    Check(CadExportSTL(Meshes, Fn, True, soFaceDown, V3(0, 1, 0), 'Suporte', Err), 'STL face na mesa');
+    Ms := TMesh.Create;
+    try
+      TSTLImporter.Load(Fn, Ms);
+      Check((Abs(Ms.MinZ) < 1E-4) and (Abs(Ms.MaxZ - 25) < 1E-3), 'face na mesa: apoiada em Z = 0');
+    finally
+      Ms.Free;
+    end;
+    DeleteFile(Fn);
+    { DXF do esboco da base e da face de baixo }
+    Fn := GetTempDir + 'mcad_teste.dxf';
+    Check(CadExportSketchDXF(Base, Fn, Err), 'DXF do esboco ' + Err);
+    L := TStringList.Create;
+    try
+      L.LoadFromFile(Fn);
+      Txt := L.Text;
+      Check((Pos('AC1009', Txt) > 0) and (Pos('LINE', Txt) > 0) and (L[L.Count - 1] = 'EOF'), 'DXF R12 com linhas');
+      Check(Pos(',', Txt) = 0, 'DXF com ponto decimal');
+    finally
+      L.Free;
+    end;
+    Check(RB.FindFace('Ressalto-Extrusão1/inicio', B, F), 'face de baixo existe');
+    Loops := 0;
+    Check(CadExportFaceDXF(B.Mesh, F, Fn, Loops, Err), 'DXF da face de baixo ' + Err);
+    Check(Loops = 3, Format('DXF da face de baixo: contorno + 2 furos (%d lacos)', [Loops]));
+    DeleteFile(Fn);
+    { medir }
+    Refs.Clear;
+    Refs.Add('face:Ressalto-Extrusão1/inicio');
+    Refs.Add('face:Ressalto-Extrusão1/fim');
+    MR := CadMeasure(RB, Refs);
+    Check(Abs(MR.Distance - 10) < 1E-6, 'medir: distancia entre as faces de baixo e de cima = 10');
+    MR.Lines.Free;
+    Refs.Clear;
+    Refs.Add('face:Revolução1/rev:2');
+    MR := CadMeasure(RB, Refs);
+    Txt := MR.Lines.Text;
+    MR.Lines.Free;
+    Refs.Clear;
+    for F := 0 to RB.Body(0).Mesh.FaceCount - 1 do
+      if (RB.Body(0).Mesh.Faces[F].Surf = skCylinder) and (Abs(RB.Body(0).Mesh.Faces[F].Radius - 4) < 1E-6) then
+        Refs.Add('face:' + RB.Body(0).Mesh.Faces[F].Name);
+    Check(Refs.Count = 2, Format('dois furos cilindricos de raio 4 (%d)', [Refs.Count]));
+    if Refs.Count = 2 then
+    begin
+      MR := CadMeasure(RB, Refs);
+      Check(Abs(MR.Distance - 60) < 1E-6, Format('medir: entre eixos dos furos = 60 (%.4f)', [MR.Distance]));
+      MR.Lines.Free;
+    end;
+    { criterio 2: base de 80 para 100 }
+    Check(Base.SetDimension('D1', 100), 'mudar a cota D1 da base');
+    Check(RB.Rebuild = 0, 'base 100: reconstrucao sem erros');
+    V := RB.TotalVolume;
+    Check(Abs(V - (V0 + 20 * 50 * 10)) / V0 < 0.005, Format('base 100: volume %.1f', [V]));
+    { criterio 4: salvar e abrir }
+    Fn := GetTempDir + 'mcad_teste.mcad';
+    Check(D.SaveToFile(Fn, Err), 'salvar suporte');
+    J1 := D.ToJSON;
+    D2 := TCadDocument.Create;
+    try
+      Check(D2.LoadFromFile(Fn, Err), 'abrir suporte');
+      Check(D2.ToJSON = J1, 'mesma arvore e mesmos Ids depois de abrir');
+      RB.Free;
+      RB := TCadRebuilder.Create(D2);
+      Check((RB.Rebuild = 0) and (Abs(RB.TotalVolume - V) < 1E-6), 'mesmo solido depois de abrir');
+    finally
+      RB.Free;
+      RB := nil;
+      D2.Free;
+    end;
+    DeleteFile(Fn);
+    DeleteFile(Fn + '.bak');
+  finally
+    Refs.Free;
+    RB.Free;
+    D.Free;
+  end;
+end;
+
 begin
   Passed := 0;
   Failed := 0;
@@ -1765,6 +1946,7 @@ begin
   TestCamera;
   TestRender;
   TestSketchTools;
+  TestExport;
   Writeln(Format('MultiCAD: %d checks, %d falhas', [Passed + Failed, Failed]));
   if Failed > 0 then
     Halt(1);

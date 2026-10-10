@@ -1174,7 +1174,54 @@ begin
   end;
 end;
 
+{ Muda a ordem dos poligonos (a arvore BSP usa outros planos de corte):
+  0 = original, 1 = invertida, 2 = meia volta, 3 = salto primo. }
+procedure Permute(var P: TPolyArr; N, Attempt: Integer);
+var
+  Q: TPolyArr;
+  I, S: Integer;
+begin
+  if (Attempt = 0) or (N < 2) then
+    Exit;
+  SetLength(Q, N);
+  case Attempt of
+    1: for I := 0 to N - 1 do Q[I] := P[N - 1 - I];
+    2: for I := 0 to N - 1 do Q[I] := P[(I + N div 2) mod N];
+  else
+    begin
+      S := 7919;
+      while (N mod S = 0) or (S mod N = 0) do
+        Inc(S, 2);
+      for I := 0 to N - 1 do
+        Q[I] := P[(Int64(I) * S) mod N];
+    end;
+  end;
+  for I := 0 to N - 1 do
+    P[I] := Q[I];
+end;
+
+function BooleanAttempt(A, B: TCadMesh; Op: TCadBoolOp; Attempt: Integer; out AError: string): TCadMesh; forward;
+
 function CadBoolean(A, B: TCadMesh; Op: TCadBoolOp; out AError: string): TCadMesh;
+var
+  K: Integer;
+  E: string;
+begin
+  { a classificacao BSP pode errar por arredondamento em casos raros
+    (malha aberta no fim): tenta de novo com a arvore montada em outra ordem }
+  Result := nil;
+  AError := '';
+  for K := 0 to 3 do
+  begin
+    Result := BooleanAttempt(A, B, Op, K, E);
+    if Assigned(Result) then
+      Exit;
+    if K = 0 then
+      AError := E;
+  end;
+end;
+
+function BooleanAttempt(A, B: TCadMesh; Op: TCadBoolOp; Attempt: Integer; out AError: string): TCadMesh;
 var
   Faces: array of TCadFaceInfo;
   MapA, MapB: array of Integer;
@@ -1204,6 +1251,8 @@ begin
     MapB[I] := FaceId(B.Faces[I]);
   PA := MeshToPolys(A, MapA, NA);
   PB := MeshToPolys(B, MapB, NB);
+  Permute(PA, NA, Attempt);
+  Permute(PB, NB, Attempt);
   TA := TNode.Create;
   TB := TNode.Create;
   try

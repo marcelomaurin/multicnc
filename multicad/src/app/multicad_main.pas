@@ -27,10 +27,11 @@ uses
   multicad_document, multicad_feature, multicad_refgeom, multicad_sketch, multicad_mesh,
   multicad_solver, multicad_extrude, multicad_revolve, multicad_rebuild,
   multicad_camera, multicad_softrender, multicad_view3d, multicad_sketchtools,
-  multicad_sketchedit, multicad_propman;
+  multicad_sketchedit, multicad_propman, multicad_export, multicad_measure,
+  multisuite_types, multisuite_registry, multisuite_launcher, multisuite_context;
 
 type
-  TCadTab = (ctFeatures, ctSketch, ctEvaluate, ctView);
+  TCadTab = (ctFeatures, ctSketch, ctEvaluate, ctView, ctExport);
 
   TMainForm = class(TForm)
   private
@@ -121,6 +122,13 @@ type
     procedure PMCancel(Sender: TObject);
     { avaliar / exibir }
     procedure MassClick(Sender: TObject);
+    procedure MeasureClick(Sender: TObject);
+    procedure ExportSTLClick(Sender: TObject);
+    procedure ExportDXFClick(Sender: TObject);
+    procedure OpenSlicerClick(Sender: TObject);
+    function AskStlOptions(out ABinary: Boolean; out AOrient: TCadStlOrient): Boolean;
+    function ExportSTLTo(const AFile: string; ABinary: Boolean; AOrient: TCadStlOrient): Boolean;
+    function SelectedFaceNormal(out N: TCadVec3): Boolean;
     procedure SectionClick(Sender: TObject);
     procedure RebuildClick(Sender: TObject);
     procedure StyleClick(Sender: TObject);
@@ -154,7 +162,7 @@ type
 implementation
 
 const
-  TAB_NAMES: array[TCadTab] of string = ('Operações', 'Esboço', 'Avaliar', 'Exibir');
+  TAB_NAMES: array[TCadTab] of string = ('Operações', 'Esboço', 'Avaliar', 'Exibir', 'Exportar');
   NODE_PART = -100;
   NODE_MATERIAL = -101;
   NODE_ROLLBACK = -102;
@@ -433,6 +441,7 @@ begin
     ctEvaluate:
       begin
         RibbonButton('Propriedades de massa', sikGauge, @MassClick);
+        RibbonButton('Medir', sikTarget, @MeasureClick);
         RibbonButton('Vista de seção', sikLayers, @SectionClick);
         RibbonButton('Reconstruir (Ctrl+B)', sikPulse, @RebuildClick);
       end;
@@ -453,6 +462,14 @@ begin
         RibbonSep;
         RibbonButton('Perspectiva', sikEye, @PerspectiveClick);
         RibbonButton('Planos padrão', sikLayers, @PlanesClick);
+      end;
+    ctExport:
+      begin
+        RibbonButton('STL para impressão 3D...', sikExport, @ExportSTLClick);
+        RibbonButton('DXF do esboço ou face...', sikExport, @ExportDXFClick);
+        RibbonSep;
+        RibbonButton('Abrir no MultiSlicer', sikSlicer, @OpenSlicerClick).SetLook(sbsSolid,
+          clSuitePrimary, sikSlicer);
       end;
   end;
 end;
@@ -1406,6 +1423,258 @@ begin
      CadFmt(CadMassKg(M, Vol) * 1000, 2), CadFmt(C.X, 3), CadFmt(C.Y, 3), CadFmt(C.Z, 3),
      RB.BodyCount]);
   MessageDlg('Propriedades de massa - ' + Doc.Name, S, mtInformation, [mbOK], 0);
+end;
+
+procedure TMainForm.MeasureClick(Sender: TObject);
+var
+  R: TCadMeasureResult;
+begin
+  R := CadMeasure(RB, View.Selected);
+  try
+    MessageDlg('Medir', R.Lines.Text, mtInformation, [mbOK], 0);
+  finally
+    R.Lines.Free;
+  end;
+end;
+
+function TMainForm.SelectedFaceNormal(out N: TCadVec3): Boolean;
+var
+  I, F: Integer;
+  B: TCadBody;
+begin
+  Result := False;
+  N := V3(0, 0, 0);
+  for I := 0 to View.Selected.Count - 1 do
+    if (Pos('face:', View.Selected[I]) = 1) and
+      RB.FindFace(Copy(View.Selected[I], 6, MaxInt), B, F) and
+      (B.Mesh.Faces[F].Surf = skPlane) then
+    begin
+      N := B.Mesh.Faces[F].Axis;
+      Exit(True);
+    end;
+end;
+
+function TMainForm.AskStlOptions(out ABinary: Boolean; out AOrient: TCadStlOrient): Boolean;
+var
+  F: TForm;
+  RO, RF: TRadioGroup;
+  O: TCadStlOrient;
+  B: TButton;
+  N: TCadVec3;
+begin
+  ABinary := True;
+  AOrient := soYToZ;
+  F := TForm.CreateNew(Self);
+  try
+    F.Caption := 'Exportar STL';
+    F.Position := poOwnerFormCenter;
+    F.BorderStyle := bsDialog;
+    F.Width := 380;
+    F.Height := 270;
+    RO := TRadioGroup.Create(F);
+    RO.Parent := F;
+    RO.SetBounds(10, 8, 360, 110);
+    RO.Caption := 'Orientação (o MultiSlicer usa Z para cima)';
+    for O := Low(TCadStlOrient) to High(TCadStlOrient) do
+      RO.Items.Add(CAD_STL_ORIENT_NAMES[O]);
+    RO.ItemIndex := 0;
+    if SelectedFaceNormal(N) then
+      RO.ItemIndex := Ord(soFaceDown);
+    RF := TRadioGroup.Create(F);
+    RF.Parent := F;
+    RF.SetBounds(10, 124, 360, 76);
+    RF.Caption := 'Formato';
+    RF.Items.Add('Binário (menor, recomendado)');
+    RF.Items.Add('Texto (ASCII)');
+    RF.ItemIndex := 0;
+    B := TButton.Create(F);
+    B.Parent := F;
+    B.SetBounds(196, 210, 84, 30);
+    B.Caption := 'Exportar';
+    B.Default := True;
+    B.ModalResult := mrOK;
+    B := TButton.Create(F);
+    B.Parent := F;
+    B.SetBounds(286, 210, 84, 30);
+    B.Caption := 'Cancelar';
+    B.Cancel := True;
+    B.ModalResult := mrCancel;
+    Result := F.ShowModal = mrOK;
+    if Result then
+    begin
+      AOrient := TCadStlOrient(RO.ItemIndex);
+      ABinary := RF.ItemIndex = 0;
+      if (AOrient = soFaceDown) and not SelectedFaceNormal(N) then
+      begin
+        MessageDlg('Selecione na vista a face plana que vai apoiada na mesa.', mtInformation, [mbOK], 0);
+        Result := False;
+      end;
+    end;
+  finally
+    F.Free;
+  end;
+end;
+
+function TMainForm.ExportSTLTo(const AFile: string; ABinary: Boolean; AOrient: TCadStlOrient): Boolean;
+var
+  Meshes: array of TCadMesh;
+  I: Integer;
+  N: TCadVec3;
+  Err: string;
+begin
+  Result := False;
+  if RB.BodyCount = 0 then
+  begin
+    MessageDlg('A peça ainda não tem corpos sólidos.', mtInformation, [mbOK], 0);
+    Exit;
+  end;
+  SetLength(Meshes, RB.BodyCount);
+  for I := 0 to RB.BodyCount - 1 do
+    Meshes[I] := RB.Body(I).Mesh;
+  SelectedFaceNormal(N);
+  Result := CadExportSTL(Meshes, AFile, ABinary, AOrient, N, Doc.Name, Err);
+  if Result then
+    SetStatus(0, 'STL gravado: ' + AFile)
+  else
+    MessageDlg('Não foi possível exportar o STL:' + LineEnding + Err, mtError, [mbOK], 0);
+end;
+
+procedure TMainForm.ExportSTLClick(Sender: TObject);
+var
+  D: TSaveDialog;
+  Bin: Boolean;
+  O: TCadStlOrient;
+begin
+  if not AskStlOptions(Bin, O) then
+    Exit;
+  D := TSaveDialog.Create(Self);
+  try
+    D.Filter := 'STL (*.stl)|*.stl';
+    D.DefaultExt := 'stl';
+    D.FileName := Doc.Name + '.stl';
+    if Doc.FileName <> '' then
+      D.InitialDir := ExtractFilePath(Doc.FileName);
+    D.Options := D.Options + [ofOverwritePrompt];
+    if D.Execute then
+      ExportSTLTo(D.FileName, Bin, O);
+  finally
+    D.Free;
+  end;
+end;
+
+procedure TMainForm.ExportDXFClick(Sender: TObject);
+var
+  D: TSaveDialog;
+  S: TCadSketch;
+  F: TCadFeature;
+  I, Face, Loops: Integer;
+  B: TCadBody;
+  Err, FaceRef, Base: string;
+  Ok: Boolean;
+begin
+  { face plana selecionada na vista, ou o esboco selecionado/em edicao }
+  FaceRef := '';
+  for I := 0 to View.Selected.Count - 1 do
+    if Pos('face:', View.Selected[I]) = 1 then
+    begin
+      FaceRef := Copy(View.Selected[I], 6, MaxInt);
+      Break;
+    end;
+  S := nil;
+  if FaceRef = '' then
+  begin
+    if Assigned(FEditor) then
+      S := FEditor.Sketch
+    else
+    begin
+      F := SelectedFeature;
+      if F is TCadSketch then
+        S := TCadSketch(F);
+      for I := 0 to View.Selected.Count - 1 do
+        if Pos('sketch:', View.Selected[I]) = 1 then
+        begin
+          F := Doc.FindById(StrToIntDef(Copy(View.Selected[I], 8, MaxInt), 0));
+          if F is TCadSketch then
+            S := TCadSketch(F);
+        end;
+    end;
+    if S = nil then
+    begin
+      MessageDlg('Selecione uma face plana na vista ou um esboço na árvore.', mtInformation, [mbOK], 0);
+      Exit;
+    end;
+    Base := S.Name;
+  end
+  else
+    Base := StringReplace(StringReplace(FaceRef, '/', '-', [rfReplaceAll]), ':', '', [rfReplaceAll]);
+  D := TSaveDialog.Create(Self);
+  try
+    D.Filter := 'DXF (*.dxf)|*.dxf';
+    D.DefaultExt := 'dxf';
+    D.FileName := Doc.Name + '-' + Base + '.dxf';
+    if Doc.FileName <> '' then
+      D.InitialDir := ExtractFilePath(Doc.FileName);
+    D.Options := D.Options + [ofOverwritePrompt];
+    if not D.Execute then
+      Exit;
+    if FaceRef <> '' then
+    begin
+      Ok := RB.FindFace(FaceRef, B, Face) and
+        CadExportFaceDXF(B.Mesh, Face, D.FileName, Loops, Err);
+      if Ok then
+        SetStatus(0, Format('DXF gravado (%d contorno(s)): %s', [Loops, D.FileName]));
+    end
+    else
+    begin
+      Ok := CadExportSketchDXF(S, D.FileName, Err);
+      if Ok then
+        SetStatus(0, 'DXF gravado: ' + D.FileName);
+    end;
+    if not Ok then
+      MessageDlg('Não foi possível exportar o DXF:' + LineEnding + Err, mtError, [mbOK], 0);
+  finally
+    D.Free;
+  end;
+end;
+
+procedure TMainForm.OpenSlicerClick(Sender: TObject);
+var
+  Registry: TSuiteRegistry;
+  Root, Candidate, Err, Fn: string;
+  C: TSuiteContext;
+  I: Integer;
+begin
+  { STL em pe ao lado do .mcad (ou na pasta temporaria) e abre o MultiSlicer,
+    como o "Abrir no ..." do MakePCB }
+  if Doc.FileName <> '' then
+    Fn := ChangeFileExt(Doc.FileName, '.stl')
+  else
+    Fn := GetTempDir + Doc.Name + '.stl';
+  if not ExportSTLTo(Fn, True, soYToZ) then
+    Exit;
+  Registry := TSuiteRegistry.Create;
+  try
+    C := ReadSuiteContext;
+    Root := ExtractFilePath(ParamStr(0));
+    Candidate := Root;
+    for I := 0 to 5 do
+    begin
+      if DirectoryExists(IncludeTrailingPathDelimiter(Candidate) + 'multisuite') then
+      begin
+        Root := Candidate;
+        Break;
+      end;
+      Candidate := ExtractFileDir(ExcludeTrailingPathDelimiter(Candidate));
+    end;
+    if TSuiteLauncher.LaunchArtifact(Registry.Tool(Registry.Find(stiMultiSlicer)), Root,
+      C.ProjectRoot, Fn, Err) then
+      SetStatus(0, 'Peça aberta no MultiSlicer: ' + Fn)
+    else
+      MessageDlg('Não foi possível abrir o MultiSlicer:' + LineEnding + Err + LineEnding +
+        'O STL foi gravado em ' + Fn, mtWarning, [mbOK], 0);
+  finally
+    Registry.Free;
+  end;
 end;
 
 procedure TMainForm.SectionClick(Sender: TObject);
