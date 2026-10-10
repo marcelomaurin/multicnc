@@ -1,9 +1,9 @@
-﻿#ifndef MyAppName
+#ifndef MyAppName
   #define MyAppName "MultiSuite"
 #endif
 #include "..\..\dist\version.iss"
 #ifndef SetupSeq
-  #define SetupSeq "005"
+  #define SetupSeq "006"
 #endif
 #ifndef MyAppPublisher
   #define MyAppPublisher "Maurinsoft"
@@ -32,6 +32,8 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
 WizardStyle=modern
+WizardImageFile=..\..\dist\installer-images\welcome.bmp
+WizardSizePercent=120
 UninstallDisplayIcon={app}\multisuite.exe
 CloseApplications=yes
 ChangesAssociations=yes
@@ -41,14 +43,14 @@ Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortugue
 
 [Types]
 Name: "full"; Description: "Instalacao Completa (Instalar todas as ferramentas)"
-Name: "compact"; Description: "Instalacao Basica (Apenas MultiCNC)"
+Name: "compact"; Description: "Instalacao Basica (MultiCNC e MultiSuite Bandeja)"
 Name: "custom"; Description: "Instalacao Personalizada (Escolher as ferramentas desejadas)"; Flags: iscustom
 
 [Components]
 Name: "tools"; Description: "Ferramentas do MultiSuite"; Types: full compact custom; Flags: fixed
-Name: "tools\multisuite"; Description: "MultiSuite - Painel Central Integrador / Dashboard"; Types: full custom
+Name: "tools\multisuite"; Description: "MultiSuite - Painel Central Integrador / Dashboard"; Types: full compact custom
 Name: "tools\multicnc"; Description: "MultiCNC - Controle de Maquinas CNC (GRBL, Marlin, Simulador)"; Types: full compact custom
-Name: "tools\tray"; Description: "MultiSuite Bandeja - Ferramentas ao lado do relogio"; Types: full custom
+Name: "tools\tray"; Description: "MultiSuite Bandeja - Ferramentas ao lado do relogio"; Types: full compact custom
 Name: "tools\simucnc"; Description: "SimuCNC - Simulador de maquina (impressora, router e laser) com porta serial virtual"; Types: full custom
 Name: "tools\multicad"; Description: "MultiCAD - Modelagem e Desenho CAD 2D/3D"; Types: full custom
 Name: "tools\multipcb"; Description: "MultiPCB - Design e Roteamento de Circuitos Impressos"; Types: full custom
@@ -87,14 +89,17 @@ Source: "..\..\dist\app\laserart.exe"; DestDir: "{app}"; Components: tools\laser
 Source: "..\..\dist\app\multisuite_test_center.exe"; DestDir: "{app}"; Components: tools\testcenter; Flags: ignoreversion
 Source: "..\..\docs\*"; DestDir: "{app}\docs"; Components: extra\docs; Flags: ignoreversion recursesubdirs createallsubdirs
 
-[Tasks]
-Name: "desktopicon_suite"; Description: "Criar atalho do MultiSuite na area de trabalho"; GroupDescription: "Atalhos da Area de Trabalho:"; Components: tools\multisuite; Flags: unchecked
-Name: "desktopicon_cnc"; Description: "Criar atalho do MultiCNC na area de trabalho"; GroupDescription: "Atalhos da Area de Trabalho:"; Components: tools\multicnc; Flags: unchecked
-Name: "trayautostart"; Description: "Iniciar a MultiSuite Bandeja com o Windows"; GroupDescription: "Bandeja:"; Components: tools\tray
-
 Source: "..\..\dist\app\tests\*"; DestDir: "{app}\tests"; Components: tools\testcenter; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\..\dist\app\build-manifest.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\dist\app\qa-tests.json"; DestDir: "{app}"; Components: tools\testcenter; Flags: ignoreversion
+
+Source: "..\..\dist\installer-images\slide*.bmp"; Flags: dontcopy
+
+[Tasks]
+Name: "desktopicon_suite"; Description: "Criar atalho do MultiSuite na area de trabalho"; GroupDescription: "Atalhos da Area de Trabalho:"; Components: tools\multisuite; Flags: unchecked
+Name: "desktopicon_cnc"; Description: "Criar atalho do MultiCNC na area de trabalho"; GroupDescription: "Atalhos da Area de Trabalho:"; Components: tools\multicnc; Flags: unchecked
+Name: "trayautostart"; Description: "Iniciar a MultiSuite Bandeja com o Windows"; GroupDescription: "Bandeja:"; Components: tools\tray; Flags: checkedonce
+
 
 [Icons]
 Name: "{autoprograms}\MultiSuite\MultiSuite"; Filename: "{app}\multisuite.exe"; Components: tools\multisuite
@@ -130,3 +135,55 @@ Filename: "{app}\multicnc.exe"; Description: "Abrir MultiCNC"; Flags: nowait pos
 
 [UninstallRun]
 Filename: "{sys}\taskkill.exe"; Parameters: "/im multisuite_tray.exe /f"; Flags: runhidden; RunOnceId: "FecharBandeja"; Components: tools\tray
+
+[Code]
+var
+  ProjectImage: TBitmapImage;
+  ProjectCaption: TNewStaticText;
+  CurrentSlide: Integer;
+
+procedure ShowProjectSlide(Index: Integer);
+var
+  Caption: String;
+begin
+  if Index = CurrentSlide then Exit;
+  CurrentSlide := Index;
+  ProjectImage.Bitmap.LoadFromFile(ExpandConstant('{tmp}\slide' + IntToStr(Index) + '.bmp'));
+  case Index of
+    0: Caption := 'MultiCNC - Controle de routers, lasers e impressoras 3D';
+    1: Caption := 'MakePCB - Do projeto da placa aos arquivos de fabricacao';
+    2: Caption := 'MakeRouter - Projeto e usinagem de madeira';
+    3: Caption := 'SimuCNC - Simulacao da maquina antes da fabricacao';
+  end;
+  ProjectCaption.Caption := Caption;
+end;
+
+procedure InitializeWizard;
+var
+  I, ImageTop: Integer;
+begin
+  for I := 0 to 3 do
+    ExtractTemporaryFile('slide' + IntToStr(I) + '.bmp');
+  CurrentSlide := -1;
+  ImageTop := WizardForm.ProgressGauge.Top + WizardForm.ProgressGauge.Height + ScaleY(18);
+  ProjectImage := TBitmapImage.Create(WizardForm);
+  ProjectImage.Parent := WizardForm.InstallingPage;
+  ProjectImage.SetBounds(0, ImageTop, WizardForm.InstallingPage.ClientWidth,
+    WizardForm.InstallingPage.ClientHeight - ImageTop - ScaleY(24));
+  ProjectImage.Stretch := True;
+  ProjectCaption := TNewStaticText.Create(WizardForm);
+  ProjectCaption.Parent := WizardForm.InstallingPage;
+  ProjectCaption.SetBounds(0, ProjectImage.Top + ProjectImage.Height + ScaleY(4),
+    WizardForm.InstallingPage.ClientWidth, ScaleY(20));
+  ShowProjectSlide(0);
+end;
+
+procedure CurInstallProgressChanged(CurProgress, MaxProgress: Integer);
+var
+  Slide: Integer;
+begin
+  if MaxProgress <= 0 then Exit;
+  Slide := Trunc((CurProgress * 1.0 / MaxProgress) * 4);
+  if Slide > 3 then Slide := 3;
+  ShowProjectSlide(Slide);
+end;

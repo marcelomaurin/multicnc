@@ -218,7 +218,7 @@ function cPrimaryHover: TColor; begin Result := C(29, 78, 216); end;
 
 const
   UI_FONT = {$IFDEF WINDOWS}'Segoe UI'{$ELSE}'default'{$ENDIF};
-  APP_VERSION = '0.01';
+  APP_VERSION = '0.06';
 
 { Escala de DPI: valores de layout escritos em 96 dpi }
 function S(V: Integer): Integer;
@@ -625,7 +625,7 @@ begin
     stiRouterPCB:     Result := sikRouterPCB;
     stiMakeRouter:    Result := sikMakeRouter;
     stiMultiAssembly: Result := sikAssembly;
-    stiMultiPhysics:  Result := sikPhysics;
+    stiMultiPhysics, stiSimuCNC: Result := sikPhysics;
     stiMultiCAM:      Result := sikCAM;
     stiMultiSlicer:   Result := sikSlicer;
     stiLaserPCB:      Result := sikLaserPCB;
@@ -648,7 +648,7 @@ begin
     stiLaserArt:      Result := C(219, 39, 119);
     stiMultiCAM:      Result := C(217, 119, 6);
     stiMultiSlicer:   Result := C(234, 88, 12);
-    stiMultiPhysics:  Result := C(124, 58, 237);
+    stiMultiPhysics, stiSimuCNC: Result := C(124, 58, 237);
     stiMultiAssembly: Result := C(79, 70, 229);
     stiMultiCNC:      Result := C(5, 150, 105);
   else
@@ -906,7 +906,7 @@ begin
 
   AddGroup('PROJETAR', [stiMultiCAD, stiMultiPCB, stiMakePCB, stiMakeRouter, stiLaserPCB, stiLaserArt]);
   AddGroup('PREPARAR', [stiMultiCAM, stiRouterPCB, stiMultiSlicer]);
-  AddGroup('SIMULAR', [stiMultiPhysics, stiMultiAssembly]);
+  AddGroup('SIMULAR', [stiMultiPhysics, stiMultiAssembly, stiSimuCNC]);
   AddGroup('FABRICAR', [stiMultiCNC]);
 
   FEmpty := TLabel.Create(Self);

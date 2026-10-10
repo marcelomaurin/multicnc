@@ -1,34 +1,49 @@
-# Instalador Windows MultiSuite
+# Instalador Windows MultiSuite 006
 
-## Requisitos
-
-Windows 64 bits, Git, Python 3.9+, Lazarus/Free Pascal (`lazbuild` e `fpc` no PATH), Inno Setup 6 (`iscc`) e árvore Git limpa.
+Windows 64 bits, Git, Python 3.9+, Lazarus/Free Pascal 64 bits e Inno Setup 6 ou 7.
 
 ## Gerar
 
-```bat
-set VERSION=0.1.1-dev
-installer\windows\build_release.bat
-```
+    installer\windows\build_release.bat -Version 0.06 -SetupSeq 006
 
-O script compila os onze aplicativos, compila/executa os testes de console, copia os testes e a documentação para o pacote e valida os cabeçalhos PE como amd64. Em seguida gera `build-manifest.json`, `qa-tests.json`, o instalador e `SHA256SUMS`.
+O script procura as ferramentas nas pastas usuais. Os caminhos podem ser definidos
+por LAZBUILD, FPC, PYTHON e ISCC. MULTICNC_CHATGPT_DIR aponta para as dependencias
+AI/AISerial quando estiverem fora da pasta CHATGPT ao lado do repositorio.
 
-## Pacote
-Instala MultiSuite, MultiSuite Bandeja, MultiCAD, MultiPCB, MakePCB, MultiAssembly, MultiPhysics, MultiCAM, MultiSlicer, MakeRouter, RouterPCB, LaserPCB, LaserArt, MultiCNC, SimuCNC e Central de Testes.
+A publicacao exige arvore Git limpa. Para gerar e testar um setup local antes do
+commit, acrescente -AllowDirty; o manifesto registra source_dirty=true.
 
-A bandeja pode iniciar com o Windows (tarefa "Iniciar a MultiSuite Bandeja com o Windows"); a desinstalacao fecha a bandeja e remove esse registro.
+O build compila os 16 executaveis, executa os testes de console, inclui testes e
+documentacao, valida a arquitetura amd64 e gera manifesto, relatorio e SHA256SUMS.
+Os executaveis atualizados ficam em bin. setup_multcnc_006.exe fica em setup e bin; a copia de staging
+e os logs ficam em dist. Feche os aplicativos da suite antes de substituir bin.
 
-Versao atual: 0.05 (`setup_multcnc_005.exe`, telas em portugues do Brasil; MakeRouter 2,5D, RouterPCB e MultiCNC lendo o cabecalho da suite). Gerar: `installer\windows\build_release.bat 0.05 005`.
-`MyAppVersion` e a versão numérica do executável do instalador vêm do mesmo valor VERSION. O manifesto registra o commit de origem e os hashes dos arquivos antes do Inno Setup. A versão padrão de desenvolvimento não substitui os binários históricos 0.1.0.
+## Conteudo e inicializacao
 
-## Instalação
+Inclui MultiSuite, MultiSuite Bandeja, MultiCAD, MultiPCB, MultiAssembly,
+MultiPhysics, MultiCAM, MultiSlicer, MakePCB, MakeRouter, RouterPCB, LaserPCB,
+LaserArt, MultiCNC, SimuCNC e Central de Testes.
 
-## Regra de release
-Nao distribuir um instalador se build_release.bat falhar. A existencia do script nao significa que os dezesseis executaveis compilam atualmente; o build deve ser executado em Windows com Lazarus e as falhas corrigidas antes da publicacao.
-Inclui MultiSuite, MultiCAD, MultiPCB, MultiAssembly, MultiPhysics, MultiCAM, MultiSlicer, LaserPCB, LaserArt, MultiCNC e Central de Testes com seus testes de console. O projeto `.msuite` pode ser aberto pela associação de arquivos.
+O tray mostra MultiCAD em PROJETAR e SimuCNC em SIMULAR. A instalacao basica inclui
+MultiCNC, painel MultiSuite e bandeja. A instalacao personalizada permite escolher
+os componentes. Ferramentas nao instaladas aparecem indisponiveis no tray.
 
-Projetos, histórico e relatórios pertencem ao usuário; a Central não depende de escrever em Program Files. A pasta de testes acompanha a instalação.
+A tarefa "Iniciar a MultiSuite Bandeja com o Windows" vem marcada por padrao.
+Ela registra multisuite_tray.exe --tray no Run do usuario e abre o icone ao lado
+do relogio no proximo login. Pode ser desmarcada na instalacao ou alterada no menu
+da bandeja. A desinstalacao remove esse registro.
 
-## CI e publicação
+## Imagens
 
-`Windows Installer` disponibiliza instalador, checksum, manifesto e relatório como artefatos do Actions. Um run aprovado confirma compilação/empacotamento e execução dos testes de console. Instalação interativa e hardware precisam de verificação própria. Publicar uma GitHub Release/tag continua uma etapa separada.
+prepare_images.ps1 gera os bitmaps temporarios a partir de imgs, preservando as
+proporcoes das capturas. A abertura mostra tres_maquinas_3d.png; durante a copia
+dos arquivos aparecem multicnc_novo_layout.png, Makepcb01.png, Makerouter01.png
+e simucnc_router_ao_vivo.png. As imagens sao incorporadas ao setup e nao dependem
+da pasta imgs existir no computador de destino.
+
+## Validacao e publicacao
+
+Nao distribuir um instalador se o build falhar. Compilacao e testes de console
+nao substituem verificacao interativa da instalacao ou ensaio com hardware.
+Projetos e relatorios pertencem ao usuario, fora de Program Files.
+Publicar uma GitHub Release/tag continua uma etapa separada.

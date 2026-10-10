@@ -126,7 +126,7 @@ begin
     stiMultiAssembly: Result := akAssembly; stiMultiPhysics: Result := akPhysics;
     stiMultiCAM: Result := akCAM; stiMultiSlicer: Result := akSlicer;
     stiLaserPCB: Result := akLaserPCB; stiLaserArt: Result := akLaserArt;
-    stiMultiCNC, stiRouterPCB, stiMakeRouter: Result := akGCode;
+    stiMultiCNC, stiRouterPCB, stiMakeRouter, stiSimuCNC: Result := akGCode;
     stiMakePCB: Result := akPCB;
   end;
 end;
@@ -464,7 +464,7 @@ begin
     SEC_PREPARE:
       Result := AID in [stiMultiCAM, stiRouterPCB, stiMultiSlicer];
     SEC_SIMULATE:
-      Result := AID in [stiMultiPhysics, stiMultiAssembly];
+      Result := AID in [stiMultiPhysics, stiMultiAssembly, stiSimuCNC];
     SEC_MANUFACTURE:
       Result := AID = stiMultiCNC;
   end;

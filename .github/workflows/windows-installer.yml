@@ -4,7 +4,7 @@ on:
     inputs:
       version:
         description: Versao de desenvolvimento/release
-        default: 0.1.1-dev
+        default: 0.06
         required: true
   push:
     paths:
@@ -21,7 +21,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     env:
-      VERSION: ${{ inputs.version || '0.05' }}
+      VERSION: ${{ inputs.version || '0.06' }}
     defaults:
       run:
         working-directory: multicnc

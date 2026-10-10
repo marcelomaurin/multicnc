@@ -25,7 +25,10 @@ def sha256(path):
 
 def verify_architecture(app, target_os, arch):
     names = ("multisuite", "multicad", "multipcb", "multiassembly", "multiphysics",
-             "multicam", "multislicer", "laserpcb", "laserart", "multicnc", "multisuite_test_center")
+             "multicam", "multislicer", "laserpcb", "laserart", "multicnc", "multisuite_test_center",
+             "makepcb", "makerouter", "routerpcb")
+    if target_os == "windows":
+        names += ("multisuite_tray", "SimuCNC")
     required = {app / (name + (".exe" if target_os == "windows" else "")) for name in names}
     valid = set()
     for path in app.rglob("*"):
