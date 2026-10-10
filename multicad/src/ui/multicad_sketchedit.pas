@@ -19,7 +19,7 @@ unit multicad_sketchedit;
 interface
 
 uses
-  Classes, SysUtils, Types, Math, Controls, Graphics, Dialogs, StdCtrls, LCLType,
+  Classes, SysUtils, Types, Math, Controls, Graphics, Dialogs, StdCtrls, Forms, LCLType,
   LCLIntf, multicad_types, multicad_document, multicad_sketch, multicad_solver,
   multicad_rebuild, multicad_camera, multicad_softrender, multicad_view3d,
   multicad_sketchtools;
@@ -54,6 +54,8 @@ type
     procedure ViewMove(Sender: TObject; Shift: TShiftState; X, Y: Integer; var Handled: Boolean);
     procedure ViewOverlay(Sender: TObject; C: TCanvas);
     function AskValue(Sender: TObject; const ACaption: string; var AText: string): Boolean;
+    function AskDim(Sender: TObject; const ACaption: string; var AText: string;
+      var RefOnly: Boolean): Boolean;
     procedure DrawEntity(C: TCanvas; const E: TSketchEntity; Col: TColor; Dashed: Boolean);
     procedure DrawGrid3D(Sender: TObject; R: TCadRaster);
     procedure DrawDims(C: TCanvas);
@@ -76,6 +78,8 @@ type
     procedure DeleteSelection;
     function AddRelation(K: TConstraintKind): Boolean;
     procedure ToggleConstruction;
+    { Redesenha e avisa (depois de mudar algo pela janela). }
+    procedure View3DChanged;
     function StatusText: string;
     { Coordenadas do cursor no esboco (mm). }
     function CursorText: string;
@@ -149,6 +153,7 @@ begin
     FFrame := StdFrame(spFrontal);
   FSession := TCadSketchSession.Create(ADoc, ASketch);
   FSession.OnAskValue := @AskValue;
+  FSession.OnAskDim := @AskDim;
   FView.ActiveSketchId := ASketch.Id;
   FView.OnViewMouseDown := @ViewDown;
   FView.OnViewMouseUp := @ViewUp;
@@ -286,6 +291,11 @@ begin
   Changed;
 end;
 
+procedure TCadSketchEditor.View3DChanged;
+begin
+  Changed;
+end;
+
 procedure TCadSketchEditor.ToggleConstruction;
 begin
   FSession.ToggleConstruction;
@@ -310,6 +320,61 @@ function TCadSketchEditor.AskValue(Sender: TObject; const ACaption: string;
   var AText: string): Boolean;
 begin
   Result := InputQuery('Modificar', ACaption + ' (mm, graus ou expressão):', AText);
+end;
+
+function TCadSketchEditor.AskDim(Sender: TObject; const ACaption: string;
+  var AText: string; var RefOnly: Boolean): Boolean;
+var
+  F: TForm;
+  E: TEdit;
+  K: TCheckBox;
+  L: TLabel;
+  B: TButton;
+begin
+  { como o "Modificar" do SolidWorks, com a opcao de so marcar a medida }
+  F := TForm.CreateNew(nil);
+  try
+    F.Caption := 'Cota ' + ACaption;
+    F.BorderStyle := bsDialog;
+    F.Position := poMainFormCenter;
+    F.Width := 330;
+    F.Height := 158;
+    L := TLabel.Create(F);
+    L.Parent := F;
+    L.SetBounds(12, 10, 300, 18);
+    L.Caption := 'Valor (mm, graus ou expressão):';
+    E := TEdit.Create(F);
+    E.Parent := F;
+    E.SetBounds(12, 30, 304, 26);
+    E.Text := AText;
+    K := TCheckBox.Create(F);
+    K.Parent := F;
+    K.SetBounds(12, 62, 304, 22);
+    K.Caption := 'Só marcar a medida (não muda o desenho)';
+    K.Checked := RefOnly;
+    B := TButton.Create(F);
+    B.Parent := F;
+    B.SetBounds(146, 94, 82, 30);
+    B.Caption := 'OK';
+    B.Default := True;
+    B.ModalResult := mrOK;
+    B := TButton.Create(F);
+    B.Parent := F;
+    B.SetBounds(234, 94, 82, 30);
+    B.Caption := 'Cancelar';
+    B.Cancel := True;
+    B.ModalResult := mrCancel;
+    F.ActiveControl := E;
+    E.SelectAll;
+    Result := F.ShowModal = mrOK;
+    if Result then
+    begin
+      AText := E.Text;
+      RefOnly := K.Checked;
+    end;
+  finally
+    F.Free;
+  end;
 end;
 
 { ---------- digitar a medida ---------- }

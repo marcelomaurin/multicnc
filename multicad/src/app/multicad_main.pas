@@ -57,7 +57,13 @@ type
     FToolButtons: array[TCadSketchToolKind] of TSuiteButton;
     FRibX, FRibY: Integer;
     FGridBtn, FGridSnapBtn, FWheelBtn: TSuiteButton;
+    SketchPanel: TPanel;
+    SketchTitle, SketchSel: TLabel;
+    LineKind: TRadioGroup;
+    FUpdatingPanel: Boolean;
     FRefreshingTree: Boolean;
+    procedure UpdateSketchPanel;
+    procedure LineKindClick(Sender: TObject);
     procedure BuildUI;
     procedure ShowTab(T: TCadTab);
     function RibbonButton(const ACaption: string; AIcon: TSuiteIconKind;
@@ -329,6 +335,44 @@ begin
       RelMenu.Items.Add(MI);
     end;
 
+  { painel do esboco: o que esta selecionado e linha normal / de apoio }
+  SketchPanel := TPanel.Create(Self);
+  SketchPanel.Parent := LeftPane;
+  SketchPanel.Align := alTop;
+  SketchPanel.Height := 182;
+  SketchPanel.BevelOuter := bvNone;
+  SketchPanel.Color := clSuiteCard;
+  SketchPanel.Visible := False;
+  SketchTitle := TLabel.Create(Self);
+  SketchTitle.Parent := SketchPanel;
+  SketchTitle.SetBounds(10, 6, 250, 18);
+  SketchTitle.Font.Style := [fsBold];
+  SketchSel := TLabel.Create(Self);
+  SketchSel.Parent := SketchPanel;
+  SketchSel.SetBounds(10, 28, 250, 34);
+  SketchSel.WordWrap := True;
+  SketchSel.AutoSize := False;
+  SketchSel.Anchors := [akLeft, akTop, akRight];
+  LineKind := TRadioGroup.Create(Self);
+  LineKind.Parent := SketchPanel;
+  LineKind.SetBounds(8, 66, 252, 70);
+  LineKind.Caption := 'Tipo de linha';
+  LineKind.Anchors := [akLeft, akTop, akRight];
+  LineKind.Items.Add('Linha normal (contorno da peça)');
+  LineKind.Items.Add('Linha de apoio (tracejada)');
+  LineKind.ItemIndex := 0;
+  LineKind.OnClick := @LineKindClick;
+  with TLabel.Create(Self) do
+  begin
+    Parent := SketchPanel;
+    SetBounds(10, 140, 250, 36);
+    AutoSize := False;
+    WordWrap := True;
+    Anchors := [akLeft, akTop, akRight];
+    Font.Color := clSuiteMuted;
+    Caption := 'Sem seleção, a escolha vale para as próximas linhas.';
+  end;
+
   Tree := TTreeView.Create(Self);
   Tree.Parent := LeftPane;
   Tree.Align := alClient;
@@ -453,7 +497,7 @@ begin
         RibbonSep;
         FToolButtons[tkDimension] := RibbonButton('Cota inteligente', sikGauge, @ToolClick, Ord(tkDimension));
         RibbonButton('Adicionar relação', sikLayers, @RelationMenuClick).Enabled := InSketch;
-        RibbonButton('Construção', sikMirrorH, @ConstructionClick).Enabled := InSketch;
+        RibbonButton('Linha de apoio', sikMirrorH, @ConstructionClick).Enabled := InSketch;
         RibbonButton('Apagar', sikTrash, @DeleteSketchClick, 0, 90).Enabled := InSketch;
         RibbonSep;
         FGridBtn := RibbonButton('Grade', sikFrame, @GridClick, 0);
@@ -1181,6 +1225,7 @@ begin
   FEditor.SetTool(tkLine);
   ShowTab(ctSketch);
   EditorStatus(nil);
+  UpdateSketchPanel;
 end;
 
 procedure TMainForm.ExitSketch(Sender: TObject);
@@ -1189,6 +1234,7 @@ begin
     Exit;
   FreeAndNil(FEditor);
   SetStatus(0, '');
+  UpdateSketchPanel;
   RebuildModel;
   ShowTab(ctFeatures);
 end;
@@ -1220,8 +1266,17 @@ end;
 
 procedure TMainForm.ConstructionClick(Sender: TObject);
 begin
-  if Assigned(FEditor) then
-    FEditor.ToggleConstruction;
+  if FEditor = nil then
+    Exit;
+  { com selecao: alterna normal/apoio; sem selecao: liga/desliga o modo }
+  if FEditor.Session.SelectionConstructionState <> 0 then
+    FEditor.ToggleConstruction
+  else
+  begin
+    FEditor.Session.ConstructionMode := not FEditor.Session.ConstructionMode;
+    FEditor.View3DChanged;
+  end;
+  UpdateSketchPanel;
 end;
 
 procedure TMainForm.GridClick(Sender: TObject);
@@ -1320,6 +1375,51 @@ end;
 procedure TMainForm.EditorChanged(Sender: TObject);
 begin
   Modified;
+  UpdateSketchPanel;
+end;
+
+procedure TMainForm.UpdateSketchPanel;
+var
+  St: Integer;
+  T: string;
+begin
+  SketchPanel.Visible := Assigned(FEditor);
+  if FEditor = nil then
+    Exit;
+  FUpdatingPanel := True;
+  try
+    SketchTitle.Caption := 'Esboço: ' + FEditor.Sketch.Name;
+    T := FEditor.Session.SelectionText;
+    St := FEditor.Session.SelectionConstructionState;
+    if T = '' then
+      T := 'Nada selecionado. Clique numa linha com Selecionar para ver e trocar o tipo.';
+    SketchSel.Caption := T;
+    case St of
+      1: LineKind.ItemIndex := 0;
+      2: LineKind.ItemIndex := 1;
+      3: LineKind.ItemIndex := -1;
+    else
+      if FEditor.Session.ConstructionMode then
+        LineKind.ItemIndex := 1
+      else
+        LineKind.ItemIndex := 0;
+    end;
+  finally
+    FUpdatingPanel := False;
+  end;
+end;
+
+procedure TMainForm.LineKindClick(Sender: TObject);
+begin
+  if FUpdatingPanel or (FEditor = nil) or (LineKind.ItemIndex < 0) then
+    Exit;
+  if FEditor.Session.SelectionConstructionState <> 0 then
+    FEditor.Session.SetSelectionConstruction(LineKind.ItemIndex = 1)
+  else
+    FEditor.Session.ConstructionMode := LineKind.ItemIndex = 1;
+  FEditor.View3DChanged;
+  Modified;
+  UpdateSketchPanel;
 end;
 
 procedure TMainForm.EditorStatus(Sender: TObject);

@@ -268,6 +268,12 @@ Como ficou (fase 3):
       relação Tangente), além do arco de 3 pontos.
 - [x] Filete de esboço (raio) e chanfro de esboço (distância ou "d1 x d2") no canto entre duas
       linhas; um ponto de construção guarda o canto virtual, então as cotas da peça não mudam.
+- [x] Cota inteligente como no SolidWorks: escolher a linha/círculo/arco (ou dois itens), a
+      cota segue o mouse e o clique a coloca; a caixa de valor tem "Só marcar a medida"
+      (cota de referência entre parênteses, não muda o desenho); Esc desiste.
+- [x] Painel do esboço no lado esquerdo: mostra o que está selecionado (linha com comprimento
+      e ângulo, círculo, arco, ponto) e "Tipo de linha": linha normal ou linha de apoio
+      (tracejada). Sem seleção, a escolha vale para as próximas linhas.
 - [x] Mouse como no SolidWorks: meio gira (em torno do centro da peça; clique do meio numa
       face muda o centro de giro, no fundo volta), Ctrl+meio desloca, Shift+meio zoom
       (para cima aproxima), Alt+meio rola, duplo clique do meio enquadra, roda com zoom no

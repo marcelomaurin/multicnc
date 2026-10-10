@@ -2061,6 +2061,104 @@ begin
   end;
 end;
 
+type
+  TDimAsk = class
+    Text: string;
+    Ref: Boolean;
+    function Ask(Sender: TObject; const ACaption: string; var AText: string;
+      var RefOnly: Boolean): Boolean;
+  end;
+
+function TDimAsk.Ask(Sender: TObject; const ACaption: string; var AText: string;
+  var RefOnly: Boolean): Boolean;
+begin
+  AText := Text;
+  RefOnly := Ref;
+  Result := True;
+end;
+
+procedure TestSketchTools3;
+var
+  D: TCadDocument;
+  S: TCadSketch;
+  T: TCadSketchSession;
+  A: TDimAsk;
+  E: TSketchEntity;
+  C: TSketchConstraint;
+  N0: Integer;
+  G: TCadDimGeom;
+begin
+  D := TCadDocument.Create;
+  A := TDimAsk.Create;
+  try
+    D.NewPart;
+    S := D.AddSketch('plane:1');
+    T := TCadSketchSession.Create(D, S);
+    try
+      T.PickTol := 1.5;
+      T.OnAskDim := @A.Ask;
+      S.AddLine(0, 0, 50, 0);
+      { cota pela ferramenta: clicar na linha, a cota segue o mouse, clicar fora coloca }
+      T.Tool := tkDimension;
+      N0 := S.ConstraintCount;
+      T.Click(V2(25, 0.2));
+      Check(T.PlacingDim <> 0, 'cota segue o mouse depois de escolher a linha');
+      T.MouseMove(V2(25, 12));
+      T.DimGeometry(S.ConstraintIndex(T.PlacingDim), G);
+      Check(Near(G.T.Y, 12, 1E-9), 'texto da cota acompanha o cursor');
+      A.Text := '60';
+      A.Ref := False;
+      T.Click(V2(25, 12));
+      Check((T.PlacingDim = 0) and (S.ConstraintCount = N0 + 1), 'clique fora coloca a cota');
+      E := S.Entity(0);
+      Check(Near(Abs(E.P2.X - E.P1.X), 60, 1E-6), 'valor digitado muda a linha para 60');
+      { so marcar: cota de referencia nao muda o desenho }
+      S.AddLine(0, 20, 30, 20);
+      T.Click(V2(15, 20.1));
+      A.Text := '99';
+      A.Ref := True;
+      T.Click(V2(15, 30));
+      C := S.Constraint(S.ConstraintCount - 1);
+      E := S.Entity(1);
+      Check(not C.Driving and Near(Abs(E.P2.X - E.P1.X), 30, 1E-6) and (CadDimText(C) = '(30 mm)'),
+        'so marcar a medida: cota de referencia (30 mm) sem mudar a linha');
+      { duas linhas: distancia entre paralelas, terceiro clique coloca }
+      T.Click(V2(10, 0.1));
+      T.Click(V2(10, 20.1));
+      Check(T.PlacingDim <> 0, 'duas linhas escolhidas, cota segue o mouse');
+      A.Ref := True;
+      T.Click(V2(-10, 10));
+      C := S.Constraint(S.ConstraintCount - 1);
+      Check(Near(Abs(C.Value), 20, 1E-6), 'distancia entre as linhas paralelas = 20');
+      { Esc durante a colocacao apaga a cota }
+      N0 := S.ConstraintCount;
+      T.Click(V2(10, 0.1));
+      T.Cancel;
+      Check(S.ConstraintCount = N0, 'Esc desiste da cota em colocacao');
+      { linha de apoio }
+      T.Tool := tkLine;
+      T.ConstructionMode := True;
+      T.Click(V2(0, 50));
+      T.Click(V2(40, 70));
+      Check(S.Entity(S.EntityCount - 1).Construction, 'modo linha de apoio desenha tracejada');
+      T.ConstructionMode := False;
+      T.Cancel;
+      T.Tool := tkSelect;
+      T.Click(V2(20, 60));
+      Check(T.SelectionConstructionState = 2, 'selecionada: linha de apoio');
+      Check(Pos('Linha de apoio', T.SelectionText) = 1, 'descricao: ' + T.SelectionText);
+      Check(T.SetSelectionConstruction(False) and not S.Entity(S.EntityCount - 1).Construction,
+        'voltar para linha normal');
+      Check(T.SelectionConstructionState = 1, 'selecionada: linha normal');
+    finally
+      T.Free;
+    end;
+  finally
+    A.Free;
+    D.Free;
+  end;
+end;
+
 begin
   Passed := 0;
   Failed := 0;
@@ -2079,6 +2177,7 @@ begin
   TestRender;
   TestSketchTools;
   TestSketchTools2;
+  TestSketchTools3;
   TestExport;
   Writeln(Format('MultiCAD: %d checks, %d falhas', [Passed + Failed, Failed]));
   if Failed > 0 then

@@ -59,6 +59,10 @@ type
 
   TCadAskValueEvent = function(Sender: TObject; const ACaption: string;
     var AText: string): Boolean of object;
+  { Valor da cota recem-colocada. RefOnly = so marcar a medida (cota de
+    referencia, nao muda o desenho). }
+  TCadAskDimEvent = function(Sender: TObject; const ACaption: string;
+    var AText: string; var RefOnly: Boolean): Boolean of object;
 
   TCadSketchSession = class
   private
@@ -70,6 +74,11 @@ type
     FDimFirst: TCadPickItem;
     FHasDimFirst: Boolean;
     FOnAskValue: TCadAskValueEvent;
+    FOnAskDim: TCadAskDimEvent;
+    FPlaceId: Integer;        { cota sendo colocada (segue o mouse) }
+    FPairDone: Boolean;
+    procedure FinishDimension(const P: TCadVec2);
+    procedure MarkNewConstruction(AFrom: Integer);
     procedure SetTool(AValue: TCadSketchToolKind);
     procedure Bind(AEnt, APt: Integer; const S: TCadSnap);
     function CreateLine(const A, B: TCadSnap; AConstr, ACenter: Boolean): Integer;
@@ -81,6 +90,7 @@ type
       AValue: Double; const AText: string);
   public
     PickTol: Double;           { mm (o editor converte de pixels) }
+    ConstructionMode: Boolean; { desenhar linhas de apoio (construcao, tracejadas) }
     GridStep: Double;          { passo da grade em mm (0 = sem grade) }
     GridSnap: Boolean;         { capturar na grade }
     FilletRadius: Double;      { ultimo raio de filete (mm) }
@@ -94,6 +104,15 @@ type
     property Sketch: TCadSketch read FSketch;
     property Tool: TCadSketchToolKind read FTool write SetTool;
     property OnAskValue: TCadAskValueEvent read FOnAskValue write FOnAskValue;
+    property OnAskDim: TCadAskDimEvent read FOnAskDim write FOnAskDim;
+    { Cota em colocacao (Id da restricao; 0 = nenhuma). }
+    property PlacingDim: Integer read FPlaceId;
+    { Linha normal / linha de apoio nas entidades selecionadas. }
+    function SetSelectionConstruction(AValue: Boolean): Boolean;
+    { Estado de construcao da selecao: 0 nenhuma entidade, 1 normal, 2 apoio, 3 misto. }
+    function SelectionConstructionState: Integer;
+    { Descricao da selecao ("Linha: 80 mm, 0°"). }
+    function SelectionText: string;
     { Pontos ja clicados da ferramenta atual (para o elastico). }
     function ClickCount: Integer;
     function ClickAt(I: Integer): TCadSnap;
@@ -455,7 +474,14 @@ end;
 procedure TCadSketchSession.MouseMove(const P: TCadVec2);
 var
   K: TConstraintKind;
+  I: Integer;
 begin
+  if FPlaceId <> 0 then
+  begin
+    I := FSketch.ConstraintIndex(FPlaceId);
+    if I >= 0 then
+      MoveDimText(I, P);
+  end;
   Cursor := Snap(P);
   CursorInfer := 0;
   if (FTool in [tkLine, tkCenterline]) and (Length(FClicks) = 1) then
@@ -508,6 +534,8 @@ var
   Tg: TCadVec2;
   Arc: TSketchEntity;
   Txt: string;
+  HitOk: Boolean;
+  NBefore: Integer;
 
   { "2", "2 x 3", "2;3" }
   function ParsePair(const T: string; out A, B: Double): Boolean;
@@ -533,6 +561,7 @@ begin
   LastMessage := '';
   MouseMove(P);
   S := Cursor;
+  NBefore := FSketch.EntityCount;
   case FTool of
     tkSelect:
       begin
@@ -759,41 +788,237 @@ begin
         end;
       end;
     tkDimension:
-      if Hit(P, Item) then
       begin
-        if not FHasDimFirst then
+        { como a Cota inteligente do SolidWorks: escolher a linha/circulo (ou
+          dois itens), a cota segue o mouse e o clique seguinte a coloca }
+        HitOk := Hit(P, Item);
+        if FPairDone or ((FPlaceId <> 0) and not HitOk) then
+        begin
+          FinishDimension(P);
+          Result := True;
+        end
+        else if HitOk and not FHasDimFirst then
         begin
           FDimFirst := Item;
           FHasDimFirst := True;
           ClearSelection;
           Insert(Item, Selection, 0);
-          { circulo, arco ou linha sozinhos ja podem ser cotados no proximo
-            clique fora; ponto espera o segundo item }
+          if Item.Pt = 0 then
+          begin
+            FPlaceId := AddSmartDimension(Item, PickItem(0, 0), False, '');
+            if FPlaceId <> 0 then
+              MoveDimText(FSketch.ConstraintIndex(FPlaceId), P);
+            LastMessage := '';
+          end;
         end
-        else
+        else if HitOk and FHasDimFirst and
+          not ((Item.Ent = FDimFirst.Ent) and (Item.Pt = FDimFirst.Pt)) then
         begin
-          Result := MakeDimension(FDimFirst, Item, True) <> 0;
-          FHasDimFirst := False;
-          ClearSelection;
+          if FPlaceId <> 0 then
+          begin
+            FSketch.DeleteConstraint(FPlaceId);
+            FPlaceId := 0;
+          end;
+          FPlaceId := AddSmartDimension(FDimFirst, Item, True, '');
+          if FPlaceId <> 0 then
+          begin
+            FPairDone := True;
+            Insert(Item, Selection, Length(Selection));
+            MoveDimText(FSketch.ConstraintIndex(FPlaceId), P);
+          end
+          else
+          begin
+            FHasDimFirst := False;
+            ClearSelection;
+          end;
         end;
-      end
-      else if FHasDimFirst then
-      begin
-        Result := MakeDimension(FDimFirst, PickItem(0, 0), False) <> 0;
-        FHasDimFirst := False;
-        ClearSelection;
       end;
   end;
+  if Result and ConstructionMode and (FTool in [tkLine, tkRectangle, tkCircle, tkArc3P,
+    tkPoint, tkArcCenter, tkArcTangent]) then
+    MarkNewConstruction(NBefore);
   if Result then
     Solve;
 end;
 
+procedure TCadSketchSession.MarkNewConstruction(AFrom: Integer);
+var
+  I: Integer;
+  E: TSketchEntity;
+begin
+  for I := AFrom to FSketch.EntityCount - 1 do
+  begin
+    E := FSketch.Entity(I);
+    if E.Centerline then
+      Continue;
+    E.Construction := True;
+    FSketch.SetEntity(I, E);
+  end;
+end;
+
+procedure TCadSketchSession.FinishDimension(const P: TCadVec2);
+var
+  I: Integer;
+  Txt: string;
+  RefOnly, Ok: Boolean;
+begin
+  I := FSketch.ConstraintIndex(FPlaceId);
+  FPlaceId := 0;
+  FPairDone := False;
+  FHasDimFirst := False;
+  ClearSelection;
+  if I < 0 then
+    Exit;
+  MoveDimText(I, P);
+  Txt := FormatFloat('0.###', FSketch.Constraint(I).Value);
+  RefOnly := not FSketch.Constraint(I).Driving;
+  if Assigned(FOnAskDim) then
+    Ok := FOnAskDim(Self, FSketch.Constraint(I).DimName, Txt, RefOnly)
+  else if Assigned(FOnAskValue) then
+  begin
+    Ok := FOnAskValue(Self, FSketch.Constraint(I).DimName, Txt);
+    RefOnly := False;
+  end
+  else
+    Ok := False;
+  if not Ok then
+    Exit;   { fica com o valor medido }
+  if RefOnly then
+  begin
+    FSketch.SetConstraintDriving(I, False);
+    FSketch.SetConstraintExpr(I, '');
+  end
+  else
+  begin
+    FSketch.SetConstraintDriving(I, True);
+    if Trim(Txt) <> '' then
+      FSketch.SetConstraintExpr(I, Trim(Txt));
+  end;
+  Solve;
+  if LastSolve.Status in [ssConflict, ssOverDefined] then
+  begin
+    if not RefOnly then
+    begin
+      FSketch.SetConstraintDriving(I, False);
+      FSketch.SetConstraintExpr(I, '');
+      Solve;
+    end;
+    LastMessage := 'A cota superdefine o esboço: ficou só marcando a medida';
+  end;
+end;
+
 procedure TCadSketchSession.Cancel;
 begin
+  if FPlaceId <> 0 then
+  begin
+    FSketch.DeleteConstraint(FPlaceId);
+    FPlaceId := 0;
+    Solve;
+  end;
+  FPairDone := False;
   SetLength(FClicks, 0);
   FChainEnt := 0;
   FHasDimFirst := False;
   CursorInfer := 0;
+end;
+
+function TCadSketchSession.SetSelectionConstruction(AValue: Boolean): Boolean;
+var
+  I, Idx: Integer;
+  E: TSketchEntity;
+begin
+  Result := False;
+  for I := 0 to High(Selection) do
+    if Selection[I].Pt = 0 then
+    begin
+      Idx := FSketch.EntityIndex(Selection[I].Ent);
+      if Idx < 0 then
+        Continue;
+      E := FSketch.Entity(Idx);
+      if E.Centerline or (E.Construction = AValue) then
+        Continue;
+      E.Construction := AValue;
+      FSketch.SetEntity(Idx, E);
+      Result := True;
+    end;
+end;
+
+function TCadSketchSession.SelectionConstructionState: Integer;
+var
+  I, Idx: Integer;
+  E: TSketchEntity;
+  HasN, HasC: Boolean;
+begin
+  HasN := False;
+  HasC := False;
+  for I := 0 to High(Selection) do
+    if Selection[I].Pt = 0 then
+    begin
+      Idx := FSketch.EntityIndex(Selection[I].Ent);
+      if Idx < 0 then
+        Continue;
+      E := FSketch.Entity(Idx);
+      if E.Construction or E.Centerline then
+        HasC := True
+      else
+        HasN := True;
+    end;
+  Result := Ord(HasN) + 2 * Ord(HasC);
+end;
+
+function TCadSketchSession.SelectionText: string;
+var
+  Idx: Integer;
+  E: TSketchEntity;
+  L, A, Sw: Double;
+begin
+  Result := '';
+  if Length(Selection) = 0 then
+    Exit;
+  if Length(Selection) > 1 then
+    Exit(Format('%d itens selecionados', [Length(Selection)]));
+  if Selection[0].Ent = CAD_SKETCH_ORIGIN then
+    Exit('Origem do esboço');
+  Idx := FSketch.EntityIndex(Selection[0].Ent);
+  if Idx < 0 then
+    Exit;
+  E := FSketch.Entity(Idx);
+  if Selection[0].Pt > 0 then
+  begin
+    case Selection[0].Pt of
+      2: Result := Format('Ponto: X %s  Y %s mm', [FormatFloat('0.##', E.P2.X), FormatFloat('0.##', E.P2.Y)]);
+      3: Result := Format('Ponto: X %s  Y %s mm', [FormatFloat('0.##', E.P3.X), FormatFloat('0.##', E.P3.Y)]);
+    else
+      Result := Format('Ponto: X %s  Y %s mm', [FormatFloat('0.##', E.P1.X), FormatFloat('0.##', E.P1.Y)]);
+    end;
+    Exit;
+  end;
+  case E.Kind of
+    seLine:
+      begin
+        L := Dist2(E.P1, E.P2);
+        A := RadToDeg(ArcTan2(E.P2.Y - E.P1.Y, E.P2.X - E.P1.X));
+        if E.Centerline then
+          Result := 'Linha de centro'
+        else if E.Construction then
+          Result := 'Linha de apoio'
+        else
+          Result := 'Linha';
+        Result := Result + Format(': %s mm, %s°', [FormatFloat('0.##', L), FormatFloat('0.#', A)]);
+      end;
+    seCircle:
+      Result := Format('Círculo: Ø%s mm', [FormatFloat('0.##', 2 * E.Radius)]);
+    seArc:
+      begin
+        Sw := RadToDeg(ArcTan2(E.P3.Y - E.P1.Y, E.P3.X - E.P1.X) - ArcTan2(E.P2.Y - E.P1.Y, E.P2.X - E.P1.X));
+        while Sw <= 0 do Sw := Sw + 360;
+        Result := Format('Arco: R%s mm, %s°', [FormatFloat('0.##', E.Radius), FormatFloat('0.#', Sw)]);
+      end;
+    sePoint:
+      Result := Format('Ponto: X %s  Y %s mm', [FormatFloat('0.##', E.P1.X), FormatFloat('0.##', E.P1.Y)]);
+  end;
+  if E.Construction and (E.Kind <> seLine) then
+    Result := Result + ' (apoio)';
 end;
 
 procedure TCadSketchSession.ClearSelection;
@@ -1376,6 +1601,7 @@ var
   Dir: TCadVec2;
   SX, SY: Double;
   HasAng: Boolean;
+  NB: Integer;
 begin
   Result := False;
   LastMessage := '';
@@ -1384,6 +1610,7 @@ begin
   T := StringReplace(LowerCase(Trim(AText)), '×', 'x', [rfReplaceAll]);
   T := StringReplace(T, 'mm', '', [rfReplaceAll]);
   S0 := FClicks[0];
+  NB := FSketch.EntityCount;
   case FTool of
     tkLine, tkCenterline:
       begin
@@ -1495,6 +1722,8 @@ begin
   end;
   if Result then
   begin
+    if ConstructionMode then
+      MarkNewConstruction(NB);
     Solve;
     if LastSolve.Status = ssConflict then
       LastMessage := LastSolve.Message;

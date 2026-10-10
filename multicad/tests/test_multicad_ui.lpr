@@ -162,6 +162,17 @@ begin
       Ses.AddSmartDimension(PickItem(S.Entity(0).Id, 0), PickItem(0, 0), False, '');
       Check(Ses.FilletCorner(V2(-40, -25), 6), 'filete R6 no canto ' + Ses.LastMessage);
       Check(Ses.ChamferCorner(V2(40, 25), 5, 5), 'chanfro 5 x 5 no canto ' + Ses.LastMessage);
+      { linha de apoio selecionada: painel mostra "Linha de apoio" }
+      Ses.Tool := tkLine;
+      Ses.ConstructionMode := True;
+      Ses.Click(V2(-40, 0));
+      Ses.Click(V2(40, 0));
+      Ses.Cancel;
+      Ses.ConstructionMode := False;
+      Ses.Tool := tkSelect;
+      Ses.Click(V2(10, 0));
+      Check(Ses.SelectionConstructionState = 2, 'linha de apoio desenhada e selecionada');
+      F.SketchEditor.View3DChanged;
       F.SketchEditor.SetGrid(True, True);
       F.View3D.Invalidate;
       Pump;
