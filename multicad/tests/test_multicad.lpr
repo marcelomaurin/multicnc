@@ -10,7 +10,7 @@ uses
   SysUtils, Classes, Math, multicad_types, multicad_units, multicad_materials,
   multicad_feature, multicad_refgeom, multicad_sketch, multicad_extrude,
   multicad_document, multicad_mesh, multicad_kernel, multicad_solver,
-  multicad_profile;
+  multicad_profile, multicad_triangulate, multicad_sweep, multicad_bridge;
 
 var
   Passed, Failed: Integer;
@@ -795,6 +795,236 @@ begin
   end;
 end;
 
+{ ---------- fase 2A: triangulacao e varredura ---------- }
+
+function SketchRegion(S: TCadSketch; ChordTol: Double = 0.002): TCadSweepRegion;
+var
+  P: TCadProfileResult;
+begin
+  P := CadSketchProfiles(S, ChordTol);
+  if not P.Ok then
+    raise Exception.Create('perfil invalido no teste: ' + P.Message);
+  Result := CadRegionToSweep(P.Regions[0]);
+end;
+
+function RelNear(A, B, Rel: Double): Boolean;
+begin
+  Result := Abs(A - B) <= Rel * Abs(B);
+end;
+
+procedure TestSweep;
+var
+  Outer: TCadPoly2;
+  Holes: TCadPoly2Array;
+  Pts: TCadPoly2;
+  Tris: TCadTriIdxArray;
+  E: string;
+  I, L1, C: Integer;
+  A, A1, A2, Dl, Exact: Double;
+  S: TCadSketch;
+  M: TCadMesh;
+  R: TCadSweepRegion;
+  B: TCadBox3;
+  F: Integer;
+  Off: TCadPoly2;
+begin
+  { triangulacao com furo }
+  Outer := [V2(0, 0), V2(10, 0), V2(10, 10), V2(0, 10)];
+  SetLength(Holes, 1);
+  Holes[0] := [V2(3, 3), V2(3, 7), V2(7, 7), V2(7, 3)];
+  Check(CadTriangulate(Outer, Holes, Pts, Tris, E), 'triangula quadrado com furo: ' + E);
+  A := 0;
+  for I := 0 to High(Tris) do
+  begin
+    A1 := ((Pts[Tris[I].B].X - Pts[Tris[I].A].X) * (Pts[Tris[I].C].Y - Pts[Tris[I].A].Y) -
+      (Pts[Tris[I].B].Y - Pts[Tris[I].A].Y) * (Pts[Tris[I].C].X - Pts[Tris[I].A].X)) / 2;
+    Check(A1 > 0, 'triangulo anti-horario');
+    A := A + A1;
+  end;
+  Check(Near(A, 100 - 16, 1E-9), Format('soma das areas = 84 (%.6f)', [A]));
+  Check(Length(Tris) = 8, Format('8 triangulos (%d)', [Length(Tris)]));
+  Outer := [V2(0, 0), V2(10, 0), V2(10, 4), V2(5, 1), V2(0, 4)];
+  Check(CadTriangulate(Outer, nil, Pts, Tris, E) and (Length(Tris) = 3), 'poligono concavo');
+  Check(not CadTriangulate([V2(0, 0), V2(1, 1), V2(2, 2)], nil, Pts, Tris, E), 'area nula recusada');
+
+  { offset }
+  Check(CadOffsetLoop([V2(0, 0), V2(10, 0), V2(10, 10), V2(0, 10)], 1, Off) and
+    NearP(Off[0], V2(1, 1), 1E-12) and NearP(Off[2], V2(9, 9), 1E-12), 'offset para dentro em esquadria');
+  Check(not CadOffsetLoop([V2(0, 0), V2(10, 0), V2(10, 10), V2(0, 10)], 6, Off), 'offset maior que a metade recusado');
+
+  { extrusao simples no Plano Frontal }
+  S := TCadSketch.Create;
+  try
+    L1 := S.AddRectangle(0, 0, 80, 50);
+    R := SketchRegion(S);
+    M := CadSweepExtrude(StdFrame(spFrontal), R, CadSketchSurfaces(S), V3(0, 0, 1), 0, 10, 0, False, 'Ext1', E);
+    try
+      Check(M <> nil, 'extrusao do retangulo: ' + E);
+      Check(M.IsClosed and Near(M.Volume, 40000, 1E-6), 'bloco 80x50x10 fechado com 40000 mm3');
+      Check(M.FaceCount = 6, Format('6 faces (%d)', [M.FaceCount]));
+      Check((M.FaceIndex('Ext1/inicio') >= 0) and (M.FaceIndex('Ext1/fim') >= 0), 'faces inicio e fim');
+      for I := 0 to 3 do
+        Check(M.FaceIndex('Ext1/lat:' + IntToStr(L1 + I)) >= 0, 'face lateral da linha ' + IntToStr(L1 + I));
+      F := M.FaceIndex('Ext1/lat:' + IntToStr(L1));
+      Check(NearV(M.Faces[F].Axis, V3(0, -1, 0), 1E-9), 'lateral da linha inferior com normal -Y');
+      Check(NearV(M.Faces[M.FaceIndex('Ext1/fim')].Axis, V3(0, 0, 1), 1E-9), 'tampa do fim com normal +Z');
+      B := M.Bounds;
+      Check(Near(B.Min.Z, 0, 1E-9) and Near(B.Max.Z, 10, 1E-9), 'Z de 0 a 10');
+    finally
+      M.Free;
+    end;
+    { sentido contrario }
+    M := CadSweepExtrude(StdFrame(spFrontal), R, nil, V3(0, 0, -1), 0, 10, 0, False, 'Ext1', E);
+    try
+      B := M.Bounds;
+      Check((M <> nil) and M.IsClosed and Near(M.Volume, 40000, 1E-6) and Near(B.Min.Z, -10, 1E-9),
+        'extrusao invertida fechada e com volume positivo');
+      Check(NearV(M.Faces[M.FaceIndex('Ext1/fim')].Axis, V3(0, 0, -1), 1E-9), 'fim invertido aponta para -Z');
+    finally
+      M.Free;
+    end;
+    { deslocamento do inicio }
+    M := CadSweepExtrude(StdFrame(spFrontal), R, nil, V3(0, 0, 1), 5, 10, 0, False, 'Ext1', E);
+    try
+      B := M.Bounds;
+      Check(Near(B.Min.Z, 5, 1E-9) and Near(B.Max.Z, 15, 1E-9), 'inicio deslocado 5 mm');
+    finally
+      M.Free;
+    end;
+    { plano Superior e Lateral }
+    M := CadSweepExtrude(StdFrame(spSuperior), R, nil, StdFrame(spSuperior).Normal, 0, 10, 0, False, 'E', E);
+    try
+      B := M.Bounds;
+      Check(M.IsClosed and Near(B.Max.Y, 10, 1E-9) and Near(B.Min.Z, -50, 1E-9), 'Superior: sobe em Y, desenho em -Z');
+    finally
+      M.Free;
+    end;
+    M := CadSweepExtrude(StdFrame(spLateral), R, nil, StdFrame(spLateral).Normal, 0, 10, 0, False, 'E', E);
+    try
+      B := M.Bounds;
+      Check(M.IsClosed and Near(B.Max.X, 10, 1E-9) and Near(B.Min.Z, -80, 1E-9), 'Lateral: sai em X, desenho em -Z');
+    finally
+      M.Free;
+    end;
+    { direcao obliqua }
+    M := CadSweepExtrude(StdFrame(spFrontal), R, nil, VNorm(V3(1, 0, 1)), 0, 10, 0, False, 'E', E);
+    try
+      Check(M.IsClosed and RelNear(M.Volume, 4000 * 10 / Sqrt(2), 1E-9), 'extrusao obliqua: area x altura');
+    finally
+      M.Free;
+    end;
+    { inclinacao: tronco de piramide }
+    M := CadSweepExtrude(StdFrame(spFrontal), R, CadSketchSurfaces(S), V3(0, 0, 1), 0, 10, 5, False, 'E', E);
+    try
+      Dl := 10 * Tan(5 * Pi / 180);
+      { cada lado encolhe 2.Dl linearmente: integral de (80-2Dl.t/h)(50-2Dl.t/h) }
+      Exact := 10 * (80 * 50 - Dl * (80 + 50) + 4 / 3 * Dl * Dl);
+      Check((M <> nil) and M.IsClosed and RelNear(M.Volume, Exact, 1E-9),
+        Format('inclinacao de 5 graus: volume do tronco (%.4f x %.4f)', [M.Volume, Exact]));
+    finally
+      M.Free;
+    end;
+    M := CadSweepExtrude(StdFrame(spFrontal), R, nil, V3(0, 0, 1), 0, 10, 5, True, 'E', E);
+    try
+      Check((M <> nil) and (M.Volume > 40000), 'inclinacao para fora aumenta o volume');
+    finally
+      M.Free;
+    end;
+    M := CadSweepExtrude(StdFrame(spFrontal), R, nil, V3(0, 0, 1), 0, 300, 10, False, 'E', E);
+    Check((M = nil) and (Pos('inclinação muito grande', E) > 0), 'inclinacao grande demais recusada');
+    M := CadSweepExtrude(StdFrame(spFrontal), R, nil, V3(1, 0, 0), 0, 10, 0, False, 'E', E);
+    Check(M = nil, 'direcao paralela ao plano recusada');
+    { com furo }
+    C := S.AddCircle(20, 25, 4);
+    R := SketchRegion(S, 0.001);
+    M := CadSweepExtrude(StdFrame(spFrontal), R, CadSketchSurfaces(S), V3(0, 0, 1), 0, 10, 0, False, 'Ext1', E);
+    try
+      Exact := (4000 - Pi * 16) * 10;
+      Check((M <> nil) and M.IsClosed and RelNear(M.Volume, Exact, 0.005),
+        Format('placa com furo dentro de 0,5%% (%.2f x %.2f)', [M.Volume, Exact]));
+      F := M.FaceIndex('Ext1/lat:' + IntToStr(C));
+      Check((F >= 0) and (M.Faces[F].Surf = skCylinder) and Near(M.Faces[F].Radius, 4), 'furo vira face cilindrica de raio 4');
+    finally
+      M.Free;
+    end;
+  finally
+    S.Free;
+  end;
+
+  { revolucao: tubo }
+  S := TCadSketch.Create;
+  try
+    S.AddRectangle(10, 0, 20, 30);
+    R := SketchRegion(S);
+    M := CadSweepRevolve(StdFrame(spFrontal), R, CadSketchSurfaces(S), V2(0, 0), V2(0, 1), 0, 360, 'Rev1', E);
+    try
+      Exact := Pi * (400 - 100) * 30;
+      Check((M <> nil) and M.IsClosed and RelNear(M.Volume, Exact, 0.005),
+        Format('tubo revolucionado dentro de 0,5%% (%.1f x %.1f)', [M.Volume, Exact]));
+      Check(M.FaceIndex('Rev1/inicio') < 0, '360 graus sem tampas');
+      F := M.FaceIndex('Rev1/rev:' + IntToStr(S.Entity(1).Id));
+      Check((F >= 0) and (M.Faces[F].Surf = skCylinder) and Near(M.Faces[F].Radius, 20, 1E-9), 'parede externa cilindrica r=20');
+      F := M.FaceIndex('Rev1/rev:' + IntToStr(S.Entity(0).Id));
+      Check((F >= 0) and (M.Faces[F].Surf = skPlane), 'base plana');
+      B := M.Bounds;
+      Check(Near(B.Max.Y, 30, 1E-9) and Near(B.Min.Y, 0, 1E-9), 'tubo ao longo de Y');
+    finally
+      M.Free;
+    end;
+    M := CadSweepRevolve(StdFrame(spFrontal), R, nil, V2(0, 0), V2(0, 1), 0, 90, 'Rev1', E);
+    try
+      Check((M <> nil) and M.IsClosed and RelNear(M.Volume, Exact / 4, 0.005), 'um quarto de tubo: ' + E);
+      Check((M.FaceIndex('Rev1/inicio') >= 0) and (M.FaceIndex('Rev1/fim') >= 0), '90 graus com tampas');
+    finally
+      M.Free;
+    end;
+    M := CadSweepRevolve(StdFrame(spFrontal), R, nil, V2(0, 0), V2(0, -1), 0, 90, 'Rev1', E);
+    try
+      Check((M <> nil) and M.IsClosed and (M.Volume > 0), 'eixo invertido tambem fecha');
+    finally
+      M.Free;
+    end;
+    M := CadSweepRevolve(StdFrame(spFrontal), R, nil, V2(15, 0), V2(15, 1), 0, 360, 'Rev1', E);
+    Check((M = nil) and (Pos('cruza o eixo', E) > 0), 'perfil cruzando o eixo recusado');
+  finally
+    S.Free;
+  end;
+
+  { toro }
+  S := TCadSketch.Create;
+  try
+    S.AddCircle(20, 0, 5);
+    R := SketchRegion(S, 0.001);
+    M := CadSweepRevolve(StdFrame(spSuperior), R, CadSketchSurfaces(S), V2(0, -10), V2(0, 10), 0, 360, 'Toro', E);
+    try
+      Exact := 2 * Pi * Pi * 20 * 25;
+      Check((M <> nil) and M.IsClosed and RelNear(M.Volume, Exact, 0.005),
+        Format('toro dentro de 0,5%% (%.1f x %.1f)', [M.Volume, Exact]));
+      Check(M.Faces[0].Surf = skTorus, 'face toroidal rotulada');
+    finally
+      M.Free;
+    end;
+  finally
+    S.Free;
+  end;
+
+  { ranhura extrudada }
+  S := TCadSketch.Create;
+  try
+    S.AddSlot(0, 0, 40, 0, 10);
+    R := SketchRegion(S, 0.0005);
+    M := CadSweepExtrude(StdFrame(spFrontal), R, CadSketchSurfaces(S), V3(0, 0, 1), 0, 6, 0, False, 'Ras', E);
+    try
+      Check((M <> nil) and M.IsClosed and RelNear(M.Volume, (400 + Pi * 25) * 6, 0.005), 'ranhura extrudada');
+      Check(M.FaceCount = 6, 'ranhura: 2 tampas + 2 planas + 2 cilindricas');
+    finally
+      M.Free;
+    end;
+  finally
+    S.Free;
+  end;
+end;
+
 begin
   Passed := 0;
   Failed := 0;
@@ -806,6 +1036,7 @@ begin
   TestMesh;
   TestSolver;
   TestProfiles;
+  TestSweep;
   Writeln(Format('MultiCAD: %d checks, %d falhas', [Passed + Failed, Failed]));
   if Failed > 0 then
     Halt(1);
