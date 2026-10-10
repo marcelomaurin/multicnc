@@ -10,7 +10,7 @@ uses
   SysUtils, Classes, Math, multicad_types, multicad_units, multicad_materials,
   multicad_feature, multicad_refgeom, multicad_sketch, multicad_extrude,
   multicad_document, multicad_mesh, multicad_kernel, multicad_solver,
-  multicad_profile, multicad_triangulate, multicad_sweep, multicad_bridge;
+  multicad_profile, multicad_triangulate, multicad_sweep, multicad_bridge, multicad_csg;
 
 var
   Passed, Failed: Integer;
@@ -1025,6 +1025,137 @@ begin
   end;
 end;
 
+{ ---------- fase 2B: booleanas ---------- }
+
+procedure TestCSG;
+var
+  A, B, R, C, Cyl: TCadMesh;
+  E: string;
+  Parts: TList;
+  I: Integer;
+  T0: QWord;
+  Exact, V0: Double;
+  procedure FreeAll;
+  begin
+    FreeAndNil(B);
+    FreeAndNil(R);
+  end;
+begin
+  B := nil; R := nil;
+  A := CadMakeBox(V3(0, 0, 0), V3(80, 50, 10), 'Base');
+  try
+    { furo passante }
+    Cyl := CadMakeCylinder(V3(20, 25, -1), V3(0, 0, 1), 4, 12, 'Furo');
+    try
+      R := CadBoolean(A, Cyl, boDifference, E);
+      Exact := 40000 - Cyl.Volume / 12 * 10;
+      Check((R <> nil) and R.IsClosed, 'furo passante: malha fechada ' + E);
+      Check(Near(R.Volume, Exact, 1E-6), Format('volume do bloco furado (%.6f x %.6f)', [R.Volume, Exact]));
+      Check((R.FaceIndex('Base/zmax') >= 0) and (R.FaceIndex('Furo/cil') >= 0), 'nomes das faces mantidos (Base/zmax, Furo/cil)');
+      Check(CadMeshComponents(R) = 1, 'uma peca');
+      Check(NearV(R.Faces[R.FaceIndex('Base/zmax')].Axis, V3(0, 0, 1), 1E-9), 'normal da face de cima mantida');
+    finally
+      Cyl.Free;
+      FreeAndNil(R);
+    end;
+    { bolsao a partir da face de cima (faces coplanares) }
+    B := CadMakeBox(V3(10, 10, 6), V3(30, 30, 10), 'Bolsao');
+    R := CadBoolean(A, B, boDifference, E);
+    Check((R <> nil) and R.IsClosed and Near(R.Volume, 40000 - 20 * 20 * 4, 1E-6),
+      'bolsao com topo coplanar: fechado e volume certo ' + E);
+    Check(R.FaceIndex('Bolsao/zmin') >= 0, 'fundo do bolsao vem da ferramenta');
+    FreeAll;
+    { ressalto em cima (encostado) }
+    B := CadMakeBox(V3(10, 10, 10), V3(30, 30, 20), 'Ressalto');
+    R := CadBoolean(A, B, boUnion, E);
+    Check((R <> nil) and R.IsClosed and Near(R.Volume, 40000 + 4000, 1E-6), 'ressalto encostado: uniao fechada ' + E);
+    Check(CadMeshComponents(R) = 1, 'ressalto encostado vira uma peca so');
+    FreeAll;
+    { lado a lado, face inteira em comum }
+    B := CadMakeBox(V3(80, 0, 0), V3(120, 50, 10), 'Lado');
+    R := CadBoolean(A, B, boUnion, E);
+    Check((R <> nil) and R.IsClosed and Near(R.Volume, 60000, 1E-6) and (CadMeshComponents(R) = 1),
+      'blocos lado a lado se fundem ' + E);
+    FreeAll;
+    { separados }
+    B := CadMakeBox(V3(200, 0, 0), V3(210, 10, 10), 'Longe');
+    R := CadBoolean(A, B, boUnion, E);
+    Check((R <> nil) and Near(R.Volume, 41000, 1E-6) and (CadMeshComponents(R) = 2), 'uniao de pecas separadas: 2 componentes');
+    Parts := CadSplitComponents(R);
+    try
+      Check(Parts.Count = 2, 'separa em 2 malhas');
+      V0 := 0;
+      for I := 0 to Parts.Count - 1 do
+      begin
+        Check(TCadMesh(Parts[I]).IsClosed, 'parte fechada');
+        V0 := V0 + TCadMesh(Parts[I]).Volume;
+      end;
+      Check(Near(V0, 41000, 1E-6), 'volumes das partes somam o total');
+    finally
+      for I := 0 to Parts.Count - 1 do
+        TCadMesh(Parts[I]).Free;
+      Parts.Free;
+    end;
+    FreeAll;
+    { intersecao }
+    B := CadMakeBox(V3(70, 40, -5), V3(100, 60, 5), 'X');
+    R := CadBoolean(A, B, boIntersection, E);
+    Check((R <> nil) and R.IsClosed and Near(R.Volume, 10 * 10 * 5, 1E-6), 'intersecao de blocos ' + E);
+    FreeAll;
+    { corte que nao toca }
+    B := CadMakeBox(V3(200, 0, 0), V3(210, 10, 10), 'Fora');
+    R := CadBoolean(A, B, boDifference, E);
+    Check((R <> nil) and Near(R.Volume, 40000, 1E-6), 'corte fora da peca nao muda o volume');
+    FreeAll;
+    { corte que remove tudo }
+    B := CadMakeBox(V3(-10, -10, -10), V3(100, 100, 100), 'Tudo');
+    R := CadBoolean(A, B, boDifference, E);
+    Check((R <> nil) and (R.TriCount = 0), 'corte que remove tudo deixa malha vazia');
+    FreeAll;
+  finally
+    A.Free;
+  end;
+
+  { placa com 4 furos sucessivos (desempenho e robustez) }
+  A := CadMakeBox(V3(0, 0, 0), V3(100, 60, 8), 'Placa');
+  T0 := GetTickCount64;
+  try
+    for I := 0 to 3 do
+    begin
+      Cyl := CadMakeCylinder(V3(15 + I * 23, 30, -2), V3(0, 0, 1), 5, 12, 'F' + IntToStr(I));
+      try
+        R := CadBoolean(A, Cyl, boDifference, E);
+        Check(R <> nil, 'furo ' + IntToStr(I) + ': ' + E);
+        Exact := Cyl.Volume / 12 * 8;
+      finally
+        Cyl.Free;
+      end;
+      if R = nil then
+        Exit;
+      A.Free;
+      A := R;
+      R := nil;
+    end;
+    Check(A.IsClosed and Near(A.Volume, 48000 - 4 * Exact, 1E-5), Format('placa com 4 furos (%.4f)', [A.Volume]));
+    Check(GetTickCount64 - T0 < 10000, Format('4 furos em menos de 10 s (%d ms)', [GetTickCount64 - T0]));
+    { cilindro cruzando cilindro (furo transversal) }
+    Cyl := CadMakeCylinder(V3(-5, 30, 4), V3(1, 0, 0), 2, 110, 'Trans');
+    try
+      { limite conhecido (TAREFA.md): cilindro cortando cilindro gera lascas
+        demais para a malha; a operacao deve falhar com mensagem, sem quebrar
+        e sem devolver malha aberta }
+      R := CadBoolean(A, Cyl, boDifference, E);
+      Check(((R <> nil) and R.IsClosed and (R.Volume < A.Volume)) or ((R = nil) and (E <> '')),
+        'furo transversal: fechado ou recusado com mensagem');
+    finally
+      Cyl.Free;
+      FreeAndNil(R);
+    end;
+  finally
+    A.Free;
+  end;
+end;
+
 begin
   Passed := 0;
   Failed := 0;
@@ -1037,6 +1168,7 @@ begin
   TestSolver;
   TestProfiles;
   TestSweep;
+  TestCSG;
   Writeln(Format('MultiCAD: %d checks, %d falhas', [Passed + Failed, Failed]));
   if Failed > 0 then
     Halt(1);

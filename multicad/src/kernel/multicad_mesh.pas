@@ -65,6 +65,11 @@ type
     function Clone: TCadMesh;
     { Devolve o indice do vertice; reaproveita um existente a menos de Tol. }
     function AddVertex(const P: TCadVec3): Integer;
+    { Acrescenta sem procurar vertice proximo (o chamador garante). }
+    function AddVertexRaw(const P: TCadVec3): Integer;
+    { Move um vertice (reparo de malha). A busca de solda nao e refeita:
+      usar so em ajustes menores que a tolerancia. }
+    procedure SetVert(I: Integer; const P: TCadVec3);
     function AddFace(const AInfo: TCadFaceInfo): Integer;
     function AddPlaneFace(const AName: string; const AOrigin, ANormal: TCadVec3): Integer;
     { Ignora triangulos degenerados (vertices repetidos). Devolve False se ignorou. }
@@ -76,6 +81,8 @@ type
     procedure Append(Other: TCadMesh);
     procedure Transform(const M: TCadMat4);
     procedure Flip;
+    { Recalcula normal (e ponto) das faces planas pelos triangulos. }
+    procedure RefreshPlaneNormals;
 
     function VertCount: Integer;
     function TriCount: Integer;
@@ -224,6 +231,24 @@ begin
   GridInsert(Result);
 end;
 
+function TCadMesh.AddVertexRaw(const P: TCadVec3): Integer;
+begin
+  if FVertCount >= Length(FVerts) then
+  begin
+    SetLength(FVerts, Max(64, Length(FVerts) * 2));
+    SetLength(FNext, Length(FVerts));
+  end;
+  FVerts[FVertCount] := P;
+  Result := FVertCount;
+  Inc(FVertCount);
+  GridInsert(Result);
+end;
+
+procedure TCadMesh.SetVert(I: Integer; const P: TCadVec3);
+begin
+  FVerts[I] := P;
+end;
+
 function TCadMesh.AddFace(const AInfo: TCadFaceInfo): Integer;
 begin
   Result := FaceIndex(AInfo.Name);
@@ -315,6 +340,37 @@ begin
   for I := 0 to High(FFaces) do
     if FFaces[I].Surf = skPlane then
       FFaces[I].Axis := VNeg(FFaces[I].Axis);
+end;
+
+procedure TCadMesh.RefreshPlaneNormals;
+var
+  Sum: array of TCadVec3;
+  First: array of Integer;
+  I: Integer;
+  T: TCadTri;
+  C: TCadVec3;
+begin
+  SetLength(Sum, Length(FFaces));
+  SetLength(First, Length(FFaces));
+  for I := 0 to High(FFaces) do
+  begin
+    Sum[I] := V3(0, 0, 0);
+    First[I] := -1;
+  end;
+  for I := 0 to FTriCount - 1 do
+  begin
+    T := FTris[I];
+    C := VCross(VSub(FVerts[T.B], FVerts[T.A]), VSub(FVerts[T.C], FVerts[T.A]));
+    Sum[T.Face] := VAdd(Sum[T.Face], C);
+    if First[T.Face] < 0 then
+      First[T.Face] := T.A;
+  end;
+  for I := 0 to High(FFaces) do
+    if (FFaces[I].Surf = skPlane) and (VLen(Sum[I]) > 1E-14) then
+    begin
+      FFaces[I].Axis := VNorm(Sum[I]);
+      FFaces[I].Origin := FVerts[First[I]];
+    end;
 end;
 
 function TCadMesh.VertCount: Integer;
