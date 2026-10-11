@@ -30,7 +30,7 @@ documento, *feature* e *sketch*.
 | 5B Furo, padrões, espelho | concluída (11/10) | Desfazer/refazer (Ctrl+Z / Ctrl+Y), assistente de furo com tabelas ISO (`multicad_threads`, `multicad_hole`), padrão linear, padrão circular e espelhar (`multicad_pattern`), rosca cosmética na vista, filete/chanfro de esboço pela seleção com prévia (BUG-017). |
 | 6 Filete, chanfro, casca | concluída (11/10) | `multicad_blend` (Filete, Chanfro com distância igual, distância-distância e ângulo-distância, Casca para dentro/fora), `multicad_blendgeom` (arestas da malha entre faces rotuladas, ferramenta de seção tangente varrida na aresta reta ou revolucionada na circular, malha deslocada da casca), seleção de arestas na vista (perto da borda da face, destaque azul/laranja), PropertyManager com lista de itens e prévia do material tirado/acrescentado com o modelo antes da operação. Booleana: ordem da árvore BSP pelos planos de maior área (10x mais rápida), tentativas sem picar polígonos longe da interseção e com faces curvas planificadas. |
 | 7 Desenho 2D | pendente | |
-| 8 OpenCascade | em andamento (11/10) | Ponte C `occt/mcad_occt` (OCCT 7.6.3) carregada em tempo de execução; sem ela segue o núcleo Pascal. Corpos com sólido B-Rep exato e nome de cada face pelo histórico; extrusão, revolução, furos e padrões com ferramentas exatas (inclinação, recorte e tampas vão pela malha como sólido poliédrico); filete, chanfro e casca do OCCT em qualquer aresta; furos que se cruzam; volume exato; Importar/Exportar STEP; alternar núcleo em Ferramentas. 584 checks com OCCT, 568 sem. Falta: DLL Win64 e instalador. |
+| 8 OpenCascade | concluída (11/10) | Ponte C `occt/mcad_occt` (OCCT 7.6.3) carregada em tempo de execução; sem ela segue o núcleo Pascal. Corpos com sólido B-Rep exato e nome de cada face pelo histórico; extrusão, revolução, furos e padrões com ferramentas exatas (inclinação, recorte e tampas vão pela malha como sólido poliédrico); filete, chanfro e casca do OCCT em qualquer aresta; furos que se cruzam; volume exato; Importar/Exportar STEP; alternar núcleo em Ferramentas. 584 checks com OCCT (Linux e Win64 no Wine), 568 sem. `bin/mcad_occt.dll` (28 MB, OCCT estático, só DLLs do Windows) vai no instalador. |
 
 ## Decisões (aprovadas em 09/10/2026)
 
@@ -350,8 +350,8 @@ Como ficou (fase 3):
 - [x] `mcad_occt` (DLL/SO com API C); STEP ler/gravar, filete e casca gerais
       (`multicad_occt.pas`, carga dinâmica; `MULTICAD_KERNEL=pascal` desliga).
 - [x] Linux: `occt/build_linux.sh` com `libocct-*-dev` (CI compila e testa com OCCT).
-- [ ] Win64: `occt/build_win64.sh` (OCCT estático com MinGW, uma DLL só) e
-      `bin/mcad_occt.dll` no instalador (`build_release.ps1` e `multisuite.iss` já copiam).
+- [x] Win64: `occt/build_win64.sh` (OCCT 7.6.3 estático com MinGW, uma DLL só, 28 MB) e
+      `bin/mcad_occt.dll` no instalador (`build_release.ps1` e `multisuite.iss`).
 - Limites: inclinação na extrusão, recorte por superfície inclinada e tampas do recurso
   fino viram ferramenta poliédrica (facetas); o núcleo Pascal continua como reserva.
 
