@@ -37,7 +37,7 @@ MultiCAD (peça) ──> MultiAssembly (montagem) ──> MultiPhysics (simulaç
 | **MakeRouter** | madeira e letreiros: desenho 2D, relevo e percursos no mesmo programa | não tem sólido B-rep nem histórico de operações |
 | **MultiCAM** | simulação da máquina e CAM de peças mecânicas | recebe a geometria do MultiCAD |
 | **MultiAssembly** | junta peças, placas, motores e sensores | usa as peças do MultiCAD |
-| **MakePCB / MultiPCB** | placas de circuito | outra linha de projeto |
+| **MakePCB** | placas de circuito | outra linha de projeto |
 
 ## Telas previstas (padrão visual da suíte)
 

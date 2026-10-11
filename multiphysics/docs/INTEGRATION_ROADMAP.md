@@ -25,16 +25,16 @@
 - instrumentos e gravador CSV;
 - interface de cargas runtime -> solver FEM/CFD;
 - CNC virtual de referencia.
-- exportacao da netlist real TPCBProject do MultiPCB;
-- merge por ID/refdes entre MultiPCB e MultiAssembly;
+- contrato eletrico unificado independente do editor de placas;
+- importacao da montagem e complemento dos dominios no contrato unificado;
 - importacao do contrato unificado para o grafo MultiPhysics.
 
 ## Solver de circuitos e integradores
 - `multiphysics_circuit_newton`: MNA com Newton-Raphson global, limitacao de juncao (pnjlim), gmin stepping, source stepping, transitorio trapezoidal ou Euler implicito, fontes senoidais, diodo e NMOS nivel 1.
 - `multiphysics_ode`: RK4, Dormand-Prince 5(4) adaptativo com FSAL, Velocity Verlet e Euler simpletico.
 
-## MultiPCB
-A integracao deve exportar a netlist real do modelo do MultiPCB para o contrato unificado. Nao criar uma segunda copia do esquema. O ID/refdes deve ser preservado.
+## MakePCB (integracao futura)
+O exportador de componentes e redes do MakePCB para o contrato unificado ainda precisa ser implementado. Preservar ID/refdes sem criar uma segunda copia do esquema.
 
 ## MultiAssembly
 As relacoes mecanicas sao exportadas como links rotacionais ou lineares. O proximo refinamento e mapear ratio/pitch e propriedades de inercia para os links.

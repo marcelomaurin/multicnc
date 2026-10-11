@@ -15,6 +15,19 @@ ferramentas, paleta de camadas, Cuts/Layers) e a tabela de camadas do RDWorks.
 
 O LaserArt prepara o trabalho. O MultiCNC controla a maquina.
 
+## Mesa e equipamentos do MultiCNC
+
+No botão **Mesa**, o combobox **Laser salvo no MultiCNC** lista os equipamentos
+do tipo laser cadastrados em AppData/Maurinsoft/MultiCNC/multicnc.json,
+incluindo CUSTOM. Selecione o nome e clique em **Aplicar**: a mesa do desenho
+recebe a área X/Y salva e a visualização se ajusta ao novo tamanho.
+As dimensões passam a fazer parte do projeto LaserArt e podem ser desfeitas.
+
+A opção **Ajuste manual** continua disponível. O S máximo ($30) é mantido e
+editável: ele não é inferido da potência em watts nem do nome do equipamento.
+Cadastros sem área válida não aparecem; cadastro ausente ou inválido permite
+continuar com o ajuste manual.
+
 ## Seguranca
 Potencia e velocidade nao sao universais. Camadas novas comecam zeradas e o
 G-code so e gerado com camadas calibradas para a maquina e o material. O
@@ -28,5 +41,5 @@ LaserArt nao abre porta serial e nao liga o laser.
 - `docs/`: `LASERART_PLANO.md` (estado e proximos passos) e `AI_GUIDE.md`.
 
 ## Compilar
-Abrir `src/app/laserart.lpi` no Lazarus. Depende apenas de
+Abrir `src/app/laserart.lpi` no Lazarus. Depende dos módulos da suíte: cadastro em src/core,
 `multisuite/src/core` e `src/shared` (nao usa o pacote CHATGPT).

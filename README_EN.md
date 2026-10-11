@@ -25,7 +25,7 @@ IDEA → DESIGN → SIMULATION → PREPARATION → VALIDATION → MANUFACTURING
 - **MultiCAD:** geometric design and preparation
 - **MultiCAM:** toolpath and manufacturing preparation
 - **MultiSlicer:** 3D-print preparation
-- **MultiPCB / MakePCB / LaserPCB:** PCB design and fabrication (MakePCB: board from scratch, PCB Wizard style, Gerber + Excellon for LaserPCB)
+- **MakePCB / LaserPCB:** PCB design and fabrication (MakePCB: board from scratch, PCB Wizard style, Gerber + Excellon for LaserPCB)
 - **RouterPCB:** PCB milling on the CNC Router (V-bit isolation, drilling, board cutout with tabs, probing/autolevel) from the MakePCB Gerber + Excellon folder. See [routerpcb/README.md](routerpcb/README.md)
 - **MakeRouter** *(first 2.5D version)*: design and machine wood parts on the CNC Router (drawing, relief, toolpaths, simulation), Aspire-style workflow; G-code with a virtual zero that MultiCNC positions. See [makerouter/README.md](makerouter/README.md)
 - **MultiAssembly:** mechanical and electronic assembly integration

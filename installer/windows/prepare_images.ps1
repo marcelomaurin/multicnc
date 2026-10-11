@@ -1,4 +1,4 @@
-param([string]$OutputDirectory, [string]$Version = '0.06')
+param([string]$OutputDirectory, [string]$Version = '0.07')
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
@@ -28,5 +28,5 @@ function MakeImage($Source, $Destination, $Width, $Height, $Heading, $Subheading
   } finally { $g.Dispose(); $bitmap.Dispose(); $original.Dispose(); $font.Dispose(); $small.Dispose(); $white.Dispose() }
 }
 MakeImage 'tres_maquinas_3d.png' 'welcome.bmp' 246 471 "MultiSuite $Version" 'Projetar, preparar, simular e fabricar.'
-$files = @('multicnc_novo_layout.png', 'Makepcb01.png', 'Makerouter01.png', 'simucnc_router_ao_vivo.png')
+$files = @('multicnc_novo_layout.png', 'Makepcb01.png', 'Makerouter01.png', 'simucnc_router_ao_vivo.png', 'Laserpcb01.png', 'Laserart01.png')
 for ($i=0; $i -lt $files.Count; $i++) { MakeImage $files[$i] ("slide$i.bmp") 900 350 '' '' }

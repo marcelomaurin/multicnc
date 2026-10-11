@@ -7,7 +7,7 @@ uses
   multicam_types, multicam_job, multicam_gcode,
   multislicer_types, multislicer_mesh, multislicer_stl, multislicer_engine,
   multislicer_profile, multislicer_gcode,
-  multipcb_types, multipcb_model, multipcb_gcode, multipcb_excellon,
+  makepcb_model, makepcb_library, makepcb_gerber,
   laserpcb_types, laserpcb_job, laserpcb_gcode, laserpcb_svg,
   multicnc_visualizer;
 
@@ -96,20 +96,19 @@ begin
   end;
 end;
 
-procedure TestMultiPCB;
-var P: TPCBProject; C: TPCBComponent;
+procedure TestMakePCB;
+var D: TMPDocument; Lib: TMPLibrary; Files: TStringList;
+  Options: TMPFabOptions; I: Integer;
 begin
-  P := TPCBProject.Create;
+  D := TMPDocument.Create; Lib := TMPLibrary.Create; Files := TStringList.Create;
   try
-    P.BoardWidth := 50.5; P.BoardHeight := 30.25;
-    C := P.AddComponent('R1', '1k', '', '');
-    C.X := 10.5; C.Y := 5.25;
-    SetLength(C.Pads, 1); C.Pads[0].Position.X := 1.27; C.Pads[0].Position.Y := 0; C.Pads[0].Drill := 0.8;
-    TGCodeExporter.ExportOutline(P, Dir + 'outline.nc', -1.6, 300);
-    CheckNoDecimalComma(Dir + 'outline.nc', 'MultiPCB contorno');
-    TExcellonExporter.ExportDrill(P, Dir + 'drill.drl');
-    CheckNoDecimalComma(Dir + 'drill.drl', 'MultiPCB Excellon');
-  finally P.Free; end;
+    D.BoardW := 50.5; D.BoardH := 30.25;
+    D.AddComponent(Lib.Find('Resistor 0.4 pol'), 10.5, 5.25);
+    Options := MPDefaultFabOptions(Dir, 'board');
+    MPExportFabrication(D, Options, Files);
+    Check(Files.Count > 0, 'MakePCB exportou fabricacao');
+    for I := 0 to Files.Count - 1 do CheckNoDecimalComma(Files[I], 'MakePCB fabricacao');
+  finally Files.Free; D.Free; Lib.Free; end;
 end;
 
 procedure TestLaser;
@@ -151,7 +150,7 @@ begin
   TestParsing;
   TestMultiCAM;
   TestMultiSlicer;
-  TestMultiPCB;
+  TestMakePCB;
   TestLaser;
   TestVisualizer;
   if Failures > 0 then begin Writeln(Failures, ' falha(s)'); Halt(1); end;

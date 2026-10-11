@@ -19,7 +19,7 @@ Nao substitui modelos de motores reais sem parametrizacao.
 Resultados permanecem de fidelidade ESTIMATIVA ate validacao.
 
 ## Evolucao
-- grafo de componentes e nets importado do MultiPCB;
+- grafo de componentes e conexoes do contrato unificado;
 - fontes, resistores, capacitores, indutores, diodos, MOSFETs, relés;
 - stepper, servo, BLDC, spindle;
 - engrenagem, correia, fuso, mola, amortecedor e junta;
@@ -35,4 +35,4 @@ Dominios de porta atuais: eletrico, mecanico rotacional, termico e sinal.
 Biblioteca inicial: fonte, driver PWM, motor DC, carga/eixo, sensor de velocidade e controlador.
 A demonstracao fecha o ciclo PSU -> driver -> motor -> carga e motor -> sensor -> controlador -> driver.
 
-O grafo e a base para importar no futuro a conectividade do MultiPCB e os vinculos fisicos do MultiAssembly.
+O grafo e a base para importar no futuro a conectividade do MakePCB (integracao ainda pendente) e os vinculos fisicos do MultiAssembly.

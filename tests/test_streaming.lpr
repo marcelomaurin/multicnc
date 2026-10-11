@@ -6,7 +6,7 @@ program test_streaming;
 uses
   Classes, SysUtils, multisuite_numfmt, multicnc_types, multicnc_interfaces,
   multicnc_machine, multicnc_safety, multicnc_grbl, multicnc_marlin,
-  multicnc_session, multicnc_laser_config;
+  multicnc_session, multicnc_laser_config, multicnc_gcode_analyzer;
 
 type
   { Controladora falsa: guarda o que foi enviado e so responde quando o teste
@@ -534,6 +534,38 @@ begin
   end;
 end;
 
+procedure TestFramingLineCount(ProgramSize: Integer);
+var S: TSimulationSession; F: TFakeController; Source, Frame: TStringList;
+    FN: string; I, Guard, FrameCount: Integer; Bounds: TGCodeBounds;
+begin
+  FN := GetTempFileName(GetTempDir, 'frm');
+  Source := TStringList.Create; Frame := nil; S := TSimulationSession.Create;
+  try
+    Source.Add('G21'); Source.Add('G90');
+    for I := 1 to ProgramSize do Source.Add(Format('G1 X%d Y10 F500', [I]));
+    Source.SaveToFile(FN); S.LoadFile(FN);
+    F := TFakeController.Create;
+    Check(S.ConnectTransport(mtLaser, pkGRBL, F, F), 'Frame: conectar');
+    Bounds := S.Bounds;
+    Frame := TGCodeAnalyzer.BuildFramingGCode(Bounds, 3000, False, 0);
+    FrameCount := Frame.Count;
+    Check(S.RunFraming(Frame), 'Frame: iniciar');
+    Check(S.Count = FrameCount, 'Frame: progresso usa numero de linhas do contorno');
+    Guard := 0;
+    while (S.State = ssRunning) and (Guard < 1000) do
+    begin F.Ack(1); S.Tick; Inc(Guard); end;
+    Check(S.State = ssIdle, 'Frame: termina sem excecao com programa de tamanho diferente');
+    Check(F.Sent.Count = FrameCount, 'Frame: todas e somente as linhas do contorno foram enviadas');
+    if F.Sent.Count = FrameCount then
+      for I := 0 to FrameCount - 1 do
+        Check(F.Sent[I] = Frame[I], 'Frame: ordem preservada linha ' + IntToStr(I));
+    Check(F.Sent.IndexOf('M5') >= 0, 'Frame: desligamento enviado');
+    Check(Pos(#24,F.Realtime) = 0, 'Frame: conclusao nao reinicia o GRBL');
+    Check(S.Count = Source.Count, 'Frame: programa original restaurado');
+    Check(S.ProgramText = Source.Text, 'Frame: fonte original preservado');
+  finally S.Free; Frame.Free; Source.Free; DeleteFile(FN); end;
+end;
+
 begin
   DefaultFormatSettings.DecimalSeparator := ','; { Windows pt-BR }
   TestGRBLCharacterCounting;
@@ -546,6 +578,8 @@ begin
   TestMoveTo;
   TestConsoleLog;
   TestSessionJob;
+  TestFramingLineCount(2);
+  TestFramingLineCount(60);
   TestSessionEndCommands(mtRouter, False, False);
   TestSessionEndCommands(mtRouter, True, False);
   TestSessionEndCommands(mtRouter, False, True);

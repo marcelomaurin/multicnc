@@ -25,7 +25,7 @@ IDÉE → CONCEPTION → SIMULATION → PRÉPARATION → VALIDATION → FABRICAT
 - **MultiCAD :** conception et géométrie
 - **MultiCAM :** préparation des trajectoires
 - **MultiSlicer :** préparation de l’impression 3D
-- **MultiPCB / MakePCB / LaserPCB :** conception et fabrication de PCB (MakePCB : carte à partir de zéro, style PCB Wizard, Gerber + Excellon pour LaserPCB)
+- **MakePCB / LaserPCB :** conception et fabrication de PCB (MakePCB : carte à partir de zéro, style PCB Wizard, Gerber + Excellon pour LaserPCB)
 - **RouterPCB :** fraisage de PCB sur la CNC Router (isolation à la fraise en V, perçage, détourage avec ponts, nivellement par palpage) à partir du dossier Gerber + Excellon du MakePCB. Voir [routerpcb/README.md](routerpcb/README.md)
 - **MakeRouter** *(première version 2,5D)* : conception et usinage de pièces en bois sur la CNC Router (dessin, relief, parcours, simulation), flux de type Aspire ; G-code avec zéro virtuel positionné par le MultiCNC. Voir [makerouter/README.md](makerouter/README.md)
 - **MultiAssembly :** intégration mécanique et électronique

@@ -16,7 +16,7 @@ Unificar componentes mecanicos e eletricos em um mesmo projeto. Um componente po
 - projeto Lazarus independente.
 
 ## Integracao prevista
-MultiCAD fornece geometria/pecas. MultiPCB fornece placas. MultiAssembly define montagem, motores, drivers, fontes, sensores e relacoes. MultiCAM usa a geometria para fabricar. MultiCNC usa o perfil eletromecanico para simulacao e controle.
+MultiCAD fornece geometria/pecas. MakePCB fornece placas. MultiAssembly define montagem, motores, drivers, fontes, sensores e relacoes. MultiCAM usa a geometria para fabricar. MultiCNC usa o perfil eletromecanico para simulacao e controle.
 
 Valores da demonstracao sao ilustrativos e nao devem ser usados como configuracao de seguranca ou potencia de uma maquina real.
 

@@ -1,9 +1,9 @@
 name: MultiCNC Core CI
 on:
   push:
-    paths: ['src/**','multicam/src/**','multislicer/src/**','multipcb/src/**','laserpcb/src/**','laserart/src/core/**','tests/**','.github/workflows/multicnc-core-ci.yml']
+    paths: ['src/**','multicam/src/**','multislicer/src/**','makepcb/src/**','laserpcb/src/**','laserart/src/core/**','tests/**','.github/workflows/multicnc-core-ci.yml']
   pull_request:
-    paths: ['src/**','multicam/src/**','multislicer/src/**','multipcb/src/**','laserpcb/src/**','laserart/src/core/**','tests/**']
+    paths: ['src/**','multicam/src/**','multislicer/src/**','makepcb/src/**','laserpcb/src/**','laserart/src/core/**','tests/**']
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -19,7 +19,8 @@ jobs:
           fpc $U -FU/tmp/cnc -FE/tmp/cnc tests/test_simulator.lpr && /tmp/cnc/test_simulator
           fpc $U -FU/tmp/cnc -FE/tmp/cnc tests/test_grbl_regressions.lpr && /tmp/cnc/test_grbl_regressions
           fpc $U -FU/tmp/cnc -FE/tmp/cnc tests/test_router_profiles.lpr && /tmp/cnc/test_router_profiles
-          U="$U -Fumulticam/src/core -Fumulticam/src/export -Fumultislicer/src/core -Fumultislicer/src/import -Fumultislicer/src/export -Fumultipcb/src/core -Fumultipcb/src/export -Fulaserpcb/src/core -Fulaserpcb/src/export -Fulaserpcb/src/import"
+          fpc $U -FU/tmp/cnc -FE/tmp/cnc tests/test_laser_profiles.lpr && /tmp/cnc/test_laser_profiles
+          U="$U -Fumulticam/src/core -Fumulticam/src/export -Fumultislicer/src/core -Fumultislicer/src/import -Fumultislicer/src/export -Fumakepcb/src/core -Fumakepcb/src/export -Fulaserpcb/src/core -Fulaserpcb/src/export -Fulaserpcb/src/import"
           LCL=(/usr/lib/lazarus/*/lcl/units/x86_64-linux)
           LAZUTILS=(/usr/lib/lazarus/*/components/lazutils/lib/x86_64-linux)
           U="$U -Fulaserart/src/core -Fu${LCL[0]} -Fu${LCL[0]}/nogui -Fu${LAZUTILS[0]}"

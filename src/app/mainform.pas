@@ -7,7 +7,7 @@ interface
 uses Classes, SysUtils, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls,
   Dialogs, Graphics, Spin, Math, StrUtils, LazUTF8, LCLType, multisuite_numfmt,
   multicnc_types, multicnc_session, multicnc_simulator, multicnc_gcode_analyzer, multicnc_laser_config,
-  multicnc_printer_profiles, multicnc_router_profiles, multicnc_equipment, ailistserialdevices, multisuite_icons,
+  multicnc_printer_profiles, multicnc_router_profiles, multicnc_laser_profiles, multicnc_equipment, ailistserialdevices, multisuite_icons,
   multisuite_controls, multisuite_gcode_writer, multicnc_preview;
 
 type
@@ -42,7 +42,7 @@ type
     SerialDeviceList: TAIListSerialDevices;
     CommunicationMode: TComboBox;
     SerialPanel, TCPPanel: TPanel;
-    BtnConnect, BtnOpen, BtnFraming, BtnStart, BtnPause, BtnResume, BtnStop,
+    BtnConnect, BtnOpen, BtnFraming, BtnStart, BtnPause, BtnResume, BtnOutline, BtnStop,
       BtnHome, BtnSetHome, BtnPhysicalHome, BtnZero, BtnStatus, BtnUnlock, BtnSend: TSuiteButton;
       BtnGoTo: TSuiteButton;
     JogButtons: array[0..5] of TSuiteButton;
@@ -86,6 +86,16 @@ type
 
     { Laser UI controls }
     LaserContainer: TPanel;
+    GbLaserProfile: TGroupBox;
+    LaserBrandCombo, LaserModelCombo: TComboBox;
+    LaserSpecsLabel: TLabel;
+    SpLaserX, SpLaserY: TFloatSpinEdit;
+    FUpdatingLaserSettings, FUpdatingCustomLaser: Boolean;
+    LaserCustomPanel: TPanel;
+    LaserCustomManufacturer, LaserCustomModel: TEdit;
+    LaserOpticalPower: TFloatSpinEdit;
+    LaserWavelength: TSpinEdit;
+    LaserHasHoming: TCheckBox;
     GbWork, GbPower, GbSpeed, GbCut, GbDot, GbAir, GbControl: TGroupBox;
     RbModeCut, RbModeEngrave, RbModePerforate: TRadioButton;
     SpLaserPower, SpLaserMinPower, SpLaserMaxPower, SpLaserMaxS: TSpinEdit;
@@ -137,6 +147,7 @@ type
     procedure OpenClick(Sender: TObject);
     procedure CommandClick(Sender: TObject);
     procedure FramingClick(Sender: TObject);
+    procedure OutlineClick(Sender: TObject);
     procedure JogClick(Sender: TObject);
     procedure Tick(Sender: TObject);
     procedure Log(const AText: string);
@@ -145,6 +156,10 @@ type
     function AskTargetPosition(var AX, AY, AZ: Double): Boolean;
     procedure FeedRateChanged(Sender: TObject);
     procedure Closing(Sender: TObject; var CanClose: Boolean);
+    procedure LaserBrandChanged(Sender: TObject);
+    procedure LaserModelChanged(Sender: TObject);
+    procedure LaserTravelChanged(Sender: TObject);
+    procedure CustomLaserChanged(Sender: TObject);
     procedure LaserParamChanged(Sender: TObject);
     procedure SyncLaserSettingsToUI;
     procedure SyncLaserSettingsFromUI;
@@ -222,28 +237,31 @@ end;
 { Distribui os botoes visiveis da barra de acoes; a parada de emergencia
   fica isolada a direita. }
 procedure TMainForm.LayoutActions;
-var
-  X: Integer;
-
+var X, Y, Extra: Integer;
+  procedure NextRow;
+  begin X := 16; Inc(Y, 46); end;
   procedure Place(B: TSuiteButton; AGapAfter: Integer);
   begin
     if (B = nil) or not B.Visible then Exit;
-    B.Left := X;
-    B.Top := 14;
-    X := X + B.Width + AGapAfter;
+    if X + B.Width > ActionsBar.ClientWidth - 16 then NextRow;
+    B.Left := X; B.Top := Y;
+    Inc(X, B.Width + AGapAfter);
   end;
-
 begin
   if (ActionsBar = nil) or (BtnStop = nil) then Exit;
-  X := 16;
-  Place(BtnOpen, 8);
-  Place(BtnFraming, 8);
-  X := X + 12;
-  Place(BtnStart, 8);
-  Place(BtnPause, 8);
-  Place(BtnResume, 8);
-  BtnStop.Top := 14;
+  X := 16; Y := 14;
+  Place(BtnOpen, 8); Place(BtnFraming, 8); Inc(X, 12);
+  Place(BtnStart, 8); Place(BtnPause, 8); Place(BtnResume, 8);
+  if Assigned(BtnOutline) and BtnOutline.Visible and
+     (X + BtnOutline.Width + BtnStop.Width + 36 > ActionsBar.ClientWidth) then NextRow;
+  Place(BtnOutline, 8);
+  if X + 12 + BtnStop.Width > ActionsBar.ClientWidth - 16 then NextRow;
+  BtnStop.Top := Y;
   BtnStop.Left := Max(X + 12, ActionsBar.ClientWidth - BtnStop.Width - 16);
+  Extra := Y - 14;
+  if Assigned(FileLabel) then FileLabel.Top := 60 + Extra;
+  if Assigned(ProgramInfoLabel) then ProgramInfoLabel.Top := 78 + Extra;
+  if ActionsBar.Height <> 100 + Extra then ActionsBar.Height := 100 + Extra;
 end;
 
 procedure TMainForm.FooterResize(Sender: TObject);
@@ -551,6 +569,12 @@ begin
   BtnResume := ButtonAt(Actions, 'Resume', 0, 14, 110, @CommandClick);
   BtnResume.Height := 38;
   BtnResume.SetLook(sbsSoft, clSuitePrimary, sikPlay);
+  BtnOutline := ButtonAt(Actions, 'Outline', 0, 14, 110, @OutlineClick);
+  BtnOutline.Name := 'Outline';
+  BtnOutline.Height := 38;
+  BtnOutline.SetLook(sbsOutline, clSuiteInfo, sikFrame);
+  BtnOutline.Hint := 'Trace the program XY limits with laser OFF; automatic feed targets 8 seconds including approach. Firmware limits may extend this time.';
+  BtnOutline.ShowHint := True;
   BtnStop := ButtonAt(Actions, 'Emergency Stop', 0, 14, 168, @CommandClick);
   BtnStop.Height := 38;
   BtnStop.SetLook(sbsSolid, clSuiteDanger, sikStop);
@@ -875,10 +899,91 @@ begin
       PrinterModelCombo.ItemIndex := 0;
   end;
 
+  { Laser Brand & Model Profile, matching router/printer layout. }
+  GbLaserProfile := TGroupBox.Create(Self);
+  GbLaserProfile.Parent := ConfigScrollBox;
+  GbLaserProfile.Caption := 'Laser Brand && Model Profile';
+  GbLaserProfile.SetBounds(15, 120, 715, 365);
+  GbLaserProfile.Visible := False;
+  LabelAt(GbLaserProfile, 'Brand:', 15, 8);
+  LaserBrandCombo := TComboBox.Create(Self);
+  LaserBrandCombo.Name := 'LaserBrand';
+  LaserBrandCombo.Parent := GbLaserProfile;
+  LaserBrandCombo.SetBounds(15, 30, 220, 30);
+  LaserBrandCombo.Style := csDropDownList;
+  LaserBrandCombo.OnChange := @LaserBrandChanged;
+  LabelAt(GbLaserProfile, 'Model:', 250, 8);
+  LaserModelCombo := TComboBox.Create(Self);
+  LaserModelCombo.Name := 'LaserModel';
+  LaserModelCombo.Parent := GbLaserProfile;
+  LaserModelCombo.SetBounds(250, 30, 440, 30);
+  LaserModelCombo.Style := csDropDownList;
+  LaserModelCombo.OnChange := @LaserModelChanged;
+  LabelAt(GbLaserProfile, 'Work area X / Y (mm) - adjust to your machine; Z focus is manual:', 15, 68);
+  SpLaserX := NewTravelSpin(GbLaserProfile, 0, 'X travel (mm)');
+  SpLaserX.Name := 'LaserWorkX'; SpLaserX.OnChange := @LaserTravelChanged;
+  SpLaserY := NewTravelSpin(GbLaserProfile, 1, 'Y travel (mm)');
+  SpLaserY.Name := 'LaserWorkY'; SpLaserY.OnChange := @LaserTravelChanged;
+  LaserSpecsLabel := TLabel.Create(Self);
+  LaserSpecsLabel.Name := 'LaserSpecs';
+  LaserSpecsLabel.Parent := GbLaserProfile;
+  LaserSpecsLabel.AutoSize := False;
+  LaserSpecsLabel.WordWrap := True;
+  LaserSpecsLabel.ShowAccelChar := False;
+  LaserSpecsLabel.SetBounds(15, 130, 680, 210);
+  LaserSpecsLabel.Font.Size := 9;
+  LaserCustomPanel := TPanel.Create(Self);
+  LaserCustomPanel.Parent := GbLaserProfile;
+  LaserCustomPanel.SetBounds(10, 125, 690, 120);
+  LaserCustomPanel.BevelOuter := bvNone;
+  LaserCustomPanel.Visible := False;
+  LabelAt(LaserCustomPanel, 'Manufacturer (optional):', 5, 0);
+  LaserCustomManufacturer := TEdit.Create(Self);
+  LaserCustomManufacturer.Name := 'LaserCustomManufacturer';
+  LaserCustomManufacturer.Parent := LaserCustomPanel;
+  LaserCustomManufacturer.SetBounds(5, 22, 300, 26);
+  LaserCustomManufacturer.Text := '';
+  LaserCustomManufacturer.MaxLength := 120;
+  LaserCustomManufacturer.OnChange := @CustomLaserChanged;
+  LabelAt(LaserCustomPanel, 'Model (optional):', 335, 0);
+  LaserCustomModel := TEdit.Create(Self);
+  LaserCustomModel.Name := 'LaserCustomModel';
+  LaserCustomModel.Parent := LaserCustomPanel;
+  LaserCustomModel.SetBounds(335, 22, 335, 26);
+  LaserCustomModel.Text := '';
+  LaserCustomModel.MaxLength := 120;
+  LaserCustomModel.OnChange := @CustomLaserChanged;
+  LabelAt(LaserCustomPanel, 'Optical power (W):', 5, 55);
+  LaserOpticalPower := TFloatSpinEdit.Create(Self);
+  LaserOpticalPower.Name := 'LaserOpticalPowerW';
+  LaserOpticalPower.Parent := LaserCustomPanel;
+  LaserOpticalPower.SetBounds(5, 77, 150, 28);
+  LaserOpticalPower.DecimalPlaces := 2;
+  LaserOpticalPower.MinValue := 0; LaserOpticalPower.MaxValue := 1000;
+  LaserOpticalPower.Increment := 0.5;
+  LaserOpticalPower.OnChange := @CustomLaserChanged;
+  LabelAt(LaserCustomPanel, 'Wavelength (nm; 0 = unknown):', 180, 55);
+  LaserWavelength := TSpinEdit.Create(Self);
+  LaserWavelength.Name := 'LaserWavelengthNM';
+  LaserWavelength.Parent := LaserCustomPanel;
+  LaserWavelength.SetBounds(180, 77, 150, 28);
+  LaserWavelength.MinValue := 0; LaserWavelength.MaxValue := 20000;
+  LaserWavelength.OnChange := @CustomLaserChanged;
+  LaserHasHoming := TCheckBox.Create(Self);
+  LaserHasHoming.Name := 'LaserHasHoming';
+  LaserHasHoming.Parent := LaserCustomPanel;
+  LaserHasHoming.SetBounds(360, 77, 310, 28);
+  LaserHasHoming.Caption := 'Physical homing switches installed';
+  LaserHasHoming.OnChange := @CustomLaserChanged;
+  GetLaserBrands(LaserBrandCombo.Items);
+  LaserBrandCombo.ItemIndex := 0;
+  GetLaserModels(LaserBrandCombo.Text, LaserModelCombo.Items);
+  LaserModelCombo.ItemIndex := 0;
+
   { Laser Container inside Config }
   LaserContainer := TPanel.Create(Self);
   LaserContainer.Parent := ConfigScrollBox;
-  LaserContainer.SetBounds(0, 115, 740, 750);
+  LaserContainer.SetBounds(0, 495, 740, 750);
   LaserContainer.BevelOuter := bvNone;
   LaserContainer.Visible := False;
 
@@ -911,6 +1016,7 @@ begin
   GbPower.SetBounds(350, 5, 340, 185);
   LabelAt(GbPower, 'Laser power (%):', 15, 10);
   SpLaserPower := TSpinEdit.Create(Self);
+  SpLaserPower.Name := 'LaserPowerPercent';
   SpLaserPower.Parent := GbPower;
   SpLaserPower.SetBounds(210, 6, 110, 26);
   SpLaserPower.MinValue := 0; SpLaserPower.MaxValue := 100; SpLaserPower.Value := 70;
@@ -944,6 +1050,7 @@ begin
   GbSpeed.SetBounds(15, 140, 320, 185);
   LabelAt(GbSpeed, 'Engraving:', 15, 10);
   SpSpeedEngrave := TSpinEdit.Create(Self);
+  SpSpeedEngrave.Name := 'LaserEngraveFeed';
   SpSpeedEngrave.Parent := GbSpeed;
   SpSpeedEngrave.SetBounds(190, 6, 115, 26);
   SpSpeedEngrave.MinValue := 1; SpSpeedEngrave.MaxValue := 50000; SpSpeedEngrave.Value := 3000;
@@ -1223,7 +1330,7 @@ begin
   EquipmentGroup.SetBounds(15, 10, 715, 140);
   EquipmentGroup.Hint := 'Arquivo do cadastro: ' + EquipmentStore.FileName;
   EquipmentGroup.ShowHint := True;
-  LabelAt(EquipmentGroup, 'Dê um nome à configuração atual', 15, 5);
+  LabelAt(EquipmentGroup, 'DÃƒÆ’Ã‚Âª um nome ÃƒÆ’Ã‚Â  configuraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o atual', 15, 5);
   EquipmentCombo := TComboBox.Create(Self);
   EquipmentCombo.Name := 'SavedEquipment';
   EquipmentCombo.Parent := HeaderBar;
@@ -1301,6 +1408,19 @@ begin
   end
   else
   begin
+    if Result.MachineType = mtLaser then
+    begin
+      Result.Brand := LaserBrandCombo.Text;
+      Result.Model := LaserModelCombo.Text;
+      if SameText(Result.Brand, 'CUSTOM') then
+      begin
+        Result.LaserManufacturer := Trim(LaserCustomManufacturer.Text);
+        Result.LaserModelName := Trim(LaserCustomModel.Text);
+        Result.LaserOpticalPowerW := LaserOpticalPower.Value;
+        Result.LaserWavelengthNM := LaserWavelength.Value;
+        Result.LaserHasHoming := LaserHasHoming.Checked;
+      end;
+    end;
     if Result.MachineType = mtPrinter3D then
     begin
       Result.Brand := PrinterBrandCombo.Text;
@@ -1311,7 +1431,7 @@ begin
 end;
 
 procedure TMainForm.ApplyEquipment(const Profile: TEquipmentProfile);
-var Router: TRouterProfile; Printer: TPrinterProfile;
+var Router: TRouterProfile; Printer: TPrinterProfile; Laser: TLaserProfile;
 begin
   if Session.Connected then raise Exception.Create('Desconecte o equipamento atual para escolher outro.');
   ValidateEquipment(Profile);
@@ -1322,12 +1442,28 @@ begin
   if (Profile.MachineType = mtPrinter3D) and
      not FindPrinterProfile(Profile.Brand, Profile.Model, Printer) then
     raise Exception.Create('O perfil de impressora salvo nao esta disponivel nesta versao.');
+  if (Profile.MachineType = mtLaser) and
+     ((Profile.Brand <> '') or (Profile.Model <> '')) and
+     not FindLaserProfile(Profile.Brand, Profile.Model, Laser) then
+    raise Exception.Create('O perfil de laser salvo nao esta disponivel nesta versao.');
   MachineType.ItemIndex := Ord(Profile.MachineType);
   if Profile.MachineType = mtRouter then
   begin
     RouterBrandCombo.ItemIndex := RouterBrandCombo.Items.IndexOf(Profile.Brand);
     GetRouterModels(Profile.Brand, RouterModelCombo.Items);
     RouterModelCombo.ItemIndex := RouterModelCombo.Items.IndexOf(Profile.Model);
+  end
+  else if Profile.MachineType = mtLaser then
+  begin
+    { Cadastros anteriores nÃƒÆ’Ã‚Â£o tinham marca/modelo para laser. }
+    if (Profile.Brand = '') and (Profile.Model = '') then
+      LaserBrandCombo.ItemIndex := LaserBrandCombo.Items.IndexOf('Generic')
+    else LaserBrandCombo.ItemIndex := LaserBrandCombo.Items.IndexOf(Profile.Brand);
+    GetLaserModels(LaserBrandCombo.Text, LaserModelCombo.Items);
+    if Profile.Model = '' then LaserModelCombo.ItemIndex := 0
+    else LaserModelCombo.ItemIndex := LaserModelCombo.Items.IndexOf(Profile.Model);
+    if LaserModelCombo.ItemIndex >= 0 then
+      LaserModelCombo.Text := LaserModelCombo.Items[LaserModelCombo.ItemIndex];
   end
   else if Profile.MachineType = mtPrinter3D then
   begin
@@ -1351,6 +1487,29 @@ begin
   if Profile.MachineType = mtRouter then
   begin
     SpRouterX.Value := Profile.WorkX; SpRouterY.Value := Profile.WorkY; SpRouterZ.Value := Profile.WorkZ;
+  end;
+  if Profile.MachineType = mtLaser then
+  begin
+    SpLaserX.OnChange := nil; SpLaserY.OnChange := nil;
+    try
+      SpLaserX.Value := Profile.WorkX; SpLaserY.Value := Profile.WorkY;
+    finally
+      SpLaserX.OnChange := @LaserTravelChanged; SpLaserY.OnChange := @LaserTravelChanged;
+    end;
+  end;
+  if (Profile.MachineType = mtLaser) and SameText(Profile.Brand, 'CUSTOM') then
+  begin
+    FUpdatingCustomLaser := True;
+    try
+      LaserCustomManufacturer.Text := Profile.LaserManufacturer;
+      LaserCustomModel.Text := Profile.LaserModelName;
+      LaserOpticalPower.Value := Profile.LaserOpticalPowerW;
+      LaserWavelength.Value := Profile.LaserWavelengthNM;
+      LaserHasHoming.Checked := Profile.LaserHasHoming;
+    finally
+      FUpdatingCustomLaser := False;
+    end;
+    CustomLaserChanged(nil);
   end;
   Session.SetWorkEnvelope(Profile.WorkX, Profile.WorkY, Profile.WorkZ);
   EquipmentName.Text := Profile.Name;
@@ -1484,6 +1643,82 @@ begin
   Result.Hint := AHint + ': useful travel that limits jog and moves.';
   Result.ShowHint := True;
   Result.OnChange := @RouterTravelChanged;
+end;
+
+procedure TMainForm.LaserBrandChanged(Sender: TObject);
+begin
+  if Session.Connected then Exit;
+  GetLaserModels(LaserBrandCombo.Text, LaserModelCombo.Items);
+  if LaserModelCombo.Items.Count > 0 then
+  begin
+    LaserModelCombo.ItemIndex := 0;
+    LaserModelCombo.Text := LaserModelCombo.Items[0];
+    LaserModelChanged(nil);
+  end;
+end;
+
+procedure TMainForm.LaserModelChanged(Sender: TObject);
+var P: TLaserProfile;
+begin
+  if Session.Connected then Exit;
+  if not FindLaserProfile(LaserBrandCombo.Text, LaserModelCombo.Text, P) then Exit;
+  LaserCustomPanel.Visible := SameText(P.Brand, 'CUSTOM');
+  if LaserCustomPanel.Visible then
+  begin
+    GbLaserProfile.Height := 485;
+    LaserSpecsLabel.Top := 250;
+  end
+  else
+  begin
+    GbLaserProfile.Height := 365;
+    LaserSpecsLabel.Top := 130;
+  end;
+  LaserContainer.Top := GbLaserProfile.Top + GbLaserProfile.Height + 10;
+  BaudCombo.Text := IntToStr(P.BaudRate);
+  ProtocolType.ItemIndex := 0;
+  SpLaserX.OnChange := nil; SpLaserY.OnChange := nil;
+  try
+    SpLaserX.Value := P.WorkX; SpLaserY.Value := P.WorkY;
+  finally
+    SpLaserX.OnChange := @LaserTravelChanged; SpLaserY.OnChange := @LaserTravelChanged;
+  end;
+  Session.SetWorkEnvelope(P.WorkX, P.WorkY, 0);
+  Session.PhysicalHomingAllowed := P.HasHoming;
+  Session.LaserSettings := LaserSettingsForProfile(P);
+  SyncLaserSettingsToUI;
+  LaserSpecsLabel.Caption := LaserProfileSummary(P);
+  LaserSpecsLabel.Hint := P.SourceURL;
+  LaserSpecsLabel.ShowHint := P.SourceURL <> '';
+  if LaserCustomPanel.Visible then CustomLaserChanged(nil);
+  Log(Format('Laser profile applied: %s %s (Area: %.1fx%.1f mm, Baud: %d). Parameters are editable suggestions.',
+    [P.Brand, P.Model, P.WorkX, P.WorkY, P.BaudRate], InvariantFS));
+  UpdateControls;
+end;
+
+procedure TMainForm.LaserTravelChanged(Sender: TObject);
+begin
+  if (MachineType.ItemIndex <> Ord(mtLaser)) or Session.Connected then Exit;
+  Session.SetWorkEnvelope(SpLaserX.Value, SpLaserY.Value, 0);
+  CustomLaserChanged(nil);
+end;
+
+procedure TMainForm.CustomLaserChanged(Sender: TObject);
+var P: TLaserProfile;
+begin
+  if FUpdatingCustomLaser or Session.Connected or
+     (MachineType.ItemIndex <> Ord(mtLaser)) or
+     not SameText(LaserBrandCombo.Text, 'CUSTOM') then Exit;
+  if not FindLaserProfile('CUSTOM', 'CUSTOM Laser', P) then Exit;
+  P.WorkX := SpLaserX.Value; P.WorkY := SpLaserY.Value;
+  P.OpticalPowerW := LaserOpticalPower.Value;
+  P.WavelengthNM := LaserWavelength.Value;
+  P.HasHoming := LaserHasHoming.Checked;
+  P.Notes := 'Dados personalizados informados pelo operador: ' +
+    Trim(LaserCustomManufacturer.Text + ' ' + LaserCustomModel.Text) +
+    '. Salve o equipamento pelo nome para restaurar estes parÃƒÆ’Ã‚Â¢metros.';
+  LaserSpecsLabel.Caption := LaserProfileSummary(P);
+  Session.PhysicalHomingAllowed := P.HasHoming;
+  UpdateControls;
 end;
 
 procedure TMainForm.RouterBrandChanged(Sender: TObject);
@@ -1620,13 +1855,13 @@ begin
   if SpConfigHotendTemp.Value > MaxHotend then
   begin
     SpConfigHotendTemp.Value := MaxHotend;
-    Log(Format('AVISO DE SEGURANÇA: Temperatura do bico limitada a %d C conforme especificações do fabricante.', [MaxHotend]));
+    Log(Format('AVISO DE SEGURANÃƒÆ’Ã¢â‚¬Â¡A: Temperatura do bico limitada a %d C conforme especificaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes do fabricante.', [MaxHotend]));
   end;
 
   if SpConfigBedTemp.Value > MaxBed then
   begin
     SpConfigBedTemp.Value := MaxBed;
-    Log(Format('AVISO DE SEGURANÇA: Temperatura da cama limitada a %d C conforme especificações do fabricante.', [MaxBed]));
+    Log(Format('AVISO DE SEGURANÃƒÆ’Ã¢â‚¬Â¡A: Temperatura da cama limitada a %d C conforme especificaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes do fabricante.', [MaxBed]));
   end;
 
   UpdateControls;
@@ -1653,7 +1888,7 @@ begin
 
   if SpConfigHotendTemp.Value > MaxHotend then
   begin
-    MessageDlg('Bloqueio de Segurança Térmica',
+    MessageDlg('Bloqueio de SeguranÃƒÆ’Ã‚Â§a TÃƒÆ’Ã‚Â©rmica',
       Format('A temperatura solicitada para o bico (%d C) ultrapassa o limite seguro do fabricante (%d C).' + LineEnding +
              'O valor foi corrigido para evitar superaquecimento e queima do bico/extrusor.',
              [SpConfigHotendTemp.Value, MaxHotend]), mtWarning, [mbOK], 0);
@@ -1662,9 +1897,9 @@ begin
 
   if SpConfigBedTemp.Enabled and (SpConfigBedTemp.Value > MaxBed) then
   begin
-    MessageDlg('Bloqueio de Segurança Térmica',
+    MessageDlg('Bloqueio de SeguranÃƒÆ’Ã‚Â§a TÃƒÆ’Ã‚Â©rmica',
       Format('A temperatura solicitada para a cama (%d C) ultrapassa o limite seguro do fabricante (%d C).' + LineEnding +
-             'O valor foi corrigido para evitar danos à cama aquecida.',
+             'O valor foi corrigido para evitar danos ÃƒÆ’Ã‚Â  cama aquecida.',
              [SpConfigBedTemp.Value, MaxBed]), mtWarning, [mbOK], 0);
     SpConfigBedTemp.Value := MaxBed;
   end;
@@ -1694,38 +1929,41 @@ procedure TMainForm.SyncLaserSettingsToUI;
 var S: TLaserSettings;
 begin
   S := Session.LaserSettings;
-  RbModeCut.Checked := S.WorkMode = lwmCut;
-  RbModeEngrave.Checked := S.WorkMode = lwmEngrave;
-  RbModePerforate.Checked := S.WorkMode = lwmPerforate;
-  SpLaserPower.Value := Round(S.LaserPower);
-  SpLaserMinPower.Value := Round(S.MinPower);
-  SpLaserMaxPower.Value := Round(S.MaxPower);
-  SpLaserMaxS.Value := S.MaxS;
-  SpSpeedEngrave.Value := Round(S.EngraveFeed);
-  SpSpeedCut.Value := Round(S.CutFeed);
-  SpSpeedTravel.Value := Round(S.RapidFeed);
-  ChkOverrideSpeed.Checked := S.OverrideSpeeds;
-  SpCutPasses.Value := S.PassCount;
-  SpCutPassPower.Value := Round(S.PassPower);
-  SpCutPassFeed.Value := Round(S.PassFeed);
-  SpCutPassDelay.Value := S.PassPauseMS;
-  SpCutPassZStep.Value := S.PassZStep;
-  SpDotLengthOn.Value := S.PerforateOnLength;
-  SpDotLengthOff.Value := S.PerforateOffLength;
-  SpDotPower.Value := Round(S.PerforatePower);
-  SpDotFeed.Value := Round(S.PerforateFeed);
-  ChkAirAssist.Checked := S.AirAssist;
-  EditAirAssistOn.Text := S.AirAssistOnCmd;
-  EditAirAssistOff.Text := S.AirAssistOffCmd;
-  RbLaserM4.Checked := S.ControlMode = lcmM4Dynamic;
-  RbLaserM3.Checked := S.ControlMode = lcmM3Constant;
-  ChkFramingLaser.Checked := S.FramingLaser;
-  SpFramingPower.Value := Round(S.FramingPower);
-  SpFramingFeed.Value := Round(S.FramingFeed);
-  SpPreFireDelay.Value := S.PreFireMS;
-  SpPostFireDelay.Value := S.PostFireMS;
-  SpKerf.Value := S.Kerf;
-  ChkFrameBeforeStart.Checked := S.FrameBeforeStart;
+  FUpdatingLaserSettings := True;
+  try
+    RbModeCut.Checked := S.WorkMode = lwmCut;
+    RbModeEngrave.Checked := S.WorkMode = lwmEngrave;
+    RbModePerforate.Checked := S.WorkMode = lwmPerforate;
+    SpLaserPower.Value := Round(S.LaserPower);
+    SpLaserMinPower.Value := Round(S.MinPower);
+    SpLaserMaxPower.Value := Round(S.MaxPower);
+    SpLaserMaxS.Value := S.MaxS;
+    SpSpeedEngrave.Value := Round(S.EngraveFeed);
+    SpSpeedCut.Value := Round(S.CutFeed);
+    SpSpeedTravel.Value := Round(S.RapidFeed);
+    ChkOverrideSpeed.Checked := S.OverrideSpeeds;
+    SpCutPasses.Value := S.PassCount;
+    SpCutPassPower.Value := Round(S.PassPower);
+    SpCutPassFeed.Value := Round(S.PassFeed);
+    SpCutPassDelay.Value := S.PassPauseMS;
+    SpCutPassZStep.Value := S.PassZStep;
+    SpDotLengthOn.Value := S.PerforateOnLength;
+    SpDotLengthOff.Value := S.PerforateOffLength;
+    SpDotPower.Value := Round(S.PerforatePower);
+    SpDotFeed.Value := Round(S.PerforateFeed);
+    ChkAirAssist.Checked := S.AirAssist;
+    EditAirAssistOn.Text := S.AirAssistOnCmd;
+    EditAirAssistOff.Text := S.AirAssistOffCmd;
+    RbLaserM4.Checked := S.ControlMode = lcmM4Dynamic;
+    RbLaserM3.Checked := S.ControlMode = lcmM3Constant;
+    ChkFramingLaser.Checked := S.FramingLaser;
+    SpFramingPower.Value := Round(S.FramingPower);
+    SpFramingFeed.Value := Round(S.FramingFeed);
+    SpPreFireDelay.Value := S.PreFireMS;
+    SpPostFireDelay.Value := S.PostFireMS;
+    SpKerf.Value := S.Kerf;
+    ChkFrameBeforeStart.Checked := S.FrameBeforeStart;
+  finally FUpdatingLaserSettings := False; end;
 end;
 
 procedure TMainForm.SyncLaserSettingsFromUI;
@@ -1771,6 +2009,7 @@ end;
 
 procedure TMainForm.LaserParamChanged(Sender: TObject);
 begin
+  if FUpdatingLaserSettings then Exit;
   SyncLaserSettingsFromUI;
   UpdateControls;
 end;
@@ -1802,12 +2041,20 @@ var
   Busy, Manual, Alarm: Boolean; I: Integer; P, H: TMachinePosition; Info: string;
   T: TPrinterTemperatures; HRealStr, BRealStr, HStat: string;
   RouterProfile: TRouterProfile;
+  LaserProfile: TLaserProfile;
 begin
   if not Session.Connected then begin
     Session.PhysicalHomingAllowed := True;
     if (MachineType.ItemIndex = 0) and
        FindRouterProfile(RouterBrandCombo.Text, RouterModelCombo.Text, RouterProfile) then
       Session.PhysicalHomingAllowed := not RouterProfile.DisablePhysicalHoming;
+    if (MachineType.ItemIndex = Ord(mtLaser)) and
+       FindLaserProfile(LaserBrandCombo.Text, LaserModelCombo.Text, LaserProfile) then
+    begin
+      if SameText(LaserProfile.Brand, 'CUSTOM') then
+        Session.PhysicalHomingAllowed := LaserHasHoming.Checked
+      else Session.PhysicalHomingAllowed := LaserProfile.HasHoming;
+    end;
   end;
   Busy := Session.State in [ssRunning, ssPaused];
   Manual := Session.Connected and Session.ControllerReady and not Busy;
@@ -1901,6 +2148,14 @@ begin
   PortEdit.Enabled := not Session.Connected;
   DeviceEdit.Enabled := not Session.Connected;
   BaudCombo.Enabled := not Session.Connected;
+  if Assigned(LaserBrandCombo) then
+  begin
+    LaserBrandCombo.Enabled := not Session.Connected;
+    LaserModelCombo.Enabled := not Session.Connected;
+    SpLaserX.Enabled := not Session.Connected;
+    SpLaserY.Enabled := not Session.Connected;
+    LaserCustomPanel.Enabled := not Session.Connected;
+  end;
   if Assigned(PrinterBrandCombo) then PrinterBrandCombo.Enabled := not Session.Connected;
   if Assigned(PrinterModelCombo) then PrinterModelCombo.Enabled := not Session.Connected;
   if Assigned(RouterBrandCombo) then
@@ -1929,6 +2184,9 @@ begin
     ((CommunicationMode.ItemIndex <> 2) or (Report.Errors = 0));
   BtnPause.Enabled := Session.State = ssRunning;
   BtnResume.Enabled := Session.State = ssPaused;
+  BtnOutline.Enabled := Session.Connected and Session.ControllerReady and not Busy and
+    (Session.MachineState = msIdle) and (Session.Count > 0) and
+    (MachineType.ItemIndex = Ord(mtLaser));
   BtnStop.Enabled := Session.Connected;
   BtnHome.Enabled := Manual and not Alarm and
     (Session.PhysicalHomingAllowed or Session.HomePositionSet);
@@ -2059,7 +2317,9 @@ procedure TMainForm.UpdateMachineTypeLayout;
 begin
   { Barra de acoes: o enquadramento (framing) so existe no laser }
   BtnFraming.Visible := MachineType.ItemIndex = 1;
+  BtnOutline.Visible := MachineType.ItemIndex = Ord(mtLaser);
   LaserContainer.Visible := MachineType.ItemIndex = 1;
+  GbLaserProfile.Visible := MachineType.ItemIndex = 1;
   GbPrinterProfile.Visible := MachineType.ItemIndex = 2;
   GbRouterProfile.Visible := MachineType.ItemIndex = 0;
   GbPrinterTemps.Visible := MachineType.ItemIndex = 2;
@@ -2138,8 +2398,7 @@ begin
           BaudCombo.Text := SavedBaud
         else
           BaudCombo.Text := '115200';
-        Session.SetWorkEnvelope(400.0, 400.0, 0.0); { Standard desktop laser 400x400 mm }
-        Log('Configuração CNC Laser: Baud rate padrão 115200 (suporte a 230400), área de trabalho padrão 400x400 mm.');
+        LaserModelChanged(nil);
       end;
       2: { 3D Printer }
       begin
@@ -2555,6 +2814,12 @@ procedure TMainForm.ClearLogClick(Sender: TObject);
 begin
   MemoLog.Clear;
   Status.SimpleText := 'Console cleared. Machine remains in current state.';
+end;
+
+procedure TMainForm.OutlineClick(Sender: TObject);
+begin
+  if not Session.RunOutline then Log('Outline rejected: ' + Session.LastError);
+  UpdateControls;
 end;
 
 procedure TMainForm.FramingClick(Sender: TObject);

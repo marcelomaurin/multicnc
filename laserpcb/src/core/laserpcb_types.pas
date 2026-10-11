@@ -7,6 +7,7 @@ type
   TLaserProfile = record
     Name: string;
     SpotMM, Power, Feed, SMax: Double;
+    OpticalPowerW: Double; { rated optical output, not electrical input }
     Passes: Integer;
     Process: TLaserProcess;
   end;

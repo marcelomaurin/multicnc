@@ -3,16 +3,14 @@
 Este documento e o ponto de entrada para qualquer IA que altere este repositorio.
 
 ## Gestor principal
-MultiSuite e a porta de entrada do usuario e o orquestrador das ferramentas. Ele cria/abre o contexto global e chama as aplicacoes especializadas; nao absorve a logica delas.
+MultiSuite Bandeja e a porta de entrada: um menu para abrir os aplicativos instalados. O Windows distribui multisuite_tray.exe, sem painel central.
 
 ## Regra principal
 Antes de escrever codigo, identifique qual ferramenta e dona da responsabilidade. Nao duplique funcionalidades entre modulos.
 
 | Ferramenta | Responsabilidade |
 |---|---|
-| MultiSuite | Gestor unificado, projetos e launcher das ferramentas |
 | MultiCAD | CAD parametrico de pecas (fluxo SolidWorks 2014): sketch, operacoes, arvore; STL/DXF/.mcad. Em analise, ver `multicad/docs/TAREFA.md` |
-| MultiPCB | Esquematico, PCB, netlist, roteamento e arquivos de fabricacao de placas |
 | MakePCB | Placa do zero estilo PCB Wizard: esquema, componentes (furados e SMD), trilhas, autoroteamento, DRC, BOM, impressao 1:1 e Gerber + Excellon para o LaserPCB (pasta `makepcb/`) |
 | RouterPCB | Fresagem de PCB na CNC Router: isolacao com fresa V, furacao por broca, recorte com pontes e nivelamento por sondagem, a partir do Gerber + Excellon (pasta `routerpcb/`, andamento em `routerpcb/docs/TAREFA.md`) |
 | MakeRouter | (primeira versao 2,5D; V-Carve e relevo 3D pendentes) Projeto e usinagem de madeira na CNC Router: desenho, relevo, percursos, simulacao e G-code com zero virtual (pasta `makerouter/`, decisoes em `makerouter/docs/TAREFA.md`) |
@@ -28,7 +26,6 @@ Antes de escrever codigo, identifique qual ferramenta e dona da responsabilidade
 
 ## Fluxo conceitual
 MultiCAD -> MultiAssembly -> MultiCAM -> MultiCNC
-MultiPCB -> MultiAssembly e/ou LaserPCB/MultiCAM -> MultiCNC
 MakePCB -> (pasta Gerber + Excellon) -> LaserPCB -> MultiCNC (CNC Laser)
 MakePCB -> (pasta Gerber + Excellon) -> RouterPCB -> MultiCNC (CNC Router)
 MakeRouter (desenho + percursos) -> MultiCNC (CNC Router)
@@ -53,7 +50,6 @@ Imagem/Vetor -> LaserArt -> MultiCNC
 ## Documentacao por ferramenta
 - multisuite/docs/AI_GUIDE.md
 - multicad/docs/AI_GUIDE.md
-- multipcb/docs/AI_GUIDE.md
 - multiassembly/docs/AI_GUIDE.md
 - multicam/docs/AI_GUIDE.md
 - multislicer/docs/AI_GUIDE.md

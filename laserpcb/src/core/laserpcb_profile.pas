@@ -11,7 +11,7 @@ function DefaultLaserProfile: TLaserProfile;
 implementation
 function DefaultLaserProfile: TLaserProfile;
 begin
-  Result.Name := '';
+  Result.Name := ''; Result.OpticalPowerW := 0;
   Result.SpotMM := 0.1; Result.Power := 0; Result.Feed := 0;
   Result.SMax := 1000; Result.Passes := 1; Result.Process := lpMaskResist;
 end;
@@ -24,7 +24,7 @@ begin
     O.Add('name', P.Name); O.Add('spot_mm', P.SpotMM);
     O.Add('power', P.Power); O.Add('feed', P.Feed);
     O.Add('s_max', P.SMax); O.Add('passes', P.Passes);
-    O.Add('process', Ord(P.Process));
+    O.Add('process', Ord(P.Process)); O.Add('optical_power_w',P.OpticalPowerW);
     S.Text := O.FormatJSON; S.SaveToFile(FN);
   finally S.Free; O.Free; end;
 end;
@@ -41,6 +41,7 @@ begin
       if not (D is TJSONObject) then raise Exception.Create('Perfil deve ser um objeto JSON');
       O := TJSONObject(D);
       Result.Name := O.Get('name', '');
+      Result.OpticalPowerW := O.Get('optical_power_w',0.0);
       Result.SpotMM := O.Get('spot_mm', 0.1);
       Result.Power := O.Get('power', 0.0);
       Result.Feed := O.Get('feed', 0.0);
@@ -50,7 +51,8 @@ begin
       if (Mode < Ord(Low(TLaserProcess))) or (Mode > Ord(High(TLaserProcess))) then
         raise Exception.Create('Processo do perfil invalido');
       Result.Process := TLaserProcess(Mode);
-      if IsNan(Result.SpotMM) or IsInfinite(Result.SpotMM) or (Result.SpotMM <= 0) or
+      if IsNan(Result.OpticalPowerW) or IsInfinite(Result.OpticalPowerW) or (Result.OpticalPowerW<0) or
+        IsNan(Result.SpotMM) or IsInfinite(Result.SpotMM) or (Result.SpotMM <= 0) or
         IsNan(Result.SMax) or IsInfinite(Result.SMax) or (Result.SMax < 1) or
         IsNan(Result.Power) or IsInfinite(Result.Power) or (Result.Power < 0) or
         IsNan(Result.Feed) or IsInfinite(Result.Feed) or (Result.Feed < 0) or

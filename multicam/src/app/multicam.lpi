@@ -30,7 +30,7 @@
    <Filename Value="multicam" />
   </Target>
   <SearchPaths>
-   <OtherUnitFiles Value="../core;../layout;../pcb;../export;../mechanical;../simulation;../../../multipcb/src/core;../../../multipcb/src/positioning;../../../src/shared" />
+   <OtherUnitFiles Value="../core;../layout;../pcb;../export;../mechanical;../simulation;../../../src/shared" />
    <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
   </SearchPaths>
   <Parsing>

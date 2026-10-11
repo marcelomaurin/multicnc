@@ -16,7 +16,7 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-MODULES = [".", "multisuite", "multiphysics", "multicam", "multipcb",
+MODULES = [".", "multisuite", "multiphysics", "multicam",
            "laserpcb", "multislicer", "multiassembly", "multicad", "laserart", "makepcb", "makerouter", "routerpcb"]
 
 

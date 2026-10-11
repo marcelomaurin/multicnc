@@ -6,8 +6,7 @@ unit multisuite_tray_form;
   barra de tarefas, com um botao com icone para cada ferramenta da suite.
 
   - Clique no icone da bandeja: abre/fecha o painel.
-  - Botao direito: menu (abrir painel, abrir MultiSuite, iniciar com o
-    Windows, sair).
+  - Botao direito: menu (abrir painel, sair).
   - Digitar no campo de busca filtra as ferramentas; Enter abre a primeira.
   - Setas para cima/baixo navegam; Esc fecha o painel.
   - Parametros: --tray (inicia so na bandeja), --show (abre o painel). }
@@ -17,10 +16,10 @@ unit multisuite_tray_form;
 interface
 
 uses
-  {$IFDEF WINDOWS}Windows, Registry,{$ENDIF}
+  {$IFDEF WINDOWS}Windows,{$ENDIF}
   Classes, SysUtils, Math, Forms, Controls, Graphics, StdCtrls, ExtCtrls,
   Menus, LCLType, LazUTF8, Types,
-  multisuite_types, multisuite_registry, multisuite_launcher, multisuite_icons;
+  multisuite_types, multisuite_registry, multisuite_launcher, multisuite_icons, multisuite_paths;
 
 const
   { instancia unica e pedido "mostrar painel" vindo de uma segunda execucao }
@@ -122,15 +121,12 @@ type
     FTargets: array of TSuiteToolInfo;
     FTray: TTrayIcon;
     FMenu: TPopupMenu;
-    FAutoStartItem: TMenuItem;
     FBody: TPanel;
     FHeader: TPaintBox;
-    FPrimary: TSuiteTile;
     FSearch: TSuiteSearchBox;
     FList: TScrollBox;
     FEmpty: TLabel;
     FFooter: TPanel;
-    FTestsButton: TSuiteLinkButton;
     FExitButton: TSuiteLinkButton;
     FGroups: array of TSuiteGroup;
     FHeaderIcon, FHeaderDeco, FCloseIcon: TBitmap;
@@ -146,7 +142,6 @@ type
     FContentHeight: Integer;
     FLayingOut: Boolean;
 
-    function AddTarget(const AName, ADescription, AExecutable, AProjectFile: string): Integer;
     procedure BuildTargets;
     procedure BuildHeader;
     procedure BuildList;
@@ -171,7 +166,6 @@ type
     procedure SearchKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure TileClick(Sender: TObject);
     procedure TileNavigate(Sender: TObject; ADelta: Integer);
-    procedure TestsClick(Sender: TObject);
     procedure ExitClick(Sender: TObject);
     procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure AppDeactivate(Sender: TObject);
@@ -180,8 +174,6 @@ type
     procedure StartupTick(Sender: TObject);
     procedure ShowWatchTick(Sender: TObject);
     procedure MenuShowPanel(Sender: TObject);
-    procedure MenuOpenSuite(Sender: TObject);
-    procedure MenuAutoStart(Sender: TObject);
     procedure LaunchTarget(AIndex: Integer);
     procedure ShowError(const AMessage: string);
   protected
@@ -218,7 +210,7 @@ function cPrimaryHover: TColor; begin Result := C(29, 78, 216); end;
 
 const
   UI_FONT = {$IFDEF WINDOWS}'Segoe UI'{$ELSE}'default'{$ENDIF};
-  APP_VERSION = '0.06';
+  APP_VERSION = '0.01';
 
 { Escala de DPI: valores de layout escritos em 96 dpi }
 function S(V: Integer): Integer;
@@ -593,34 +585,10 @@ end;
 { ---------------------------------------------------------------------------- }
 { Utilitarios                                                                  }
 
-{ Sobe a partir da pasta do executavel procurando a raiz do repositorio
-  (que contem multisuite/src/app/multisuite.lpi). Instalado, a raiz e a
-  propria pasta do executavel. }
-function FindSuiteRoot: string;
-var
-  Dir, Parent, Marker: string;
-  I: Integer;
-begin
-  Dir := ExcludeTrailingPathDelimiter(ExtractFilePath(ExpandFileName(ParamStr(0))));
-  Marker := 'multisuite' + DirectorySeparator + 'src' + DirectorySeparator +
-    'app' + DirectorySeparator + 'multisuite.lpi';
-  for I := 0 to 6 do
-  begin
-    if FileExists(IncludeTrailingPathDelimiter(Dir) + Marker) then
-      Exit(IncludeTrailingPathDelimiter(Dir));
-    Parent := ExcludeTrailingPathDelimiter(ExtractFilePath(Dir));
-    if (Parent = '') or (Parent = Dir) then
-      Break;
-    Dir := Parent;
-  end;
-  Result := IncludeTrailingPathDelimiter(ExtractFilePath(ExpandFileName(ParamStr(0))));
-end;
-
 function ToolIcon(AID: TSuiteToolID): TSuiteIconKind;
 begin
   case AID of
     stiMultiCAD:      Result := sikCAD;
-    stiMultiPCB:      Result := sikPCB;
     stiMakePCB:       Result := sikMakePCB;
     stiRouterPCB:     Result := sikRouterPCB;
     stiMakeRouter:    Result := sikMakeRouter;
@@ -640,7 +608,6 @@ function ToolAccent(AID: TSuiteToolID): TColor;
 begin
   case AID of
     stiMultiCAD:      Result := C(59, 130, 246);
-    stiMultiPCB:      Result := C(13, 148, 136);
     stiMakePCB:       Result := C(5, 150, 105);
     stiRouterPCB:     Result := C(180, 83, 9);
     stiMakeRouter:    Result := C(146, 64, 14);
@@ -657,44 +624,6 @@ begin
 end;
 
 {$IFDEF WINDOWS}
-const
-  RUN_KEY = 'Software\Microsoft\Windows\CurrentVersion\Run';
-  RUN_VALUE = 'MultiSuiteTray';
-
-function IsAutoStart: Boolean;
-var
-  R: TRegistry;
-begin
-  Result := False;
-  R := TRegistry.Create(KEY_READ);
-  try
-    R.RootKey := HKEY_CURRENT_USER;
-    if R.OpenKeyReadOnly(RUN_KEY) then
-      Result := R.ValueExists(RUN_VALUE);
-  finally
-    R.Free;
-  end;
-end;
-
-procedure SetAutoStart(AEnabled: Boolean);
-var
-  R: TRegistry;
-begin
-  R := TRegistry.Create(KEY_WRITE);
-  try
-    R.RootKey := HKEY_CURRENT_USER;
-    if R.OpenKey(RUN_KEY, True) then
-    begin
-      if AEnabled then
-        R.WriteString(RUN_VALUE, '"' + ParamStr(0) + '" --tray')
-      else if R.ValueExists(RUN_VALUE) then
-        R.DeleteValue(RUN_VALUE);
-    end;
-  finally
-    R.Free;
-  end;
-end;
-
 { Windows 11: cantos arredondados nativos (sem efeito no Windows 10) }
 procedure ApplyRoundedCorners(AHandle: HWND);
 type
@@ -739,7 +668,7 @@ begin
   DoubleBuffered := True;
   SetupFont(Font, 9, [], cText);
 
-  FRoot := FindSuiteRoot;
+  FRoot := IncludeTrailingPathDelimiter(SuiteRootForExecutable(ParamStr(0)));
   FRegistry := TSuiteRegistry.Create;
   BuildTargets;
 
@@ -785,6 +714,9 @@ begin
   FHeaderDeco.Free;
   FCloseIcon.Free;
   FRegistry.Free;
+  {$IFDEF WINDOWS}
+  if FShowEvent <> 0 then CloseHandle(FShowEvent);
+  {$ENDIF}
   inherited Destroy;
 end;
 
@@ -796,33 +728,14 @@ begin
   {$ENDIF}
 end;
 
-function TTrayForm.AddTarget(const AName, ADescription, AExecutable,
-  AProjectFile: string): Integer;
-begin
-  Result := Length(FTargets);
-  SetLength(FTargets, Result + 1);
-  FTargets[Result].ID := stiMultiCNC;
-  FTargets[Result].Name := AName;
-  FTargets[Result].Description := ADescription;
-  FTargets[Result].Executable := AExecutable;
-  FTargets[Result].ProjectFile := AProjectFile;
-end;
-
-{ Indice 0 = MultiSuite, 1 = Central de testes, 2.. = ferramentas do registro }
+{ Somente as ferramentas atuais do registro; a bandeja e o lancador. }
 procedure TTrayForm.BuildTargets;
 var
   I: Integer;
 begin
-  SetLength(FTargets, 0);
-  AddTarget('MultiSuite', 'Painel completo de projeto e fabricação',
-    'multisuite', 'multisuite/src/app/multisuite.lpi');
-  AddTarget('Central de testes', 'Validação dos módulos da suite',
-    'multisuite_test_center', 'multisuite/src/testing/multisuite_test_center.lpi');
+  SetLength(FTargets, FRegistry.Count);
   for I := 0 to FRegistry.Count - 1 do
-  begin
-    SetLength(FTargets, Length(FTargets) + 1);
-    FTargets[High(FTargets)] := FRegistry.Tool(I);
-  end;
+    FTargets[I] := FRegistry.Tool(I);
 end;
 
 procedure TTrayForm.BuildHeader;
@@ -839,18 +752,10 @@ begin
   FHeaderDeco := RenderSuiteIcon(sikSuite, S(150), C(52, 86, 168), sifOutline, 1.2, C(52, 86, 168), 0.25);
   FCloseIcon := RenderSuiteIcon(sikClose, S(16), C(160, 174, 200), sifNone, 2);
 
-  FPrimary := NewTile(FBody, 0, sikSuite, cPrimary, tsPrimary);
-  FPrimary.Align := alTop;
-  FPrimary.Top := FHeader.Top + FHeader.Height + 1;
-  FPrimary.Height := S(68);
-  FPrimary.BorderSpacing.Left := S(14);
-  FPrimary.BorderSpacing.Right := S(14);
-  FPrimary.BorderSpacing.Top := S(14);
-
   FSearch := TSuiteSearchBox.Create(Self);
   FSearch.Parent := FBody;
   FSearch.Align := alTop;
-  FSearch.Top := FPrimary.Top + FPrimary.Height + 1;
+  FSearch.Top := FHeader.Top + FHeader.Height + 1;
   FSearch.Height := S(40);
   FSearch.BorderSpacing.Left := S(14);
   FSearch.BorderSpacing.Right := S(14);
@@ -869,15 +774,6 @@ begin
   FFooter.Color := cCard;
   FFooter.ParentColor := False;
   FFooter.OnPaint := @FooterPaint;
-
-  FTestsButton := TSuiteLinkButton.CreateLink(Self, 'Central de testes', sikTests, cMuted);
-  FTestsButton.Parent := FFooter;
-  FTestsButton.AutoFit;
-  FTestsButton.Left := S(10);
-  FTestsButton.Top := (FFooter.Height - FTestsButton.Height) div 2;
-  FTestsButton.OnClick := @TestsClick;
-  FTestsButton.Hint := 'Raiz da suite: ' + FRoot;
-  FTestsButton.ShowHint := True;
 
   FExitButton := TSuiteLinkButton.CreateLink(Self, 'Sair', sikPower, cMuted);
   FExitButton.Parent := FFooter;
@@ -904,7 +800,7 @@ begin
   FList.DoubleBuffered := True;
   FList.OnResize := @ListResize;
 
-  AddGroup('PROJETAR', [stiMultiCAD, stiMultiPCB, stiMakePCB, stiMakeRouter, stiLaserPCB, stiLaserArt]);
+  AddGroup('PROJETAR', [stiMultiCAD, stiMakePCB, stiMakeRouter, stiLaserPCB, stiLaserArt]);
   AddGroup('PREPARAR', [stiMultiCAM, stiRouterPCB, stiMultiSlicer]);
   AddGroup('SIMULAR', [stiMultiPhysics, stiMultiAssembly, stiSimuCNC]);
   AddGroup('FABRICAR', [stiMultiCNC]);
@@ -937,7 +833,7 @@ begin
   SetLength(FGroups[G].Tiles, 0);
 
   for I := 0 to High(AIDs) do
-    for T := 2 to High(FTargets) do
+    for T := 0 to High(FTargets) do
       if FTargets[T].ID = AIDs[I] then
       begin
         NewT := NewTile(FList, T, ToolIcon(AIDs[I]), ToolAccent(AIDs[I]), tsList);
@@ -1033,7 +929,6 @@ begin
   FSearch.Edit.Text := '';
   FContentHeight := Relayout;
   Fixed := 2 + FHeader.Height +
-    FPrimary.Height + FPrimary.BorderSpacing.Top +
     FSearch.Height + FSearch.BorderSpacing.Top +
     FList.BorderSpacing.Top + FFooter.Height;
   WA := Screen.PrimaryMonitor.WorkareaRect;
@@ -1123,7 +1018,6 @@ var
   G, I: Integer;
 begin
   Result := TList.Create;
-  Result.Add(FPrimary);
   for G := 0 to High(FGroups) do
     for I := 0 to High(FGroups[G].Tiles) do
       if FGroups[G].Tiles[I].Visible then
@@ -1204,40 +1098,21 @@ end;
 procedure TTrayForm.SearchKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 var
   L: TList;
+  T: TSuiteTile;
 begin
-  case Key of
-    VK_RETURN:
-      begin
-        Key := 0;
-        L := VisibleTiles;
-        try
-          if Trim(FSearch.Edit.Text) = '' then
-            LaunchTarget(0)
-          else if L.Count > 1 then
-            LaunchTarget(TSuiteTile(L[1]).TargetIndex);
-        finally
-          L.Free;
-        end;
-      end;
-    VK_DOWN:
-      begin
-        Key := 0;
-        L := VisibleTiles;
-        try
-          if L.Count > 1 then
-          begin
-            TSuiteTile(L[1]).SetFocus;
-            FList.ScrollInView(TSuiteTile(L[1]));
-          end;
-        finally
-          L.Free;
-        end;
-      end;
-    VK_UP:
-      begin
-        Key := 0;
-        FPrimary.SetFocus;
-      end;
+  if not (Key in [VK_RETURN, VK_DOWN, VK_UP]) then Exit;
+  L := VisibleTiles;
+  try
+    if L.Count > 0 then
+    begin
+      if Key = VK_UP then T := TSuiteTile(L[L.Count - 1])
+      else T := TSuiteTile(L[0]);
+      if Key = VK_RETURN then LaunchTarget(T.TargetIndex)
+      else begin T.SetFocus; FList.ScrollInView(T); end;
+    end;
+    Key := 0;
+  finally
+    L.Free;
   end;
 end;
 
@@ -1250,22 +1125,12 @@ begin
   L := VisibleTiles;
   try
     I := L.IndexOf(Sender) + ADelta;
-    if (Sender = FPrimary) and (ADelta > 0) then
-    begin
-      FSearch.Edit.SetFocus;
-      Exit;
-    end;
-    if (I = 0) and (ADelta < 0) then
-    begin
-      FSearch.Edit.SetFocus;
-      Exit;
-    end;
-    if (I >= 0) and (I < L.Count) then
+    if I < 0 then FSearch.Edit.SetFocus
+    else if I < L.Count then
     begin
       T := TSuiteTile(L[I]);
       T.SetFocus;
-      if T.Parent = FList then
-        FList.ScrollInView(T);
+      FList.ScrollInView(T);
     end;
   finally
     L.Free;
@@ -1276,11 +1141,6 @@ procedure TTrayForm.TileClick(Sender: TObject);
 begin
   if Sender is TSuiteTile then
     LaunchTarget(TSuiteTile(Sender).TargetIndex);
-end;
-
-procedure TTrayForm.TestsClick(Sender: TObject);
-begin
-  LaunchTarget(1);
 end;
 
 procedure TTrayForm.ExitClick(Sender: TObject);
@@ -1314,19 +1174,6 @@ end;
 procedure TTrayForm.MenuShowPanel(Sender: TObject);
 begin
   ShowPanel;
-end;
-
-procedure TTrayForm.MenuOpenSuite(Sender: TObject);
-begin
-  LaunchTarget(0);
-end;
-
-procedure TTrayForm.MenuAutoStart(Sender: TObject);
-begin
-  {$IFDEF WINDOWS}
-  SetAutoStart(not FAutoStartItem.Checked);
-  FAutoStartItem.Checked := IsAutoStart;
-  {$ENDIF}
 end;
 
 procedure TTrayForm.LaunchTarget(AIndex: Integer);
@@ -1363,20 +1210,6 @@ begin
   Item.Default := True;
   Item.OnClick := @MenuShowPanel;
   FMenu.Items.Add(Item);
-
-  Item := TMenuItem.Create(FMenu);
-  Item.Caption := 'Abrir MultiSuite';
-  Item.OnClick := @MenuOpenSuite;
-  FMenu.Items.Add(Item);
-
-  {$IFDEF WINDOWS}
-  FMenu.Items.AddSeparator;
-  FAutoStartItem := TMenuItem.Create(FMenu);
-  FAutoStartItem.Caption := 'Iniciar com o Windows';
-  FAutoStartItem.Checked := IsAutoStart;
-  FAutoStartItem.OnClick := @MenuAutoStart;
-  FMenu.Items.Add(FAutoStartItem);
-  {$ENDIF}
 
   FMenu.Items.AddSeparator;
   Item := TMenuItem.Create(FMenu);

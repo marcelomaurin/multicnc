@@ -10,8 +10,9 @@ from unittest.mock import patch
 SPEC = importlib.util.spec_from_file_location("release_manifest", Path(__file__).resolve().parents[1] / "tools/release_manifest.py")
 release = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(release)
-NAMES = ("multisuite", "multicad", "multipcb", "multiassembly", "multiphysics",
-         "multicam", "multislicer", "laserpcb", "laserart", "multicnc", "multisuite_test_center")
+NAMES = ("multisuite", "multicad", "multiassembly", "multiphysics",
+         "multicam", "multislicer", "laserpcb", "laserart", "multicnc", "multisuite_test_center",
+         "makepcb", "makerouter", "routerpcb")
 
 
 def elf(machine=62, bits=2, flags=0):
@@ -41,7 +42,7 @@ class ReleaseChecks(unittest.TestCase):
         self.temp.cleanup()
 
     def fill(self, suffix, data):
-        for name in NAMES:
+        for name in (NAMES + (("multisuite_tray", "SimuCNC") if suffix == ".exe" else ())):
             (self.app / (name + suffix)).write_bytes(data)
 
     def test_linux_mixed_architecture_rejected(self):

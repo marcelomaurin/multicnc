@@ -35,9 +35,7 @@ Estado: implementado e integrado a suite (08/10/2026). Andamento em `docs/TAREFA
 - **LaserPCB**: PCB por laser. RouterPCB: PCB por fresa/broca. Mesma importacao, saidas diferentes.
 - **MultiCAM**: usinagem mecanica geral (pecas, pocket, perfil, 3D). Nao colocar CAM de PCB
   no MultiCAM; nao colocar usinagem de pecas no RouterPCB.
-- **MultiPCB**: tem um esboco de heightmap/compensacao em `multipcb/src/positioning`
-  (IDW, poucas linhas). O RouterPCB implementa a versao completa (bilinear). Ao terminar,
-  avaliar mover a versao boa para um lugar comum e o MultiPCB passar a usa-la.
+- **Nivelamento compartilhado**: src/shared/multisuite_heightmap e multisuite_zcompensation atendem o MultiCAM. O RouterPCB mantem seu nivelamento proprio.
 - **MultiCNC**: unico dono da execucao, da sondagem fisica e da seguranca.
 
 ## Regras

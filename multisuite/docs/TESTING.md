@@ -20,7 +20,7 @@ NOT RUN: reservado para teste ainda nao iniciado.
 ## Cobertura atual
 MultiCNC: simulador.
 MultiCAD: documento CAD.
-MultiPCB: EDA, routing e heightmap.
+MakePCB: modelo de placa e exportacao Gerber/Excellon.
 MultiAssembly: modelo eletromecanico.
 MultiCAM: CAM mecanico, setup, simulacao, eletronica virtual e pipeline demo.
 MultiSlicer: layout 3D.

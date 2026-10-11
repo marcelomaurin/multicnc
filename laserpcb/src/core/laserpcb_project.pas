@@ -14,6 +14,9 @@ type
   TLPSource = class
     FileName: string;
     Role: TLPLayerRole;
+    CopperIndex: Integer; { 1-based board stack; 0 for other sources }
+    ComponentGeometry: Boolean;
+    Template: Boolean;
     Layer: TLPGerberLayer;
     constructor Create;
     destructor Destroy; override;
@@ -26,6 +29,7 @@ type
     Name: string;
     ColorIndex: Integer;       { paleta 00..29 }
     Mode: TLPCamMode;
+    Process: TLaserProcess;
     SourceLayer: Integer;      { cmLayerHatch: indice da camada importada }
     Power, Feed, Overlap: Double;
     Passes: Integer;
@@ -50,6 +54,10 @@ type
     FItemPaths: array of TLPPaths;
     FBounds: TLPRect;
     FSVGFile: string;
+    FComponentSources: array[0..3] of TLPSource;
+    FImportedDrills, FComponentDrills: TLPDrillFile;
+    function ComponentCopper: TLPGerberLayer;
+    procedure RefreshDrills;
     function ProcessMasks(Copper, Board, Artwork: TLPMask): TLPPaths;
     function ScaledPaths(SX, SY: Double): TLPPaths;
     procedure UpdateBoard;
@@ -58,11 +66,16 @@ type
     function SVGPaths: TLPPaths;
     function DrillMarkPaths: TLPPaths;
   public
+    ComponentSetJSON: string;
+    procedure SetComponentGeometry(Top, Bottom, TopSilk, BottomSilk: TLPGerberLayer;
+      Holes: TLPDrillFile; const AssemblyJSON: string);
+  public
     Layout: TLaserBedLayout;
     Drills: TLPDrillFile;
     DrillFiles, Warnings: TStringList;
     Profile: TLaserProfile;
     Side: TPCBLayerSide;
+    ActiveCopperIndex: Integer;
     MirrorBottom: Boolean;
     Mode: TLPCamMode;
     Resolution, Overlap: Double;
@@ -78,6 +91,12 @@ type
     constructor Create;
     destructor Destroy; override;
     procedure Clear;
+    procedure CreateBoard(AWidth, AHeight: Double; ALayers: Integer; SingleBottom: Boolean = False);
+    function CopperLayerCount: Integer;
+    function CopperSource(Index: Integer): TLPSource;
+    function CopperLayerName(Index: Integer): string;
+    procedure SelectCopperLayer(Index: Integer);
+    function CurrentCopperLayer: TLPGerberLayer;
     procedure InvalidateCAM;
     procedure ImportFile(const FileName: string);
     { importa todos os Gerber/Excellon de uma pasta (ex.: exportacao do MakePCB);
@@ -182,6 +201,7 @@ begin
   inherited Create;
   FSources := TList.Create; FSVG := TLaserPCBJob.Create; FOperations := TList.Create;
   Layout := TLaserBedLayout.Create; Drills := TLPDrillFile.Create;
+  FImportedDrills:=TLPDrillFile.Create; FComponentDrills:=TLPDrillFile.Create;
   DrillFiles := TStringList.Create; Warnings := TStringList.Create;
   Profile := DefaultLaserProfile;
   Side := lsTop; MirrorBottom := True; Mode := cmIsolation;
@@ -194,7 +214,7 @@ end;
 destructor TLaserPCBProject.Destroy;
 begin
   Clear; FOperations.Free; FSources.Free; FSVG.Free; Layout.Free; Drills.Free;
-  DrillFiles.Free; Warnings.Free; inherited Destroy;
+  DrillFiles.Free; Warnings.Free; FImportedDrills.Free; FComponentDrills.Free; inherited Destroy;
 end;
 procedure TLaserPCBProject.FreeMasks;
 begin FreeAndNil(FBoard); FreeAndNil(FCopper); FreeAndNil(FArtwork); end;
@@ -207,6 +227,93 @@ begin
   for I := 0 to FSources.Count - 1 do TObject(FSources[I]).Free;
   FSources.Clear; FSVG.Clear; FSVGFile := ''; FBounds := LPEmptyRect; Mode := cmIsolation;
   Layout.Clear; Drills.Clear; DrillFiles.Clear; Warnings.Clear; SelectedLayer := -1;
+  ActiveCopperIndex := 0; ComponentSetJSON:='';
+  for I:=0 to 3 do FComponentSources[I]:=nil;
+  FImportedDrills.Clear; FComponentDrills.Clear;
+end;
+procedure TLaserPCBProject.CreateBoard(AWidth, AHeight: Double; ALayers: Integer; SingleBottom: Boolean);
+var S: TLPSource; Outline: TLPPath; I: Integer;
+begin
+  if not FiniteNumber(AWidth) or not FiniteNumber(AHeight) or
+    (AWidth <= 0) or (AHeight <= 0) or
+    (AWidth > Layout.BedWidth-2*Layout.Margin) or
+    (AHeight > Layout.BedHeight-2*Layout.Margin) then
+    raise Exception.Create('Dimensoes da placa invalidas ou maiores que a area util da mesa.');
+  if (ALayers < 1) or (ALayers > 64) then
+    raise Exception.Create('Use de 1 a 64 camadas de cobre.');
+  Clear;
+  S := TLPSource.Create; S.Role := lrOutline; S.Template := True;
+  S.FileName := 'Contorno da placa';
+  Outline := nil;
+  LPAddPoint(Outline,0,0); LPAddPoint(Outline,AWidth,0);
+  LPAddPoint(Outline,AWidth,AHeight); LPAddPoint(Outline,0,AHeight);
+  LPAddPoint(Outline,0,0);
+  S.Layer.AddTrace(Outline,0.01); FSources.Add(S);
+  for I := 1 to ALayers do
+  begin
+    S := TLPSource.Create; S.Template := True; S.CopperIndex := I;
+    if (I=ALayers) and ((ALayers>1) or SingleBottom) then
+    begin S.Role := lrBottomCopper; S.FileName := 'Bottom'; end
+    else if I=1 then
+    begin S.Role := lrTopCopper; S.FileName := 'Top'; end
+    else begin S.Role := lrUnknown; S.FileName := 'Inner '+IntToStr(I-1); end;
+    FSources.Add(S);
+  end;
+  MirrorBottom := True;
+  UpdateBoard;
+  SelectCopperLayer(1);
+end;
+function TLaserPCBProject.CopperLayerCount: Integer;
+var I: Integer;
+begin
+  Result := 0;
+  for I := 0 to SourceCount-1 do
+    if (Source(I).CopperIndex>0) or
+      (Source(I).Role in [lrTopCopper,lrBottomCopper]) then Inc(Result);
+end;
+function TLaserPCBProject.CopperSource(Index: Integer): TLPSource;
+var I, N: Integer;
+begin
+  Result := nil;
+  if Index<1 then Exit;
+  for I := 0 to SourceCount-1 do
+    if Source(I).CopperIndex=Index then Exit(Source(I));
+  N := 0;
+  for I := 0 to SourceCount-1 do
+    if Source(I).Role in [lrTopCopper,lrBottomCopper] then
+    begin Inc(N); if N=Index then Exit(Source(I)); end;
+end;
+function TLaserPCBProject.CopperLayerName(Index: Integer): string;
+var S: TLPSource;
+begin
+  S := CopperSource(Index);
+  if S=nil then Exit('');
+  case S.Role of
+    lrTopCopper: Result := 'Top';
+    lrBottomCopper: Result := 'Bottom (espelhada)';
+  else Result := 'Inner '+IntToStr(Index-1);
+  end;
+end;
+procedure TLaserPCBProject.SelectCopperLayer(Index: Integer);
+var S: TLPSource; NewSide: TPCBLayerSide;
+begin
+  S := CopperSource(Index);
+  if S=nil then raise Exception.Create('Camada de cobre inexistente.');
+  if S.Role=lrBottomCopper then NewSide:=lsBottom else NewSide:=lsTop;
+  if (ActiveCopperIndex=Index) and (Side=NewSide) then Exit;
+  ActiveCopperIndex := Index; Side := NewSide;
+  InvalidateCAM;
+end;
+function TLaserPCBProject.CurrentCopperLayer: TLPGerberLayer;
+var S: TLPSource;
+begin
+  if ActiveCopperIndex>0 then
+  begin
+    S := CopperSource(ActiveCopperIndex);
+    if S<>nil then Exit(S.Layer);
+  end;
+  if Side=lsTop then Result := FindRole(lrTopCopper)
+  else Result := FindRole(lrBottomCopper);
 end;
 function TLaserPCBProject.SourceCount: Integer;
 begin Result := FSources.Count; end;
@@ -227,12 +334,49 @@ var I: Integer;
 begin
   Result := nil;
   for I := 0 to SourceCount - 1 do
-    if Source(I).Role = Role then
+    if (Source(I).Role = Role) and not Source(I).ComponentGeometry then
     begin
       if Result <> nil then raise Exception.Create('Mais de uma camada: ' + LayerRoleName(Role));
       Result := Source(I).Layer;
     end;
 end;
+
+function TLaserPCBProject.ComponentCopper: TLPGerberLayer;
+var S:TLPSource; N:Integer;
+begin
+  Result:=nil;
+  if ActiveCopperIndex>0 then begin S:=CopperSource(ActiveCopperIndex);
+    if (S<>nil) and not (S.Role in [lrTopCopper,lrBottomCopper]) then Exit; end;
+  N:=Ord(Side); if FComponentSources[N]<>nil then Result:=FComponentSources[N].Layer;
+end;
+procedure TLaserPCBProject.RefreshDrills;
+begin
+  Drills.Clear; Drills.Merge(FImportedDrills); Drills.Merge(FComponentDrills);
+  Drills.Warnings.Assign(FImportedDrills.Warnings);
+end;
+procedure TLaserPCBProject.SetComponentGeometry(Top, Bottom, TopSilk, BottomSilk: TLPGerberLayer;
+  Holes:TLPDrillFile; const AssemblyJSON:string);
+const Names:array[0..3]of string=('Componentes - cobre Top','Componentes - cobre Bottom',
+  'Componentes - contornos Top','Componentes - contornos Bottom');
+var L:array[0..3]of TLPGerberLayer; I,J:Integer; S:TLPSource;
+begin
+  if HasSVG then raise Exception.Create('Use uma placa em mm para montar componentes.');
+  L[0]:=Top;L[1]:=Bottom;L[2]:=TopSilk;L[3]:=BottomSilk;
+  for I:=0 to 3 do
+  begin
+    S:=FComponentSources[I];
+    if S=nil then begin S:=TLPSource.Create;S.ComponentGeometry:=True;
+      S.FileName:=Names[I]; S.Role:=lrUnknown;
+      if I=2 then S.Role:=lrTopSilk else if I=3 then S.Role:=lrBottomSilk;
+      FSources.Add(S);FComponentSources[I]:=S;end;
+    S.Layer.Clear;
+    for J:=0 to L[I].ShapeCount-1 do S.Layer.AddShape(L[I].Shape(J));
+    for J:=0 to L[I].TraceCount-1 do S.Layer.AddTrace(L[I].Trace(J).Path,L[I].Trace(J).Width);
+  end;
+  FComponentDrills.Clear;FComponentDrills.Merge(Holes);RefreshDrills;
+  ComponentSetJSON:=AssemblyJSON; InvalidateCAM; UpdateBoard; CreateDefaultOperations;
+end;
+
 procedure TLaserPCBProject.SetLayerRole(I: Integer; Role: TLPLayerRole);
 begin Source(I).Role := Role; InvalidateCAM; UpdateBoard; end;
 function TLaserPCBProject.SVGPaths: TLPPaths;
@@ -293,7 +437,8 @@ begin
   if (Layout.Count = 0) and (Width > 0) and (Height > 0) then AddCopy;
 end;
 procedure TLaserPCBProject.ImportFile(const FileName: string);
-var E: string; S: TLPSource; D: TLPDrillFile; J: TLaserPCBJob; I: Integer;
+var E: string; S: TLPSource; D: TLPDrillFile; J: TLaserPCBJob; I,K,StackIndex,ReplaceIndex: Integer;
+  Parts: TStringList;
 begin
   if not FileExists(FileName) then raise Exception.Create('Arquivo nao encontrado: ' + FileName);
   E := LowerCase(ExtractFileExt(FileName));
@@ -312,7 +457,7 @@ begin
     D := TLPDrillFile.Create;
     try
       if not TLPExcellonReader.LoadFromFile(FileName, D) then raise Exception.Create('Excellon sem furos reconhecidos');
-      Drills.Merge(D); Drills.Warnings.AddStrings(D.Warnings);
+      FImportedDrills.Merge(D); FImportedDrills.Warnings.AddStrings(D.Warnings); RefreshDrills;
       DrillFiles.Add(ExpandFileName(FileName));
     finally D.Free; end;
   end
@@ -324,10 +469,33 @@ begin
       if HasSVG then begin Clear; Mode := cmIsolation; end;
       S.FileName := ExpandFileName(FileName);
       S.Role := DetectLayerRole(FileName, S.Layer.FileFunction);
-      for I := SourceCount - 1 downto 0 do
-        if SameFileName(Source(I).FileName, S.FileName) then
-        begin Source(I).Free; FSources.Delete(I); end;
-      FSources.Add(S); SelectedLayer := FSources.Count - 1; S := nil;
+      StackIndex := 0;
+      Parts := TStringList.Create;
+      try
+        Parts.Delimiter := ','; Parts.StrictDelimiter := True;
+        Parts.DelimitedText := S.Layer.FileFunction;
+        if (Parts.Count>1) and SameText(Parts[0],'Copper') then
+          for K:=1 to Parts.Count-1 do
+            if (Length(Parts[K])>1) and (UpCase(Parts[K][1])='L') then
+              TryStrToInt(Copy(Parts[K],2,MaxInt),StackIndex);
+      finally Parts.Free; end;
+      ReplaceIndex := -1;
+      for I:=0 to SourceCount-1 do
+        if SameFileName(Source(I).FileName,S.FileName) or
+          (Source(I).Template and
+            (((StackIndex=0) and (Source(I).Role=S.Role) and
+              (S.Role in [lrTopCopper,lrBottomCopper,lrOutline])) or
+             ((StackIndex>0) and (Source(I).CopperIndex=StackIndex)))) then
+        begin ReplaceIndex:=I; Break; end;
+      if ReplaceIndex>=0 then
+      begin
+        S.CopperIndex:=Source(ReplaceIndex).CopperIndex;
+        if S.CopperIndex>0 then S.Role:=Source(ReplaceIndex).Role;
+        Source(ReplaceIndex).Free; FSources[ReplaceIndex]:=S;
+        SelectedLayer:=ReplaceIndex; S:=nil;
+      end
+      else
+      begin FSources.Add(S); SelectedLayer:=FSources.Count-1; S:=nil; end;
     finally S.Free; end;
   end;
   InvalidateCAM; UpdateBoard;
@@ -389,13 +557,16 @@ var L: TLPGerberLayer; I, J: Integer; S: TLPGShape;
 begin
   if HasSVG then Exit(SVGPaths);
   Result := nil;
-  if Side = lsTop then L := FindRole(lrTopCopper) else L := FindRole(lrBottomCopper);
-  if L = nil then Exit;
+  L := CurrentCopperLayer;
+  if L <> nil then
   for I := 0 to L.ShapeCount - 1 do
   begin
     S := L.Shape(I);
     for J := 0 to High(S.Items) do LPAddPaths(Result, S.Items[J].Paths);
   end;
+  L:=ComponentCopper;
+  if L<>nil then for I:=0 to L.ShapeCount-1 do
+  begin S:=L.Shape(I); for J:=0 to High(S.Items) do LPAddPaths(Result,S.Items[J].Paths); end;
 end;
 procedure TLaserPCBProject.RebuildMasks(GridResolution: Double);
 var Area: TLPRect; P: TLPPaths; L: TLPGerberLayer; I: Integer;
@@ -417,8 +588,10 @@ begin
     FBoard := TLPMask.Create(Area, GridResolution); FBoard.FillPathsEvenOdd(P);
     FBoard.DrawHoles(Drills, 0);
     FCopper := TLPMask.CreateLike(FBoard);
-    if Side = lsTop then L := FindRole(lrTopCopper) else L := FindRole(lrBottomCopper);
-    if L <> nil then begin FCopper.DrawGerber(L); FCopper.AndMask(FBoard); end;
+    L := CurrentCopperLayer;
+    if L <> nil then FCopper.DrawGerber(L);
+    L:=ComponentCopper; if L<>nil then FCopper.DrawGerber(L);
+    FCopper.AndMask(FBoard);
     FArtwork := TLPMask.CreateLike(FBoard);
     if (SelectedLayer >= 0) and (SelectedLayer < SourceCount) then
     begin FArtwork.DrawGerber(Source(SelectedLayer).Layer); FArtwork.AndMask(FBoard); end;
@@ -432,7 +605,7 @@ begin
     case Mode of
       cmIsolation, cmRemoveCopper:
       begin
-        if Side = lsTop then L := FindRole(lrTopCopper) else L := FindRole(lrBottomCopper);
+        L := CurrentCopperLayer;
         if L = nil then raise Exception.Create('Camada de cobre do lado selecionado ausente');
         if Mode = cmIsolation then
           Generated := LPIsolation(Copper, SafeBoard, Profile.SpotMM, Profile.Passes, Overlap, Board.Res/4)
@@ -709,7 +882,7 @@ begin Result := TLPOperation(FOperations[I]); end;
 function TLaserPCBProject.AddOperation(AMode: TLPCamMode; const AName: string; AColor: Integer): TLPOperation;
 begin
   Result := TLPOperation.Create;
-  Result.Mode := AMode; Result.Name := AName; Result.ColorIndex := EnsureRange(AColor,0,29);
+  Result.Mode := AMode; Result.Process := Profile.Process; Result.Name := AName; Result.ColorIndex := EnsureRange(AColor,0,29);
   if AMode = cmLayerHatch then Result.SourceLayer := SelectedLayer;
   FOperations.Add(Result);
 end;
@@ -784,7 +957,7 @@ end;
 
 procedure TLaserPCBProject.ApplyOperation(Op: TLPOperation);
 begin
-  Mode := Op.Mode;
+  Mode := Op.Mode; Profile.Process := Op.Process;
   Profile.Power := Op.Power; Profile.Feed := Op.Feed; Profile.Passes := Op.Passes;
   Overlap := Op.Overlap; MarkKind := Op.MarkKind; MarkDiameter := Op.MarkDiameter;
   if Op.Mode = cmLayerHatch then SelectedLayer := Op.SourceLayer;

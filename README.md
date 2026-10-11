@@ -38,7 +38,7 @@ FABRICAÇÃO
 | **MultiCAM** | Preparação de trajetórias e fabricação |
 | **MakeRouter** | Projeto e usinagem de madeira na CNC Router |
 | **MultiSlicer** | Preparação para impressão 3D |
-| **MultiPCB / MakePCB / LaserPCB / RouterPCB** | Projeto e fabricação de placas eletrônicas (laser ou fresagem) |
+| **MakePCB / LaserPCB / RouterPCB** | Projeto e fabricação de placas eletrônicas (laser ou fresagem) |
 | **MultiAssembly** | Integração de mecânica e eletrônica em uma montagem |
 | **MultiPhysics** | Simulação física multidomínio |
 
@@ -110,7 +110,6 @@ O núcleo recebeu os recursos abaixo em Object Pascal (FPC/Lazarus). Disponibili
 | **MultiCAM** | Fresamento **trocoidal**, pocket por **offsets** com entrada helicoidal, perfil com **compensação de raio**, rampa e tabs, calculadora de avanços e rotações com **afinamento de cavaco**, pós-processador modal com **arc fitting G2/G3** (perfil típico cai de 516 para 190 linhas). |
 | **LaserArt / LaserPCB** | Rasterização em **escala de cinza** (potência variável), dithering Floyd-Steinberg, Jarvis, Stucki, Atkinson, Sierra, Burkes e Bayer com varredura serpentina, **overscan**, varredura bidirecional, salto de áreas brancas, modo laser dinâmico `M4` e G-code modal. |
 | **MultiSlicer** | Contornos com furos, **perímetros**, topo/fundo sólidos, infill **gyroid**, **altura de camada adaptativa**, extrusão volumétrica, sabores **Marlin** e **Klipper** (`M73`, `M486`/`EXCLUDE_OBJECT`, pressure advance), retração só ao cruzar perímetros, arcos nos perímetros, STL binário e **3MF**. |
-| **MultiPCB** | **Gerber X2** com netlist embutida e funções de abertura, **Gerber Job** (`.gbrjob`), Excellon com tabela de ferramentas, **DRC de clearance** e **autorouter A\*** de duas camadas com vias. |
 | **MultiPhysics** | Solver de circuitos **Newton-Raphson global** (diodo e MOSFET dentro da MNA, *gmin/source stepping*, regra trapezoidal) e integradores **RK4**, **Dormand-Prince 45** adaptativo e **Velocity Verlet**. |
 | **MultiCAD** | **Solver de restrições** (Levenberg-Marquardt) com análise de **graus de liberdade** e detecção de conflitos, extrusão para malha fechada com furos, exportação **STL** e **3MF** (lida diretamente pelo MultiSlicer). |
 | **MultiAssembly** | **ERC eletromecânico** (drivers sem STEP/DIR, tensões incompatíveis, E-stop...), **BOM** CSV/JSON e geração dos parâmetros **Grbl `$100`–`$132`** e do YAML do **FluidNC** a partir da cinemática. |
@@ -442,7 +441,7 @@ Use a **Central de Testes** quando estiver desenvolvendo o projeto, procurando r
        |                    |                    |
        v                    v                    v
  Projeto mecânico      PCB / Eletrônica      Laser / CAM
-                    (MultiPCB, MakePCB)  (LaserPCB, LaserArt,
+                    (MakePCB)  (LaserPCB, LaserArt,
                                           RouterPCB, MultiCAM,
                                           MakeRouter)
        |                    |                    |

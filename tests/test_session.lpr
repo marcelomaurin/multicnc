@@ -1,7 +1,7 @@
 program test_session;
 {$mode objfpc}{$H+}
 uses Classes, SysUtils, multicnc_types, multicnc_simulator, multicnc_session;
-var S: TSimulationSession; Lines: TStringList; FN: string; Raised: Boolean;
+var S: TSimulationSession; Lines: TStringList; FN, PreviousProgram: string; Raised: Boolean; PreviousCount: Integer;
 procedure Check(Value: Boolean; const Msg: string);
 begin
   if not Value then raise Exception.Create(Msg);
@@ -36,11 +36,12 @@ begin
     Check(S.Completed = S.Count, 'All lines confirmed');
     Check(not S.Start or (S.State = ssDone), 'Restart completed job');
     Check(S.Stop, 'Stop');
+    PreviousCount := S.Count; PreviousProgram := S.ProgramText;
     Raised := False;
     Lines.Text := '; empty';
     Lines.SaveToFile(FN);
     try S.LoadFile(FN); except on E: Exception do Raised := True; end;
-    Check(Raised and (S.Count = 2), 'Invalid file preserves prior program');
+    Check(Raised and (S.Count = PreviousCount) and (S.ProgramText = PreviousProgram), 'Invalid file preserves prior program');
     S.Disconnect;
     Check(not S.Connected, 'Disconnect');
     Check(ConnectSim(mtPrinter3D, pkMarlin), 'Reconnect with Marlin');

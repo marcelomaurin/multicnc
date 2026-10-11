@@ -210,7 +210,7 @@ begin
     C.TextOut(48, Y + 15, S);
     { velocidade / potencia }
     C.Font.Size := 8;
-    if (Op.Power <= 0) or (Op.Feed <= 0) then
+    if (Op.Power <= 0) or (Op.Feed <= 0) or (FProject.Profile.SMax<=0) then
     begin
       C.Font.Color := RGBToColor(220, 38, 38);
       S := 'calibrar';
@@ -218,7 +218,7 @@ begin
     else
     begin
       C.Font.Color := RGBToColor(51, 65, 85);
-      S := Format('%.0f/%.0f', [Op.Feed, Op.Power]);
+      S := Format('%.0f/%.0f%%', [Op.Feed, 100*Op.Power/FProject.Profile.SMax]);
     end;
     C.TextOut(ColOutput - 74, Y + 7, S);
     DrawToggle(C, ColOutput, Y + 6, Op.Output);

@@ -40,7 +40,7 @@
    <Filename Value="laserart" />
   </Target>
   <SearchPaths>
-   <OtherUnitFiles Value="../core;../ui;../../../src/shared;../../../multisuite/src/core" />
+   <OtherUnitFiles Value="../core;../ui;../../../src/core;../../../src/shared;../../../multisuite/src/core" />
    <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
   </SearchPaths>
   <Parsing>

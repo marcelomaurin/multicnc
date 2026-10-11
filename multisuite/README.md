@@ -18,7 +18,7 @@ A tela principal foi reorganizada como um hub visual. O menu lateral permanece d
 
 - **Visao geral:** apresenta a proposta da suite, fluxo de fabricacao e atalhos.
 - **Projeto atual:** mostra artefatos e o estado das etapas do workspace.
-- **Projetar:** MultiCAD, MultiPCB, MakePCB, MakeRouter, LaserPCB e LaserArt.
+- **Projetar:** MultiCAD, MakePCB, MakeRouter, LaserPCB e LaserArt.
 - **Preparar:** MultiCAM, RouterPCB e MultiSlicer.
 - **Simular:** MultiPhysics e MultiAssembly.
 - **Fabricar:** MultiCNC.
@@ -53,7 +53,6 @@ O formato `.msuite` persiste o contexto global sem substituir os formatos de cad
 ## Aplicacoes
 
 - **MultiCAD:** CAD mecanico.
-- **MultiPCB:** esquematico e PCB.
 - **MakePCB:** placa do zero (estilo PCB Wizard), Gerber + Excellon para o LaserPCB.
 - **MultiAssembly:** montagem eletromecanica.
 - **MultiPhysics:** simulacao fisica multidominio.

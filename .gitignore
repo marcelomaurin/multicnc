@@ -24,11 +24,6 @@ __pycache__/
 /multicam/tests/test_pcb_outside_heightmap
 /multicam/tests/test_pcb_segmented_heightmap
 /multicam/tests/test_profile
-/multipcb/src/app/multipcb_cnc_position
-/multipcb/tests/test_cnc_alignment
-/multipcb/tests/test_heightmap
-/multipcb/tests/test_routing
-/multipcb/tests/test_zcompensation
 /multislicer/src/app/multislicer_position
 /multislicer/tests/test_layout3d
 /tests/test_simulator
@@ -62,7 +57,6 @@ __pycache__/
 /multiassembly/src/app/multiassembly
 /multicad/src/app/multicad
 /multicam/src/app/multicam
-/multipcb/src/app/multipcb
 /multiphysics/src/app/multiphysics
 /multislicer/src/app/multislicer
 /multisuite/src/app/multisuite

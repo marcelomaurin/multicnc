@@ -14,6 +14,10 @@ type
     Brand, Model, SerialPort, Host: string;
     BaudRate, TCPPort: Integer;
     WorkX, WorkY, WorkZ: Double;
+    LaserManufacturer, LaserModelName: string;
+    LaserOpticalPowerW: Double;
+    LaserWavelengthNM: Integer;
+    LaserHasHoming: Boolean;
   end;
   TEquipmentProfiles = array of TEquipmentProfile;
 
@@ -86,6 +90,18 @@ begin
     raise Exception.Create('Informe o endereco e uma porta TCP entre 1 e 65535.');
   if not ValidTravel(Profile.WorkX) or not ValidTravel(Profile.WorkY) or
      not ValidTravel(Profile.WorkZ) then raise Exception.Create('Curso da maquina invalido.');
+  if (Profile.MachineType = mtLaser) and SameText(Profile.Brand, 'CUSTOM') then
+  begin
+    if (Profile.WorkX <= 0) or (Profile.WorkY <= 0) then
+      raise Exception.Create('Informe a area X/Y do laser CUSTOM em mm.');
+    if IsNan(Profile.LaserOpticalPowerW) or IsInfinite(Profile.LaserOpticalPowerW) or
+       (Profile.LaserOpticalPowerW <= 0) or (Profile.LaserOpticalPowerW > 1000) then
+      raise Exception.Create('Informe a potencia optica do laser CUSTOM em watts (maior que zero, ate 1000 W).');
+    if (Profile.LaserWavelengthNM < 0) or (Profile.LaserWavelengthNM > 20000) then
+      raise Exception.Create('Comprimento de onda invalido (0 = nao informado).');
+    if (Length(Profile.LaserManufacturer) > 120) or (Length(Profile.LaserModelName) > 120) then
+      raise Exception.Create('Fabricante e modelo devem ter ate 120 caracteres.');
+  end;
 end;
 
 constructor TEquipmentStore.Create(const AFileName: string);
@@ -156,6 +172,11 @@ begin
         P.WorkX := Obj.Get('work_x', 0.0);
         P.WorkY := Obj.Get('work_y', 0.0);
         P.WorkZ := Obj.Get('work_z', 0.0);
+        P.LaserManufacturer := Obj.Get('laser_manufacturer', '');
+        P.LaserModelName := Obj.Get('laser_model_name', '');
+        P.LaserOpticalPowerW := Obj.Get('laser_optical_power_w', 0.0);
+        P.LaserWavelengthNM := Obj.Get('laser_wavelength_nm', 0);
+        P.LaserHasHoming := Obj.Get('laser_has_homing', False);
         ValidateEquipment(P);
         for J := 0 to I - 1 do
           if SameText(Loaded[J].Name, P.Name) then raise Exception.Create('Nome de equipamento duplicado.');
@@ -194,6 +215,14 @@ begin
       Obj.Add('serial_port', P.SerialPort); Obj.Add('baud_rate', P.BaudRate);
       Obj.Add('host', P.Host); Obj.Add('tcp_port', P.TCPPort);
       Obj.Add('work_x', P.WorkX); Obj.Add('work_y', P.WorkY); Obj.Add('work_z', P.WorkZ);
+      if (P.MachineType = mtLaser) and SameText(P.Brand, 'CUSTOM') then
+      begin
+        Obj.Add('laser_manufacturer', P.LaserManufacturer);
+        Obj.Add('laser_model_name', P.LaserModelName);
+        Obj.Add('laser_optical_power_w', P.LaserOpticalPowerW);
+        Obj.Add('laser_wavelength_nm', P.LaserWavelengthNM);
+        Obj.Add('laser_has_homing', P.LaserHasHoming);
+      end;
     end;
     Source.Text := Root.FormatJSON;
     Source.SaveToFile(TempName);

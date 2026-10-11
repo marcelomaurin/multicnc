@@ -22,7 +22,7 @@ Lista do que ficou aberto. Detalhes do LaserArt em
   `Application.CreateForm` o LCL nao define `Application.MainForm`, entao fechar a janela
   so a escondia e o processo continuava (prendendo o `.exe` em `bin`).
 - Corrigido em 16 programas (LaserPCB, MakePCB, MakeRouter, RouterPCB, MultiAssembly,
-  MultiCAD, MultiCAM e simulador, MultiPCB e posicionamento, MultiPhysics, MultiSlicer e
+  MultiCAD, MultiCAM e simulador, MakePCB e posicionamento, MultiPhysics, MultiSlicer e
   posicionamento, MultiSuite, Central de Testes). Teste: com `CreateForm` o processo sai ao
   fechar; com `Create` fica preso. Instalador 0.04 com a correcao.
 - A bandeja continua em segundo plano de proposito (icone ao lado do relogio); para fechar,
@@ -67,7 +67,7 @@ Lista do que ficou aberto. Detalhes do LaserArt em
 - 07/10 (tarde): esquematico com "Converter para a placa", selecao multipla e
   copiar/colar, SMD (montagem embaixo em face simples), editor de componentes
   com biblioteca pessoal e impressao 1:1 da arte final.
-- Proximos: simbolos do usuario, anotacao reversa, biblioteca do MultiPCB.
+- Proximos: simbolos do usuario, anotacao reversa, ampliacao da biblioteca do MakePCB.
   Ver `makepcb/docs/ARCHITECTURE.md`.
 
 ## LaserPCB (07/10/2026)
@@ -158,5 +158,5 @@ Lista do que ficou aberto. Detalhes do LaserArt em
   (tray, MultiCNC) sao x64, como o instalador.
 - Controles visuais comuns em `multisuite/src/core/multisuite_controls.pas`
   e icones em `multisuite_icons.pas` - usar nas demais ferramentas
-  (MultiCAD, MultiPCB, MultiCAM, MultiSlicer, MultiPhysics, MultiAssembly,
+  (MultiCAD, MultiCAM, MultiSlicer, MultiPhysics, MultiAssembly,
   LaserPCB) para padronizar o visual.

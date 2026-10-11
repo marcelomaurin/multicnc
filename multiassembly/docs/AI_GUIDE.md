@@ -23,10 +23,10 @@ Eletricas: power, ground, STEP, DIR, ENABLE, PWM, entradas/saidas e comunicacao.
 Mecanicas: fixed, axis, coupled, belt e lead screw.
 
 ## Integracao
-MultiCAD fornece referencias de pecas. MultiPCB fornece placas/conectores. MultiAssembly descreve a montagem. MultiCNC futuramente pode derivar perfil da maquina dessa descricao.
+MultiCAD fornece referencias de pecas. MakePCB fornece placas/conectores. MultiAssembly descreve a montagem. MultiCNC futuramente pode derivar perfil da maquina dessa descricao.
 
 ## Nao pertence aqui
 Gerar toolpath, fatiar STL, enviar comando para hardware ou substituir o CAD/EDA.
 
 ## Proximos requisitos
-Persistencia do projeto, editor de propriedades, drag/drop, desenho grafico de fios, importacao MultiCAD/MultiPCB, montagem 3D, BOM e validacao de compatibilidade eletrica/mecanica.
+Persistencia do projeto, editor de propriedades, drag/drop, desenho grafico de fios, importacao MultiCAD/MakePCB, montagem 3D, BOM e validacao de compatibilidade eletrica/mecanica.

@@ -41,7 +41,6 @@ command -v lazbuild >/dev/null || { echo "ERRO: lazbuild nao encontrado no PATH.
 APPS=(
   "multisuite|multisuite/src/app/multisuite.lpi|multisuite/src/app/multisuite|MultiSuite|Central de engenharia MultiSuite"
   "multicad|multicad/src/app/multicad.lpi|multicad/src/app/multicad|MultiCAD|Modelagem CAD mecanica"
-  "multipcb|multipcb/src/app/multipcb.lpi|multipcb/src/app/multipcb|MultiPCB|Esquematico e PCB"
   "multiassembly|multiassembly/src/app/multiassembly.lpi|multiassembly/src/app/multiassembly|MultiAssembly|Montagem eletromecanica"
   "multiphysics|multiphysics/src/app/multiphysics.lpi|multiphysics/src/app/multiphysics|MultiPhysics|Simulacao estrutural, termica e dinamica"
   "multicam|multicam/src/app/multicam.lpi|multicam/src/app/multicam|MultiCAM|CAM e simulacao CNC Router"
@@ -207,7 +206,7 @@ Installed-Size: $SIZE
 Maintainer: Maurinsoft <marcelomaurinmartins@gmail.com>
 Homepage: https://github.com/marcelomaurin/multicnc
 Description: MultiSuite - CAD, PCB, CAM, fatiamento, laser e controle CNC
- Inclui MultiSuite, MultiCAD, MultiPCB, MultiAssembly, MultiPhysics, MultiCAM,
+ Inclui MultiSuite, MultiCAD, MakePCB, MultiAssembly, MultiPhysics, MultiCAM,
  MultiSlicer, MakePCB, MakeRouter, RouterPCB, LaserPCB, LaserArt, MultiCNC e Central de Testes.
 EOF
 

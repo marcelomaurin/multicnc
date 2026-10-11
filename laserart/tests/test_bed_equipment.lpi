@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+ <ProjectOptions>
+  <Version Value="12" />
+  <General>
+   <Title Value="Test LaserArt Mesa equipment" />
+  </General>
+  <BuildModes Count="1">
+   <Item1 Name="Default" Default="True" />
+  </BuildModes>
+  <RequiredPackages Count="1">
+   <Item1>
+    <PackageName Value="LCL" />
+   </Item1>
+  </RequiredPackages>
+  <Units Count="1">
+   <Unit0>
+    <Filename Value="test_bed_equipment.lpr" />
+    <IsPartOfProject Value="True" />
+   </Unit0>
+  </Units>
+ </ProjectOptions>
+ <CompilerOptions>
+  <Version Value="11" />
+  <Target>
+   <Filename Value="test_bed_equipment" />
+  </Target>
+  <SearchPaths>
+   <OtherUnitFiles Value="../src/app;../src/core;../src/ui;../../src/core;../../src/shared;../../multisuite/src/core" />
+   <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
+  </SearchPaths>
+  <Parsing>
+   <SyntaxOptions>
+    <SyntaxMode Value="ObjFPC" />
+   </SyntaxOptions>
+  </Parsing>
+  <Linking>
+   <Options>
+    <Win32>
+     <GraphicApplication Value="False" />
+    </Win32>
+   </Options>
+  </Linking>
+ </CompilerOptions>
+</CONFIG>

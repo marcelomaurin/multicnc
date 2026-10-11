@@ -1,7 +1,7 @@
 unit multicam_pcb_toolpath;
 {$mode objfpc}{$H+}
 interface
-uses multisuite_numfmt, Classes,SysUtils,Math,multicam_types,multicam_job,multipcb_heightmap,multipcb_zcompensation;
+uses multisuite_numfmt, Classes,SysUtils,Math,multicam_types,multicam_job,multisuite_heightmap,multisuite_zcompensation;
 type TPCBToolpathCompensator=class
  public class function ApplyHeightMap(Source,Dest:TCamJob;Map:THeightMap;ReferenceZ,MaxCorrection,CutThresholdZ:Double;Errors:TStrings):Boolean;
  end;

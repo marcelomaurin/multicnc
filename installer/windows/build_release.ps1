@@ -1,10 +1,10 @@
 param(
   [string]$Version = $env:VERSION,
-  [ValidatePattern('^\d{3}$')][string]$SetupSeq = '006',
+  [ValidatePattern('^\d{3}$')][string]$SetupSeq = '007',
   [switch]$AllowDirty
 )
 $ErrorActionPreference = 'Stop'
-if (-not $Version) { $Version = '0.06' }
+if (-not $Version) { $Version = '0.07' }
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 Set-Location -LiteralPath $root
 $dist = Join-Path $root 'dist'
@@ -41,9 +41,7 @@ foreach ($folder in @('pacote\AI', 'pacote\AI Input\AISerial', 'pacote\AI Simula
 }
 [IO.File]::WriteAllLines($config, $flags)
 $targets = @(
- @('multisuite\src\app\multisuite','multisuite'),
  @('multicad\src\app\multicad','multicad'),
- @('multipcb\src\app\multipcb','multipcb'),
  @('multiassembly\src\app\multiassembly','multiassembly'),
  @('multiphysics\src\app\multiphysics','multiphysics'),
  @('multicam\src\app\multicam','multicam'),
@@ -55,8 +53,7 @@ $targets = @(
  @('laserart\src\app\laserart','laserart'),
  @('src\app\multicnc','multicnc'),
  @('multisuite\src\tray\multisuite_tray','multisuite_tray'),
- @('src\simucnc\simucnc','SimuCNC'),
- @('multisuite\src\testing\multisuite_test_center','multisuite_test_center')
+ @('src\simucnc\simucnc','SimuCNC')
 )
 foreach ($target in $targets) {
   Write-Host "Compilando $($target[1])..."
@@ -94,5 +91,6 @@ foreach ($target in $targets) {
 }
 $hash = (Get-FileHash -LiteralPath (Join-Path $dist "$name.exe") -Algorithm SHA256).Hash.ToLower()
 [IO.File]::WriteAllText((Join-Path $dist 'SHA256SUMS'), "$hash  $name.exe" + [Environment]::NewLine)
+Copy-Item -LiteralPath (Join-Path $dist 'SHA256SUMS') -Destination $setup -Force
 if ($blocked.Count) { throw "Setup gerado; executaveis de bin bloqueados: $($blocked -join ', ')" }
 Write-Host "Setup gerado: bin\$name.exe"

@@ -21,7 +21,7 @@ Preparacao de placas PCB para processo laser: layout, posicionamento, nesting, t
 Se a finalidade e fabricar PCB, use LaserPCB. Se e gravar/cortar imagem, logotipo, texto ou arte geral, use o LaserArt (pasta `laserart/` na raiz).
 
 ## Integracao
-MultiPCB fornece dados de placa. LaserPCB prepara o job. MultiCNC executa a maquina laser e, para a furacao, o CNC Router.
+MakePCB fornece dados de placa. LaserPCB prepara o job. MultiCNC executa a maquina laser e, para a furacao, o CNC Router.
 
 Use a aplicacao principal para posicionar as placas reais. Previa e exportacao devem usar as mesmas trajetorias. Nao modifique a geometria importada ao espelhar Bottom; mantenha o diametro fisico do feixe apos escala. Recursos ignorados devem gerar avisos e bloquear exportacao. Parametros invalidos nunca devem criar ou sobrescrever um arquivo de G-code. Furos usam o mesmo WorldPoint das trajetorias; nao crie outro mapeamento.
 

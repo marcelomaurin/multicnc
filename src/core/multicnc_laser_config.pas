@@ -1,6 +1,6 @@
 unit multicnc_laser_config;
 
-{ objfpc}{+}
+{$mode objfpc}{$H+}
 
 interface
 

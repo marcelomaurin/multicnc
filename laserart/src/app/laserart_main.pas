@@ -20,7 +20,7 @@ uses
   multisuite_icons, multisuite_controls, multisuite_types, multisuite_registry,
   multisuite_launcher, laserart_model, laserart_geom, laserart_imaging,
   laserart_svgimport, laserart_output, laserart_materials, laserart_editor,
-  laserart_widgets, laserart_calibrationform;
+  laserart_widgets, laserart_calibrationform, laserart_bedform;
 
 type
   TLaserArtForm = class(TForm)
@@ -1399,27 +1399,20 @@ begin
 end;
 
 procedure TLaserArtForm.BedClick(Sender: TObject);
-var
-  S: string;
-  V: Double;
-  Parts: TStringList;
+var F: TLaserBedForm;
 begin
-  S := Format('%.0f x %.0f; %.0f', [Doc.BedW, Doc.BedH, Doc.SMax], InvariantFS);
-  if not InputQuery('Mesa', 'Area da mesa (L x A em mm) e S maximo do GRBL ($30):', S) then Exit;
-  Parts := TStringList.Create;
+  F := TLaserBedForm.Create(Self);
   try
-    Parts.Text := StringReplace(StringReplace(StringReplace(S, 'x', #10, [rfReplaceAll, rfIgnoreCase]),
-      ';', #10, [rfReplaceAll]), ',', '.', [rfReplaceAll]);
-    if Parts.Count < 2 then Exit;
+    F.Configure(Doc.BedW, Doc.BedH, Doc.SMax);
+    if F.ShowModal <> mrOK then Exit;
     PushUndo;
-    if TryParseFloat(Trim(Parts[0]), V) and (V > 0) then Doc.BedW := V;
-    if TryParseFloat(Trim(Parts[1]), V) and (V > 0) then Doc.BedH := V;
-    if (Parts.Count > 2) and TryParseFloat(Trim(Parts[2]), V) and (V > 0) then Doc.SMax := V;
+    Doc.BedW := F.WidthMM; Doc.BedH := F.HeightMM; Doc.SMax := F.SMax;
+    Editor.ZoomFit;
+    RefreshAll;
+    SetStatus(Format('Mesa %.2f x %.2f mm, S maximo %.0f', [Doc.BedW, Doc.BedH, Doc.SMax], InvariantFS));
   finally
-    Parts.Free;
+    F.Free;
   end;
-  Editor.ZoomFit;
-  SetStatus(Format('Mesa %.0f x %.0f mm, S maximo %.0f', [Doc.BedW, Doc.BedH, Doc.SMax], InvariantFS));
 end;
 
 procedure TLaserArtForm.CalibrationClick(Sender: TObject);

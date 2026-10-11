@@ -1,10 +1,10 @@
 # MultiSuite - Guia para IA
 
 ## Papel
-MultiSuite e o gestor/orquestrador da suite. Deve ser a primeira interface vista pelo usuario.
+MultiSuite Bandeja e um menu simples de aplicativos. No Windows, somente multisuite_tray.exe e distribuido como lancador.
 
 ## Pode fazer
-Criar/abrir projeto global, mostrar ferramentas, abrir ferramentas, acompanhar artefatos do projeto, centralizar configuracoes comuns e futuramente registrar estado/workflow.
+A bandeja apenas lista e abre aplicativos. Nao adicionar painel central, busca ou configuracoes ao menu. O nucleo de workspace permanece para compatibilidade dos projetos legados.
 
 ## Nao pode fazer
 Nao implementar internamente CAD, PCB, CAM, slicing, Laser, montagem ou controle CNC. Deve delegar.
@@ -19,12 +19,12 @@ O projeto deve fornecer contexto compartilhado sem forcar todos os modulos a usa
 Ferramentas sao executaveis independentes. O launcher envia --project <diretorio> e --file <arquivo absoluto>, preservando argumentos com espacos. Procura executaveis lado a lado na instalacao e no diretorio do .lpi em desenvolvimento. Um artefato ausente deve ser recusado antes de executar a ferramenta.
 
 ## Ferramentas registradas
-MultiCAD, MultiPCB, MultiAssembly, MultiPhysics, MultiCAM, MultiSlicer, LaserPCB, LaserArt, MultiCNC e MakePCB.
-RouterPCB (`stiRouterPCB`) e MakeRouter (`stiMakeRouter`, ultimo do enum, tela provisoria; o registro tem 12 ferramentas) fica na secao/grupo Preparar, ao lado do MultiCAM. Novas ferramentas sempre no FIM de `TSuiteToolID` e de `TSuiteIconKind` (o `.msuite` e caches gravam ordinais).
+MultiCAD, MultiAssembly, MultiPhysics, MultiCAM, MultiSlicer, LaserPCB, LaserArt, MultiCNC e MakePCB.
+O registro tem 12 ferramentas, incluindo RouterPCB, MakeRouter e SimuCNC. A bandeja lista os aplicativos em um menu simples.
 
 Novas ferramentas entram no FIM de `TSuiteToolID` (`multisuite_types.pas`): o workspace `.msuite` grava o ordinal.
-Na bandeja (`multisuite_tray_form.pas`) cada ferramenta precisa de icone (`ToolIcon`), cor (`ToolAccent`) e grupo (`AddGroup`).
-MultiCAD, MultiPCB, MultiAssembly, MultiPhysics, MultiCAM, MultiSlicer, LaserPCB, LaserArt e MultiCNC.
+Na bandeja, o menu e construido do registro e inclui somente aplicativos com executavel disponivel.
+MultiCAD, MultiAssembly, MultiPhysics, MultiCAM, MultiSlicer, LaserPCB, LaserArt e MultiCNC.
 
 ## Persistencia
 TWorkspace e dono de .msuite. O formato 2 usa caminhos relativos para arquivos internos e separadores portaveis; metadados escapam %, | e quebras de linha. Load valida enums e publica o estado somente depois de validar todo o documento. Arquivos legados continuam legiveis. Nao renumere enums de artefatos/ferramentas. Novos tipos de artefato ficam no fim.

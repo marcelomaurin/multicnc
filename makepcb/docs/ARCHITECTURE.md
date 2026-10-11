@@ -75,5 +75,5 @@ bloqueiam. Trilhas existentes sao mantidas.
 
 - Simbolos do usuario (editor de simbolo) e mais CIs com pinagem nomeada.
 - Anotacao reversa (placa -> esquema) e destaque cruzado da rede selecionada.
-- Importar a biblioteca do MultiPCB.
+- Ampliar a biblioteca de componentes do MakePCB.
 - Serigrafia de baixo para componentes virados.

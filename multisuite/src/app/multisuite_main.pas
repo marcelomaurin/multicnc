@@ -122,7 +122,7 @@ end;
 function KindForTool(Tool: TSuiteToolID): TArtifactKind;
 begin
   case Tool of
-    stiMultiCAD: Result := akCAD; stiMultiPCB: Result := akPCB;
+    stiMultiCAD: Result := akCAD; stiReservedPCB: Result := akPCB;
     stiMultiAssembly: Result := akAssembly; stiMultiPhysics: Result := akPhysics;
     stiMultiCAM: Result := akCAM; stiMultiSlicer: Result := akSlicer;
     stiLaserPCB: Result := akLaserPCB; stiLaserArt: Result := akLaserArt;
@@ -460,7 +460,7 @@ begin
   Result := False;
   case ASection of
     SEC_DESIGN:
-      Result := AID in [stiMultiCAD, stiMultiPCB, stiMakePCB, stiMakeRouter, stiLaserPCB, stiLaserArt];
+      Result := AID in [stiMultiCAD, stiMakePCB, stiMakeRouter, stiLaserPCB, stiLaserArt];
     SEC_PREPARE:
       Result := AID in [stiMultiCAM, stiRouterPCB, stiMultiSlicer];
     SEC_SIMULATE:
@@ -976,7 +976,7 @@ begin
     C.ItemIndex := 0; Ext := LowerCase(ExtractFileExt(FN));
     if (Ext = '.nc') or (Ext = '.gcode') or (Ext = '.tap') or (Ext = '.ngc') then C.ItemIndex := Registry.Find(stiMultiCNC)
     else if Ext = '.stl' then C.ItemIndex := Registry.Find(stiMultiSlicer)
-    else if Ext = '.mpcb' then C.ItemIndex := Registry.Find(stiMultiPCB)
+    else if Ext = '.mpcb' then C.ItemIndex := Registry.Find(stiMakePCB)
     else if Ext = '.massembly' then C.ItemIndex := Registry.Find(stiMultiAssembly)
     else if Ext = '.mcam' then C.ItemIndex := Registry.Find(stiMultiCAM)
     else if Ext = '.mphysics' then C.ItemIndex := Registry.Find(stiMultiPhysics);

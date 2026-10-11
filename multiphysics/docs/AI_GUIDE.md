@@ -24,7 +24,7 @@ maquina real.
   (`multisuite/src/testing/multisuite_test_catalog.pas`).
 
 ## Integracao
-MultiAssembly define a montagem; MultiPCB fornece componentes e nets; o MultiPhysics
+MultiAssembly define a montagem; componentes e redes usam o contrato unificado. A integracao direta com o MakePCB ainda e pendente. O MultiPhysics
 acrescenta materiais, cargas, condicoes e modelos e devolve estados e resultados. O
 MultiCNC continua sendo o unico dono da execucao fisica.
 

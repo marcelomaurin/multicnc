@@ -87,6 +87,7 @@ type
     procedure LoadFile(const FileName: string);
     function Start: Boolean;
     function RunFraming(const AFramingLines: TStrings): Boolean;
+    function RunOutline: Boolean;
     procedure Tick;
     procedure Poll;
     function Pause: Boolean;
@@ -138,7 +139,7 @@ type
 
 implementation
 
-uses multicnc_streamer;
+uses multicnc_streamer, multicnc_outline, multisuite_numfmt;
 
 constructor TSimulationSession.Create;
 begin
@@ -443,10 +444,10 @@ end;
 
 function TSimulationSession.GetCount: Integer;
 begin
-  if FLoadedLines.Count > 0 then
-    Result := FLoadedLines.Count
-  else
-    Result := FLines.Count;
+  { Count must describe the list being sent, including framing and laser
+    preparation/pass lines. Framing restores FLines to the loaded program
+    when it finishes or is stopped. }
+  Result := FLines.Count;
 end;
 
 function TSimulationSession.GetCompleted: Integer;
@@ -513,6 +514,31 @@ begin
     Source.Free;
     Commands.Free;
   end;
+end;
+
+function TSimulationSession.RunOutline: Boolean;
+var Lines: TStringList; B: TGCodeBounds; AFeed: Double; P: TMachinePosition;
+begin
+  if not Connected then Exit(Fail('Machine disconnected'));
+  if not ControllerReady then Exit(Fail('Wait for the controller to become ready'));
+  if FMachineKind <> mtLaser then Exit(Fail('Outline is available for CNC Laser'));
+  if (FState in [ssRunning, ssPaused]) or (FMachine.GetState <> msIdle) then
+    Exit(Fail('The machine must be idle before outlining'));
+  if FMachine.PendingLines > 0 then Exit(Fail('Wait for pending commands'));
+  Lines := nil;
+  try
+    try
+      Lines := BuildOutline(FLoadedLines, 500, B);
+      P := Position;
+      AFeed := OutlineFeed(B, P.X, P.Y);
+      FreeAndNil(Lines);
+      Lines := BuildOutline(FLoadedLines, AFeed, B);
+      if Assigned(FOnLog) then FOnLog(Format(
+        'Outline: X %.3f..%.3f, Y %.3f..%.3f mm; feed %.0f mm/min (automatic, 8 s target including approach); laser OFF; Z unchanged.',
+        [B.MinX, B.MaxX, B.MinY, B.MaxY, AFeed], InvariantFS));
+      Result := RunFraming(Lines);
+    except on E: Exception do Result := Fail(E.Message); end;
+  finally Lines.Free; end;
 end;
 
 function TSimulationSession.RunFraming(const AFramingLines: TStrings): Boolean;
@@ -606,7 +632,7 @@ var FinishCommands: string;
 begin
   CheckFirmwareFaults;
   if FState <> ssRunning then Exit;
-  while (FIndex < Count) and (FMachine.QueuedLines < JobLookahead) do
+  while (FIndex < FLines.Count) and (FMachine.QueuedLines < JobLookahead) do
   begin
     if not FMachine.SendGCode(FLines[FIndex]) then
     begin
@@ -618,7 +644,7 @@ begin
     Inc(FIndex);
   end;
   CheckFirmwareFaults;
-  if (FState = ssRunning) and (FIndex >= Count) and (FMachine.PendingLines = 0) then
+  if (FState = ssRunning) and (FIndex >= FLines.Count) and (FMachine.PendingLines = 0) then
   begin
     if FFramingActive then
     begin
