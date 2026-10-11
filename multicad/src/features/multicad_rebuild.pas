@@ -26,7 +26,8 @@ uses
   Classes, SysUtils, Math, contnrs, md5, fpjson, multicad_types, multicad_feature,
   multicad_document, multicad_refgeom, multicad_sketch, multicad_solver,
   multicad_profile, multicad_extrude, multicad_revolve, multicad_mesh,
-  multicad_sweep, multicad_csg, multicad_bridge, multicad_triangulate;
+  multicad_sweep, multicad_csg, multicad_bridge, multicad_triangulate,
+  multicad_hole, multicad_pattern, multicad_blend, multicad_blendgeom;
 
 type
   TCadBody = class
@@ -38,8 +39,37 @@ type
     function Clone: TCadBody;
   end;
 
+  { Ferramenta aplicada por uma operacao (para padroes e espelho). }
+  TCadToolRec = class
+  public
+    Mesh: TCadMesh;
+    IsCut, Merge, FlipSide: Boolean;
+    destructor Destroy; override;
+  end;
+
+  { Rosca cosmetica de um furo roscado (a vista desenha o circulo nominal). }
+  TCadThreadMark = record
+    Center, Axis: TCadVec3;   { Axis: para fora da peca }
+    Radius, Length: Double;
+  end;
+  TCadThreadMarks = array of TCadThreadMark;
+
+  TCadThreadRec = class
+  public
+    Marks: TCadThreadMarks;
+  end;
+
+  TCadBlendItem = record
+    Body: Integer;
+    Tool: TCadMesh;
+    IsCut: Boolean;
+  end;
+  TCadBlendItems = array of TCadBlendItem;
+
   TCadRebuilder = class
   private
+    FTools: TStringList;      { Id -> TCadToolRec (ultima ferramenta) }
+    FThreadMap: TStringList;  { Id do furo -> TCadThreadRec }
     FDoc: TCadDocument;
     FBodies: TFPObjectList;
     FSigs: TStringList;           { assinatura por indice }
@@ -56,6 +86,15 @@ type
     procedure BuildAxis(A: TCadAxis);
     procedure BuildExtrude(X: TCadExtrude);
     procedure BuildRevolve(R: TCadRevolve);
+    procedure BuildHole(H: TCadHole);
+    procedure BuildPattern(P: TCadPatternBase);
+    procedure BuildBlend(F: TCadBlendBase);
+    function CollectBlend(F: TCadBlendBase; out Items: TCadBlendItems; out Skipped: Integer;
+      out FirstErr: string): Boolean;
+    procedure BuildShell(S: TCadShell);
+    procedure StoreTool(F: TCadFeature; Tool: TCadMesh; IsCut, Merge, FlipSide: Boolean);
+    function ResolveDir(const ARef: string; out D: TCadVec3; out AError: string): Boolean;
+    function ResolveAxis(const ARef: string; out A, U: TCadVec3; out AError: string): Boolean;
     procedure ApplyTool(F: TCadFeature; Tool: TCadMesh; IsCut, Merge, FlipSide, ScopeAll: Boolean;
       const ScopeBodies: TCadStrArray);
     function ModelBounds: TCadBox3;
@@ -84,6 +123,11 @@ type
     { Operacoes recalculadas na ultima reconstrucao (o resto veio do cache). }
     property Recomputed: Integer read FRecomputed;
     property ChordTol: Double read FChord write FChord;
+    { Roscas cosmeticas dos furos roscados ativos. }
+    function ThreadMarks: TCadThreadMarks;
+    { Previa do filete/chanfro: ferramentas juntas sobre os corpos atuais
+      (chamar com a operacao fora da reconstrucao). nil se nenhuma aresta. }
+    function BlendPreview(F: TCadBlendBase; out AnyCut: Boolean; out AError: string): TCadMesh;
   end;
 
 implementation
@@ -198,6 +242,10 @@ begin
   FBodies := TFPObjectList.Create(True);
   FSigs := TStringList.Create;
   FSnaps := TFPObjectList.Create(True);
+  FTools := TStringList.Create;
+  FTools.OwnsObjects := True;
+  FThreadMap := TStringList.Create;
+  FThreadMap.OwnsObjects := True;
   FChord := 0.01;
 end;
 
@@ -206,7 +254,60 @@ begin
   FSnaps.Free;
   FSigs.Free;
   FBodies.Free;
+  FTools.Free;
+  FThreadMap.Free;
   inherited;
+end;
+
+destructor TCadToolRec.Destroy;
+begin
+  Mesh.Free;
+  inherited Destroy;
+end;
+
+procedure TCadRebuilder.StoreTool(F: TCadFeature; Tool: TCadMesh; IsCut, Merge, FlipSide: Boolean);
+var
+  I: Integer;
+  R: TCadToolRec;
+begin
+  if (F is TCadPatternBase) or (Tool = nil) then
+    Exit;
+  R := TCadToolRec.Create;
+  R.Mesh := Tool.Clone;
+  R.IsCut := IsCut;
+  R.Merge := Merge;
+  R.FlipSide := FlipSide;
+  I := FTools.IndexOf(IntToStr(F.Id));
+  if I >= 0 then
+    FTools.Delete(I);
+  FTools.AddObject(IntToStr(F.Id), R);
+end;
+
+function TCadRebuilder.ThreadMarks: TCadThreadMarks;
+var
+  I, K, Last: Integer;
+  F: TCadFeature;
+  R: TCadThreadRec;
+begin
+  Result := nil;
+  Last := FDoc.Count - 1;
+  if (FDoc.RollbackIndex >= 0) and (FDoc.RollbackIndex <= FDoc.Count) then
+    Last := FDoc.RollbackIndex - 1;
+  for I := 0 to Last do
+  begin
+    F := FDoc.Feature(I);
+    if not (F is TCadHole) or F.Suppressed or (F.State = fsError) then
+      Continue;
+    K := FThreadMap.IndexOf(IntToStr(F.Id));
+    if K < 0 then
+      Continue;
+    R := TCadThreadRec(FThreadMap.Objects[K]);
+    for K := 0 to High(R.Marks) do
+    begin
+      SetLength(Result, Length(Result) + 1);
+      Result[High(Result)] := R.Marks[K];
+    end;
+  end;
 end;
 
 procedure TCadRebuilder.Invalidate;
@@ -866,6 +967,16 @@ end;
 
 { ---------- aplicar ferramenta aos corpos ---------- }
 
+function BoxesOverlap(const A, B: TCadBox3): Boolean;
+const
+  E = 1E-4;
+begin
+  Result := not (A.Empty or B.Empty) and
+    (A.Min.X <= B.Max.X + E) and (B.Min.X <= A.Max.X + E) and
+    (A.Min.Y <= B.Max.Y + E) and (B.Min.Y <= A.Max.Y + E) and
+    (A.Min.Z <= B.Max.Z + E) and (B.Min.Z <= A.Max.Z + E);
+end;
+
 procedure TCadRebuilder.ApplyTool(F: TCadFeature; Tool: TCadMesh; IsCut, Merge, FlipSide,
   ScopeAll: Boolean; const ScopeBodies: TCadStrArray);
 var
@@ -881,6 +992,7 @@ var
   NewList: TFPObjectList;
 begin
   Warn := '';
+  StoreTool(F, Tool, IsCut, Merge, FlipSide);
   if not IsCut then
   begin
     if (FBodies.Count = 0) or not Merge then
@@ -960,6 +1072,12 @@ begin
         if SameText(ScopeBodies[K], 'body:' + B.Name) then
           InScope := True;
       if not InScope then
+      begin
+        NewList.Add(B.Clone);
+        Continue;
+      end;
+      { ferramenta longe do corpo: nada a cortar (e evita a booleana) }
+      if not FlipSide and not BoxesOverlap(B.Mesh.Bounds, Tool.Bounds) then
       begin
         NewList.Add(B.Clone);
         Continue;
@@ -1566,6 +1684,397 @@ begin
   ApplyTool(R, Tool, R.IsCut, R.Merge, R.FlipSide, True, nil);
 end;
 
+{ ---------- furo ---------- }
+
+{ Solido de revolucao do perfil (r, z) em torno do eixo Z do referencial. }
+function RevolveProfile(const Prof: TCadHoleProfile; const C, X, Y, Z: TCadVec3;
+  const APrefix: string; ASegs: Integer): TCadMesh;
+var
+  I, K, Face: Integer;
+  S: TCadHoleSeg;
+  Info: TCadFaceInfo;
+  A0, A1: Double;
+  PA, PB, PC, PD: TCadVec3;
+  Err: string;
+
+  function P(R, H, Ang: Double): TCadVec3;
+  begin
+    Result := VAdd(C, VAdd(VAdd(VScale(X, R * Cos(Ang)), VScale(Y, R * Sin(Ang))), VScale(Z, H)));
+  end;
+
+begin
+  Result := TCadMesh.Create;
+  for I := 0 to High(Prof) do
+  begin
+    S := Prof[I];
+    if (S.R0 < 1E-9) and (S.R1 < 1E-9) then
+      Continue;
+    Info := Default(TCadFaceInfo);
+    Info.Name := APrefix + '/' + S.Name;
+    Info.Origin := VAdd(C, VScale(Z, S.Z0));
+    Info.Axis := Z;
+    if Abs(S.R0 - S.R1) < 1E-9 then
+    begin
+      Info.Surf := skCylinder;
+      Info.Origin := C;
+      Info.Radius := S.R0;
+    end
+    else if Abs(S.Z0 - S.Z1) < 1E-9 then
+      Info.Surf := skPlane
+    else
+    begin
+      Info.Surf := skCone;
+      Info.Origin := C;
+      Info.Radius := S.R0;
+      Info.Radius2 := RadToDeg(ArcTan2(Abs(S.R1 - S.R0), Abs(S.Z1 - S.Z0)));
+    end;
+    Face := Result.AddFace(Info);
+    for K := 0 to ASegs - 1 do
+    begin
+      A0 := 2 * Pi * K / ASegs;
+      A1 := 2 * Pi * (K + 1) / ASegs;
+      PA := P(S.R0, S.Z0, A0);
+      PB := P(S.R1, S.Z1, A0);
+      PC := P(S.R1, S.Z1, A1);
+      PD := P(S.R0, S.Z0, A1);
+      if S.R0 < 1E-9 then
+        Result.AddTriP(PA, PB, PC, Face)
+      else if S.R1 < 1E-9 then
+        Result.AddTriP(PA, PB, PD, Face)
+      else
+        Result.AddQuadP(PA, PB, PC, PD, Face);
+    end;
+  end;
+  { orientacao: normais para fora (volume positivo) }
+  if Result.Volume < 0 then
+    Result.Flip;
+  Result.RefreshPlaneNormals;
+  if not Result.CheckClosed(Err) then;
+end;
+
+procedure TCadRebuilder.BuildHole(H: TCadHole);
+var
+  S: TCadSketch;
+  F: TCadFeature;
+  Fr: TCadFrame;
+  E, Err: string;
+  I, K, Segs: Integer;
+  Ent: TSketchEntity;
+  Pts: array of TCadVec2;
+  Prof: TCadHoleProfile;
+  B: TCadBox3;
+  Through, Rmax: Double;
+  C, X, Y, Z: TCadVec3;
+  Tool, One: TCadMesh;
+  Rec: TCadThreadRec;
+  TL: Double;
+begin
+  F := FDoc.FindById(H.SketchId);
+  if not (F is TCadSketch) then
+  begin
+    H.SetState(fsError, 'Esboço dos furos não encontrado');
+    Exit;
+  end;
+  S := TCadSketch(F);
+  if not SketchFrame(S, Fr, E) then
+  begin
+    H.SetState(fsError, E);
+    Exit;
+  end;
+  { centros: pontos do esboco; sem pontos, centros dos circulos }
+  SetLength(Pts, 0);
+  for I := 0 to S.EntityCount - 1 do
+  begin
+    Ent := S.Entity(I);
+    if (Ent.Kind = sePoint) and not Ent.Construction then
+    begin
+      SetLength(Pts, Length(Pts) + 1);
+      Pts[High(Pts)] := Ent.P1;
+    end;
+  end;
+  if Length(Pts) = 0 then
+    for I := 0 to S.EntityCount - 1 do
+    begin
+      Ent := S.Entity(I);
+      if (Ent.Kind = seCircle) and not Ent.Construction then
+      begin
+        SetLength(Pts, Length(Pts) + 1);
+        Pts[High(Pts)] := Ent.P1;
+      end;
+    end;
+  if Length(Pts) = 0 then
+  begin
+    H.SetState(fsError, 'O esboço não tem pontos para os furos');
+    Exit;
+  end;
+  B := ModelBounds;
+  if B.Empty then
+  begin
+    H.SetState(fsError, 'Furo sem corpo: crie um ressalto antes');
+    Exit;
+  end;
+  Through := VLen(BoxSize(B)) * 2 + 10;
+  Prof := H.Profile(Through);
+  if Length(Prof) = 0 then
+  begin
+    H.SetState(fsError, 'Tamanho de furo inválido');
+    Exit;
+  end;
+  Rmax := 0;
+  for I := 0 to High(Prof) do
+    Rmax := Max(Rmax, Max(Prof[I].R0, Prof[I].R1));
+  Segs := EnsureRange(Ceil(Pi / ArcCos(EnsureRange(1 - Max(FChord, 0.005) / Max(Rmax, 0.1), -1, 0.9999))), 24, 96);
+  Z := Fr.Normal;
+  X := Fr.XDir;
+  Y := Fr.YDir;
+  if H.Reverse then
+  begin
+    Z := VNeg(Z);
+    Y := VNeg(Y);
+  end;
+  Tool := TCadMesh.Create;
+  Rec := TCadThreadRec.Create;
+  try
+    for K := 0 to High(Pts) do
+    begin
+      C := FrameToWorld(Fr, Pts[K]);
+      One := RevolveProfile(Prof, C, X, Y, Z, H.Name + '/' + IntToStr(K + 1), Segs);
+      try
+        Tool.Append(One);
+      finally
+        One.Free;
+      end;
+      if H.HoleType = htTapped then
+      begin
+        SetLength(Rec.Marks, Length(Rec.Marks) + 1);
+        Rec.Marks[High(Rec.Marks)].Center := C;
+        Rec.Marks[High(Rec.Marks)].Axis := Z;
+        Rec.Marks[High(Rec.Marks)].Radius := H.ThreadDiameter / 2;
+        if H.EndCond = heThroughAll then
+          TL := Through
+        else
+          TL := H.Depth;
+        if (H.ThreadDepth > 0) and (H.ThreadDepth < TL) then
+          TL := H.ThreadDepth;
+        Rec.Marks[High(Rec.Marks)].Length := TL;
+      end;
+    end;
+    I := FThreadMap.IndexOf(IntToStr(H.Id));
+    if I >= 0 then
+      FThreadMap.Delete(I);
+    FThreadMap.AddObject(IntToStr(H.Id), Rec);
+    Rec := nil;
+  finally
+    Rec.Free;
+  end;
+  if not Tool.CheckClosed(Err) then
+  begin
+    Tool.Free;
+    H.SetState(fsError, 'Ferramenta do furo inválida: ' + Err);
+    Exit;
+  end;
+  ApplyTool(H, Tool, True, False, False, True, nil);
+end;
+
+{ ---------- padroes e espelho ---------- }
+
+function TCadRebuilder.ResolveDir(const ARef: string; out D: TCadVec3; out AError: string): Boolean;
+var
+  R: string;
+  Fr: TCadFrame;
+  A, B: TCadVec3;
+begin
+  Result := True;
+  AError := '';
+  R := LowerCase(Trim(ARef));
+  if R = 'x' then D := V3(1, 0, 0)
+  else if R = 'y' then D := V3(0, 1, 0)
+  else if R = 'z' then D := V3(0, 0, 1)
+  else if (Pos('plane:', R) = 1) or (Pos('face:', ARef) = 1) then
+  begin
+    Result := ResolvePlane(ARef, Fr, AError);
+    D := Fr.Normal;
+  end
+  else
+  begin
+    Result := ResolveLine(ARef, A, B, AError);
+    D := VNorm(VSub(B, A));
+  end;
+end;
+
+function TCadRebuilder.ResolveAxis(const ARef: string; out A, U: TCadVec3; out AError: string): Boolean;
+var
+  R: string;
+  Bd: TCadBody;
+  F: Integer;
+  B: TCadVec3;
+begin
+  Result := True;
+  AError := '';
+  A := V3(0, 0, 0);
+  R := LowerCase(Trim(ARef));
+  if R = 'x' then U := V3(1, 0, 0)
+  else if R = 'y' then U := V3(0, 1, 0)
+  else if R = 'z' then U := V3(0, 0, 1)
+  else if Pos('face:', ARef) = 1 then
+  begin
+    Result := FindFace(Copy(ARef, 6, MaxInt), Bd, F) and
+      (Bd.Mesh.Faces[F].Surf in [skCylinder, skCone]);
+    if not Result then
+    begin
+      AError := 'Escolha uma face cilíndrica para o eixo: ' + ARef;
+      Exit;
+    end;
+    A := Bd.Mesh.Faces[F].Origin;
+    U := VNorm(Bd.Mesh.Faces[F].Axis);
+  end
+  else
+  begin
+    Result := ResolveLine(ARef, A, B, AError);
+    U := VNorm(VSub(B, A));
+  end;
+end;
+
+procedure TCadRebuilder.BuildPattern(P: TCadPatternBase);
+var
+  Mats: array of TCadMat4;
+  I, J, K, Idx, Inst: Integer;
+  Rec: TCadToolRec;
+  D1, D2, A, U, V: TCadVec3;
+  Fr: TCadFrame;
+  E: string;
+  L: TCadLinearPattern;
+  C: TCadCircularPattern;
+  N2: Integer;
+  M: TCadMat4;
+  T: TCadMesh;
+  Seed: TCadFeature;
+  Nm: Double;
+  Mirror: Boolean;
+  Outside: Integer;
+  LastWarn: string;
+begin
+  E := '';
+  Outside := 0;
+  LastWarn := '';
+  SetLength(Mats, 0);
+  Mirror := P is TCadMirror;
+  if P is TCadLinearPattern then
+  begin
+    L := TCadLinearPattern(P);
+    if not ResolveDir(L.Dir1, D1, E) then
+    begin
+      P.SetState(fsError, 'Direção 1: ' + E);
+      Exit;
+    end;
+    if L.Reverse1 then D1 := VNeg(D1);
+    N2 := 1;
+    D2 := V3(0, 0, 0);
+    if L.UseDir2 then
+    begin
+      if not ResolveDir(L.Dir2, D2, E) then
+      begin
+        P.SetState(fsError, 'Direção 2: ' + E);
+        Exit;
+      end;
+      if L.Reverse2 then D2 := VNeg(D2);
+      N2 := L.Count2;
+    end;
+    for I := 0 to L.Count1 - 1 do
+      for J := 0 to N2 - 1 do
+        if (I > 0) or (J > 0) then
+        begin
+          V := VAdd(VScale(D1, I * L.Spacing1), VScale(D2, J * L.Spacing2));
+          SetLength(Mats, Length(Mats) + 1);
+          Mats[High(Mats)] := MatTranslate(V.X, V.Y, V.Z);
+        end;
+  end
+  else if P is TCadCircularPattern then
+  begin
+    C := TCadCircularPattern(P);
+    if not ResolveAxis(C.AxisRef, A, U, E) then
+    begin
+      P.SetState(fsError, 'Eixo: ' + E);
+      Exit;
+    end;
+    for I := 1 to C.Count - 1 do
+    begin
+      SetLength(Mats, Length(Mats) + 1);
+      Mats[High(Mats)] := MatMul(MatTranslate(A.X, A.Y, A.Z),
+        MatMul(MatRotate(U, C.StepAngle * I), MatTranslate(-A.X, -A.Y, -A.Z)));
+    end;
+  end
+  else if Mirror then
+  begin
+    if not ResolvePlane(TCadMirror(P).PlaneRef, Fr, E) then
+    begin
+      P.SetState(fsError, 'Plano do espelho: ' + E);
+      Exit;
+    end;
+    { reflexao: p' = p - 2 n (n.(p - o)) }
+    V := Fr.Normal;
+    Nm := VDot(V, Fr.Origin);
+    M := MatIdentity;
+    M[0, 0] := 1 - 2 * V.X * V.X; M[0, 1] := -2 * V.X * V.Y; M[0, 2] := -2 * V.X * V.Z;
+    M[1, 0] := -2 * V.Y * V.X; M[1, 1] := 1 - 2 * V.Y * V.Y; M[1, 2] := -2 * V.Y * V.Z;
+    M[2, 0] := -2 * V.Z * V.X; M[2, 1] := -2 * V.Z * V.Y; M[2, 2] := 1 - 2 * V.Z * V.Z;
+    M[0, 3] := 2 * Nm * V.X;
+    M[1, 3] := 2 * Nm * V.Y;
+    M[2, 3] := 2 * Nm * V.Z;
+    SetLength(Mats, 1);
+    Mats[0] := M;
+  end;
+  if Length(Mats) = 0 then
+  begin
+    P.SetState(fsError, 'O padrão não tem cópias');
+    Exit;
+  end;
+  { cada semente deve vir antes e ter geometria }
+  for K := 0 to High(P.Seeds) do
+  begin
+    Seed := FDoc.FindById(P.Seeds[K]);
+    if (Seed = nil) or (FDoc.IndexOfId(Seed.Id) >= FDoc.IndexOfId(P.Id)) then
+    begin
+      P.SetState(fsError, 'Operação a repetir não encontrada (ou depois do padrão)');
+      Exit;
+    end;
+    if Seed.Suppressed or (Seed.State = fsError) or (FTools.IndexOf(IntToStr(Seed.Id)) < 0) then
+    begin
+      P.SetState(fsError, '"' + Seed.Name + '" não tem geometria para repetir');
+      Exit;
+    end;
+  end;
+  Inst := 0;
+  for I := 0 to High(Mats) do
+    for K := 0 to High(P.Seeds) do
+    begin
+      Inc(Inst);
+      Seed := FDoc.FindById(P.Seeds[K]);
+      Idx := FTools.IndexOf(IntToStr(Seed.Id));
+      Rec := TCadToolRec(FTools.Objects[Idx]);
+      T := Rec.Mesh.Clone;
+      T.Transform(Mats[I]);
+      if Mirror then
+        T.Flip;
+      T.RefreshPlaneNormals;
+      for J := 0 to T.FaceCount - 1 do
+        T.SetFaceName(J, P.Name + '/' + IntToStr(I + 1) + '/' + T.Faces[J].Name);
+      P.SetState(fsOk, '');
+      ApplyTool(P, T, Rec.IsCut, Rec.Merge, Rec.FlipSide, True, nil);
+      if P.State = fsError then
+        Exit;
+      if P.State = fsWarning then
+      begin
+        Inc(Outside);
+        LastWarn := P.Message;
+      end;
+    end;
+  if Outside > 0 then
+    P.SetState(fsWarning, Format('%d de %d cópia(s) com aviso: %s', [Outside, Inst, LastWarn]))
+  else
+    P.SetState(fsOk, '');
+end;
+
 { ---------- reconstrucao ---------- }
 
 { Profundidades digitadas como expressao ("D1@Esboço1*2", "1in") sao
@@ -1584,6 +2093,298 @@ begin
   if (X.Dir2.DepthExpr <> '') and FDoc.Eval(X.Dir2.DepthExpr, V, Err) then
     X.Dir2.Depth := V;
 end;
+
+{ ---------- filete, chanfro e casca (fase 6) ---------- }
+
+function BodyIndexOfFace(L: TFPObjectList; const AName: string; out AFace: Integer): Integer;
+var
+  I: Integer;
+begin
+  for I := 0 to L.Count - 1 do
+  begin
+    AFace := TCadBody(L[I]).Mesh.FaceIndex(AName);
+    if AFace >= 0 then
+      Exit(I);
+  end;
+  AFace := -1;
+  Result := -1;
+end;
+
+function TCadRebuilder.CollectBlend(F: TCadBlendBase; out Items: TCadBlendItems;
+  out Skipped: Integer; out FirstErr: string): Boolean;
+type
+  TPair = record
+    Body, FA, FB: Integer;
+  end;
+var
+  Pairs: array of TPair;
+  I, J, K, Bi, Bj, FA, FB: Integer;
+  A, B, Err: string;
+  Nb: TCadIdArray;
+  M, Tool: TCadMesh;
+  Chains: TCadEdgeChains;
+  P: TCadBlendParams;
+  IsCut: Boolean;
+
+  procedure AddPair(ABody, X, Y: Integer);
+  var
+    Q: Integer;
+  begin
+    for Q := 0 to High(Pairs) do
+      if (Pairs[Q].Body = ABody) and (((Pairs[Q].FA = X) and (Pairs[Q].FB = Y)) or
+        ((Pairs[Q].FA = Y) and (Pairs[Q].FB = X))) then
+        Exit;
+    SetLength(Pairs, Length(Pairs) + 1);
+    Pairs[High(Pairs)].Body := ABody;
+    Pairs[High(Pairs)].FA := X;
+    Pairs[High(Pairs)].FB := Y;
+  end;
+
+begin
+  Items := nil;
+  Pairs := nil;
+  FirstErr := '';
+  Skipped := 0;
+  P := Default(TCadBlendParams);
+  P.ChordTol := FChord;
+  if F is TCadFillet3D then
+  begin
+    P.Kind := bkFillet;
+    P.Radius := TCadFillet3D(F).Radius;
+  end
+  else
+  begin
+    P.Kind := bkChamfer;
+    TCadChamfer3D(F).Distances(P.D1, P.D2);
+  end;
+  for I := 0 to High(F.Edges) do
+    if CadParseEdgeRef(F.Edges[I], A, B) then
+    begin
+      Bi := BodyIndexOfFace(FBodies, A, FA);
+      Bj := BodyIndexOfFace(FBodies, B, FB);
+      if (Bi < 0) or (Bi <> Bj) then
+      begin
+        Inc(Skipped);
+        if FirstErr = '' then FirstErr := 'aresta não encontrada: ' + A + ' | ' + B;
+        Continue;
+      end;
+      AddPair(Bi, FA, FB);
+    end
+    else if Copy(F.Edges[I], 1, 5) = 'face:' then
+    begin
+      Bi := BodyIndexOfFace(FBodies, Copy(F.Edges[I], 6, MaxInt), FA);
+      if Bi < 0 then
+      begin
+        Inc(Skipped);
+        if FirstErr = '' then FirstErr := 'face não encontrada: ' + Copy(F.Edges[I], 6, MaxInt);
+        Continue;
+      end;
+      M := Body(Bi).Mesh;
+      Nb := CadFaceNeighbors(M, FA);
+      for K := 0 to High(Nb) do
+        { costura entre faces coplanares nao e aresta }
+        if not ((M.Faces[FA].Surf = skPlane) and (M.Faces[Nb[K]].Surf = skPlane) and
+          (VDot(M.Faces[FA].Axis, M.Faces[Nb[K]].Axis) > 0.99999)) then
+          AddPair(Bi, FA, Nb[K]);
+    end;
+  for I := 0 to High(Pairs) do
+  begin
+    M := Body(Pairs[I].Body).Mesh;
+    Chains := CadEdgeChains(M, Pairs[I].FA, Pairs[I].FB);
+    for J := 0 to High(Chains) do
+    begin
+      Tool := CadBlendTool(M, Pairs[I].FA, Pairs[I].FB, Chains[J], P,
+        F.Name + '/' + IntToStr(Length(Items) + 1), IsCut, Err);
+      if Tool = nil then
+      begin
+        Inc(Skipped);
+        if FirstErr = '' then
+          FirstErr := M.Faces[Pairs[I].FA].Name + ' | ' + M.Faces[Pairs[I].FB].Name + ': ' + Err;
+        Continue;
+      end;
+      SetLength(Items, Length(Items) + 1);
+      Items[High(Items)].Body := Pairs[I].Body;
+      Items[High(Items)].Tool := Tool;
+      Items[High(Items)].IsCut := IsCut;
+    end;
+  end;
+  Result := Length(Items) > 0;
+end;
+
+function TCadRebuilder.BlendPreview(F: TCadBlendBase; out AnyCut: Boolean; out AError: string): TCadMesh;
+var
+  Items: TCadBlendItems;
+  Skipped, I: Integer;
+begin
+  Result := nil;
+  AnyCut := False;
+  if not CollectBlend(F, Items, Skipped, AError) then
+    Exit;
+  Result := TCadMesh.Create;
+  for I := 0 to High(Items) do
+  begin
+    Result.Append(Items[I].Tool);
+    AnyCut := AnyCut or Items[I].IsCut;
+    Items[I].Tool.Free;
+  end;
+end;
+
+procedure TCadRebuilder.BuildBlend(F: TCadBlendBase);
+var
+  Items: TCadBlendItems;
+  I, K, Bi, Done, Skipped: Integer;
+  Err, FirstErr: string;
+  Cur, R: TCadMesh;
+  Any: Boolean;
+begin
+  if FBodies.Count = 0 then
+  begin
+    F.SetState(fsError, CAD_FEATURE_NAMES[F.Kind] + ' sem corpo: crie um ressalto antes');
+    Exit;
+  end;
+  if not CollectBlend(F, Items, Skipped, FirstErr) then
+  begin
+    F.SetState(fsError, 'Nenhuma aresta válida (' + FirstErr + ')');
+    Exit;
+  end;
+  Done := 0;
+  try
+    for Bi := 0 to FBodies.Count - 1 do
+    begin
+      Any := False;
+      for I := 0 to High(Items) do
+        if Items[I].Body = Bi then
+          Any := True;
+      if not Any then
+        Continue;
+      Cur := Body(Bi).Mesh.Clone;
+      { cortes (arestas convexas) antes das unioes (concavas): a booleana
+        fica mais estavel nessa ordem }
+      for K := 0 to 1 do
+        for I := 0 to High(Items) do
+        begin
+          if (Items[I].Body <> Bi) or (Items[I].IsCut <> (K = 0)) then
+            Continue;
+          if Items[I].IsCut then
+            R := CadBooleanBlend(Cur, Items[I].Tool, boDifference, Err)
+          else
+            R := CadBooleanBlend(Cur, Items[I].Tool, boUnion, Err);
+          if R = nil then
+          begin
+            Cur.Free;
+            F.SetState(fsError, 'Falha na booleana do ' + LowerCase(CAD_FEATURE_NAMES[F.Kind]) +
+              ': ' + Err + ' (tente um valor menor)');
+            Exit;
+          end;
+          Cur.Free;
+          Cur := R;
+          Inc(Done);
+        end;
+      Body(Bi).Mesh.Free;
+      Body(Bi).Mesh := Cur;
+    end;
+  finally
+    for I := 0 to High(Items) do
+      Items[I].Tool.Free;
+  end;
+  if Done = 0 then
+    F.SetState(fsError, 'Nenhuma aresta aplicada (' + FirstErr + ')')
+  else if Skipped > 0 then
+    F.SetState(fsWarning, Format('%d aresta(s) ignorada(s): %s', [Skipped, FirstErr]))
+  else
+    F.SetState(fsOk, '');
+end;
+
+procedure TCadRebuilder.BuildShell(S: TCadShell);
+var
+  I, K, Fi, Done: Integer;
+  Targets: array of Boolean;
+  Removed: array of Boolean;
+  M, Outer, Inner, R: TCadMesh;
+  Err, FName: string;
+  Any: Boolean;
+begin
+  if FBodies.Count = 0 then
+  begin
+    S.SetState(fsError, 'Casca sem corpo: crie um ressalto antes');
+    Exit;
+  end;
+  SetLength(Targets, FBodies.Count);
+  Any := False;
+  for I := 0 to High(S.Faces) do
+  begin
+    FName := S.Faces[I];
+    if Copy(FName, 1, 5) = 'face:' then
+      FName := Copy(FName, 6, MaxInt);
+    K := BodyIndexOfFace(FBodies, FName, Fi);
+    if K < 0 then
+    begin
+      S.SetState(fsError, 'Face não encontrada: ' + FName);
+      Exit;
+    end;
+    Targets[K] := True;
+    Any := True;
+  end;
+  if not Any then
+    for I := 0 to High(Targets) do
+      Targets[I] := True;
+  Done := 0;
+  for I := 0 to FBodies.Count - 1 do
+  begin
+    if not Targets[I] then
+      Continue;
+    M := Body(I).Mesh;
+    SetLength(Removed, M.FaceCount);
+    for K := 0 to High(Removed) do
+      Removed[K] := False;
+    for K := 0 to High(S.Faces) do
+    begin
+      FName := S.Faces[K];
+      if Copy(FName, 1, 5) = 'face:' then
+        FName := Copy(FName, 6, MaxInt);
+      Fi := M.FaceIndex(FName);
+      if Fi >= 0 then
+        Removed[Fi] := True;
+    end;
+    if S.Outward then
+    begin
+      Outer := CadOffsetMesh(M, S.Thickness, 0, Removed, Err);
+      Inner := CadOffsetMesh(M, 0, S.Thickness, Removed, Err);
+    end
+    else
+    begin
+      Outer := M.Clone;
+      Inner := CadOffsetMesh(M, -S.Thickness, S.Thickness, Removed, Err);
+    end;
+    try
+      for K := 0 to Inner.FaceCount - 1 do
+        Inner.SetFaceName(K, S.Name + '/' + Inner.Faces[K].Name);
+      if (Inner.Volume <= 0) or (Inner.Volume >= Outer.Volume) or not Inner.CheckClosed(Err) then
+      begin
+        S.SetState(fsError, 'Espessura grande demais para esta peça');
+        Exit;
+      end;
+      R := CadBoolean(Outer, Inner, boDifference, Err);
+      if R = nil then
+      begin
+        S.SetState(fsError, 'Falha na casca: ' + Err + ' (tente uma espessura menor)');
+        Exit;
+      end;
+      Body(I).Mesh.Free;
+      Body(I).Mesh := R;
+      Inc(Done);
+    finally
+      Outer.Free;
+      Inner.Free;
+    end;
+  end;
+  if Done = 0 then
+    S.SetState(fsError, 'Nenhum corpo para a casca')
+  else
+    S.SetState(fsOk, '');
+end;
+
+{ ---------- reconstrucao ---------- }
 
 function TCadRebuilder.Rebuild: Integer;
 var
@@ -1664,6 +2465,14 @@ begin
       BuildExtrude(TCadExtrude(F))
     else if F is TCadRevolve then
       BuildRevolve(TCadRevolve(F))
+    else if F is TCadHole then
+      BuildHole(TCadHole(F))
+    else if F is TCadPatternBase then
+      BuildPattern(TCadPatternBase(F))
+    else if F is TCadBlendBase then
+      BuildBlend(TCadBlendBase(F))
+    else if F is TCadShell then
+      BuildShell(TCadShell(F))
     else if F.Kind = cfOrigin then
       F.SetState(fsOk, '')
     else

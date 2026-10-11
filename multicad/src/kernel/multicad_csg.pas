@@ -26,6 +26,9 @@ type
 { A op B. Devolve nova malha (pode ter volume zero, ex. diferenca que remove
   tudo). nil e AError em falha (resultado nao fechado). }
 function CadBoolean(A, B: TCadMesh; Op: TCadBoolOp; out AError: string): TCadMesh;
+{ Igual, comecando pelas faces curvas tratadas como planas (melhor para as
+  ferramentas de filete/chanfro, tangentes as faces do solido). }
+function CadBooleanBlend(A, B: TCadMesh; Op: TCadBoolOp; out AError: string): TCadMesh;
 { Numero de pecas separadas (componentes conexos por vertices compartilhados). }
 function CadMeshComponents(M: TCadMesh): Integer;
 { Separa em pecas; o chamador libera as malhas. }
@@ -389,11 +392,36 @@ begin
   end;
 end;
 
-procedure ClipTo(Root, Other: TNode);
+function PolyOutside(const P: TPoly; const B: TCadBox3): Boolean;
+const
+  M = 1E-3;
+var
+  I: Integer;
+  Mn, Mx: TCadVec3;
+begin
+  Mn := P.V[0];
+  Mx := P.V[0];
+  for I := 1 to High(P.V) do
+  begin
+    Mn.X := Min(Mn.X, P.V[I].X); Mx.X := Max(Mx.X, P.V[I].X);
+    Mn.Y := Min(Mn.Y, P.V[I].Y); Mx.Y := Max(Mx.Y, P.V[I].Y);
+    Mn.Z := Min(Mn.Z, P.V[I].Z); Mx.Z := Max(Mx.Z, P.V[I].Z);
+  end;
+  Result := (Mx.X < B.Min.X - M) or (Mn.X > B.Max.X + M) or
+    (Mx.Y < B.Min.Y - M) or (Mn.Y > B.Max.Y + M) or
+    (Mx.Z < B.Min.Z - M) or (Mn.Z > B.Max.Z + M);
+end;
+
+{ Recorta os poligonos de Root pelo solido Other. Poligonos fora da caixa de
+  Other nao passam pela arvore (estao fora do solido; se Other esta invertido,
+  dentro do complemento -> descartados): nao sao picados pelos planos da
+  outra malha longe da intersecao, o que evitava lascas e erros de solda. }
+procedure ClipTo(Root, Other: TNode; const OtherBox: TCadBox3; OtherInverted: Boolean);
 var
   L: TList;
-  I, C: Integer;
+  I, J, C, NNear, NKeep: Integer;
   N: TNode;
+  Near, Keep, Cl: TPolyArr;
 begin
   L := TList.Create;
   try
@@ -401,8 +429,29 @@ begin
     for I := 0 to L.Count - 1 do
     begin
       N := TNode(L[I]);
-      N.Polys := ClipPolys(Other, N.Polys, Length(N.Polys), C);
-      SetLength(N.Polys, C);
+      if OtherBox.Empty then
+      begin
+        N.Polys := ClipPolys(Other, N.Polys, Length(N.Polys), C);
+        SetLength(N.Polys, C);
+        Continue;
+      end;
+      Near := nil;
+      Keep := nil;
+      NNear := 0;
+      NKeep := 0;
+      for J := 0 to High(N.Polys) do
+        if PolyOutside(N.Polys[J], OtherBox) then
+        begin
+          if not OtherInverted then
+            Push(Keep, NKeep, N.Polys[J]);
+        end
+        else
+          Push(Near, NNear, N.Polys[J]);
+      Cl := ClipPolys(Other, Near, NNear, C);
+      for J := 0 to C - 1 do
+        Push(Keep, NKeep, Cl[J]);
+      SetLength(Keep, NKeep);
+      N.Polys := Keep;
     end;
   finally
     L.Free;
@@ -1176,6 +1225,81 @@ end;
 
 { Muda a ordem dos poligonos (a arvore BSP usa outros planos de corte):
   0 = original, 1 = invertida, 2 = meia volta, 3 = salto primo. }
+{ Ordem da arvore: poligonos dos planos de maior area primeiro (faces planas
+  grandes perto da raiz quase nao sao picadas pelos planos das facetas das
+  faces curvas). Corta muito o numero de fragmentos e o tempo. }
+procedure SortByPlaneArea(var P: TPolyArr; N: Integer);
+var
+  Keys: array of string;
+  Area: array of Double;
+  Idx: array of Integer;
+  Sum: specialize TDictionary<string, Double>;
+  I, J, K, T: Integer;
+  A, V: Double;
+  Q: TPolyArr;
+
+  function PolyArea(const X: TPoly): Double;
+  var
+    C: TCadVec3;
+    M: Integer;
+  begin
+    C := V3(0, 0, 0);
+    for M := 1 to High(X.V) - 1 do
+      C := VAdd(C, VCross(VSub(X.V[M], X.V[0]), VSub(X.V[M + 1], X.V[0])));
+    Result := VLen(C) / 2;
+  end;
+
+begin
+  if N < 3 then
+    Exit;
+  SetLength(Keys, N);
+  SetLength(Area, N);
+  SetLength(Idx, N);
+  Sum := specialize TDictionary<string, Double>.Create;
+  try
+    for I := 0 to N - 1 do
+    begin
+      Keys[I] := Format('%d|%d|%d|%d|%d', [P[I].Face, Round(P[I].N.X * 1E4), Round(P[I].N.Y * 1E4),
+        Round(P[I].N.Z * 1E4), Round(P[I].W * 1E3)]);
+      A := PolyArea(P[I]);
+      if Sum.TryGetValue(Keys[I], V) then
+        Sum[Keys[I]] := V + A
+      else
+        Sum.Add(Keys[I], A);
+    end;
+    for I := 0 to N - 1 do
+    begin
+      Area[I] := Sum[Keys[I]];
+      Idx[I] := I;
+    end;
+  finally
+    Sum.Free;
+  end;
+  { ordena os indices (shell sort): area do plano decrescente, depois a chave }
+  K := N div 2;
+  while K > 0 do
+  begin
+    for I := K to N - 1 do
+    begin
+      T := Idx[I];
+      J := I;
+      while (J >= K) and ((Area[Idx[J - K]] < Area[T]) or
+        ((Area[Idx[J - K]] = Area[T]) and (Keys[Idx[J - K]] > Keys[T]))) do
+      begin
+        Idx[J] := Idx[J - K];
+        Dec(J, K);
+      end;
+      Idx[J] := T;
+    end;
+    K := K div 2;
+  end;
+  SetLength(Q, N);
+  for I := 0 to N - 1 do
+    Q[I] := P[Idx[I]];
+  for I := 0 to N - 1 do
+    P[I] := Q[I];
+end;
+
 procedure Permute(var P: TPolyArr; N, Attempt: Integer);
 var
   Q: TPolyArr;
@@ -1200,34 +1324,187 @@ begin
     P[I] := Q[I];
 end;
 
-function BooleanAttempt(A, B: TCadMesh; Op: TCadBoolOp; Attempt: Integer; out AError: string): TCadMesh; forward;
 
-function CadBoolean(A, B: TCadMesh; Op: TCadBoolOp; out AError: string): TCadMesh;
+const
+  SUBFACE_SEP = #31;
+
+{ Faces curvas (cilindro, cone, toro...) viram uma face plana por plano dos
+  seus triangulos: os fragmentos de cada uma sao refeitos pelo MergePlanar
+  (robusto), sem lascas invertidas. Restore junta de volta pelo nome. }
+function Planarize(M: TCadMesh): TCadMesh;
+type
+  TPl = record
+    N: TCadVec3;
+    W: Double;
+    F: Integer;
+  end;
 var
-  K: Integer;
-  E: string;
+  Pl: array of array of TPl;
+  I, K, F, Idx: Integer;
+  T: TCadTri;
+  N, P0: TCadVec3;
+  W: Double;
+  Info: TCadFaceInfo;
 begin
-  { a classificacao BSP pode errar por arredondamento em casos raros
-    (malha aberta no fim): tenta de novo com a arvore montada em outra ordem }
-  Result := nil;
-  AError := '';
-  for K := 0 to 3 do
+  Result := TCadMesh.Create(M.Tolerance);
+  for I := 0 to M.VertCount - 1 do
+    Result.AddVertexRaw(M.Verts[I]);
+  SetLength(Pl, M.FaceCount);
+  for I := 0 to M.TriCount - 1 do
   begin
-    Result := BooleanAttempt(A, B, Op, K, E);
-    if Assigned(Result) then
-      Exit;
-    if K = 0 then
-      AError := E;
+    T := M.Tris[I];
+    if M.Faces[T.Face].Surf = skPlane then
+    begin
+      F := Result.AddFace(M.Faces[T.Face]);
+      Result.AddTri(T.A, T.B, T.C, F);
+      Continue;
+    end;
+    N := M.TriNormal(I);
+    P0 := M.Verts[T.A];
+    W := VDot(N, P0);
+    Idx := -1;
+    for K := 0 to High(Pl[T.Face]) do
+      if (VDot(Pl[T.Face][K].N, N) > 0.999999) and (Abs(Pl[T.Face][K].W - W) < 1E-6) then
+      begin
+        Idx := K;
+        Break;
+      end;
+    if Idx < 0 then
+    begin
+      Info := M.Faces[T.Face];
+      Info.Name := Info.Name + SUBFACE_SEP + IntToStr(Length(Pl[T.Face]));
+      Info.Surf := skPlane;
+      Info.Origin := P0;
+      Info.Axis := N;
+      Idx := Length(Pl[T.Face]);
+      SetLength(Pl[T.Face], Idx + 1);
+      Pl[T.Face][Idx].N := N;
+      Pl[T.Face][Idx].W := W;
+      Pl[T.Face][Idx].F := Result.AddFace(Info);
+    end;
+    Result.AddTri(T.A, T.B, T.C, Pl[T.Face][Idx].F);
   end;
 end;
 
-function BooleanAttempt(A, B: TCadMesh; Op: TCadBoolOp; Attempt: Integer; out AError: string): TCadMesh;
+function Restore(M: TCadMesh; A, B: TCadMesh): TCadMesh;
+var
+  I, P: Integer;
+  Map: array of Integer;
+  Nm: string;
+  Info: TCadFaceInfo;
+  T: TCadTri;
+begin
+  Result := TCadMesh.Create(M.Tolerance);
+  for I := 0 to M.VertCount - 1 do
+    Result.AddVertexRaw(M.Verts[I]);
+  SetLength(Map, M.FaceCount);
+  for I := 0 to M.FaceCount - 1 do
+  begin
+    Info := M.Faces[I];
+    P := Pos(SUBFACE_SEP, Info.Name);
+    if P > 0 then
+    begin
+      Nm := Copy(Info.Name, 1, P - 1);
+      if A.FaceIndex(Nm) >= 0 then
+        Info := A.Faces[A.FaceIndex(Nm)]
+      else if B.FaceIndex(Nm) >= 0 then
+        Info := B.Faces[B.FaceIndex(Nm)]
+      else
+        Info.Name := Nm;
+    end;
+    Map[I] := Result.AddFace(Info);
+  end;
+  for I := 0 to M.TriCount - 1 do
+  begin
+    T := M.Tris[I];
+    Result.AddTri(T.A, T.B, T.C, Map[T.Face]);
+  end;
+end;
+
+function BooleanAttempt(A, B: TCadMesh; Op: TCadBoolOp; Attempt: Integer; Cull: Boolean;
+  out AError: string): TCadMesh; forward;
+
+function TryPlanar(A, B: TCadMesh; Op: TCadBoolOp; out AError: string): TCadMesh;
+var
+  K, Mode: Integer;
+  E: string;
+  PA, PB, R: TCadMesh;
+begin
+  Result := nil;
+  AError := '';
+  PA := Planarize(A);
+  PB := Planarize(B);
+  try
+    for Mode := 0 to 1 do
+      for K := 0 to 1 do
+      begin
+        R := BooleanAttempt(PA, PB, Op, K, Mode = 1, E);
+        if CadCsgDebug then Writeln('  plana ', Mode, '/', K, ': ', Assigned(R));
+        if AError = '' then
+          AError := E;
+        if Assigned(R) then
+        begin
+          Result := Restore(R, A, B);
+          R.Free;
+          Result.RefreshPlaneNormals;
+          Exit;
+        end;
+      end;
+  finally
+    PA.Free;
+    PB.Free;
+  end;
+end;
+
+function TryNormal(A, B: TCadMesh; Op: TCadBoolOp; out AError: string): TCadMesh;
+var
+  K, Mode: Integer;
+  E: string;
+begin
+  Result := nil;
+  AError := '';
+  for Mode := 0 to 1 do
+    for K := 0 to 3 do
+    begin
+      Result := BooleanAttempt(A, B, Op, K, Mode = 1, E);
+      if CadCsgDebug then Writeln('  tentativa ', Mode, '/', K, ': ', Assigned(Result));
+      if AError = '' then
+        AError := E;
+      if Assigned(Result) then
+        Exit;
+    end;
+end;
+
+function CadBoolean(A, B: TCadMesh; Op: TCadBoolOp; out AError: string): TCadMesh;
+var
+  E: string;
+begin
+  { a classificacao BSP pode errar por arredondamento em casos raros
+    (malha aberta no fim): tenta de novo com a arvore montada em outra ordem,
+    depois sem picar os poligonos longe da intersecao e por fim com as faces
+    curvas tratadas como planas (refeitas pelo MergePlanar) }
+  Result := TryNormal(A, B, Op, AError);
+  if Result = nil then
+    Result := TryPlanar(A, B, Op, E);
+end;
+
+function CadBooleanBlend(A, B: TCadMesh; Op: TCadBoolOp; out AError: string): TCadMesh;
+var
+  E: string;
+begin
+  Result := TryPlanar(A, B, Op, AError);
+  if E = '' then;
+end;
+
+function BooleanAttempt(A, B: TCadMesh; Op: TCadBoolOp; Attempt: Integer; Cull: Boolean;
+  out AError: string): TCadMesh;
 var
   Faces: array of TCadFaceInfo;
   MapA, MapB: array of Integer;
   I, NA, NB, NR: Integer;
   PA, PB, PR: TPolyArr;
   TA, TB: TNode;
+  BA, BB: TCadBox3;
   function FaceId(const F: TCadFaceInfo): Integer;
   var
     K: Integer;
@@ -1251,20 +1528,35 @@ begin
     MapB[I] := FaceId(B.Faces[I]);
   PA := MeshToPolys(A, MapA, NA);
   PB := MeshToPolys(B, MapB, NB);
-  Permute(PA, NA, Attempt);
-  Permute(PB, NB, Attempt);
+  if Attempt = 0 then
+  begin
+    SortByPlaneArea(PA, NA);
+    SortByPlaneArea(PB, NB);
+  end
+  else
+  begin
+    Permute(PA, NA, Attempt);
+    Permute(PB, NB, Attempt);
+  end;
   TA := TNode.Create;
   TB := TNode.Create;
   try
     Build(TA, PA, NA);
     Build(TB, PB, NB);
+    BA := A.Bounds;
+    BB := B.Bounds;
+    if not Cull then
+    begin
+      BA := BoxEmpty;
+      BB := BoxEmpty;
+    end;
     case Op of
       boUnion:
         begin
-          ClipTo(TA, TB);
-          ClipTo(TB, TA);
+          ClipTo(TA, TB, BB, False);
+          ClipTo(TB, TA, BA, False);
           Invert(TB);
-          ClipTo(TB, TA);
+          ClipTo(TB, TA, BA, False);
           Invert(TB);
           PR := AllPolys(TB, NR);
           Build(TA, PR, NR);
@@ -1272,10 +1564,10 @@ begin
       boDifference:
         begin
           Invert(TA);
-          ClipTo(TA, TB);
-          ClipTo(TB, TA);
+          ClipTo(TA, TB, BB, False);
+          ClipTo(TB, TA, BA, True);
           Invert(TB);
-          ClipTo(TB, TA);
+          ClipTo(TB, TA, BA, True);
           Invert(TB);
           PR := AllPolys(TB, NR);
           Build(TA, PR, NR);
@@ -1284,10 +1576,10 @@ begin
       boIntersection:
         begin
           Invert(TA);
-          ClipTo(TB, TA);
+          ClipTo(TB, TA, BA, True);
           Invert(TB);
-          ClipTo(TA, TB);
-          ClipTo(TB, TA);
+          ClipTo(TA, TB, BB, True);
+          ClipTo(TB, TA, BA, True);
           PR := AllPolys(TB, NR);
           Build(TA, PR, NR);
           Invert(TA);

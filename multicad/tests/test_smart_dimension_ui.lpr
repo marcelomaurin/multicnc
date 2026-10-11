@@ -12,17 +12,25 @@ type TAnswer=class
   Value:string;
   function Ask(Sender:TObject;const Caption:string;var Text:string;var RefOnly:Boolean):Boolean;
   procedure Error(Sender:TObject;E:Exception);
+  procedure UnexpectedModal(Sender:TObject);
 end;
 function TAnswer.Ask(Sender:TObject;const Caption:string;var Text:string;var RefOnly:Boolean):Boolean;
 begin Result:=Value<>'';Text:=Value;RefOnly:=False;end;
 procedure TAnswer.Error(Sender:TObject;E:Exception);
 begin WriteLn('FAIL: UI exception ',E.Message);Halt(1);end;
+procedure TAnswer.UnexpectedModal(Sender:TObject);
+begin WriteLn('FAIL: unexpected modal dialog while selecting/placing dimension');Halt(1);end;
 var Main:TMainForm;D:TCadDocument;S,Source:TCadSketch;Plane:TCadPlane;View:TViewAccess;Fr:TCadFrame;
   Answer:TAnswer;T:TCadSketchSession;C:TSketchConstraint;Item:TCadPickItem;
   FileName,Err:string;SourceId,SourceEntity,ActiveId,PointId,Idx:Integer;Key:Word;
   LineGroup:TRadioGroup;Summary,HintLabel:TLabel;
 procedure Check(OK:Boolean;const Msg:string);begin if not OK then raise Exception.Create(Msg);end;
-procedure Pump;begin Main.View3D.Repaint;Application.ProcessMessages;end;
+procedure Pump;
+begin
+  { The viewport presents overlays on its frame timer. Allow a complete
+    frame before another synthetic mouse event uses its hit rectangles. }
+  Application.ProcessMessages;Sleep(25);Main.View3D.Repaint;Application.ProcessMessages;
+end;
 function ScreenPoint(X,Y:Double):TCadScreenPt;
 begin Result:=View.Camera.Project(FrameToWorld(Fr,V2(X,Y)));end;
 procedure Click(X,Y:Double);var P:TCadScreenPt;
@@ -54,7 +62,8 @@ begin
   FileName:=GetTempFileName(GetTempDir,'dim');DeleteFile(FileName);FileName:=ChangeFileExt(FileName,'.mcad');
   try
     try
-      Application.Initialize;Application.OnException:=@Answer.Error;D:=TCadDocument.Create;
+      Application.Initialize;Application.OnException:=@Answer.Error;
+      Application.OnModalBegin:=@Answer.UnexpectedModal;D:=TCadDocument.Create;
       Source:=D.AddSketch('plane:1');SourceEntity:=Source.AddLine(10,10,40,50);Source.AddCircle(70,30,5);SourceId:=Source.Id;
       Plane:=D.AddPlane(ptOffset,['plane:1'],20);S:=D.AddSketch('plane:'+IntToStr(Plane.Id));ActiveId:=S.Id;
       S.AddLine(-30,-10,0,30);PointId:=S.AddPoint(60,10);
@@ -96,6 +105,6 @@ begin
       Check(Main.OpenFile(FileName),'Reopen dimensioned part');S:=TCadSketch(Main.Document.FindById(ActiveId));
       Check((S.ConstraintCount=2) and (S.Entity(S.EntityCount-1).SourceRef<>''),'Dimension and associative source survive reopen');
       WriteLn('PASS: tool panel/ribbon synchronization, Escape, real viewport X/Y/aligned clicks, projected earlier sketch, driving value, hidden/later exclusions and reopen');
-    finally Application.OnException:=nil;Main.Free;D.Free;Answer.Free;DeleteFile(FileName);end;
+    finally Application.OnException:=nil;Application.OnModalBegin:=nil;Main.Free;D.Free;Answer.Free;DeleteFile(FileName);end;
   except on E:Exception do begin WriteLn('FAIL: ',E.ClassName,': ',E.Message);Halt(1);end;end;
 end.

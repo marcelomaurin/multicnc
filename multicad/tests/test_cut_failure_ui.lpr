@@ -11,7 +11,8 @@ type TProbe=class
   procedure Error(Sender:TObject;E:Exception);
 end;
 var Main:TMainForm;D:TCadDocument;S:TCadSketch;Cut:TCadExtrude;Probe:TProbe;
-  FileName,Err:string;CutId,ProfileId:Integer;Failed:Integer;
+  FileName,Err:string;CutId,ProfileId,SavedRollback:Integer;Failed:Integer;
+  VolumeAfter,VolumeBefore:Double;
 procedure Check(OK:Boolean;const Msg:string);
 begin if not OK then begin Inc(Failed);WriteLn('FAIL: ',Msg);end;end;
 procedure TProbe.ModalBegin(Sender:TObject);
@@ -79,12 +80,25 @@ begin
         Main.Document.Modified:=False;
         Check(Main.OpenFile(ParamStr(1)),'Open recovered crossing-hole part');
         Cut:=TCadExtrude(Main.Document.FindById(12));
-        Check(Cut.State=fsError,'Reproduce the reported crossing-hole Boolean error');
-        Main.EditFeatureById(Cut.Id);Probe.Answer:=mrNo;ClickOK;
-        Check((Probe.Dialogs=3) and (Probe.Errors=0),'Reported part also survives No and modal repaint');
-        Check((Main.ExtrudeEditor<>nil) and (Main.Rebuilder.BodyCount=1),'Reported part remains open with previous body');
-        Check(Main.Rebuilder.Body(0).Mesh.CheckClosed(Err),'Previous body remains a closed solid: '+Err);
-        Main.CancelEdit;Main.View3D.Repaint;
+        if Cut.State=fsError then begin
+          Main.EditFeatureById(Cut.Id);Probe.Answer:=mrNo;ClickOK;
+          Check((Probe.Dialogs=3) and (Probe.Errors=0),'Reported part also survives No and modal repaint');
+          Check((Main.ExtrudeEditor<>nil) and (Main.Rebuilder.BodyCount=1),'Reported part remains open with previous body');
+          Check(Main.Rebuilder.Body(0).Mesh.CheckClosed(Err),'Previous body remains a closed solid: '+Err);
+          Main.CancelEdit;Main.View3D.Repaint;
+        end else begin
+          { A more robust Boolean kernel may now complete this old failure
+            fixture. It must actually remove material and keep the solid closed. }
+          Check((Cut.State=fsOk) and (Main.Rebuilder.BodyCount=1),'Recovered crossing-hole cut succeeds');
+          Check(Main.Rebuilder.Body(0).Mesh.CheckClosed(Err),'Crossing-hole result remains closed: '+Err);
+          VolumeAfter:=Main.Rebuilder.TotalVolume;SavedRollback:=Main.Document.RollbackIndex;
+          Main.Document.RollbackIndex:=Main.Document.IndexOfId(Cut.Id);Main.Rebuilder.Rebuild;
+          VolumeBefore:=Main.Rebuilder.TotalVolume;
+          Main.Document.RollbackIndex:=SavedRollback;Check(Main.Rebuilder.Rebuild=0,'Crossing-hole part rebuilds after rollback');
+          Main.View3D.ModelChanged;
+          Check((VolumeAfter>0) and (VolumeAfter<VolumeBefore-1E-6),'Crossing-hole cut removes material');
+          Main.View3D.Repaint;
+        end;
       end;
     finally
       Application.OnModalBegin:=nil;

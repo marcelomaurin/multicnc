@@ -68,6 +68,7 @@ type
     FTex: Integer;                     { textura do triangulo atual }
     FTexW: array[0..2] of TCadVec3;    { cantos no mundo (para a textura) }
     FTexN: TCadVec3;
+    FPixelMM: Double;                  { tamanho do pixel em mm (filtro da textura) }
     procedure Plot(X, Y: Integer; Depth: Single; C: LongWord; AId: Integer;
       WriteDepth: Boolean; Alpha: Double);
     procedure FillTri(const P0, P1, P2: TCadScreenPt; I0, I1, I2: Double;
@@ -364,6 +365,7 @@ begin
   FCam := ACam;
   if (ACam.Width <> FW) or (ACam.Height <> FH) then
     ACam.SetViewport(FW, FH);
+  FPixelMM := 1 / Max(ACam.Scale, 1E-9);
   for Y := 0 to FH - 1 do
   begin
     C := CadMix(Background2, Background1, Y / Max(1, FH - 1));
@@ -467,10 +469,10 @@ begin
       begin
         L := W0 * I0 + W1 * I1 + W2 * I2;
         if FTex > 0 then
-          L := L * CadTexFactor(FTex, V3(
+          L := L * CadTexFactorLod(FTex, V3(
             W0 * FTexW[0].X + W1 * FTexW[1].X + W2 * FTexW[2].X,
             W0 * FTexW[0].Y + W1 * FTexW[1].Y + W2 * FTexW[2].Y,
-            W0 * FTexW[0].Z + W1 * FTexW[1].Z + W2 * FTexW[2].Z), FTexN);
+            W0 * FTexW[0].Z + W1 * FTexW[1].Z + W2 * FTexW[2].Z), FTexN, FPixelMM);
         Plot(X, Y, Z, CadRGB(EnsureRange(Round(BR * L), 0, 255),
           EnsureRange(Round(BG * L), 0, 255), EnsureRange(Round(BB * L), 0, 255)),
           AId, WriteDepth, Alpha);

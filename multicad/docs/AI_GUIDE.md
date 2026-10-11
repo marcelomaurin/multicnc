@@ -9,8 +9,10 @@ materiais, malha rotulada, ICadKernel), 1 (esboco com solver, graus de liberdade
 2 (extrusao, corte, revolucao, planos, booleanas, reconstrucao) e 3 (vista 3D por software,
 arvore, PropertyManager, modo esboco) e 4 (STL/DXF, medir, Abrir no MultiSlicer) concluidas;
 e 5A (cotas em mm, digitar medidas, grade, inferencia, arcos, filete/chanfro de esboco,
-mouse do SolidWorks) concluidas; 459 checks no nucleo + teste de interface. Proxima: 5B
-(furo, padroes, espelho); pendencias da vista na 3E. Limites em TAREFA.md.
+mouse do SolidWorks) concluidas; 459 checks no nucleo + teste de interface. 5B (furo,
+padroes, espelho, desfazer) e 6 (filete, chanfro e casca 3D: multicad_blend,
+multicad_blendgeom, arestas `edge:A|B` clicaveis) concluidas; 536 checks no nucleo + 23 na
+interface. Proxima: fase 7 (desenho 2D) ou pendencias da vista na 3E. Limites em TAREFA.md.
 O plano completo esta em `TAREFA.md` (fases 0 a 8) e o projeto tecnico em `ARCHITECTURE.md` (modelo `.mcad`, solver
 Newton/LM, nucleo em malha rotulada + CSG BSP atras de `ICadKernel`, OpenGL, exportacao).
 Referencia de fluxo: SolidWorks 2014 (sketch com restricoes e cotas, arvore de operacoes,
@@ -40,6 +42,12 @@ Documento CAD, features, sketches, extrusoes, transformacoes geometricas, viewpo
 - src/features/multicad_rebuild.pas: TCadRebuilder (arvore -> corpos, referencias, cache).
 - src/features/multicad_export.pas: STL (orientacao Y->Z / face na mesa) e DXF R12.
 - src/features/multicad_measure.pas: Medir (area, diametro, distancias, angulos).
+- src/features/multicad_hole.pas: assistente de furo (tipos, perfil de revolucao).
+- src/features/multicad_pattern.pas: padrao linear, circular e espelhar.
+- src/core/multicad_threads.pas: tabelas de rosca, passagem, rebaixo e escareado.
+- src/core/multicad_undo.pas: desfazer/refazer por estados do documento.
+- src/ui/multicad_textures.pas e data/textures: texturas dos materiais.
+- src/ui/multicad_materialdlg.pas: janela de material.
 - src/sketch/multicad_sketchtools.pas: ferramentas do modo esboco sem LCL (cliques -> entidades,
   captura, inferencia, grade, H/V automaticas, cota inteligente e desenho das cotas, medida
   digitada, arcos, filete/chanfro com canto virtual, relacoes, construcao, apagar).
@@ -76,7 +84,8 @@ LCL e tem testes no test_multicad). Nao acople o documento CAD a uma maquina fis
 - Toda booleana deixa a malha fechada; teste com volume analitico.
 - Corte extrudado entra na peca por padrao (contra a normal do esboco), como no SolidWorks.
 - Referencias por texto: plane:<id>, face:<nome>, axis:<id>, sketch:<id>/<entidade>[.<ponto>],
-  body:<nome>, origin.
+  body:<nome>, origin, edge:<faceA>|<faceB> (nomes em ordem, `CadEdgeRef`).
+- Booleanas de ferramentas tangentes ao solido (filete/chanfro): `CadBooleanBlend`.
 - Programas: `Application.CreateForm` no `.lpr` (regra 12 de `docs/AI_TOOLS_GUIDE.md`).
 
 ## Edicao de profundidade na vista
@@ -176,3 +185,15 @@ A alca usa TCadRebuilder.ExtrudeHandle, resolvendo as referencias nos corpos ant
   seletor oculto. Mantidos paleta, dimensoes do painel e posicao da arvore.
 - test_smart_dimension_ui cobre troca pelos botoes, Esc, selecao de linha,
   Filete/Chanfro/Circulo e retorno a Linha, alem dos testes existentes de cotas.
+
+## Versao 008 (0.0.8.0)
+- Consolida as correcoes de cotas X/Y/alinhadas, referencias entre esbocos,
+  painel contextual, profundidade por mouse, selecao de perfis e log em AppData.
+- Integra os commits da fila ate a633192: furos, padroes, espelho, desfazer/refazer,
+  filete/chanfro/casca no solido e vista sem piscadas.
+- Executavel Windows: bin/multicad.exe; identificacao em Sobre: 0.0.8.0.
+- A secao de filete escala somente os vertices internos do arco: resolver
+  2*Rs+(N-2)*Rs^2=Phi/sin(Phi/N) conserva a area sem mover tangencias.
+  TestBlend3D mantem a verificacao de 0,5% do volume removido, sem relaxar tolerancia.
+- test_smart_dimension_ui espera um quadro do timer antes do proximo clique
+  e falha explicitamente em dialogos modais inesperados.

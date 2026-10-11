@@ -179,3 +179,12 @@ Regressao: `test_multicad` verifica projecao, eixo, volume e malha fechada; `tes
   seletor oculto. Mantidos paleta, dimensoes do painel e posicao da arvore.
 - test_smart_dimension_ui cobre troca pelos botoes, Esc, selecao de linha,
   Filete/Chanfro/Circulo e retorno a Linha, alem dos testes existentes de cotas.
+
+## Versao 008 (0.0.8.0)
+- Consolida as correcoes de cotas X/Y/alinhadas, referencias entre esbocos,
+  painel contextual, profundidade por mouse, selecao de perfis e log em AppData.
+- Integra os commits da fila ate a633192: furos, padroes, espelho, desfazer/refazer,
+  filete/chanfro/casca no solido e vista sem piscadas.
+- Executavel Windows: bin/multicad.exe; identificacao em Sobre: 0.0.8.0.
+- Corrige a conservacao de area da aproximacao do arco de filete, mantendo
+  os pontos de tangencia e passando a verificacao de volume analitico.

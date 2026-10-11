@@ -24,10 +24,10 @@ unit multicad_view3d;
 interface
 
 uses
-  Classes, SysUtils, Math, Controls, Graphics, LCLType, LCLIntf, GraphType,
-  IntfGraphics, contnrs, multicad_types, multicad_mesh, multicad_document,
+  Classes, SysUtils, Math, Controls, Graphics, ExtCtrls, LCLType, LCLIntf, GraphType,
+  IntfGraphics, LMessages, contnrs, multicad_types, multicad_mesh, multicad_document,
   multicad_feature, multicad_refgeom, multicad_sketch, multicad_rebuild,
-  multicad_camera, multicad_softrender;
+  multicad_camera, multicad_softrender, multicad_blendgeom, multicad_blend;
 
 const
   CAD_TAG_FEATURE = 2001;   { Id de planos, eixos, esbocos e origem: face = indice da operacao }
@@ -41,13 +41,33 @@ type
   TCadMoveEvent = procedure(Sender: TObject; Shift: TShiftState; X, Y: Integer;
     var Handled: Boolean) of object;
 
+  TCadVec3Array = array of TCadVec3;
+
+  { Aresta do solido (para desenhar a selecao e escolher com o mouse). }
+  TCadViewEdge = record
+    Body: Integer;
+    FA, FB: Integer;
+    Ref: string;
+    Pts: TCadVec3Array;
+    Closed: Boolean;
+  end;
+
   TCadView3D = class(TCustomControl)
   private
+    FEdges: array of TCadViewEdge;
+    FPickEdges: Boolean;
     FDoc: TCadDocument;
     FRB: TCadRebuilder;
     FCam: TCadCamera;
     FRaster: TCadRaster;
     FBmp: TBitmap;
+    FFrameBmp: TBitmap;          { back buffer: quadro completo (como nos jogos) }
+    FTimer: TTimer;              { laco de quadros (~60 por segundo) }
+    FNeedPresent: Boolean;       { so recompor e apresentar (sobreposicoes mudaram) }
+    FInteractive: Boolean;       { arrastando/zoom: pode usar resolucao menor }
+    FInteractiveUntil: QWord;
+    FAvgMs: Double;              { tempo medio de um quadro }
+    FRenderFactor: Integer;      { 1 = resolucao cheia; 2 = metade (interacao) }
     FImg: TLazIntfImage;
     FCaches: TFPObjectList;
     FPreview: TCadMesh;
@@ -90,10 +110,16 @@ type
     function GetStyle: TCadDisplayStyle;
     procedure SetOperationSketchId(AValue: Integer);
     procedure SetStyle(AValue: TCadDisplayStyle);
-    procedure RenderScene;
+    procedure RenderScene(AFactor: Integer = 1);
+    procedure Compose;
+    procedure Present;
+    procedure FrameTick(Sender: TObject);
     procedure DrawPlanes;
     procedure DrawSketches;
     procedure DrawOrigin;
+    procedure DrawThreads;
+    procedure DrawEdges;
+    function EdgeAt(X, Y, ABody, AFace: Integer): Integer;
     procedure Blit;
     procedure PaintCube(C: TCanvas);
     procedure PaintTriad(C: TCanvas);
@@ -105,6 +131,9 @@ type
     function PivotPoint: TCadVec3;
   protected
     procedure Paint; override;
+    procedure EraseBackground(DC: HDC); override;
+    { WM_ERASEBKGND: responde "ja apagado" (1) sem pintar nada. }
+    procedure WMEraseBkgnd(var Message: TLMEraseBkgnd); message LM_ERASEBKGND;
     procedure Resize; override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
@@ -114,6 +143,8 @@ type
     procedure MouseLeave; override;
   public
     constructor Create(AOwner: TComponent); override;
+    { Pedidos de redesenho viram um quadro do laco (sem WM_PAINT/apagar fundo). }
+    procedure Invalidate; override;
     destructor Destroy; override;
     procedure SetModel(ADoc: TCadDocument; ARB: TCadRebuilder);
     { Chamar depois de reconstruir: refaz os caches de desenho. }
@@ -134,6 +165,10 @@ type
     procedure PreviousView;
     { Roda do mouse invertida (padrao SolidWorks: para frente afasta). }
     property ReverseWheel: Boolean read FReverseWheel write FReverseWheel;
+    { Escolher arestas com o mouse (perto da borda da face sob o cursor). }
+    property PickEdges: Boolean read FPickEdges write FPickEdges;
+    { Pontos de uma aresta ("edge:A|B"); False se nao existe no modelo. }
+    function EdgePoints(const ARef: string; out Pts: TCadVec3Array): Boolean;
     { Aparencia do material: cor ($RRGGBB) e textura (multicad_textures). }
     procedure SetAppearance(AColor: LongWord; ATexture: Integer);
     property PartColor: LongWord read FPartColor;
@@ -204,10 +239,18 @@ begin
   inherited Create(AOwner);
   ControlStyle := ControlStyle + [csOpaque];
   TabStop := True;
-  DoubleBuffered := False;
+  { o LCL tambem usa buffer duplo quando o Windows pede repintura (janela
+    descoberta, redimensionada) }
+  DoubleBuffered := True;
+  FRenderFactor := 1;
+  FTimer := TTimer.Create(Self);
+  FTimer.Interval := 15;
+  FTimer.OnTimer := @FrameTick;
+  FTimer.Enabled := True;
   FCam := TCadCamera.Create;
   FRaster := TCadRaster.Create;
   FBmp := TBitmap.Create;
+  FFrameBmp := TBitmap.Create;
   FPartColor := CAD_PART_COLOR;
   FPartTexture := 0;
   FCaches := TFPObjectList.Create(True);
@@ -218,6 +261,7 @@ begin
   FModelBox := BoxEmpty;
   FPlaneHalf := 60;
   FShowOrigin := True;
+  FPickEdges := True;
   FDirty := True;
   FCam.StdView(svIso);
   FCam.Scale := 2;
@@ -233,6 +277,7 @@ begin
   FHiddenIds.Free;
   FImg.Free;
   FBmp.Free;
+  FFrameBmp.Free;
   FRaster.Free;
   FCam.Free;
   inherited Destroy;
@@ -248,16 +293,32 @@ end;
 
 procedure TCadView3D.ModelChanged;
 var
-  I: Integer;
+  I, K: Integer;
+  Infos: TCadEdgeInfos;
   B: TCadBox3;
   S: TCadVec3;
 begin
   FCaches.Clear;
   FModelBox := BoxEmpty;
+  FEdges := nil;
   if Assigned(FRB) then
     for I := 0 to FRB.BodyCount - 1 do
     begin
       FCaches.Add(TCadMeshCache.Create(FRB.Body(I).Mesh));
+      Infos := CadAllEdges(FRB.Body(I).Mesh);
+      for K := 0 to High(Infos) do
+      begin
+        SetLength(FEdges, Length(FEdges) + 1);
+        with FEdges[High(FEdges)] do
+        begin
+          Body := I;
+          FA := Infos[K].FaceA;
+          FB := Infos[K].FaceB;
+          Ref := CadEdgeRef(FRB.Body(I).Mesh.Faces[FA].Name, FRB.Body(I).Mesh.Faces[FB].Name);
+          Pts := Infos[K].Chain.Pts;
+          Closed := Infos[K].Chain.Closed;
+        end;
+      end;
       B := FRB.Body(I).Mesh.Bounds;
       if not B.Empty then
       begin
@@ -285,7 +346,49 @@ end;
 procedure TCadView3D.Redraw;
 begin
   FDirty := True;
-  Invalidate;
+end;
+
+procedure TCadView3D.Invalidate;
+begin
+  FNeedPresent := True;
+  if not HandleAllocated then
+    inherited Invalidate;
+end;
+
+procedure TCadView3D.FrameTick(Sender: TObject);
+var
+  T0: QWord;
+  F: Integer;
+begin
+  { laco de quadros: o mouse so muda a camera; aqui sai no maximo um quadro
+    por tique, desenhado inteiro no back buffer e apresentado de uma vez }
+  if not HandleAllocated or not IsVisible or (ClientWidth < 2) or (ClientHeight < 2) then
+    Exit;
+  if FInteractive and not FDragging and (GetTickCount64 > FInteractiveUntil) then
+  begin
+    FInteractive := False;
+    if FRenderFactor <> 1 then
+      FDirty := True;
+  end;
+  if FDirty then
+  begin
+    { resolucao dinamica so durante o arrasto, e fixa ate soltar o botao:
+      alternar nitido/borrado a cada quadro tambem parece piscar }
+    F := FRenderFactor;
+    if not (FInteractive and FDragging) then
+      F := 1
+    else if (F = 1) and (FAvgMs > 40) then
+      F := 2;
+    T0 := GetTickCount64;
+    RenderScene(F);
+    FAvgMs := FAvgMs * 0.7 + (GetTickCount64 - T0) * F * F * 0.3;
+    FNeedPresent := True;
+  end;
+  if FNeedPresent then
+  begin
+    FNeedPresent := False;
+    Present;
+  end;
 end;
 
 procedure TCadView3D.SetOperationSketchId(AValue: Integer);
@@ -429,6 +532,12 @@ function TCadView3D.RefAt(X, Y: Integer): string;
 var
   DX, DY, Code, PTag, Face, Best, D: Integer;
 begin
+  { a selecao usa o buffer de Id em resolucao cheia }
+  if FRenderFactor <> 1 then
+  begin
+    RenderScene(1);
+    FNeedPresent := True;
+  end;
   { geometria fina (planos, esbocos) tem prioridade num raio de 4 px }
   Best := MaxInt;
   Code := 0;
@@ -450,6 +559,104 @@ begin
     Code := FRaster.IdAt(X, Y);
   FHoverCode := Code;
   Result := CodeToRef(Code);
+  { perto da borda da face sob o cursor: a aresta }
+  if FPickEdges and (Pos('face:', Result) = 1) then
+  begin
+    CadPickDecode(Code, PTag, Face);
+    D := EdgeAt(X, Y, PTag - 1, Face);
+    if D >= 0 then
+      Result := FEdges[D].Ref;
+  end;
+end;
+
+function SegDist2(PX, PY, AX, AY, BX, BY: Double): Double;
+var
+  DX, DY, T: Double;
+begin
+  DX := BX - AX;
+  DY := BY - AY;
+  T := DX * DX + DY * DY;
+  if T > 1E-12 then
+    T := EnsureRange(((PX - AX) * DX + (PY - AY) * DY) / T, 0, 1)
+  else
+    T := 0;
+  Result := Sqr(AX + T * DX - PX) + Sqr(AY + T * DY - PY);
+end;
+
+function TCadView3D.EdgeAt(X, Y, ABody, AFace: Integer): Integer;
+const
+  TOL_PX = 6;
+var
+  I, K, N: Integer;
+  A, B: TCadScreenPt;
+  D, Best: Double;
+begin
+  Result := -1;
+  Best := Sqr(TOL_PX);
+  for I := 0 to High(FEdges) do
+  begin
+    if (FEdges[I].Body <> ABody) or ((FEdges[I].FA <> AFace) and (FEdges[I].FB <> AFace)) then
+      Continue;
+    N := Length(FEdges[I].Pts);
+    if N < 2 then
+      Continue;
+    A := FCam.Project(FEdges[I].Pts[0]);
+    for K := 1 to N do
+    begin
+      if (K = N) and not FEdges[I].Closed then
+        Break;
+      B := FCam.Project(FEdges[I].Pts[K mod N]);
+      D := SegDist2(X, Y, A.X, A.Y, B.X, B.Y);
+      if D <= Best then
+      begin
+        Best := D;
+        Result := I;
+      end;
+      A := B;
+    end;
+  end;
+end;
+
+function TCadView3D.EdgePoints(const ARef: string; out Pts: TCadVec3Array): Boolean;
+var
+  I, K, N: Integer;
+begin
+  Pts := nil;
+  for I := 0 to High(FEdges) do
+    if FEdges[I].Ref = ARef then
+    begin
+      N := Length(Pts);
+      SetLength(Pts, N + Length(FEdges[I].Pts));
+      for K := 0 to High(FEdges[I].Pts) do
+        Pts[N + K] := FEdges[I].Pts[K];
+    end;
+  Result := Length(Pts) > 0;
+end;
+
+procedure TCadView3D.DrawEdges;
+var
+  I, K, N: Integer;
+  C: LongWord;
+  Sel, Hov: Boolean;
+begin
+  for I := 0 to High(FEdges) do
+  begin
+    Sel := FSelected.IndexOf(FEdges[I].Ref) >= 0;
+    Hov := FHover = FEdges[I].Ref;
+    if not (Sel or Hov) then
+      Continue;
+    if Hov then
+      C := CAD_HOVER_COLOR
+    else
+      C := CAD_SELECT_COLOR;
+    N := Length(FEdges[I].Pts);
+    for K := 1 to N do
+    begin
+      if (K = N) and not FEdges[I].Closed then
+        Break;
+      FRaster.DrawLine3D(FEdges[I].Pts[K - 1], FEdges[I].Pts[K mod N], C, 3, True);
+    end;
+  end;
 end;
 
 function TCadView3D.ConsumedSketch(AId: Integer): Boolean;
@@ -622,6 +829,33 @@ begin
   end;
 end;
 
+procedure TCadView3D.DrawThreads;
+var
+  M: TCadThreadMarks;
+  I, K, N: Integer;
+  Fr: TCadFrame;
+  P, Q: TCadVec3;
+  A: Double;
+begin
+  { rosca cosmetica: circulo tracejado no diametro nominal, na entrada }
+  if FRB = nil then
+    Exit;
+  M := FRB.ThreadMarks;
+  for I := 0 to High(M) do
+  begin
+    Fr := FrameFromNormal(M[I].Center, M[I].Axis);
+    N := 48;
+    P := VAdd(Fr.Origin, VScale(Fr.XDir, M[I].Radius));
+    for K := 1 to N do
+    begin
+      A := 2 * Pi * K / N;
+      Q := VAdd(Fr.Origin, VAdd(VScale(Fr.XDir, M[I].Radius * Cos(A)), VScale(Fr.YDir, M[I].Radius * Sin(A))));
+      FRaster.DrawLine3D(P, Q, CadRGB(40, 50, 70), 1, True, 3);
+      P := Q;
+    end;
+  end;
+end;
+
 procedure TCadView3D.DrawOrigin;
 var
   L: Double;
@@ -640,15 +874,21 @@ begin
   FRaster.DrawPoint3D(V3(0, 0, 0), CadRGB(40, 80, 210), 5, False, Code);
 end;
 
-procedure TCadView3D.RenderScene;
+procedure TCadView3D.RenderScene(AFactor: Integer);
 var
   I, K, PTag, Face: Integer;
   Opt: TCadDrawOptions;
   M: TCadMesh;
   N: Integer;
+  SavedScale: Double;
 begin
-  FRaster.SetSize(Max(1, ClientWidth), Max(1, ClientHeight));
+  AFactor := Max(1, AFactor);
+  FRenderFactor := AFactor;
+  SavedScale := FCam.Scale;
+  FRaster.SetSize(Max(1, ClientWidth div AFactor), Max(1, ClientHeight div AFactor));
   FCam.SetViewport(FRaster.Width, FRaster.Height);
+  FCam.Scale := SavedScale / AFactor;
+  try
   FRaster.BeginFrame(FCam);
   FRaster.SetSection(FSectionOn, FSection.Origin, FSection.Normal);
   CadPickDecode(FHoverCode, PTag, Face);
@@ -668,13 +908,15 @@ begin
         Opt.HiFaces[N] := K;
         Inc(N);
       end;
-    if (PTag = I + 1) and (FHover <> '') then
+    if (PTag = I + 1) and (Pos('face:', FHover) = 1) then
       Opt.HoverFace := Face;
     FRaster.DrawMesh(TCadMeshCache(FCaches[I]), Opt);
   end;
   FRaster.SetSection(False, FSection.Origin, FSection.Normal);
+  DrawEdges;
   DrawPlanes;
   DrawSketches;
+  DrawThreads;
   DrawOrigin;
   if Assigned(FPreviewCache) then
   begin
@@ -692,6 +934,10 @@ begin
   end;
   if Assigned(FOnOverlay3D) then
     FOnOverlay3D(Self, FRaster);
+  finally
+    FCam.Scale := SavedScale;
+    FCam.SetViewport(Max(1, ClientWidth), Max(1, ClientHeight));
+  end;
   Blit;
   FDirty := False;
 end;
@@ -700,11 +946,33 @@ procedure TCadView3D.Blit;
 var
   W, H, Y: Integer;
   Desc: TRawImageDescription;
+  Direct: Boolean;
 begin
-  { raster $00RRGGBB = bytes B,G,R,0 em little-endian: mesmo formato de
-    BPP32_B8G8R8; a LCL converte para o formato do dispositivo }
   W := FRaster.Width;
   H := FRaster.Height;
+  { raster $00RRGGBB = bytes B,G,R,0. No Windows o bitmap de 32 bits tem o
+    mesmo formato: copia as linhas direto no back buffer, sem conversao nem
+    bitmap novo a cada quadro. Nos outros, converte pelo TLazIntfImage. }
+  if (FBmp.Width <> W) or (FBmp.Height <> H) or (FBmp.PixelFormat <> pf32bit) then
+  begin
+    FBmp.PixelFormat := pf32bit;
+    FBmp.SetSize(W, H);
+  end;
+  Desc := FBmp.RawImage.Description;
+  Direct := {$IFDEF WINDOWS} (Desc.BitsPerPixel = 32) and (Desc.RedShift = 16) and
+    (Desc.GreenShift = 8) and (Desc.BlueShift = 0) and (Desc.LineOrder = riloTopToBottom) and
+    (Desc.BitOrder = riboBitsInOrder) and (Desc.ByteOrder = riboLSBFirst) {$ELSE} False {$ENDIF};
+  if Direct then
+  begin
+    FBmp.BeginUpdate(False);
+    try
+      for Y := 0 to H - 1 do
+        Move(FRaster.Color[Y * W], FBmp.RawImage.GetLineStart(Y)^, W * 4);
+    finally
+      FBmp.EndUpdate(False);
+    end;
+    Exit;
+  end;
   if (FImg = nil) or (FImg.Width <> W) or (FImg.Height <> H) then
   begin
     FreeAndNil(FImg);
@@ -883,40 +1151,127 @@ begin
   end;
 end;
 
-procedure TCadView3D.Paint;
+procedure TCadView3D.EraseBackground(DC: HDC);
+begin
+  { nada: a vista pinta tudo de uma vez (apagar o fundo antes fazia piscar) }
+end;
+
+procedure TCadView3D.Compose;
 var
   S: string;
+  C: TCanvas;
+  W, H: Integer;
 begin
-  if FNeedFit and (ClientWidth >= 50) and (ClientHeight >= 50) then
-    FitAll;
-  if FDirty or (FRaster.Width <> ClientWidth) or (FRaster.Height <> ClientHeight) then
-    RenderScene;
-  Canvas.Draw(0, 0, FBmp);
+  W := Max(1, ClientWidth);
+  H := Max(1, ClientHeight);
+  if (FFrameBmp.Width <> W) or (FFrameBmp.Height <> H) then
+    FFrameBmp.SetSize(W, H);
+  C := FFrameBmp.Canvas;
+  if (FBmp.Width = W) and (FBmp.Height = H) then
+    C.Draw(0, 0, FBmp)
+  else
+    C.StretchDraw(Rect(0, 0, W, H), FBmp);
   if Assigned(FOnOverlay) then
-    FOnOverlay(Self, Canvas);
-  PaintTriad(Canvas);
-  PaintCube(Canvas);
+    FOnOverlay(Self, C);
+  PaintTriad(C);
+  PaintCube(C);
   if FShowPivot then
     with FCam.Project(PivotPoint) do
     begin
-      Canvas.Pen.Color := RGBToColor(220, 60, 40);
-      Canvas.Pen.Width := 2;
-      Canvas.Brush.Style := bsClear;
-      Canvas.Ellipse(Round(X) - 6, Round(Y) - 6, Round(X) + 7, Round(Y) + 7);
-      Canvas.Line(Round(X) - 10, Round(Y), Round(X) + 11, Round(Y));
-      Canvas.Line(Round(X), Round(Y) - 10, Round(X), Round(Y) + 11);
-      Canvas.Pen.Width := 1;
-      Canvas.Brush.Style := bsSolid;
+      C.Pen.Color := RGBToColor(220, 60, 40);
+      C.Pen.Width := 2;
+      C.Brush.Style := bsClear;
+      C.Ellipse(Round(X) - 6, Round(Y) - 6, Round(X) + 7, Round(Y) + 7);
+      C.Line(Round(X) - 10, Round(Y), Round(X) + 11, Round(Y));
+      C.Line(Round(X), Round(Y) - 10, Round(X), Round(Y) + 11);
+      C.Pen.Width := 1;
+      C.Brush.Style := bsSolid;
     end;
   if FSectionOn then
   begin
     S := 'Vista de seção';
-    Canvas.Font.Height := -12;
-    Canvas.Font.Color := RGBToColor(150, 60, 40);
-    Canvas.Brush.Style := bsClear;
-    Canvas.TextOut(12, 10, S);
-    Canvas.Brush.Style := bsSolid;
+    C.Font.Height := -12;
+    C.Font.Color := RGBToColor(150, 60, 40);
+    C.Brush.Style := bsClear;
+    C.TextOut(12, 10, S);
+    C.Brush.Style := bsSolid;
   end;
+end;
+
+{$IFDEF WINDOWS}
+{ chamadas Win32 usadas so aqui (sem a unit Windows, que conflita com TBitmap) }
+function W32GetDC(W: PtrUInt): PtrUInt; stdcall; external 'user32.dll' name 'GetDC';
+function W32ReleaseDC(W, DC: PtrUInt): LongInt; stdcall; external 'user32.dll' name 'ReleaseDC';
+function W32ValidateRect(W: PtrUInt; R: Pointer): LongBool; stdcall; external 'user32.dll' name 'ValidateRect';
+function W32BitBlt(D: PtrUInt; X, Y, W, H: LongInt; S: PtrUInt; SX, SY: LongInt;
+  Rop: LongWord): LongBool; stdcall; external 'gdi32.dll' name 'BitBlt';
+function W32LoadLibrary(N: PAnsiChar): PtrUInt; stdcall; external 'kernel32.dll' name 'LoadLibraryA';
+function W32GetProcAddress(M: PtrUInt; N: PAnsiChar): Pointer; stdcall; external 'kernel32.dll' name 'GetProcAddress';
+
+type
+  TDwmFlushProc = function: LongInt; stdcall;
+var
+  GDwmFlush: TDwmFlushProc = nil;
+  GDwmTried: Boolean = False;
+
+procedure WaitCompositor;
+var
+  Lib: PtrUInt;
+begin
+  { como os jogos com vsync: espera o compositor (DWM) do Windows terminar o
+    quadro, para a copia nao "rasgar" a imagem no meio da tela }
+  if not GDwmTried then
+  begin
+    GDwmTried := True;
+    Lib := W32LoadLibrary('dwmapi.dll');
+    if Lib <> 0 then
+      Pointer(GDwmFlush) := W32GetProcAddress(Lib, 'DwmFlush');
+  end;
+  if Assigned(GDwmFlush) then
+    GDwmFlush();
+end;
+{$ENDIF}
+
+procedure TCadView3D.Present;
+{$IFDEF WINDOWS}
+var
+  DC: PtrUInt;
+{$ENDIF}
+begin
+  { "present": uma unica copia (BitBlt) do back buffer para a janela, sem
+    apagar o fundo antes - a tecnica classica anti-piscada do Win32 }
+  Compose;
+  {$IFDEF WINDOWS}
+  DC := W32GetDC(Handle);
+  if DC <> 0 then
+  begin
+    W32BitBlt(DC, 0, 0, FFrameBmp.Width, FFrameBmp.Height,
+      FFrameBmp.Canvas.Handle, 0, 0, $00CC0020 { SRCCOPY });
+    W32ReleaseDC(Handle, DC);
+    { a janela ja esta atualizada: descarta pedidos de WM_PAINT pendentes }
+    W32ValidateRect(Handle, nil);
+    WaitCompositor;
+  end;
+  {$ELSE}
+  Canvas.Draw(0, 0, FFrameBmp);
+  {$ENDIF}
+end;
+
+procedure TCadView3D.WMEraseBkgnd(var Message: TLMEraseBkgnd);
+begin
+  Message.Result := 1;
+end;
+
+procedure TCadView3D.Paint;
+begin
+  { o Windows pediu repintura (janela descoberta etc.) }
+  if FNeedFit and (ClientWidth >= 50) and (ClientHeight >= 50) then
+    FitAll;
+  if FDirty or (FRaster.Width * FRenderFactor < ClientWidth - 1) or
+    (FRaster.Height * FRenderFactor < ClientHeight - 1) then
+    RenderScene(1);
+  Compose;
+  Canvas.Draw(0, 0, FFrameBmp);
 end;
 
 procedure TCadView3D.Resize;
@@ -931,7 +1286,7 @@ procedure TCadView3D.UpdateHover(X, Y: Integer);
 var
   R: string;
 begin
-  if FDirty then
+  if FDirty or FInteractive or (FRenderFactor <> 1) then
     Exit;
   R := RefAt(X, Y);
   if R <> FHover then
@@ -1052,6 +1407,7 @@ begin
       FMoved := True;
     if not FMoved then
       Exit;
+    FInteractive := True;
     case FDragMode of
       0:
         begin
@@ -1085,6 +1441,9 @@ begin
   begin
     FDragging := False;
     FShowPivot := False;
+    FInteractive := False;
+    if FRenderFactor <> 1 then
+      FDirty := True;   { volta a resolucao cheia ao soltar }
     if not FMoved then
     begin
       { so clicou: some o historico desta "vista" }
@@ -1094,8 +1453,8 @@ begin
       begin
         { clique do meio numa entidade: passa a girar em torno dela; no
           fundo: volta para o centro da peca }
-        if FDirty then
-          RenderScene;
+        if FDirty or (FRenderFactor <> 1) then
+          RenderScene(1);
         FPivotSet := FRaster.DepthAt(X, Y) < 1E29;
         if FPivotSet then
           FPivot := FCam.Unproject(X + 0.5, Y + 0.5, FRaster.DepthAt(X, Y));
@@ -1111,8 +1470,8 @@ begin
     Exit;
   if (Button = mbLeft) and (Abs(X - FDownX) < 4) and (Abs(Y - FDownY) < 4) then
   begin
-    if FDirty then
-      RenderScene;
+    if FDirty or (FRenderFactor <> 1) then
+      RenderScene(1);
     R := RefAt(X, Y);
     if Assigned(FOnPick) then
       FOnPick(Self, R, Shift)
@@ -1149,6 +1508,8 @@ function TCadView3D.DoMouseWheel(Shift: TShiftState; WheelDelta: Integer; MouseP
 begin
   { SolidWorks: rolar para frente (para longe) afasta, para tras aproxima,
     sempre em torno do cursor; ReverseWheel inverte }
+  FInteractive := True;
+  FInteractiveUntil := GetTickCount64 + 250;
   if FReverseWheel then
     FCam.ZoomAt(Power(1.15, WheelDelta / 120), MousePos.X, MousePos.Y)
   else

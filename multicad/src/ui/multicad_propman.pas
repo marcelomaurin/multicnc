@@ -20,7 +20,9 @@ interface
 uses
   Classes, SysUtils, Math, Controls, StdCtrls, ExtCtrls, Forms, Graphics,
   multicad_types, multicad_units, multicad_document, multicad_feature,
-  multicad_refgeom, multicad_extrude, multicad_revolve, multisuite_controls,
+  multicad_refgeom, multicad_extrude, multicad_revolve, multicad_hole, multicad_pattern,
+  multicad_blend,
+  multicad_threads, multisuite_controls,
   multisuite_icons, multicad_log;
 
 type
@@ -52,6 +54,33 @@ type
     edRef: array[0..2] of TEdit;
     edDist, edPlaneAngle, edCount: TEdit;
     ckPlaneFlip: TCheckBox;
+    { furo }
+    cbHoleType, cbHoleSize, cbHoleFit, cbHoleEnd: TComboBox;
+    edHoleDia, edHoleDepth, edThreadLen: TEdit;
+    ckHoleFine, ckHoleTip, ckHoleRev: TCheckBox;
+    lbHoleInfo: TLabel;
+    { padroes e espelho }
+    edSeeds, edDirA, edDirB, edSpacA, edSpacB, edCountA, edCountB, edPatAngle, edMirrorPlane: TEdit;
+    ckRevA, ckRevB, ckUseB, ckEqual: TCheckBox;
+    { filete, chanfro e casca }
+    lbItems: TListBox;
+    FItemRefs: TStringList;
+    FListActive: Boolean;
+    edBlendR, edChD1, edChD2, edChAng, edShellT: TEdit;
+    cbChMode: TComboBox;
+    ckChFlip, ckShellOut: TCheckBox;
+    procedure BuildBlend(F: TCadFeature);
+    procedure ReadBlend(F: TCadFeature);
+    procedure AddItemList(const ACaption: string; const Refs: TCadStrArray);
+    procedure ListEnter(Sender: TObject);
+    procedure RemoveItemClick(Sender: TObject);
+    procedure ClearItemsClick(Sender: TObject);
+    procedure ItemsKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure BuildHole(H: TCadHole);
+    procedure ReadHole(H: TCadHole);
+    procedure BuildPattern(P: TCadPatternBase);
+    procedure ReadPattern(P: TCadPatternBase);
+    function SeedNames(P: TCadPatternBase): string;
     procedure Clear;
     function NewLabel(const S: string; Bold: Boolean = False): TLabel;
     procedure Section(const S: string);
@@ -80,6 +109,9 @@ type
     function SetPickedRef(const ARef: string): Boolean;
     procedure ShowMessageText(const S: string; IsError: Boolean);
     procedure SetExtrudeDepth(Direction: Integer; Depth: Double; const Expr: string = '');
+    { Referencias da lista (arestas/faces do filete, chanfro ou casca). }
+    function ItemRefs: TCadStrArray;
+    destructor Destroy; override;
     property Feature: TCadFeature read FFeature;
     property IsNew: Boolean read FIsNew;
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
@@ -137,6 +169,190 @@ begin
   FBox.BorderStyle := bsNone;
   FBox.HorzScrollBar.Visible := False;
   FBox.VertScrollBar.Tracking := True;
+  FItemRefs := TStringList.Create;
+end;
+
+destructor TCadPropManager.Destroy;
+begin
+  FItemRefs.Free;
+  inherited Destroy;
+end;
+
+function ItemCaption(const ARef: string): string;
+var
+  A, B: string;
+begin
+  if CadParseEdgeRef(ARef, A, B) then
+    Result := 'Aresta  ' + A + '  ×  ' + B
+  else if Pos('face:', ARef) = 1 then
+    Result := 'Face  ' + Copy(ARef, 6, MaxInt)
+  else
+    Result := ARef;
+end;
+
+procedure TCadPropManager.AddItemList(const ACaption: string; const Refs: TCadStrArray);
+var
+  I: Integer;
+  B: TSuiteButton;
+begin
+  NewLabel(ACaption);
+  FItemRefs.Clear;
+  lbItems := TListBox.Create(FBox);
+  lbItems.Parent := FBox;
+  lbItems.SetBounds(10, FY, 220, 96);
+  lbItems.Color := ACTIVE_REF_COLOR;
+  lbItems.OnEnter := @ListEnter;
+  lbItems.OnKeyDown := @ItemsKeyDown;
+  lbItems.Hint := 'Clique em arestas ou faces na vista (clicar de novo tira da lista)';
+  lbItems.ShowHint := True;
+  for I := 0 to High(Refs) do
+  begin
+    FItemRefs.Add(Refs[I]);
+    lbItems.Items.Add(ItemCaption(Refs[I]));
+  end;
+  Inc(FY, 100);
+  B := TSuiteButton.Create(FBox);
+  B.Parent := FBox;
+  B.SetBounds(10, FY, 106, 26);
+  B.Caption := 'Remover';
+  B.SetLook(sbsSoft, clSuiteDanger, sikTrash);
+  B.OnClick := @RemoveItemClick;
+  B := TSuiteButton.Create(FBox);
+  B.Parent := FBox;
+  B.SetBounds(124, FY, 106, 26);
+  B.Caption := 'Limpar';
+  B.SetLook(sbsSoft, clSuitePrimary, sikClose);
+  B.OnClick := @ClearItemsClick;
+  Inc(FY, 32);
+  FListActive := True;
+end;
+
+function TCadPropManager.ItemRefs: TCadStrArray;
+var
+  I: Integer;
+begin
+  SetLength(Result, FItemRefs.Count);
+  for I := 0 to FItemRefs.Count - 1 do
+    Result[I] := FItemRefs[I];
+end;
+
+procedure TCadPropManager.ListEnter(Sender: TObject);
+begin
+  SetActiveRef(nil);
+  FListActive := True;
+  lbItems.Color := ACTIVE_REF_COLOR;
+end;
+
+procedure TCadPropManager.RemoveItemClick(Sender: TObject);
+var
+  I: Integer;
+begin
+  if lbItems = nil then
+    Exit;
+  I := lbItems.ItemIndex;
+  if I < 0 then
+    I := lbItems.Count - 1;
+  if I < 0 then
+    Exit;
+  lbItems.Items.Delete(I);
+  FItemRefs.Delete(I);
+  Changed(Self);
+end;
+
+procedure TCadPropManager.ClearItemsClick(Sender: TObject);
+begin
+  if lbItems = nil then
+    Exit;
+  lbItems.Items.Clear;
+  FItemRefs.Clear;
+  Changed(Self);
+end;
+
+procedure TCadPropManager.ItemsKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+begin
+  if Key = 46 then   { Delete }
+  begin
+    RemoveItemClick(Sender);
+    Key := 0;
+  end;
+end;
+
+procedure TCadPropManager.BuildBlend(F: TCadFeature);
+var
+  M: TCadChamferMode;
+  Modes: array of string;
+begin
+  if F is TCadShell then
+  begin
+    Section('Parâmetros');
+    edShellT := AddEdit('Espessura (mm)', CadFmt(TCadShell(F).Thickness));
+    ckShellOut := AddCheck('Casca para fora', TCadShell(F).Outward);
+    Section('Faces a remover');
+    AddItemList('Clique nas faces abertas (nenhuma = oco fechado)', TCadShell(F).Faces);
+  end
+  else
+  begin
+    Section('Itens');
+    AddItemList('Arestas ou faces (clique na vista)', TCadBlendBase(F).Edges);
+    if F is TCadFillet3D then
+    begin
+      Section('Parâmetros do filete');
+      edBlendR := AddEdit('Raio (mm)', CadFmt(TCadFillet3D(F).Radius));
+    end
+    else
+    begin
+      SetLength(Modes, 0);
+      for M := Low(TCadChamferMode) to High(TCadChamferMode) do
+      begin
+        SetLength(Modes, Length(Modes) + 1);
+        Modes[High(Modes)] := CAD_CHAMFER_MODE_NAMES[M];
+      end;
+      Section('Parâmetros do chanfro');
+      cbChMode := AddCombo('', Modes, Ord(TCadChamfer3D(F).Mode));
+      edChD1 := AddEdit('Distância (mm)', CadFmt(TCadChamfer3D(F).Distance));
+      edChD2 := AddEdit('Distância 2 (mm)', CadFmt(TCadChamfer3D(F).Distance2));
+      edChAng := AddEdit('Ângulo (°)', CadFmt(TCadChamfer3D(F).Angle));
+      ckChFlip := AddCheck('Inverter direção', TCadChamfer3D(F).Flip);
+    end;
+  end;
+  NewLabel('Arestas: retas entre faces planas e');
+  NewLabel('circulares entre plano e cilindro.');
+  ReadBlend(F);
+end;
+
+procedure TCadPropManager.ReadBlend(F: TCadFeature);
+var
+  V: Double;
+  C: TCadChamfer3D;
+begin
+  if F is TCadShell then
+  begin
+    if Num(edShellT, V) then
+      TCadShell(F).Thickness := V;
+    TCadShell(F).Outward := ckShellOut.Checked;
+    TCadShell(F).Faces := ItemRefs;
+  end
+  else
+  begin
+    TCadBlendBase(F).Edges := ItemRefs;
+    if F is TCadFillet3D then
+    begin
+      if Num(edBlendR, V) then
+        TCadFillet3D(F).Radius := V;
+    end
+    else
+    begin
+      C := TCadChamfer3D(F);
+      C.Mode := TCadChamferMode(Max(0, cbChMode.ItemIndex));
+      if Num(edChD1, V) then C.Distance := V;
+      if Num(edChD2, V) then C.Distance2 := V;
+      if Num(edChAng, V) then C.Angle := V;
+      C.Flip := ckChFlip.Checked;
+      edChD2.Enabled := C.Mode = cmDistanceDistance;
+      edChAng.Enabled := C.Mode = cmDistanceAngle;
+      ckChFlip.Enabled := C.Mode <> cmDistance;
+    end;
+  end;
 end;
 
 procedure TCadPropManager.Clear;
@@ -144,6 +360,11 @@ var
   I: Integer;
 begin
   FActiveRef := nil;
+  edSeeds := nil;
+  lbItems := nil;
+  FListActive := False;
+  if Assigned(FItemRefs) then
+    FItemRefs.Clear;
   for I := FBox.ControlCount - 1 downto 0 do
     FBox.Controls[I].Free;
   FY := 6;
@@ -238,6 +459,12 @@ begin
   FActiveRef := E;
   if Assigned(E) then
     E.Color := ACTIVE_REF_COLOR;
+  if Assigned(E) then
+  begin
+    FListActive := False;
+    if Assigned(lbItems) then
+      lbItems.Color := clWindow;
+  end;
 end;
 
 procedure TCadPropManager.RefEnter(Sender: TObject);
@@ -246,10 +473,53 @@ begin
 end;
 
 function TCadPropManager.SetPickedRef(const ARef: string): Boolean;
+var
+  N, T: string;
+  K: Integer;
 begin
+  if FListActive and Assigned(lbItems) and (ARef <> '') then
+  begin
+    { filete/chanfro: arestas e faces; casca: so faces }
+    Result := (Pos('face:', ARef) = 1) or
+      ((Pos('edge:', ARef) = 1) and not (FFeature is TCadShell));
+    if not Result then
+      Exit;
+    K := FItemRefs.IndexOf(ARef);
+    if K >= 0 then
+    begin
+      FItemRefs.Delete(K);
+      lbItems.Items.Delete(K);
+    end
+    else
+    begin
+      FItemRefs.Add(ARef);
+      lbItems.Items.Add(ItemCaption(ARef));
+    end;
+    Changed(Self);
+    Exit;
+  end;
   Result := Assigned(FActiveRef) and (ARef <> '');
-  if Result then
-    FActiveRef.Text := ARef;   { dispara Changed }
+  if not Result then
+    Exit;
+  if (FActiveRef = edSeeds) and Assigned(edSeeds) then
+  begin
+    { operacoes a repetir: clicar numa face acrescenta a operacao dela }
+    if Pos('face:', ARef) <> 1 then
+      Exit(False);
+    N := Copy(ARef, 6, MaxInt);
+    K := Pos('/', N);
+    if K > 0 then
+      N := Copy(N, 1, K - 1);
+    T := Trim(edSeeds.Text);
+    if Pos(N, T) = 0 then
+    begin
+      if T <> '' then
+        T := T + '; ';
+      edSeeds.Text := T + N;
+    end;
+    Exit;
+  end;
+  FActiveRef.Text := ARef;   { dispara Changed }
 end;
 
 procedure TCadPropManager.ShowMessageText(const S: string; IsError: Boolean);
@@ -327,6 +597,12 @@ begin
       BuildRevolve(TCadRevolve(F))
     else if F is TCadPlane then
       BuildPlane(TCadPlane(F))
+    else if F is TCadHole then
+      BuildHole(TCadHole(F))
+    else if F is TCadPatternBase then
+      BuildPattern(TCadPatternBase(F))
+    else if (F is TCadBlendBase) or (F is TCadShell) then
+      BuildBlend(F)
     else
       NewLabel('Sem parâmetros editáveis');
   finally
@@ -606,6 +882,209 @@ begin
   edPlaneAngle.Enabled := P.PlaneType = ptAngle;
 end;
 
+{ ---------- furo ---------- }
+
+procedure TCadPropManager.BuildHole(H: TCadHole);
+var
+  Types, Sizes, Fits, Ends: array of string;
+  T: TCadHoleType;
+  F: TCadHoleFit;
+  E: TCadHoleEnd;
+  I, Sel: Integer;
+begin
+  SetLength(Types, 0);
+  for T := Low(TCadHoleType) to High(TCadHoleType) do
+  begin
+    SetLength(Types, Length(Types) + 1);
+    Types[High(Types)] := CAD_HOLE_TYPE_NAMES[T];
+  end;
+  SetLength(Sizes, CadThreadCount);
+  Sel := 0;
+  for I := 0 to CadThreadCount - 1 do
+  begin
+    Sizes[I] := CadThread(I).Size;
+    if SameText(Sizes[I], H.Size) then
+      Sel := I;
+  end;
+  SetLength(Fits, 0);
+  for F := Low(TCadHoleFit) to High(TCadHoleFit) do
+  begin
+    SetLength(Fits, Length(Fits) + 1);
+    Fits[High(Fits)] := CAD_HOLE_FIT_NAMES[F];
+  end;
+  SetLength(Ends, 0);
+  for E := Low(TCadHoleEnd) to High(TCadHoleEnd) do
+  begin
+    SetLength(Ends, Length(Ends) + 1);
+    Ends[High(Ends)] := CAD_HOLE_END_NAMES[E];
+  end;
+  Section('Tipo de furo');
+  cbHoleType := AddCombo('', Types, Ord(H.HoleType));
+  Section('Especificação');
+  cbHoleSize := AddCombo('Tamanho do parafuso', Sizes, Sel);
+  cbHoleFit := AddCombo('Ajuste (ISO 273)', Fits, Ord(H.Fit));
+  ckHoleFine := AddCheck('Passo fino', H.FinePitch);
+  edHoleDia := AddEdit('Diâmetro (furo simples, mm)', CadFmt(H.Diameter));
+  Section('Condição final');
+  cbHoleEnd := AddCombo('', Ends, Ord(H.EndCond));
+  edHoleDepth := AddEdit('Profundidade (mm)', CadFmt(H.Depth));
+  ckHoleTip := AddCheck('Ponta de broca 118°', H.DrillTip);
+  edThreadLen := AddEdit('Comprimento da rosca (0 = todo)', CadFmt(H.ThreadDepth));
+  ckHoleRev := AddCheck('Inverter direção', H.Reverse);
+  Section('Resultado');
+  lbHoleInfo := NewLabel(H.Description);
+  NewLabel('Posições: pontos do esboço ' + IntToStr(H.SketchId));
+  NewLabel('(edite o esboço para mover ou acrescentar furos)');
+  ReadHole(H);
+end;
+
+procedure TCadPropManager.ReadHole(H: TCadHole);
+var
+  V: Double;
+begin
+  H.HoleType := TCadHoleType(Max(0, cbHoleType.ItemIndex));
+  if cbHoleSize.ItemIndex >= 0 then
+    H.Size := cbHoleSize.Items[cbHoleSize.ItemIndex];
+  H.Fit := TCadHoleFit(Max(0, cbHoleFit.ItemIndex));
+  H.FinePitch := ckHoleFine.Checked;
+  if Num(edHoleDia, V) then
+    H.Diameter := V;
+  H.EndCond := TCadHoleEnd(Max(0, cbHoleEnd.ItemIndex));
+  if Num(edHoleDepth, V) then
+    H.Depth := V;
+  H.DrillTip := ckHoleTip.Checked;
+  if Num(edThreadLen, V) then
+    H.ThreadDepth := V;
+  H.Reverse := ckHoleRev.Checked;
+  cbHoleSize.Enabled := H.HoleType <> htSimple;
+  cbHoleFit.Enabled := H.HoleType in [htClearance, htCounterbore, htCountersink];
+  ckHoleFine.Enabled := H.HoleType = htTapped;
+  edHoleDia.Enabled := H.HoleType = htSimple;
+  edHoleDepth.Enabled := H.EndCond = heBlind;
+  ckHoleTip.Enabled := H.EndCond = heBlind;
+  edThreadLen.Enabled := H.HoleType = htTapped;
+  lbHoleInfo.Caption := H.Description;
+end;
+
+{ ---------- padroes e espelho ---------- }
+
+function TCadPropManager.SeedNames(P: TCadPatternBase): string;
+var
+  I: Integer;
+  F: TCadFeature;
+begin
+  Result := '';
+  for I := 0 to High(P.Seeds) do
+  begin
+    F := FDoc.FindById(P.Seeds[I]);
+    if F = nil then
+      Continue;
+    if Result <> '' then
+      Result := Result + '; ';
+    Result := Result + F.Name;
+  end;
+end;
+
+procedure TCadPropManager.BuildPattern(P: TCadPatternBase);
+var
+  L: TCadLinearPattern;
+  C: TCadCircularPattern;
+begin
+  Section('Operações a repetir');
+  edSeeds := AddRef('Nomes (;) ou clique numa face da operação', SeedNames(P));
+  if P is TCadLinearPattern then
+  begin
+    L := TCadLinearPattern(P);
+    Section('Direção 1');
+    edDirA := AddRef('x, y, z, linha, eixo ou face plana', L.Dir1);
+    edSpacA := AddEdit('Espaçamento (mm)', CadFmt(L.Spacing1));
+    edCountA := AddEdit('Número de cópias (com a original)', IntToStr(L.Count1));
+    ckRevA := AddCheck('Inverter direção', L.Reverse1);
+    Section('Direção 2');
+    ckUseB := AddCheck('Direção 2', L.UseDir2);
+    edDirB := AddRef('x, y, z, linha, eixo ou face plana', L.Dir2);
+    edSpacB := AddEdit('Espaçamento (mm)', CadFmt(L.Spacing2));
+    edCountB := AddEdit('Número de cópias', IntToStr(L.Count2));
+    ckRevB := AddCheck('Inverter direção', L.Reverse2);
+  end
+  else if P is TCadCircularPattern then
+  begin
+    C := TCadCircularPattern(P);
+    Section('Eixo');
+    edDirA := AddRef('x, y, z, eixo, linha ou face cilíndrica', C.AxisRef);
+    ckRevA := AddCheck('Inverter sentido', C.Reverse);
+    Section('Cópias');
+    edCountA := AddEdit('Número de cópias (com a original)', IntToStr(C.Count));
+    edPatAngle := AddEdit('Ângulo (°)', CadFmt(C.Angle));
+    ckEqual := AddCheck('Espaçamento igual (ângulo = total)', C.EqualSpacing);
+  end
+  else if P is TCadMirror then
+  begin
+    Section('Plano do espelho');
+    edMirrorPlane := AddRef('Plano ou face plana', TCadMirror(P).PlaneRef);
+  end;
+  SetActiveRef(edSeeds);
+end;
+
+procedure TCadPropManager.ReadPattern(P: TCadPatternBase);
+var
+  Parts: TStringList;
+  I: Integer;
+  F: TCadFeature;
+  Ids: TCadIdArray;
+  V: Double;
+  L: TCadLinearPattern;
+  C: TCadCircularPattern;
+begin
+  Parts := TStringList.Create;
+  try
+    Parts.Delimiter := ';';
+    Parts.StrictDelimiter := True;
+    Parts.DelimitedText := edSeeds.Text;
+    SetLength(Ids, 0);
+    for I := 0 to Parts.Count - 1 do
+    begin
+      F := FDoc.FindByName(Trim(Parts[I]));
+      if (F <> nil) and (F <> P) then
+      begin
+        SetLength(Ids, Length(Ids) + 1);
+        Ids[High(Ids)] := F.Id;
+      end;
+    end;
+    P.Seeds := Ids;
+  finally
+    Parts.Free;
+  end;
+  if P is TCadLinearPattern then
+  begin
+    L := TCadLinearPattern(P);
+    L.Dir1 := Trim(edDirA.Text);
+    if Num(edSpacA, V) then L.Spacing1 := V;
+    L.Count1 := Max(1, StrToIntDef(Trim(edCountA.Text), L.Count1));
+    L.Reverse1 := ckRevA.Checked;
+    L.UseDir2 := ckUseB.Checked;
+    L.Dir2 := Trim(edDirB.Text);
+    if Num(edSpacB, V) then L.Spacing2 := V;
+    L.Count2 := Max(1, StrToIntDef(Trim(edCountB.Text), L.Count2));
+    L.Reverse2 := ckRevB.Checked;
+    edDirB.Enabled := L.UseDir2;
+    edSpacB.Enabled := L.UseDir2;
+    edCountB.Enabled := L.UseDir2;
+    ckRevB.Enabled := L.UseDir2;
+  end
+  else if P is TCadCircularPattern then
+  begin
+    C := TCadCircularPattern(P);
+    C.AxisRef := Trim(edDirA.Text);
+    C.Reverse := ckRevA.Checked;
+    C.Count := Max(2, StrToIntDef(Trim(edCountA.Text), C.Count));
+    if Num(edPatAngle, V) then C.Angle := V;
+    C.EqualSpacing := ckEqual.Checked;
+  end
+  else if P is TCadMirror then
+    TCadMirror(P).PlaneRef := Trim(edMirrorPlane.Text);
+end;
+
 { ---------- eventos ---------- }
 
 procedure TCadPropManager.Changed(Sender: TObject);
@@ -619,7 +1098,13 @@ begin
     else if FFeature is TCadRevolve then
       ReadRevolve(TCadRevolve(FFeature))
     else if FFeature is TCadPlane then
-      ReadPlane(TCadPlane(FFeature));
+      ReadPlane(TCadPlane(FFeature))
+    else if FFeature is TCadHole then
+      ReadHole(TCadHole(FFeature))
+    else if FFeature is TCadPatternBase then
+      ReadPattern(TCadPatternBase(FFeature))
+    else if (FFeature is TCadBlendBase) or (FFeature is TCadShell) then
+      ReadBlend(FFeature);
   finally
     FUpdating := False;
   end;

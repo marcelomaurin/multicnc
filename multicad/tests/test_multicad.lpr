@@ -12,7 +12,8 @@ uses
   multicad_document, multicad_mesh, multicad_kernel, multicad_solver,
   multicad_profile, multicad_triangulate, multicad_sweep, multicad_bridge, multicad_csg, multicad_revolve, multicad_rebuild,
   multicad_camera, multicad_depthdrag, multicad_softrender, multicad_sketchtools, multicad_export,
-  multicad_measure, multicad_textures, multislicer_types, multislicer_mesh, multislicer_stl;
+  multicad_measure, multicad_textures, multicad_undo, multicad_threads, multicad_hole,
+  multicad_pattern, multicad_blend, multicad_blendgeom, multislicer_types, multislicer_mesh, multislicer_stl;
 
 var
   Passed, Failed: Integer;
@@ -2308,6 +2309,335 @@ begin
   finally O.Free;RB.Free;D.Free;end;
 end;
 
+procedure TestUndo;
+var
+  U: TCadUndoStack;
+begin
+  U := TCadUndoStack.Create(3);
+  try
+    U.Reset('a');
+    Check(not U.CanUndo and not U.CanRedo, 'historia nova');
+    Check(U.Push('b') and not U.Push('b'), 'estado igual nao entra');
+    U.Push('c');
+    Check(U.Undo = 'b', 'desfazer volta ao anterior');
+    Check(U.Undo = 'a', 'desfazer de novo');
+    Check(not U.CanUndo and (U.Redo = 'b'), 'refazer');
+    U.Push('x');
+    Check(not U.CanRedo and (U.Current = 'x'), 'alteracao nova descarta o refazer');
+    U.Push('y');
+    U.Push('z');
+    Check((U.Count = 3) and (U.Undo = 'y'), 'limite de estados');
+  finally
+    U.Free;
+  end;
+end;
+
+function PlateDoc(D: TCadDocument; out Top: string): TCadExtrude;
+var
+  S: TCadSketch;
+begin
+  D.NewPart;
+  S := D.AddSketch('plane:2');
+  S.AddRectangle(-40, -25, 40, 25);
+  Result := D.AddExtrude(S.Id, 10);
+  Top := 'face:' + Result.Name + '/fim';
+end;
+
+procedure TestHoles;
+var
+  D: TCadDocument;
+  RB: TCadRebuilder;
+  Th: TCadThread;
+  H: TCadHole;
+  S: TCadSketch;
+  Top: string;
+  V0, V, R, Tip: Double;
+  L: TCadLinearPattern;
+  C: TCadCircularPattern;
+  Mi: TCadMirror;
+  E1: TCadExtrude;
+  SB: TCadSketch;
+  Marks: TCadThreadMarks;
+  Err: string;
+  B: TCadBody;
+  F: Integer;
+begin
+  Check(CadFindThread('M8', Th) and Near(CadTapDrill(Th, False), 6.75, 1E-9) or
+    Near(CadTapDrill(Th, False), 6.8, 0.06), 'M8: broca 6,75 ~ 6,8');
+  Check(Near(Th.Clear[hfNormal], 9.0) and Near(Th.CboreD, 15) and Near(Th.CboreDepth, 8.6),
+    'M8: passagem normal 9,0 e rebaixo 15 x 8,6');
+  Check(Near(CadTapDrill(Th, True), 7.0), 'M8 fino (x1): broca 7,0');
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  try
+    { furo de passagem M8 normal passante no centro da placa }
+    PlateDoc(D, Top);
+    S := D.AddSketch(Top);
+    S.AddPoint(0, 0);
+    H := TCadHole.Create;
+    H.SketchId := S.Id;
+    H.HoleType := htClearance;
+    H.Size := 'M8';
+    D.AddFeature(H);
+    Check(RB.Rebuild = 0, 'furo de passagem sem erro ' + H.Message);
+    V0 := 80 * 50 * 10;
+    R := 4.5;
+    V := RB.TotalVolume;
+    Check(Abs((V0 - V) - Pi * R * R * 10) / (Pi * R * R * 10) < 0.01,
+      Format('furo Ø9 passante tira %.1f mm3 (esperado %.1f)', [V0 - V, Pi * R * R * 10]));
+    Check(RB.FindFace(H.Name + '/1/parede', B, F) and (B.Mesh.Faces[F].Surf = skCylinder) and
+      Near(B.Mesh.Faces[F].Radius, 4.5, 1E-9), 'parede cilindrica Ø9 com nome estavel');
+    { padrao linear: 3 furos a cada 15 mm em X }
+    L := TCadLinearPattern.Create;
+    L.Seeds := [H.Id];
+    L.Dir1 := 'x';
+    L.Spacing1 := 15;
+    L.Count1 := 3;
+    D.AddFeature(L);
+    Check(RB.Rebuild = 0, 'padrao linear sem erro ' + L.Message);
+    V := RB.TotalVolume;
+    Check(Abs((V0 - V) - 3 * Pi * R * R * 10) / (3 * Pi * R * R * 10) < 0.01, Format('padrao linear: 3 furos (%.1f x %.1f) %s %d', [V0 - V, 3 * Pi * R * R * 10, L.Message, RB.BodyCount]));
+    { roscado cego M6 com ponta: broca 5 }
+    H.HoleType := htTapped;
+    H.Size := 'M6';
+    H.EndCond := heBlind;
+    H.Depth := 6;
+    H.DrillTip := True;
+    D.Feature(D.Count - 1).Suppressed := True;
+    Check(RB.Rebuild = 0, 'furo roscado cego sem erro ' + H.Message);
+    R := 2.5;
+    Tip := R / Tan(DegToRad(59));
+    V := RB.TotalVolume;
+    Check(Abs((V0 - V) - (Pi * R * R * 6 + Pi * R * R * Tip / 3)) < 0.02 * Pi * R * R * 6,
+      'roscado M6 cego 6 mm com ponta 118 graus');
+    Marks := RB.ThreadMarks;
+    Check((Length(Marks) = 1) and Near(Marks[0].Radius, 3) and Near(Marks[0].Length, 6), 'rosca cosmetica M6');
+    { rebaixado M8 passante }
+    H.HoleType := htCounterbore;
+    H.Size := 'M8';
+    H.EndCond := heThroughAll;
+    Check(RB.Rebuild = 0, 'rebaixado sem erro ' + H.Message);
+    V := RB.TotalVolume;
+    Check(Abs((V0 - V) - (Pi * 7.5 * 7.5 * 8.6 + Pi * 4.5 * 4.5 * 1.4)) < 0.02 * (V0 - V),
+      'rebaixado M8: Ø15 x 8,6 + passagem Ø9');
+    { escareado M6 }
+    H.HoleType := htCountersink;
+    H.Size := 'M6';
+    Check(RB.Rebuild = 0, 'escareado sem erro ' + H.Message);
+    Check(RB.FindFace(H.Name + '/1/escareado', B, F) and (B.Mesh.Faces[F].Surf = skCone), 'face conica do escareado');
+    { circular: 4 furos em volta do eixo Y, a 20 mm do centro }
+    PlateDoc(D, Top);
+    S := D.AddSketch(Top);
+    S.AddPoint(20, 0);
+    H := TCadHole.Create;
+    H.SketchId := S.Id;
+    H.HoleType := htSimple;
+    H.Diameter := 6;
+    D.AddFeature(H);
+    C := TCadCircularPattern.Create;
+    C.Seeds := [H.Id];
+    C.AxisRef := 'y';
+    C.Count := 4;
+    D.AddFeature(C);
+    RB.Invalidate;
+    Check(RB.Rebuild = 0, 'padrao circular sem erro ' + C.Message);
+    for F := 0 to D.Count - 1 do
+      if D.Feature(F).State = fsError then
+        Writeln('  erro em ', D.Feature(F).Name, ': ', D.Feature(F).Message);
+    V := RB.TotalVolume;
+    Check(Abs((V0 - V) - 4 * Pi * 9 * 10) < 0.02 * 4 * Pi * 9 * 10, 'padrao circular: 4 furos');
+    { espelho de um ressalto pelo plano Lateral (x = 0) }
+    D.NewPart;
+    SB := D.AddSketch('plane:1');
+    SB.AddRectangle(10, 0, 30, 20);
+    E1 := D.AddExtrude(SB.Id, 5);
+    Mi := TCadMirror.Create;
+    Mi.Seeds := [E1.Id];
+    Mi.PlaneRef := 'plane:3';
+    D.AddFeature(Mi);
+    RB.Invalidate;
+    Check(RB.Rebuild = 0, 'espelho sem erro ' + Mi.Message);
+    Check((RB.BodyCount = 2) and Near(RB.TotalVolume, 2 * 20 * 20 * 5, 1E-3), 'espelho: dois blocos iguais');
+    Check(RB.Body(1).Mesh.CheckClosed(Err), 'corpo espelhado fechado ' + Err);
+    { .mcad guarda furo e padroes }
+    PlateDoc(D, Top);
+    D.AddFeature(TCadHole.Create);
+    TCadHole(D.Feature(D.Count - 1)).SketchId := 99;
+    Check(D.LoadFromJSON(D.ToJSON, Err), 'furo no .mcad ' + Err);
+  finally
+    RB.Free;
+    D.Free;
+  end;
+end;
+
+procedure TestFilletSelection;
+var
+  D: TCadDocument;
+  S: TCadSketch;
+  T: TCadSketchSession;
+  P: TCadVec2;
+  A: TSketchEntity;
+  L: Integer;
+begin
+  D := TCadDocument.Create;
+  try
+    D.NewPart;
+    S := D.AddSketch('plane:1');
+    T := TCadSketchSession.Create(D, S);
+    try
+      T.PickTol := 1.5;
+      L := S.AddRectangle(0, 0, 40, 30);
+      { selecionar as duas linhas do canto (0,0) e aplicar o filete }
+      T.Selection := [PickItem(L, 0), PickItem(L + 3, 0)];
+      Check(T.CornerFromSelection(P) and Near(P.X, 0) and Near(P.Y, 0), 'canto pela selecao de duas linhas');
+      Check(T.FilletPreview(P, 4, A) and Near(A.P1.X, 4, 1E-9) and Near(A.P1.Y, 4, 1E-9), 'previa do filete R4');
+      Check(S.EntityCount = 4, 'a previa nao muda o esboco');
+      Check(T.FilletCorner(P, 4), 'filete pela selecao');
+      T.Selection := [PickItem(L + 1, 2)];
+      Check(T.CornerFromSelection(P) and Near(P.X, 40) and Near(P.Y, 30), 'canto pelo ponto selecionado');
+    finally
+      T.Free;
+    end;
+  finally
+    D.Free;
+  end;
+end;
+
+procedure TestBlend3D;
+var
+  D: TCadDocument;
+  RB: TCadRebuilder;
+  Top, Lat, Err: string;
+  X: TCadExtrude;
+  Fi: TCadFillet3D;
+  Ch: TCadChamfer3D;
+  Sh: TCadShell;
+  S, S2: TCadSketch;
+  B: TCadBody;
+  F, I, NEdges: Integer;
+  V0, V, Exp, R: Double;
+  Ed: TCadEdgeInfos;
+  H: TCadHole;
+  X2: TCadExtrude;
+begin
+
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  try
+    X := PlateDoc(D, Top);
+    Check(RB.Rebuild = 0, 'placa para filete');
+    B := RB.Body(0);
+    Ed := CadAllEdges(B.Mesh);
+    Check(Length(Ed) = 12, Format('placa: 12 arestas (%d)', [Length(Ed)]));
+    for I := 0 to B.Mesh.FaceCount - 1 do
+      if (B.Mesh.Faces[I].Surf = skPlane) and Near(Abs(B.Mesh.Faces[I].Axis.X), 1, 1E-6) then
+        Lat := B.Mesh.Faces[I].Name;
+    V0 := 80 * 50 * 10;
+    { filete R3 na aresta de cima de um lado de 50 mm }
+    Fi := TCadFillet3D.Create;
+    Fi.Radius := 3;
+    Fi.Edges := [CadEdgeRef(Copy(Top, 6, MaxInt), Lat)];
+    D.AddFeature(Fi);
+    Check(RB.Rebuild = 0, 'filete sem erro: ' + Fi.Message);
+    Exp := V0 - 3 * 3 * (1 - Pi / 4) * 50;
+    V := RB.TotalVolume;
+    Check(Abs(V - Exp) / (3 * 3 * (1 - Pi / 4) * 50) < 0.005,
+      Format('filete R3: volume %.3f (analitico %.3f)', [V, Exp]));
+    Check(RB.FindFace(Fi.Name + '/1', B, F) and (B.Mesh.Faces[F].Surf = skCylinder),
+      'face do filete cilindrica com nome estavel');
+    Check(RB.Body(0).Mesh.IsClosed, 'solido do filete fechado');
+    { chanfro 2 x 2 na face de cima inteira (4 arestas) }
+    Fi.Suppressed := True;
+    Ch := TCadChamfer3D.Create;
+    Ch.Distance := 2;
+    Ch.Edges := [Top];
+    D.AddFeature(Ch);
+    Check(RB.Rebuild = 0, 'chanfro sem erro: ' + Ch.Message);
+    { 4 prismas triangulares (2x2/2) nos lados; nos cantos as pontas se sobrepoem }
+    V := RB.TotalVolume;
+    Exp := V0 - 2 * (80 + 50) * 2 + 4 * (2 * 2 * 2 / 3);
+    Check(Abs(V - Exp) < 0.5, Format('chanfro 2 na face de cima: %.2f (esperado %.2f)', [V, Exp]));
+    { casca de 2 mm abrindo a face de cima }
+    Ch.Suppressed := True;
+    Sh := TCadShell.Create;
+    Sh.Thickness := 2;
+    Sh.Faces := [Top];
+    D.AddFeature(Sh);
+    Check(RB.Rebuild = 0, 'casca sem erro: ' + Sh.Message);
+    V := RB.TotalVolume;
+    Exp := V0 - 76 * 46 * 8;
+    Check(Abs(V - Exp) < 0.01 * Exp, Format('casca 2 mm: %.1f (esperado %.1f)', [V, Exp]));
+    Sh.Outward := True;
+    Check(RB.Rebuild = 0, 'casca para fora sem erro: ' + Sh.Message);
+    V := RB.TotalVolume;
+    Exp := 84 * 54 * 12 - V0;
+    Check(Abs(V - Exp) < 0.01 * Exp, Format('casca para fora: %.1f (esperado %.1f)', [V, Exp]));
+    Sh.Thickness := 30;
+    Sh.Outward := False;
+    Check((RB.Rebuild = 1) and (Sh.State = fsError), 'casca grossa demais da erro');
+    Sh.Suppressed := True;
+    { ressalto cilindrico R10 x 10 em cima: filete concavo na base e convexo no topo }
+    S2 := D.AddSketch(Top);
+    S2.AddCircle(0, 0, 10);
+    X2 := D.AddExtrude(S2.Id, 10);
+    Check(RB.Rebuild = 0, 'ressalto cilindrico');
+    V0 := RB.TotalVolume;
+    B := RB.Body(0);
+    Lat := '';
+    for I := 0 to B.Mesh.FaceCount - 1 do
+      if (B.Mesh.Faces[I].Surf = skCylinder) and (Pos(X2.Name, B.Mesh.Faces[I].Name) = 1) then
+        Lat := B.Mesh.Faces[I].Name;
+    Check(Lat <> '', 'face cilindrica do ressalto');
+    Fi := TCadFillet3D.Create;
+    Fi.Radius := 2;
+    Fi.Edges := [CadEdgeRef(Copy(Top, 6, MaxInt), Lat), CadEdgeRef(X2.Name + '/fim', Lat)];
+    D.AddFeature(Fi);
+    Check(RB.Rebuild = 0, 'filete circular sem erro: ' + Fi.Message);
+    for I := 0 to D.Count - 1 do
+      if D.Feature(I).State = fsError then
+        Writeln('  erro em ', D.Feature(I).Name, ': ', D.Feature(I).Message);
+    V := RB.TotalVolume;
+    R := 2;
+    { Pappus: area do canto r2(1-pi/4); centroide a r(10-4r/(3(4-pi))) no topo e
+      10+r... na base }
+    Exp := V0 - 2 * Pi * (10 - R * (10 - 3 * Pi) / (12 - 3 * Pi)) * R * R * (1 - Pi / 4)
+      + 2 * Pi * (10 + R * (10 - 3 * Pi) / (12 - 3 * Pi)) * R * R * (1 - Pi / 4);
+    Check(Abs(V - Exp) < 0.01 * R * R * 2 * Pi * 10, Format('filete circular: %.2f (esperado %.2f)', [V, Exp]));
+    Check(RB.Body(0).Mesh.IsClosed, 'filete circular fechado');
+    { furo com filete na borda (aresta convexa circular) }
+    Fi.Suppressed := True;
+    X2.Suppressed := True;
+    S := D.AddSketch(Top);
+    S.AddPoint(20, 0);
+    H := TCadHole.Create;
+    H.SketchId := S.Id;
+    H.HoleType := htSimple;
+    H.Diameter := 8;
+    H.EndCond := heThroughAll;
+    D.AddFeature(H);
+    Check(RB.Rebuild = 0, 'furo para filete');
+    V0 := RB.TotalVolume;
+    Ch := TCadChamfer3D.Create;
+    Ch.Distance := 1;
+    Ch.Edges := [CadEdgeRef(Copy(Top, 6, MaxInt), H.Name + '/1/parede')];
+    D.AddFeature(Ch);
+    Check(RB.Rebuild = 0, 'chanfro na borda do furo: ' + Ch.Message);
+    for I := 0 to D.Count - 1 do
+      if D.Feature(I).State = fsError then
+        Writeln('  erro em ', D.Feature(I).Name, ': ', D.Feature(I).Message);
+    V := RB.TotalVolume;
+    Exp := V0 - 2 * Pi * (4 + 1 / 3) * 0.5;
+    Check(Abs(V - Exp) < 0.05 * 2 * Pi * 4.33 * 0.5, Format('chanfro do furo: %.2f (esperado %.2f)', [V, Exp]));
+    Err := '';
+    NEdges := 0;
+    if NEdges = 0 then;
+    if Err = '' then;
+  finally
+    RB.Free;
+    D.Free;
+  end;
+end;
+
 begin
   Passed := 0;
   Failed := 0;
@@ -2330,6 +2660,10 @@ begin
   TestSketchTools2;
   TestSketchTools3;
   TestMaterialAppearance;
+  TestUndo;
+  TestHoles;
+  TestFilletSelection;
+  TestBlend3D;
   TestExport;
   Writeln(Format('MultiCAD: %d checks, %d falhas', [Passed + Failed, Failed]));
   if Failed > 0 then

@@ -161,6 +161,10 @@ type
     function ToggleConstruction: Boolean;
     { Filete / chanfro no canto entre duas linhas perto de P. }
     function FilletCorner(const P: TCadVec2; R: Double): Boolean;
+    { Canto da selecao (duas linhas que se encontram, ou o ponto do canto). }
+    function CornerFromSelection(out P: TCadVec2): Boolean;
+    { Previa do filete no canto perto de P (nao muda o esboco). }
+    function FilletPreview(const P: TCadVec2; R: Double; out Arc: TSketchEntity): Boolean;
     function ChamferCorner(const P: TCadVec2; D1, D2: Double): Boolean;
     { Arco tangente: de S (fim de linha/arco) ate E. }
     function TangentArc(const S: TCadSnap; const E: TCadVec2; out Arc: TSketchEntity): Boolean;
@@ -2002,6 +2006,91 @@ begin
   E := S.Entity(Idx);
   if APt = 1 then E.P1 := Q else E.P2 := Q;
   S.SetEntity(Idx, E);
+end;
+
+function TCadSketchSession.CornerFromSelection(out P: TCadVec2): Boolean;
+var
+  I, K, Idx: Integer;
+  E, E2: TSketchEntity;
+  Lines: array of TSketchEntity;
+  A: array[0..1] of TCadVec2;
+begin
+  Result := False;
+  P := V2(0, 0);
+  SetLength(Lines, 0);
+  for I := 0 to High(Selection) do
+  begin
+    Idx := FSketch.EntityIndex(Selection[I].Ent);
+    if Idx < 0 then
+      Continue;
+    E := FSketch.Entity(Idx);
+    if (Selection[I].Pt in [1, 2]) and (E.Kind = seLine) then
+    begin
+      if Selection[I].Pt = 1 then P := E.P1 else P := E.P2;
+      Exit(True);
+    end;
+    if (Selection[I].Pt = 0) and (E.Kind = seLine) then
+    begin
+      SetLength(Lines, Length(Lines) + 1);
+      Lines[High(Lines)] := E;
+    end;
+  end;
+  if Length(Lines) <> 2 then
+    Exit;
+  E := Lines[0];
+  E2 := Lines[1];
+  A[0] := E.P1;
+  A[1] := E.P2;
+  for K := 0 to 1 do
+    if (Dist2(A[K], E2.P1) < 1E-5) or (Dist2(A[K], E2.P2) < 1E-5) then
+    begin
+      P := A[K];
+      Exit(True);
+    end;
+end;
+
+function TCadSketchSession.FilletPreview(const P: TCadVec2; R: Double; out Arc: TSketchEntity): Boolean;
+var
+  L1, P1, L2, P2: Integer;
+  E1, E2: TSketchEntity;
+  V, O1, O2, U1, U2, T1, T2, Bis, C: TCadVec2;
+  Ang, D, Cr: Double;
+begin
+  Result := False;
+  Arc := Default(TSketchEntity);
+  if (R <= 0) or not FindCorner(P, L1, P1, L2, P2) then
+    Exit;
+  E1 := FSketch.Entity(FSketch.EntityIndex(L1));
+  E2 := FSketch.Entity(FSketch.EntityIndex(L2));
+  if P1 = 1 then begin V := E1.P1; O1 := E1.P2; end else begin V := E1.P2; O1 := E1.P1; end;
+  if P2 = 1 then O2 := E2.P2 else O2 := E2.P1;
+  U1 := Unit2(V, O1);
+  U2 := Unit2(V, O2);
+  Ang := ArcCos(EnsureRange(U1.X * U2.X + U1.Y * U2.Y, -1, 1));
+  if (Ang < DegToRad(1)) or (Ang > DegToRad(179)) then
+    Exit;
+  D := R / Tan(Ang / 2);
+  if (D >= Dist2(V, O1) - 1E-6) or (D >= Dist2(V, O2) - 1E-6) then
+    Exit;
+  T1 := V2(V.X + U1.X * D, V.Y + U1.Y * D);
+  T2 := V2(V.X + U2.X * D, V.Y + U2.Y * D);
+  Bis := Unit2(V2(0, 0), V2(U1.X + U2.X, U1.Y + U2.Y));
+  C := V2(V.X + Bis.X * R / Sin(Ang / 2), V.Y + Bis.Y * R / Sin(Ang / 2));
+  Cr := (T1.X - C.X) * (T2.Y - C.Y) - (T1.Y - C.Y) * (T2.X - C.X);
+  Arc.Kind := seArc;
+  Arc.P1 := C;
+  Arc.Radius := R;
+  if Cr > 0 then
+  begin
+    Arc.P2 := T1;
+    Arc.P3 := T2;
+  end
+  else
+  begin
+    Arc.P2 := T2;
+    Arc.P3 := T1;
+  end;
+  Result := True;
 end;
 
 function TCadSketchSession.FilletCorner(const P: TCadVec2; R: Double): Boolean;
