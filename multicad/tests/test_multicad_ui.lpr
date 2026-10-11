@@ -10,6 +10,7 @@ program test_multicad_ui;
 uses
   {$IFDEF UNIX}cthreads,{$ENDIF}
   Interfaces, Forms, Graphics, SysUtils, ComCtrls, multicad_types, multicad_document, multicad_feature,
+  multicad_sketchtools, multicad_materialdlg,
   multicad_sketch, multicad_extrude, multicad_rebuild, multicad_camera,
   multicad_softrender, multicad_view3d, multicad_main;
 
@@ -95,6 +96,9 @@ end;
 
 var
   F: TMainForm;
+  S: TCadSketch;
+  Ses: TCadSketchSession;
+  Dlg: TForm;
   Fn: string;
   St: TCadDisplayStyle;
   I, Errs: Integer;
@@ -140,6 +144,22 @@ begin
       Shot(F, '02_estilo_' + IntToStr(Ord(St)));
     end;
     F.View3D.Style := dsShadedEdges;
+    { materiais com aparencia }
+    F.ApplyMaterial('PLA', $2A64C8);
+    Pump;
+    Check(Pos('PLA', F.FeatureTree.Items[1].Text) > 0, 'arvore mostra o material PLA');
+    Shot(F, '07_pla_azul');
+    Dlg := CadMaterialDialog(F, 'PLA', $2A64C8);
+    Dlg.Show;
+    Pump;
+    Shot(Dlg, '07b_dialogo_material');
+    Dlg.Free;
+    F.ApplyMaterial('Madeira (pinus)', -1);
+    Pump;
+    Shot(F, '08_madeira');
+    F.ApplyMaterial('Alumínio 6061-T6', -1);
+    Pump;
+    Shot(F, '09_aluminio');
     F.View3D.SetView(svFront);
     Pump;
     Shot(F, '03_frontal');
@@ -148,6 +168,44 @@ begin
     Pump;
     Shot(F, '04_secao');
     F.View3D.SetSection(False, StdFrame(spFrontal));
+    { esboco da base: cotas em mm, filete e chanfro, grade }
+    F.EditSketchById(F.Document.Feature(4).Id);
+    Pump;
+    Check(Assigned(F.SketchEditor), 'editando o esboco da base');
+    if Assigned(F.SketchEditor) then
+    begin
+      S := F.SketchEditor.Sketch;
+      Ses := F.SketchEditor.Session;
+      Ses.AddSmartDimension(PickItem(S.Entity(0).Id, 0), PickItem(0, 0), False, '');
+      Check(Ses.FilletCorner(V2(-40, -25), 6), 'filete R6 no canto ' + Ses.LastMessage);
+      Check(Ses.ChamferCorner(V2(40, 25), 5, 5), 'chanfro 5 x 5 no canto ' + Ses.LastMessage);
+      { linha de apoio selecionada: painel mostra "Linha de apoio" }
+      Ses.Tool := tkLine;
+      Ses.ConstructionMode := True;
+      Ses.Click(V2(-40, 0));
+      Ses.Click(V2(40, 0));
+      Ses.Cancel;
+      Ses.ConstructionMode := False;
+      Ses.Tool := tkSelect;
+      Ses.Click(V2(10, 0));
+      Check(Ses.SelectionConstructionState = 2, 'linha de apoio desenhada e selecionada');
+      F.SketchEditor.View3DChanged;
+      F.SketchEditor.SetGrid(True, True);
+      F.View3D.Invalidate;
+      Pump;
+      Shot(F, '05a_esboco_cotas_filete');
+      F.ExitSketchMode;
+      Pump;
+      Errs := 0;
+      for I := 0 to F.Document.Count - 1 do
+        if F.Document.Feature(I).State = fsError then
+        begin
+          Inc(Errs);
+          Writeln('  erro: ', F.Document.Feature(I).Name, ': ', F.Document.Feature(I).Message);
+        end;
+      Check(Errs = 0, 'peca reconstruida com filete e chanfro na base');
+      Shot(F, '05b_peca_filete_chanfro');
+    end;
     { editar esboco do furo }
     F.EditSketchById(F.Document.Feature(F.Document.Count - 2).Id);
     Pump;

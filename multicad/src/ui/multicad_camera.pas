@@ -45,8 +45,15 @@ type
     procedure StdView(V: TCadStdView);
     { Normal a um referencial (plano do esboco ou face). Flip = do outro lado. }
     procedure NormalTo(const F: TCadFrame; Flip: Boolean);
-    { Orbita: arrastar DX, DY pixels (botao do meio). }
+    { Orbita: arrastar DX, DY pixels (botao do meio) em torno do alvo. }
     procedure Orbit(DX, DY: Double);
+    { Orbita em torno de um ponto (centro da peca ou entidade clicada com o
+      botao do meio, como no SolidWorks): o ponto fica parado na tela. }
+    procedure OrbitAbout(DX, DY: Double; const Pivot: TCadVec3);
+    { Rolar: gira em torno do eixo da tela (Alt + botao do meio). }
+    procedure Roll(DX: Double);
+    { Ponto 3D do pixel com a profundidade do z-buffer. }
+    function Unproject(PX, PY, Depth: Double): TCadVec3;
     { Desloca a vista (Ctrl + botao do meio). }
     procedure Pan(DX, DY: Double);
     { Zoom mantendo o ponto sob o cursor parado. Factor > 1 aproxima. }
@@ -150,6 +157,42 @@ begin
   Up := VNorm(MatDir(M, Up));
   Right := VNorm(VCross(Up, Back));
   Up := VCross(Back, Right);
+end;
+
+procedure TCadCamera.OrbitAbout(DX, DY: Double; const Pivot: TCadVec3);
+var
+  M: TCadMat4;
+begin
+  M := MatMul(MatRotate(V3(0, 1, 0), -DX * 0.4), MatRotate(Right, -DY * 0.4));
+  Target := VAdd(Pivot, MatDir(M, VSub(Target, Pivot)));
+  Back := VNorm(MatDir(M, Back));
+  Up := VNorm(MatDir(M, Up));
+  Right := VNorm(VCross(Up, Back));
+  Up := VCross(Back, Right);
+end;
+
+procedure TCadCamera.Roll(DX: Double);
+var
+  M: TCadMat4;
+begin
+  M := MatRotate(Back, -DX * 0.4);
+  Up := VNorm(MatDir(M, Up));
+  Right := VNorm(VCross(Up, Back));
+  Up := VCross(Back, Right);
+end;
+
+function TCadCamera.Unproject(PX, PY, Depth: Double): TCadVec3;
+var
+  O, D: TCadVec3;
+  Den, T: Double;
+begin
+  ScreenRay(PX, PY, O, D);
+  Den := VDot(D, Back);
+  if Abs(Den) < 1E-12 then
+    Exit(O);
+  { profundidade = Distance - (P - Target).Back }
+  T := (Distance - Depth - VDot(VSub(O, Target), Back)) / Den;
+  Result := VAdd(O, VScale(D, T));
 end;
 
 procedure TCadCamera.Pan(DX, DY: Double);

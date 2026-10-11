@@ -2,9 +2,9 @@ name: MultiCAD CI
 on:
   workflow_dispatch:
   push:
-    paths: ['multicad/**', 'src/shared/**', '.github/workflows/multicad-ci.yml']
+    paths: ['multicad/**', 'src/shared/**', 'multislicer/src/**', 'multisuite/src/core/**', '.github/workflows/multicad-ci.yml']
   pull_request:
-    paths: ['multicad/**', 'src/shared/**', '.github/workflows/multicad-ci.yml']
+    paths: ['multicad/**', 'src/shared/**', 'multislicer/src/**', 'multisuite/src/core/**', '.github/workflows/multicad-ci.yml']
 jobs:
   linux:
     runs-on: ubuntu-latest

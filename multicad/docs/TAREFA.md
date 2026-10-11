@@ -25,8 +25,9 @@ documento, *feature* e *sketch*.
 | 1 Sketch e solver | concluída (09/10) | `multicad_sketch` (ponto, linha, arco por centro e por 3 pontos, círculo, retângulo, ranhura, polígono, construção, linha de centro; 11 restrições e 6 tipos de cota com `D1@Esboço1`, dirigente/dirigida, fixa guardando a posição, simétrica pela linha), `multicad_solver` (passo de norma mínima amortecido, GL pelo posto do jacobiano, redundância e conflito por restrição, azul/preto/vermelho por entidade, conflito não deforma o esboço), `multicad_profile` (laços fechados, ilhas, região com Id estável, entidade de cada segmento, erros de contorno aberto, ramificação e cruzamento), documento avalia expressões e resolve os esboços. |
 | 2 Operações básicas | concluída (10/10) | `multicad_triangulate`, `multicad_sweep` (extrusão com inclinação, revolução), `multicad_csg` (booleanas BSP com nomes de face e malha fechada), `multicad_revolve`, `multicad_rebuild` (planos, eixos, esboço em face, todas as condições finais, recurso fino, contornos, inverter lado, multicorpo, avisos, cache, retrocesso, supressão). Limites anotados abaixo. |
 | 3 Vista 3D e árvore | concluída (10/10), com pendências na 3E | `multicad_camera` (Y para cima, vistas padrão, Normal a, orbitar, deslocar, zoom no cursor, enquadrar, raio do pixel), `multicad_softrender` (z-buffer por software, 5 estilos, arestas de recurso e silhuetas, seleção exata por buffer de Id, seção), `multicad_view3d` (controle da vista, cubo de vistas, tríade, planos, esboços, origem, prévia), `multicad_sketchtools` (ferramentas do esboço sem LCL: linha em cadeia com H/V automáticas, retângulo, círculo, arco 3 pontos, linha de centro, ponto, captura com coincidente, cota inteligente, relações, apagar), `multicad_sketchedit` (modo esboço na vista), `multicad_propman` (PropertyManager de extrusão, corte, revolução e plano) e janela principal no padrão da suíte. `multicad.exe` Win64 em `bin/`. |
-| 4 Exportação e suíte | pendente | |
-| 5 Furo, padrões, espelho | pendente | |
+| 4 Exportação e suíte | concluída (10/10) | `multicad_export` (STL binário e texto com orientação Y→Z, face na mesa ou como no modelo, apoiado em Z = 0 e centrado; DXF R12 do esboço e do contorno de face plana), `multicad_measure` (área, diâmetro, distância entre planos e eixos, ângulos), aba Exportar com "Abrir no MultiSlicer", Medir na aba Avaliar, booleana tenta de novo com a árvore BSP em outra ordem quando a malha sai aberta, critério de pronto coberto por `TestExport`. Instalador e bandeja já incluem o MultiCAD; Central de Testes com o teste do núcleo e o de interface. |
+| 5A Esboço com medidas e mouse | concluída (10/10) | Pedido do usuário antes do furo: cotas desenhadas em mm (linhas de chamada, setas, arrastar o texto), digitar a medida durante o desenho, grade em mm com captura, linhas de inferência, ponto médio, construção, arco tangente e pelo centro, filete e chanfro de esboço com canto virtual, mouse e teclado como no SolidWorks (roda para frente afasta, giro em torno do centro da peça ou da entidade clicada com o botão do meio, rolar, duplo clique do meio enquadra, Z/Shift+Z, vista anterior). |
+| 5B Furo, padrões, espelho | pendente | |
 | 6 Filete, chanfro, casca | pendente | |
 | 7 Desenho 2D | pendente | |
 | 8 OpenCascade (opcional) | pendente | |
@@ -237,15 +238,67 @@ Como ficou (fase 3):
 - [ ] Desfazer/refazer.
 
 ### Fase 4: exportação e suíte (≈ 3 h)
-- [ ] STL binário e ASCII com orientação (Y→Z ou face selecionada na mesa); DXF do *sketch*
-      ou de face plana.
-- [ ] Propriedades de massa (volume, área, centro de massa, massa pelo material) e medir.
-- [ ] "Abrir no MultiSlicer" e "Abrir no MakeRouter" (mesmo padrão do `OpenInTool` do MakePCB).
-- [ ] Suíte: `Application.CreateForm`, ícone, bandeja, MultiSuite, Central de Testes, CI,
-      instalador e documentação.
-- [ ] **Primeira entrega** (ver critério abaixo).
+- [x] STL binário e ASCII com orientação (Y→Z, face selecionada na mesa ou sem girar),
+      apoiado em Z = 0 e centrado; DXF R12 (mm, ponto decimal) do *sketch* (camadas
+      CONTORNO e CONSTRUCAO) ou do contorno de face plana (POLYLINE por laço).
+- [x] Propriedades de massa (volume, área, centro de massa, massa pelo material) e Medir
+      (área, diâmetro e eixo, distância entre planos paralelos e entre eixos, ângulos).
+- [x] "Abrir no MultiSlicer" (grava o STL em pé ao lado do `.mcad` e abre pelo
+      `TSuiteLauncher`, como no MakePCB).
+- [ ] "Abrir no MakeRouter": o DXF já sai, mas o MakeRouter e o LaserArt ainda não importam
+      DXF (trabalho desses aplicativos; fica anotado para eles).
+- [x] Suíte: ícone, bandeja, MultiSuite e instalador já incluem o MultiCAD; Central de Testes
+      com `test_multicad` e `test_multicad_ui`; CI; documentação.
+- [x] **Primeira entrega**: critério de pronto abaixo coberto por `TestExport` (suporte
+      80 × 50 × 10 com furos Ø8, bolso e ressalto revolucionado; base 80 → 100; STL lido pelo
+      importador do MultiSlicer com volume a 0,5% e altura em pé; salvar/abrir com mesma
+      árvore, Ids e sólido) e pelo teste de interface (navegação, estilos, seção).
 
-### Fase 5: furo, padrões e espelho (≈ 4 h)
+### Fase 5A: esboço com medidas e mouse do SolidWorks (pedido em 10/10)
+- [x] Cotas desenhadas como no SolidWorks: linhas de chamada, linha de cota com setas (por
+      fora quando não cabem), valor com unidade ("80 mm", "Ø12 mm", "R6 mm", "45°"), fora do
+      desenho por padrão; arrastar o texto muda a posição (gravada no `.mcad`), clicar edita.
+- [x] Digitar a medida durante o desenho: com a linha começada, digitar 80 e Enter (ou 80<30
+      para 30°), no retângulo "80 x 50", no círculo o diâmetro; a cota já é criada (aceita
+      expressões). Medida ao lado do cursor enquanto desenha e coordenadas em mm no rodapé.
+- [x] Grade em mm com passo pelo zoom (linhas fortes a cada 5) e "Capturar na grade".
+- [x] Linhas de apoio: inferência pontilhada alinhando com pontos existentes, captura de ponto
+      médio (relação Ponto médio), botão Construção (tracejada, não vira sólido).
+- [x] Arco pelo centro (centro, início, fim) e arco tangente (do fim de linha ou arco, com
+      relação Tangente), além do arco de 3 pontos.
+- [x] Filete de esboço (raio) e chanfro de esboço (distância ou "d1 x d2") no canto entre duas
+      linhas; um ponto de construção guarda o canto virtual, então as cotas da peça não mudam.
+- [x] Cota inteligente como no SolidWorks: escolher a linha/círculo/arco (ou dois itens), a
+      cota segue o mouse e o clique a coloca; a caixa de valor tem "Só marcar a medida"
+      (cota de referência entre parênteses, não muda o desenho); Esc desiste.
+- [x] Painel do esboço no lado esquerdo: mostra o que está selecionado (linha com comprimento
+      e ângulo, círculo, arco, ponto) e "Tipo de linha": linha normal ou linha de apoio
+      (tracejada). Sem seleção, a escolha vale para as próximas linhas.
+- [x] Mouse como no SolidWorks: meio gira (em torno do centro da peça; clique do meio numa
+      face muda o centro de giro, no fundo volta), Ctrl+meio desloca, Shift+meio zoom
+      (para cima aproxima), Alt+meio rola, duplo clique do meio enquadra, roda com zoom no
+      cursor (para frente afasta; "Inverter zoom da roda" na aba Exibir, guardado na
+      configuração). Teclado: setas 15°, Shift+setas 90°, Alt+←/→ rola, Ctrl+setas desloca,
+      Z/Shift+Z afasta/aproxima, Ctrl+Shift+Z vista anterior.
+
+### Fase 5A2: material, aparência e planos (pedido em 10/10)
+- [x] Árvore: renomear a peça (botão direito ou F2); botão direito em "Material" →
+      "Editar material..." (ou duplo clique) abre a escolha por categoria: Metais (aços 1020,
+      1045, inox 304/316, alumínios 6061 e 5052, latão, cobre, ferro fundido), Plásticos (PLA,
+      ABS, PETG, TPU, Nylon, POM, acrílico, policarbonato), Madeiras (pinus, eucalipto,
+      compensado, MDF) e Outros (borracha, vidro), com amostra, densidade, E e Poisson.
+- [x] Plásticos de impressão 3D escolhem a cor (12 cores prontas ou "Outra cor..."); a cor
+      fica gravada no `.mcad` (`material_color`).
+- [x] Texturas guardadas em `data/textures/*.png` (geradas por `tools/gen_textures.py`) e
+      embutidas no executável: aço, escovado (inox, alumínio, latão, cobre), ferro fundido,
+      plástico, borracha, madeira, madeira escura, compensado e MDF. A vista 3D mostra a peça
+      com a cor e a textura do material (projeção pelos três planos).
+- [x] Botão direito num plano: "Vista (normal ao plano)" (de novo vira o lado) e "Novo esboço
+      neste plano".
+- [x] Esboço: o plano marcado (árvore ou vista) é o plano do esboço; sem plano marcado abre a
+      lista de planos (ou "Clicar numa face plana da peça...").
+
+### Fase 5B: furo, padrões e espelho (≈ 4 h)
 - [ ] `multicad_threads` com tabelas em `data/*.json`: roscas ISO 261/262 M2 a M24 (passo
       normal e fino), broca para rosca, folgas ISO 273 (fina, normal, larga), rebaixo ISO 4762,
       escareado 90° ISO 10642.

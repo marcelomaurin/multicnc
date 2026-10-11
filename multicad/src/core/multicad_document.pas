@@ -43,6 +43,8 @@ type
     Name: string;
     FileName: string;
     Material: string;
+    { Cor escolhida para o material ($RRGGBB); -1 = cor padrao do material. }
+    MaterialColor: Integer;
     { Indice da barra de retrocesso: -1 = no fim; senao so as operacoes com
       indice < RollbackIndex entram na reconstrucao. }
     RollbackIndex: Integer;
@@ -77,6 +79,8 @@ type
     { Avalia expressao com as cotas do documento ("D1@Esboço1"). }
     function Eval(const AText: string; out AValue: Double; out AError: string): Boolean;
     function MaterialData: TCadMaterial;
+    { Cor da aparencia: a escolhida (plasticos) ou a padrao do material. }
+    function AppearanceColor: LongWord;
     { Avalia as expressoes das cotas do esboco ("D1@Esboço1 / 2") e grava os
       valores. Devolve False e a mensagem na primeira expressao com erro. }
     function ApplyExpressions(S: TCadSketch; out AError: string): Boolean;
@@ -136,6 +140,7 @@ begin
   Name := 'Peça1';
   FileName := '';
   Material := CAD_DEFAULT_MATERIAL;
+  MaterialColor := -1;
   RollbackIndex := -1;
   for P := Low(TCadStdPlane) to High(TCadStdPlane) do
   begin
@@ -446,6 +451,17 @@ begin
     CadFindMaterial(CAD_DEFAULT_MATERIAL, Result);
 end;
 
+function TCadDocument.AppearanceColor: LongWord;
+var
+  M: TCadMaterial;
+begin
+  M := MaterialData;
+  if (MaterialColor >= 0) and M.ColorChoice then
+    Result := LongWord(MaterialColor)
+  else
+    Result := M.Color;
+end;
+
 function TCadDocument.ApplyExpressions(S: TCadSketch; out AError: string): Boolean;
 var
   I: Integer;
@@ -523,6 +539,8 @@ begin
     Root.Add('name', Name);
     Root.Add('units', 'mm');
     Root.Add('material', Material);
+    if MaterialColor >= 0 then
+      Root.Add('material_color', '#' + IntToHex(MaterialColor, 6));
     Root.Add('next_id', FNextId);
     Root.Add('rollback', RollbackIndex);
     Arr := TJSONArray.Create;
@@ -557,6 +575,7 @@ var
   Cls: TCadFeatureClass;
   F: TCadFeature;
   NewName, NewMat: string;
+  NewColor: Integer;
   NewNext, NewRoll: Integer;
 begin
   Result := False;
@@ -579,6 +598,9 @@ begin
         raise Exception.Create('Unidade do arquivo deve ser mm');
       NewName := JStr(Root, 'name', 'Peça1');
       NewMat := JStr(Root, 'material', CAD_DEFAULT_MATERIAL);
+      NewColor := StrToIntDef('$' + StringReplace(JStr(Root, 'material_color', ''), '#', '', []), -1);
+      if JStr(Root, 'material_color', '') = '' then
+        NewColor := -1;
       NewNext := JInt(Root, 'next_id', 1);
       NewRoll := JInt(Root, 'rollback', -1);
       FD := Root.Find('features');
@@ -634,6 +656,7 @@ begin
       List.Clear;
       Name := NewName;
       Material := NewMat;
+      MaterialColor := NewColor;
       if NewNext <= MaxId then
         NewNext := MaxId + 1;
       FNextId := NewNext;

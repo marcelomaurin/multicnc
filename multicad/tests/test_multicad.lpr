@@ -11,7 +11,8 @@ uses
   multicad_feature, multicad_refgeom, multicad_sketch, multicad_extrude,
   multicad_document, multicad_mesh, multicad_kernel, multicad_solver,
   multicad_profile, multicad_triangulate, multicad_sweep, multicad_bridge, multicad_csg, multicad_revolve, multicad_rebuild,
-  multicad_camera, multicad_softrender, multicad_sketchtools;
+  multicad_camera, multicad_softrender, multicad_sketchtools, multicad_export,
+  multicad_measure, multicad_textures, multislicer_types, multislicer_mesh, multislicer_stl;
 
 var
   Passed, Failed: Integer;
@@ -1535,6 +1536,22 @@ begin
     C.Orbit(37, -21);
     Check(Near(VDot(C.Right, C.Up), 0) and Near(VDot(C.Back, C.Up), 0) and
       Near(VLen(C.Back), 1) and Near(VDot(VCross(C.Right, C.Up), C.Back), 1), 'orbita mantem a base direita');
+    { girar em torno de um ponto: o ponto fica parado na tela }
+    Q := V3(30, 10, -5);
+    S := C.Project(Q);
+    C.OrbitAbout(55, -30, Q);
+    S2 := C.Project(Q);
+    Check(Near(S.X, S2.X, 1E-6) and Near(S.Y, S2.Y, 1E-6), 'girar em torno do centro escolhido');
+    C.Roll(40);
+    Check(Near(VDot(C.Right, C.Up), 0) and Near(VLen(C.Up), 1), 'rolar mantem a base');
+    S := C.Project(P);
+    Q := C.Unproject(S.X, S.Y, S.Depth);
+    Check(NearV(Q, P, 1E-6), 'desprojetar o pixel com a profundidade devolve o ponto');
+    C.Perspective := True;
+    S := C.Project(P);
+    Q := C.Unproject(S.X, S.Y, S.Depth);
+    Check(NearV(Q, P, 1E-6), 'desprojetar em perspectiva');
+    C.Perspective := False;
     { pan }
     S := C.Project(P);
     C.Pan(10, 5);
@@ -1748,6 +1765,475 @@ begin
   end;
 end;
 
+{ Suporte do criterio de pronto (TAREFA): base 80 x 50 x 10, dois furos
+  Ø8 passantes, bolso retangular 20 x 7 x 5 e ressalto revolucionado
+  Ø20 x 15. Devolve o volume analitico. }
+function BuildSupport(D: TCadDocument; out BaseSketch: TCadSketch): Double;
+var
+  S2, S3, S4: TCadSketch;
+  L, C: Integer;
+  X: TCadExtrude;
+  E1: TCadExtrude;
+  R: TCadRevolve;
+begin
+  D.NewPart;
+  D.Name := 'Suporte';
+  BaseSketch := D.AddSketch('plane:2');
+  L := BaseSketch.AddRectangle(-40, -25, 40, 25);
+  BaseSketch.AddFixed(L, 1);
+  BaseSketch.AddDimension(ckHorizontalDistance, L, 0, 0, 0, 80);
+  BaseSketch.AddDimension(ckVerticalDistance, L + 1, 0, 0, 0, 50);
+  E1 := D.AddExtrude(BaseSketch.Id, 10);
+  { furos }
+  S2 := D.AddSketch('plane:2');
+  C := S2.AddCircle(-30, 0, 4);
+  S2.AddDimension(ckDiameter, C, 0, 0, 0, 8);
+  C := S2.AddCircle(30, 0, 4);
+  S2.AddDimension(ckDiameter, C, 0, 0, 0, 8);
+  X := D.AddExtrude(S2.Id, 10, True);
+  X.Dir1.EndCond := ecThroughAll;
+  X.Dir1.Reverse := True;
+  { bolso na face de cima }
+  S3 := D.AddSketch('face:' + E1.Name + '/fim');
+  S3.AddRectangle(-10, 15, 10, 22);
+  D.AddExtrude(S3.Id, 5, True);
+  { ressalto revolucionado no plano Frontal }
+  S4 := D.AddSketch('plane:1');
+  S4.AddCenterline(0, 10, 0, 30);
+  S4.AddRectangle(0, 10, 10, 25);
+  R := D.AddRevolve(S4.Id, 360);
+  if R = nil then;
+  Result := 80 * 50 * 10 - 2 * Pi * 16 * 10 - 20 * 7 * 5 + Pi * 100 * 15;
+end;
+
+procedure TestExport;
+var
+  D: TCadDocument;
+  RB: TCadRebuilder;
+  Base: TCadSketch;
+  V0, V, Vs, Z0, Z1: Double;
+  Fn, Err, J1, Txt: string;
+  Ms: TMesh;
+  I, Loops, F: Integer;
+  T: TTriangle;
+  Meshes: array of TCadMesh;
+  B: TCadBody;
+  L: TStringList;
+  MR: TCadMeasureResult;
+  Refs: TStringList;
+  D2: TCadDocument;
+begin
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  Refs := TStringList.Create;
+  try
+    V0 := BuildSupport(D, Base);
+    Check(RB.Rebuild = 0, 'suporte: reconstrucao sem erros');
+    for I := 0 to D.Count - 1 do
+      if D.Feature(I).State = fsError then
+        Writeln('  ', D.Feature(I).Name, ': ', D.Feature(I).Message);
+    Check(RB.BodyCount = 1, 'suporte: um corpo');
+    V := RB.TotalVolume;
+    Check(Abs(V - V0) / V0 < 0.005, Format('suporte: volume %.1f x analitico %.1f (0,5%%)', [V, V0]));
+    { STL binario em pe, lido pelo importador do MultiSlicer }
+    SetLength(Meshes, 1);
+    Meshes[0] := RB.Body(0).Mesh;
+    Fn := GetTempDir + 'mcad_teste.stl';
+    Check(CadExportSTL(Meshes, Fn, True, soYToZ, V3(0, 0, 0), 'Suporte', Err), 'STL binario gravado ' + Err);
+    Ms := TMesh.Create;
+    try
+      Check(TSTLImporter.Load(Fn, Ms) and (Ms.Count = Meshes[0].TriCount), 'MultiSlicer le o STL binario');
+      Vs := 0;
+      for I := 0 to Ms.Count - 1 do
+      begin
+        T := Ms.Triangle(I);
+        Vs := Vs + (T.A.X * (T.B.Y * T.C.Z - T.B.Z * T.C.Y) - T.A.Y * (T.B.X * T.C.Z - T.B.Z * T.C.X) +
+          T.A.Z * (T.B.X * T.C.Y - T.B.Y * T.C.X)) / 6;
+      end;
+      Check(Abs(Vs - V0) / V0 < 0.005, Format('STL: volume %.1f dentro de 0,5%%', [Vs]));
+      Z0 := Ms.MinZ;
+      Z1 := Ms.MaxZ;
+      Check((Abs(Z0) < 1E-4) and (Abs(Z1 - 25) < 1E-3), Format('STL em pe: Z de %.3f a %.3f (altura 25)', [Z0, Z1]));
+    finally
+      Ms.Free;
+    end;
+    { STL texto }
+    Check(CadExportSTL(Meshes, Fn, False, soYToZ, V3(0, 0, 0), 'Suporte', Err), 'STL texto gravado');
+    Ms := TMesh.Create;
+    try
+      Check(TSTLImporter.Load(Fn, Ms) and (Ms.Count = Meshes[0].TriCount), 'MultiSlicer le o STL texto');
+    finally
+      Ms.Free;
+    end;
+    { face de cima apoiada na mesa: altura vira 25 tambem, mas de cabeca para baixo }
+    Check(CadExportSTL(Meshes, Fn, True, soFaceDown, V3(0, 1, 0), 'Suporte', Err), 'STL face na mesa');
+    Ms := TMesh.Create;
+    try
+      TSTLImporter.Load(Fn, Ms);
+      Check((Abs(Ms.MinZ) < 1E-4) and (Abs(Ms.MaxZ - 25) < 1E-3), 'face na mesa: apoiada em Z = 0');
+    finally
+      Ms.Free;
+    end;
+    DeleteFile(Fn);
+    { DXF do esboco da base e da face de baixo }
+    Fn := GetTempDir + 'mcad_teste.dxf';
+    Check(CadExportSketchDXF(Base, Fn, Err), 'DXF do esboco ' + Err);
+    L := TStringList.Create;
+    try
+      L.LoadFromFile(Fn);
+      Txt := L.Text;
+      Check((Pos('AC1009', Txt) > 0) and (Pos('LINE', Txt) > 0) and (L[L.Count - 1] = 'EOF'), 'DXF R12 com linhas');
+      Check(Pos(',', Txt) = 0, 'DXF com ponto decimal');
+    finally
+      L.Free;
+    end;
+    Check(RB.FindFace('Ressalto-Extrusão1/inicio', B, F), 'face de baixo existe');
+    Loops := 0;
+    Check(CadExportFaceDXF(B.Mesh, F, Fn, Loops, Err), 'DXF da face de baixo ' + Err);
+    Check(Loops = 3, Format('DXF da face de baixo: contorno + 2 furos (%d lacos)', [Loops]));
+    DeleteFile(Fn);
+    { medir }
+    Refs.Clear;
+    Refs.Add('face:Ressalto-Extrusão1/inicio');
+    Refs.Add('face:Ressalto-Extrusão1/fim');
+    MR := CadMeasure(RB, Refs);
+    Check(Abs(MR.Distance - 10) < 1E-6, 'medir: distancia entre as faces de baixo e de cima = 10');
+    MR.Lines.Free;
+    Refs.Clear;
+    Refs.Add('face:Revolução1/rev:2');
+    MR := CadMeasure(RB, Refs);
+    Txt := MR.Lines.Text;
+    MR.Lines.Free;
+    Refs.Clear;
+    for F := 0 to RB.Body(0).Mesh.FaceCount - 1 do
+      if (RB.Body(0).Mesh.Faces[F].Surf = skCylinder) and (Abs(RB.Body(0).Mesh.Faces[F].Radius - 4) < 1E-6) then
+        Refs.Add('face:' + RB.Body(0).Mesh.Faces[F].Name);
+    Check(Refs.Count = 2, Format('dois furos cilindricos de raio 4 (%d)', [Refs.Count]));
+    if Refs.Count = 2 then
+    begin
+      MR := CadMeasure(RB, Refs);
+      Check(Abs(MR.Distance - 60) < 1E-6, Format('medir: entre eixos dos furos = 60 (%.4f)', [MR.Distance]));
+      MR.Lines.Free;
+    end;
+    { criterio 2: base de 80 para 100 }
+    Check(Base.SetDimension('D1', 100), 'mudar a cota D1 da base');
+    Check(RB.Rebuild = 0, 'base 100: reconstrucao sem erros');
+    V := RB.TotalVolume;
+    Check(Abs(V - (V0 + 20 * 50 * 10)) / V0 < 0.005, Format('base 100: volume %.1f', [V]));
+    { criterio 4: salvar e abrir }
+    Fn := GetTempDir + 'mcad_teste.mcad';
+    Check(D.SaveToFile(Fn, Err), 'salvar suporte');
+    J1 := D.ToJSON;
+    D2 := TCadDocument.Create;
+    try
+      Check(D2.LoadFromFile(Fn, Err), 'abrir suporte');
+      Check(D2.ToJSON = J1, 'mesma arvore e mesmos Ids depois de abrir');
+      RB.Free;
+      RB := TCadRebuilder.Create(D2);
+      Check((RB.Rebuild = 0) and (Abs(RB.TotalVolume - V) < 1E-6), 'mesmo solido depois de abrir');
+    finally
+      RB.Free;
+      RB := nil;
+      D2.Free;
+    end;
+    DeleteFile(Fn);
+    DeleteFile(Fn + '.bak');
+  finally
+    Refs.Free;
+    RB.Free;
+    D.Free;
+  end;
+end;
+
+procedure TestSketchTools2;
+var
+  D: TCadDocument;
+  S: TCadSketch;
+  T: TCadSketchSession;
+  E: TSketchEntity;
+  G: TCadDimGeom;
+  I, N0, NArc, NLine: Integer;
+  C: TSketchConstraint;
+  Sn: TCadSnap;
+  Len: Double;
+begin
+  D := TCadDocument.Create;
+  try
+    D.NewPart;
+    S := D.AddSketch('plane:1');
+    T := TCadSketchSession.Create(D, S);
+    try
+      T.PickTol := 1.5;
+      { digitar o comprimento: 80 na horizontal a partir da origem }
+      T.Tool := tkLine;
+      T.Click(V2(0.2, 0.1));
+      T.MouseMove(V2(30, 0.5));
+      Check(T.CanType, 'linha com 1 clique aceita medida digitada');
+      Check(T.ApplyTyped('80'), 'digitar 80 cria a linha ' + T.LastMessage);
+      E := S.Entity(0);
+      Check(Near(E.P2.X, 80, 1E-6) and Near(E.P2.Y, 0, 1E-6), 'linha de 80 mm na horizontal');
+      C := S.Constraint(S.ConstraintCount - 1);
+      Check((C.Kind = ckDistance) and Near(C.Value, 80), 'cota de 80 criada junto');
+      Check(CadDimText(C) = '80 mm', 'texto da cota com mm: ' + CadDimText(C));
+      { a cadeia continua: 50 para cima com angulo }
+      T.MouseMove(V2(80.3, 20));
+      Check(T.ApplyTyped('50<90'), 'digitar 50<90');
+      E := S.Entity(1);
+      Check(Near(E.P2.X, 80, 1E-6) and Near(E.P2.Y, 50, 1E-6), 'segunda linha vai para (80, 50)');
+      T.Cancel;
+      { geometria da cota: linha de cota paralela, texto afastado }
+      Check(T.DimGeometry(S.ConstraintCount - 1, G) and (G.Kind = dgLinear), 'geometria de cota linear');
+      Check(Near(Abs(G.DA.X - G.A.X), 3.3, 1E-6) or (Abs(G.DA.X - G.A.X) > 0.1), 'linha de cota afastada da medida');
+      T.MoveDimText(S.ConstraintCount - 1, V2(100, 25));
+      T.DimGeometry(S.ConstraintCount - 1, G);
+      Check(Near(G.T.X, 100, 1E-9) and Near(G.T.Y, 25, 1E-9) and Near(G.DA.X, 100, 1E-9),
+        'arrastar o texto da cota leva a linha de cota junto');
+      { retangulo digitado }
+      T.Tool := tkRectangle;
+      T.Click(V2(-60, -40));
+      T.MouseMove(V2(-50, -30));
+      Check(T.ApplyTyped('40 x 30'), 'retangulo 40 x 30 ' + T.LastMessage);
+      E := S.Entity(S.EntityCount - 4);
+      Check(Near(Abs(S.Entity(S.EntityCount - 4).P2.X - S.Entity(S.EntityCount - 4).P1.X), 40, 1E-6), 'largura 40');
+      { circulo digitado: diametro }
+      T.Tool := tkCircle;
+      T.Click(V2(-40, -25));
+      Check(T.ApplyTyped('12'), 'circulo de diametro 12');
+      Check(Near(S.Entity(S.EntityCount - 1).Radius, 6, 1E-6), 'raio 6');
+      Check(CadDimText(S.Constraint(S.ConstraintCount - 1)) = 'Ø12 mm', 'texto Ø12 mm');
+      { filete no canto do retangulo (-60,-40) }
+      N0 := S.EntityCount;
+      Check(T.FilletCorner(V2(-60, -40), 5), 'filete no canto ' + T.LastMessage);
+      Check(S.EntityCount = N0 + 2, 'filete acrescenta o arco e o canto virtual');
+      E := S.Entity(S.EntityCount - 1);
+      Check((E.Kind = seArc) and Near(E.Radius, 5, 1E-6) and NearV(V3(E.P1.X, E.P1.Y, 0), V3(-55, -35, 0), 1E-6),
+        Format('arco R5 com centro em (-55, -35): R=%.4f c=(%.4f, %.4f)', [E.Radius, E.P1.X, E.P1.Y]));
+      Check(T.LastSolve.Status <> ssConflict, 'filete sem conflito');
+      { chanfro no canto oposto (-20,-10) }
+      N0 := S.EntityCount;
+      Check(T.ChamferCorner(V2(-20, -10), 3, 3), 'chanfro no canto ' + T.LastMessage);
+      E := S.Entity(S.EntityCount - 1);
+      Len := Sqrt(Sqr(E.P2.X - E.P1.X) + Sqr(E.P2.Y - E.P1.Y));
+      Check((S.EntityCount = N0 + 2) and Near(Len, 3 * Sqrt(2), 1E-6), 'chanfro 3 x 3 (linha de 4,24)');
+      Len := S.Entity(S.EntityIndex(4)).P1.X - S.Entity(S.EntityIndex(6)).P1.X;
+      Check(Near(Len, 40, 1E-6), Format('largura 40 mantida pelo canto virtual (%.4f)', [Len]));
+      Check(not T.ChamferCorner(V2(500, 500), 1, 1), 'chanfro longe de canto e recusado');
+      { o perfil continua fechado: retangulo com filete e chanfro vira regiao }
+      NArc := 0; NLine := 0;
+      for I := 0 to S.EntityCount - 1 do
+        if S.Entity(I).Kind = seArc then Inc(NArc) else if S.Entity(I).Kind = seLine then Inc(NLine);
+      Check((NArc = 1) and (NLine = 2 + 4 + 1), Format('entidades: %d arcos, %d linhas', [NArc, NLine]));
+      { arco tangente saindo do fim da linha de 80 (para cima a partir de (80,50)) }
+      T.Tool := tkArcTangent;
+      T.Click(V2(80, 50));
+      T.Click(V2(60, 70));
+      E := S.Entity(S.EntityCount - 1);
+      Check((E.Kind = seArc) and Near(E.Radius, 20, 1E-6) and Near(E.P1.X, 60, 1E-6) and Near(E.P1.Y, 50, 1E-6),
+        Format('arco tangente R20 com centro (60,50): R=%.3f', [E.Radius]));
+      { arco pelo centro }
+      T.Tool := tkArcCenter;
+      N0 := S.EntityCount;
+      T.Click(V2(150, 0));
+      T.Click(V2(160, 0));
+      T.Click(V2(150, 10));
+      Check((S.EntityCount = N0 + 1) and Near(S.Entity(N0).Radius, 10, 1E-6), 'arco pelo centro R10');
+      { inferencia: alinhado na vertical com (80, 50) }
+      T.Tool := tkLine;
+      Sn := T.Snap(V2(80.7, 120));
+      Check(Sn.GuideX and Near(Sn.P.X, 80, 1E-9), 'linha de inferencia alinha com o ponto existente');
+      { ponto medio da linha de 80 }
+      Sn := T.Snap(V2(40.3, 0.2));
+      Check((Sn.Pt = -1) and Near(Sn.P.X, 40, 1E-9), 'captura do ponto medio');
+      { grade }
+      T.GridStep := 5;
+      T.GridSnap := True;
+      Sn := T.Snap(V2(212.2, 208.9));
+      Check(Sn.OnGrid and Near(Sn.P.X, 210) and Near(Sn.P.Y, 210), 'captura na grade de 5 mm');
+      { construcao }
+      T.Tool := tkSelect;
+      T.Click(V2(40, -0.1));
+      Check(T.ToggleConstruction and S.Entity(0).Construction, 'linha vira construcao');
+    finally
+      T.Free;
+    end;
+  finally
+    D.Free;
+  end;
+end;
+
+type
+  TDimAsk = class
+    Text: string;
+    Ref: Boolean;
+    function Ask(Sender: TObject; const ACaption: string; var AText: string;
+      var RefOnly: Boolean): Boolean;
+  end;
+
+function TDimAsk.Ask(Sender: TObject; const ACaption: string; var AText: string;
+  var RefOnly: Boolean): Boolean;
+begin
+  AText := Text;
+  RefOnly := Ref;
+  Result := True;
+end;
+
+procedure TestSketchTools3;
+var
+  D: TCadDocument;
+  S: TCadSketch;
+  T: TCadSketchSession;
+  A: TDimAsk;
+  E: TSketchEntity;
+  C: TSketchConstraint;
+  N0: Integer;
+  G: TCadDimGeom;
+begin
+  D := TCadDocument.Create;
+  A := TDimAsk.Create;
+  try
+    D.NewPart;
+    S := D.AddSketch('plane:1');
+    T := TCadSketchSession.Create(D, S);
+    try
+      T.PickTol := 1.5;
+      T.OnAskDim := @A.Ask;
+      S.AddLine(0, 0, 50, 0);
+      { cota pela ferramenta: clicar na linha, a cota segue o mouse, clicar fora coloca }
+      T.Tool := tkDimension;
+      N0 := S.ConstraintCount;
+      T.Click(V2(25, 0.2));
+      Check(T.PlacingDim <> 0, 'cota segue o mouse depois de escolher a linha');
+      T.MouseMove(V2(25, 12));
+      T.DimGeometry(S.ConstraintIndex(T.PlacingDim), G);
+      Check(Near(G.T.Y, 12, 1E-9), 'texto da cota acompanha o cursor');
+      A.Text := '60';
+      A.Ref := False;
+      T.Click(V2(25, 12));
+      Check((T.PlacingDim = 0) and (S.ConstraintCount = N0 + 1), 'clique fora coloca a cota');
+      E := S.Entity(0);
+      Check(Near(Abs(E.P2.X - E.P1.X), 60, 1E-6), 'valor digitado muda a linha para 60');
+      { so marcar: cota de referencia nao muda o desenho }
+      S.AddLine(0, 20, 30, 20);
+      T.Click(V2(15, 20.1));
+      A.Text := '99';
+      A.Ref := True;
+      T.Click(V2(15, 30));
+      C := S.Constraint(S.ConstraintCount - 1);
+      E := S.Entity(1);
+      Check(not C.Driving and Near(Abs(E.P2.X - E.P1.X), 30, 1E-6) and (CadDimText(C) = '(30 mm)'),
+        'so marcar a medida: cota de referencia (30 mm) sem mudar a linha');
+      { duas linhas: distancia entre paralelas, terceiro clique coloca }
+      T.Click(V2(10, 0.1));
+      T.Click(V2(10, 20.1));
+      Check(T.PlacingDim <> 0, 'duas linhas escolhidas, cota segue o mouse');
+      A.Ref := True;
+      T.Click(V2(-10, 10));
+      C := S.Constraint(S.ConstraintCount - 1);
+      Check(Near(Abs(C.Value), 20, 1E-6), 'distancia entre as linhas paralelas = 20');
+      { Esc durante a colocacao apaga a cota }
+      N0 := S.ConstraintCount;
+      T.Click(V2(10, 0.1));
+      T.Cancel;
+      Check(S.ConstraintCount = N0, 'Esc desiste da cota em colocacao');
+      { linha de apoio }
+      T.Tool := tkLine;
+      T.ConstructionMode := True;
+      T.Click(V2(0, 50));
+      T.Click(V2(40, 70));
+      Check(S.Entity(S.EntityCount - 1).Construction, 'modo linha de apoio desenha tracejada');
+      T.ConstructionMode := False;
+      T.Cancel;
+      T.Tool := tkSelect;
+      T.Click(V2(20, 60));
+      Check(T.SelectionConstructionState = 2, 'selecionada: linha de apoio');
+      Check(Pos('Linha de apoio', T.SelectionText) = 1, 'descricao: ' + T.SelectionText);
+      Check(T.SetSelectionConstruction(False) and not S.Entity(S.EntityCount - 1).Construction,
+        'voltar para linha normal');
+      Check(T.SelectionConstructionState = 1, 'selecionada: linha normal');
+    finally
+      T.Free;
+    end;
+  finally
+    A.Free;
+    D.Free;
+  end;
+end;
+
+procedure TestMaterialAppearance;
+var
+  D, D2: TCadDocument;
+  M: TCadMaterial;
+  Err: string;
+  I, W, Mn, Mx: Integer;
+  F, FMin, FMax: Double;
+  Cam: TCadCamera;
+  R: TCadRaster;
+  Mesh: TCadMesh;
+  Cache: TCadMeshCache;
+  Opt: TCadDrawOptions;
+  C: LongWord;
+begin
+  Check(CadFindMaterial('PLA', M) and M.ColorChoice and (M.Category = 'Plásticos'), 'PLA: plastico com escolha de cor');
+  Check(CadFindMaterial('ABS', M) and M.ColorChoice, 'ABS com escolha de cor');
+  Check(CadFindMaterial('Madeira (pinus)', M) and (M.Texture = 'wood') and not M.ColorChoice, 'madeira com textura de veios');
+  Check(CadFindMaterial('Aço 1020', M) and (M.Category = 'Metais'), 'aco nos metais');
+  Check(CadTextureIndex('wood') > 0, 'textura de madeira embutida');
+  { cor do PLA gravada no .mcad }
+  D := TCadDocument.Create;
+  D2 := TCadDocument.Create;
+  try
+    D.NewPart;
+    D.Material := 'PLA';
+    D.MaterialColor := $2A64C8;
+    Check(D.AppearanceColor = $2A64C8, 'PLA azul');
+    Check(D2.LoadFromJSON(D.ToJSON, Err) and (D2.Material = 'PLA') and (D2.MaterialColor = $2A64C8),
+      'material e cor salvos no .mcad ' + Err);
+    D.Material := 'Aço 1020';
+    Check(D.AppearanceColor = $A8AEB4, 'aco ignora cor escolhida (sem escolha de cor)');
+  finally
+    D.Free;
+    D2.Free;
+  end;
+  { textura varia a cor da madeira }
+  FMin := 9; FMax := 0;
+  for I := 0 to 199 do
+  begin
+    F := CadTexFactor(CadTextureIndex('wood'), V3(I * 0.37, 5, I * 0.21), V3(0, 1, 0));
+    FMin := Min(FMin, F);
+    FMax := Max(FMax, F);
+  end;
+  Check((FMin < 0.85) and (FMax > 1.0), Format('veios da madeira variam a cor (%.2f a %.2f)', [FMin, FMax]));
+  { render com textura }
+  Cam := TCadCamera.Create;
+  R := TCadRaster.Create;
+  Mesh := CadMakeBox(V3(0, 0, 0), V3(60, 40, 20), 'Caixa');
+  Cache := TCadMeshCache.Create(Mesh);
+  try
+    R.SetSize(160, 120);
+    Cam.SetViewport(160, 120);
+    Cam.StdView(svFront);
+    Cam.Fit(Mesh.Bounds);
+    R.Style := dsShaded;
+    R.BeginFrame(Cam);
+    Opt := CadDrawOptions($D9B47C, 1);
+    Opt.Texture := CadTextureIndex('wood');
+    R.DrawMesh(Cache, Opt);
+    Mn := 999; Mx := -1;
+    for W := 40 to 120 do
+    begin
+      C := R.ColorAt(W, 60);
+      Mn := Min(Mn, Integer((C shr 16) and $FF));
+      Mx := Max(Mx, Integer((C shr 16) and $FF));
+    end;
+    Check(Mx - Mn > 12, Format('face com textura tem tons diferentes (%d a %d)', [Mn, Mx]));
+  finally
+    Cache.Free;
+    Mesh.Free;
+    R.Free;
+    Cam.Free;
+  end;
+end;
+
 begin
   Passed := 0;
   Failed := 0;
@@ -1765,6 +2251,10 @@ begin
   TestCamera;
   TestRender;
   TestSketchTools;
+  TestSketchTools2;
+  TestSketchTools3;
+  TestMaterialAppearance;
+  TestExport;
   Writeln(Format('MultiCAD: %d checks, %d falhas', [Passed + Failed, Failed]));
   if Failed > 0 then
     Halt(1);
