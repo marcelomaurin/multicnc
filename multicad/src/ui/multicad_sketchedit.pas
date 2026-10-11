@@ -950,6 +950,12 @@ begin
   if S.GuideY then
     C.Line(ToScreen(S.GY), ToScreen(S.P));
   C.Pen.Style := psSolid;
+  { filete: previa do arco no canto sob o mouse }
+  if (FSession.Tool = tkFillet) and FSession.FilletPreview(S.P, FSession.FilletRadius, Tmp) then
+  begin
+    DrawEntity(C, Tmp, Col, True);
+    Txt := 'Filete R ' + Fmm(FSession.FilletRadius) + ' mm (clique para aplicar)';
+  end;
   if FSession.ClickCount > 0 then
   begin
     S1 := FSession.ClickAt(0);

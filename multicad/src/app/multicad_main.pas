@@ -27,7 +27,7 @@ uses
   multicad_document, multicad_feature, multicad_refgeom, multicad_sketch, multicad_mesh,
   multicad_solver, multicad_extrude, multicad_revolve, multicad_rebuild,
   multicad_camera, multicad_softrender, multicad_view3d, multicad_sketchtools,
-  multicad_sketchedit, multicad_propman, multicad_materialdlg, multicad_textures, multicad_export, multicad_measure,
+  multicad_sketchedit, multicad_propman, multicad_undo, multicad_hole, multicad_pattern, multicad_materialdlg, multicad_textures, multicad_export, multicad_measure,
   multisuite_types, multisuite_registry, multisuite_launcher, multisuite_context;
 
 type
@@ -62,8 +62,20 @@ type
     SketchTitle, SketchSel: TLabel;
     LineKind: TRadioGroup;
     FUpdatingPanel: Boolean;
+    FUndo: TCadUndoStack;
+    FAutoSketchId: Integer;   { esboco criado pelo comando Furo (Cancelar apaga) }
     FRefreshingTree: Boolean;
     procedure UpdateSketchPanel;
+    procedure ResetUndo;
+    procedure RestoreState(const AState: string);
+    procedure UndoClick(Sender: TObject);
+    procedure RedoClick(Sender: TObject);
+    procedure HoleClick(Sender: TObject);
+    procedure LinearPatternClick(Sender: TObject);
+    procedure CircularPatternClick(Sender: TObject);
+    procedure MirrorClick(Sender: TObject);
+    function PatternSeeds: TCadIdArray;
+    function SelectedFaceRef: string;
     procedure LineKindClick(Sender: TObject);
     procedure BuildUI;
     procedure ShowTab(T: TCadTab);
@@ -157,6 +169,7 @@ type
     procedure StyleClick(Sender: TObject);
     procedure ViewClick(Sender: TObject);
     procedure NormalToClick(Sender: TObject);
+    procedure NormalToRef(const ARef: string);
     procedure PerspectiveClick(Sender: TObject);
     procedure PlanesClick(Sender: TObject);
     { vista }
@@ -182,6 +195,11 @@ type
     procedure CancelEdit;
     procedure ExitSketchMode;
     procedure ApplyMaterial(const AName: string; AColor: Integer);
+    { para o teste de interface }
+    procedure RefreshModel;
+    procedure MarkModified;
+    procedure DoUndo;
+    procedure DoRedo;
   end;
 
 implementation
@@ -210,11 +228,13 @@ begin
   Doc := TCadDocument.Create;
   Doc.NewPart;
   RB := TCadRebuilder.Create(Doc);
+  FUndo := TCadUndoStack.Create(100);
   BuildUI;
   LoadSettings;
   RebuildModel;
   View.SetView(svIso);
   UpdateCaption;
+  ResetUndo;
 end;
 
 destructor TMainForm.Destroy;
@@ -223,6 +243,7 @@ begin
   FSnapshot.Free;
   RB.Free;
   Doc.Free;
+  FUndo.Free;
   inherited Destroy;
 end;
 
@@ -239,7 +260,7 @@ var
     Result.Parent := FileButtons;
     Result.Align := alLeft;
     Result.BorderSpacing.Around := 3;
-    Result.Width := 96;
+    Result.Width := 108;
     Result.Caption := S;
     Result.SetLook(sbsSoft, clSuitePrimary, AIcon);
     Result.OnClick := H;
@@ -281,13 +302,15 @@ begin
   FileButtons := TPanel.Create(Self);
   FileButtons.Parent := TabBar;
   FileButtons.Align := alRight;
-  FileButtons.Width := 4 * 102 + 8;
+  FileButtons.Width := 6 * 114 + 8;
   FileButtons.BevelOuter := bvNone;
   FileButtons.Color := clSuiteCard;
   FileBtn('Salvar como', sikSave, @SaveAsClick);
   FileBtn('Salvar', sikSave, @SaveClick);
   FileBtn('Abrir', sikFolder, @OpenClick);
   FileBtn('Novo', sikNew, @NewClick);
+  FileBtn('Refazer', sikRedo, @RedoClick).Hint := 'Refazer (Ctrl+Y)';
+  FileBtn('Desfazer', sikUndo, @UndoClick).Hint := 'Desfazer (Ctrl+Z)';
 
   Ribbon := TPanel.Create(Self);
   Ribbon.Parent := Self;
@@ -499,6 +522,11 @@ begin
         RibbonButton('Corte revolucionado', sikUndo, @RevolveCutClick);
         RibbonSep;
         RibbonButton('Plano', sikLayers, @PlaneClick);
+        RibbonSep;
+        RibbonButton('Furo', sikTarget, @HoleClick);
+        RibbonButton('Padrão linear', sikCopy, @LinearPatternClick);
+        RibbonButton('Padrão circular', sikRedo, @CircularPatternClick);
+        RibbonButton('Espelhar', sikMirrorH, @MirrorClick);
       end;
     ctSketch:
       begin
@@ -637,6 +665,92 @@ procedure TMainForm.Modified;
 begin
   Doc.Modified := True;
   UpdateCaption;
+  { historia para desfazer (estado depois da alteracao) }
+  if Assigned(FUndo) and not PM.Visible then
+    FUndo.Push(Doc.ToJSON);
+end;
+
+procedure TMainForm.ResetUndo;
+begin
+  FUndo.Reset(Doc.ToJSON);
+end;
+
+procedure TMainForm.RestoreState(const AState: string);
+var
+  SketchId, I: Integer;
+  T: TCadSketchToolKind;
+  Err, Fn: string;
+  F: TCadFeature;
+begin
+  if AState = '' then
+    Exit;
+  SketchId := 0;
+  T := tkSelect;
+  if Assigned(FEditor) then
+  begin
+    SketchId := FEditor.Sketch.Id;
+    T := FEditor.Session.Tool;
+    FreeAndNil(FEditor);
+  end;
+  Fn := Doc.FileName;
+  if not Doc.LoadFromJSON(AState, Err) then
+  begin
+    MessageDlg('Não foi possível desfazer: ' + Err, mtError, [mbOK], 0);
+    Exit;
+  end;
+  Doc.FileName := Fn;
+  Doc.Modified := True;
+  View.Selected.Clear;
+  View.HighlightPrefix := '';
+  RebuildModel;
+  UpdateCaption;
+  if SketchId > 0 then
+  begin
+    F := Doc.FindById(SketchId);
+    if F is TCadSketch then
+    begin
+      FEditor := TCadSketchEditor.Create(View, Doc, RB, TCadSketch(F));
+      FEditor.OnChanged := @EditorChanged;
+      FEditor.OnStatus := @EditorStatus;
+      FEditor.SetTool(T);
+      ShowTab(ctSketch);
+      EditorStatus(nil);
+    end
+    else
+      ShowTab(ctFeatures);
+    UpdateSketchPanel;
+  end;
+  I := 0;
+  if I = 0 then;
+end;
+
+procedure TMainForm.UndoClick(Sender: TObject);
+begin
+  if PM.Visible then
+  begin
+    SetStatus(1, 'Termine (OK) ou cancele a operação antes de desfazer');
+    Exit;
+  end;
+  if FUndo.CanUndo then
+  begin
+    RestoreState(FUndo.Undo);
+    SetStatus(0, 'Desfeito');
+  end
+  else
+    SetStatus(0, 'Nada para desfazer');
+end;
+
+procedure TMainForm.RedoClick(Sender: TObject);
+begin
+  if PM.Visible then
+    Exit;
+  if FUndo.CanRedo then
+  begin
+    RestoreState(FUndo.Redo);
+    SetStatus(0, 'Refeito');
+  end
+  else
+    SetStatus(0, 'Nada para refazer');
 end;
 
 { ---------- arvore ---------- }
@@ -841,7 +955,8 @@ begin
   end
   else if F is TCadSketch then
     EditSketch(TCadSketch(F))
-  else if (F is TCadExtrude) or (F is TCadRevolve) then
+  else if (F is TCadExtrude) or (F is TCadRevolve) or (F is TCadHole) or
+    (F is TCadPatternBase) then
     BeginEdit(F, False);
 end;
 
@@ -936,7 +1051,8 @@ begin
   for I := 0 to TreeMenu.Items.Count - 1 do
     TreeMenu.Items[I].Enabled := Assigned(F) and not PM.Visible and not Assigned(FEditor);
   TreeMenu.Items[0].Enabled := TreeMenu.Items[0].Enabled and
-    ((F is TCadExtrude) or (F is TCadRevolve) or ((F is TCadPlane) and (TCadPlane(F).PlaneType <> ptStandard)));
+    ((F is TCadExtrude) or (F is TCadRevolve) or (F is TCadHole) or (F is TCadPatternBase) or
+    ((F is TCadPlane) and (TCadPlane(F).PlaneType <> ptStandard)));
   TreeMenu.Items[1].Enabled := TreeMenu.Items[1].Enabled and (F is TCadSketch);
   if Assigned(F) and F.Suppressed then
     TreeMenu.Items[3].Caption := 'Cancelar supressão'
@@ -1067,6 +1183,26 @@ begin
   UpdatePartStatus;
 end;
 
+procedure TMainForm.RefreshModel;
+begin
+  RebuildModel;
+end;
+
+procedure TMainForm.MarkModified;
+begin
+  Modified;
+end;
+
+procedure TMainForm.DoUndo;
+begin
+  UndoClick(nil);
+end;
+
+procedure TMainForm.DoRedo;
+begin
+  RedoClick(nil);
+end;
+
 procedure TMainForm.ApplyMaterial(const AName: string; AColor: Integer);
 begin
   Doc.Material := AName;
@@ -1165,6 +1301,7 @@ begin
   RebuildModel;
   View.SetView(svIso);
   UpdateCaption;
+  ResetUndo;
 end;
 
 function TMainForm.OpenFile(const AFile: string): Boolean;
@@ -1182,6 +1319,7 @@ begin
   RebuildModel;
   View.SetView(svIso);
   UpdateCaption;
+  ResetUndo;
 end;
 
 procedure TMainForm.OpenClick(Sender: TObject);
@@ -1404,10 +1542,49 @@ begin
 end;
 
 procedure TMainForm.ToolClick(Sender: TObject);
+var
+  T: TCadSketchToolKind;
+  P: TCadVec2;
+  Txt, Err: string;
+  R, D1, D2: Double;
+  K: Integer;
 begin
   if FEditor = nil then
     Exit;
-  FEditor.SetTool(TCadSketchToolKind(TComponent(Sender).Tag));
+  T := TCadSketchToolKind(TComponent(Sender).Tag);
+  { filete/chanfro com duas linhas (ou o ponto do canto) ja selecionadas:
+    aplica direto, como no SolidWorks }
+  if (T in [tkFillet, tkChamfer]) and FEditor.Session.CornerFromSelection(P) then
+  begin
+    if T = tkFillet then
+    begin
+      Txt := FormatFloat('0.###', FEditor.Session.FilletRadius);
+      if InputQuery('Filete', 'Raio do filete (mm):', Txt) and Doc.Eval(Txt, R, Err) then
+      begin
+        if FEditor.Session.FilletCorner(P, R) then
+          FEditor.Session.FilletRadius := R;
+      end;
+    end
+    else
+    begin
+      Txt := FormatFloat('0.###', FEditor.Session.ChamferD1);
+      if InputQuery('Chanfro', 'Distância ou "d1 x d2" (mm):', Txt) then
+      begin
+        Txt := StringReplace(LowerCase(Trim(Txt)), '×', 'x', [rfReplaceAll]);
+        K := Pos('x', Txt);
+        if K > 0 then
+        begin
+          if Doc.Eval(Copy(Txt, 1, K - 1), D1, Err) and Doc.Eval(Copy(Txt, K + 1, MaxInt), D2, Err) then
+            FEditor.Session.ChamferCorner(P, D1, D2);
+        end
+        else if Doc.Eval(Txt, D1, Err) then
+          FEditor.Session.ChamferCorner(P, D1, D1);
+      end;
+    end;
+    FEditor.Session.ClearSelection;
+    FEditor.View3DChanged;
+  end;
+  FEditor.SetTool(T);
   ShowTab(ctSketch);
 end;
 
@@ -1697,6 +1874,167 @@ begin
   BeginEdit(P, True);
 end;
 
+function TMainForm.SelectedFaceRef: string;
+var
+  I: Integer;
+begin
+  Result := '';
+  for I := 0 to View.Selected.Count - 1 do
+    if Pos('face:', View.Selected[I]) = 1 then
+      Exit(View.Selected[I]);
+end;
+
+function FaceCentroid(M: TCadMesh; AFace: Integer): TCadVec3;
+var
+  I: Integer;
+  T: TCadTri;
+  A, W: Double;
+  C: TCadVec3;
+begin
+  C := V3(0, 0, 0);
+  W := 0;
+  for I := 0 to M.TriCount - 1 do
+  begin
+    T := M.Tris[I];
+    if T.Face <> AFace then
+      Continue;
+    A := M.TriArea(I);
+    C := VAdd(C, VScale(VAdd(VAdd(M.Verts[T.A], M.Verts[T.B]), M.Verts[T.C]), A / 3));
+    W := W + A;
+  end;
+  if W > 0 then
+    Result := VScale(C, 1 / W)
+  else
+    Result := C;
+end;
+
+procedure TMainForm.HoleClick(Sender: TObject);
+var
+  S: TCadSketch;
+  F: TCadFeature;
+  R, Err: string;
+  B: TCadBody;
+  Fi, I, NPts: Integer;
+  Fr: TCadFrame;
+  P: TCadVec2;
+  H: TCadHole;
+begin
+  if PM.Visible then
+    Exit;
+  S := nil;
+  { esboco com pontos selecionado (ou em edicao) }
+  if Assigned(FEditor) then
+  begin
+    S := FEditor.Sketch;
+    ExitSketch(nil);
+  end
+  else
+  begin
+    F := SelectedFeature;
+    if F is TCadSketch then
+      S := TCadSketch(F);
+  end;
+  if Assigned(S) then
+  begin
+    NPts := 0;
+    for I := 0 to S.EntityCount - 1 do
+      if S.Entity(I).Kind in [sePoint, seCircle] then
+        Inc(NPts);
+    if NPts = 0 then
+      S := nil;
+  end;
+  if S = nil then
+  begin
+    { face plana selecionada: esboco nela com um ponto no centro da face }
+    R := SelectedFaceRef;
+    if (R = '') or not RB.ResolvePlane(R, Fr, Err) then
+    begin
+      MessageDlg('Selecione a face plana onde vai o furo (ou um esboço com pontos).',
+        mtInformation, [mbOK], 0);
+      Exit;
+    end;
+    S := Doc.AddSketch(R);
+    if RB.FindFace(Copy(R, 6, MaxInt), B, Fi) then
+      P := FrameToLocal(Fr, FaceCentroid(B.Mesh, Fi))
+    else
+      P := V2(0, 0);
+    S.AddPoint(P.X, P.Y);
+    NPts := S.Id;
+  end
+  else
+    NPts := 0;
+  H := TCadHole.Create;
+  H.SketchId := S.Id;
+  Doc.AddFeature(H);
+  BeginEdit(H, True);
+  FAutoSketchId := NPts;
+  SetStatus(1, 'Furo: para mudar a posição, edite o esboço ' + S.Name + ' (cotas no ponto)');
+end;
+
+function TMainForm.PatternSeeds: TCadIdArray;
+var
+  F: TCadFeature;
+  I: Integer;
+begin
+  Result := nil;
+  F := SelectedFeature;
+  if Assigned(F) and not (F.Kind in [cfSketch, cfPlane, cfAxis, cfOrigin]) then
+  begin
+    SetLength(Result, 1);
+    Result[0] := F.Id;
+    Exit;
+  end;
+  { ultima operacao de solido }
+  for I := Doc.Count - 1 downto 0 do
+    if not (Doc.Feature(I).Kind in [cfSketch, cfPlane, cfAxis, cfOrigin]) and
+      not Doc.Feature(I).Suppressed then
+    begin
+      SetLength(Result, 1);
+      Result[0] := Doc.Feature(I).Id;
+      Exit;
+    end;
+end;
+
+procedure TMainForm.LinearPatternClick(Sender: TObject);
+var
+  P: TCadLinearPattern;
+begin
+  if PM.Visible or Assigned(FEditor) then
+    Exit;
+  P := TCadLinearPattern.Create;
+  P.Seeds := PatternSeeds;
+  Doc.AddFeature(P);
+  BeginEdit(P, True);
+end;
+
+procedure TMainForm.CircularPatternClick(Sender: TObject);
+var
+  P: TCadCircularPattern;
+begin
+  if PM.Visible or Assigned(FEditor) then
+    Exit;
+  P := TCadCircularPattern.Create;
+  P.Seeds := PatternSeeds;
+  Doc.AddFeature(P);
+  BeginEdit(P, True);
+end;
+
+procedure TMainForm.MirrorClick(Sender: TObject);
+var
+  P: TCadMirror;
+  R: string;
+begin
+  if PM.Visible or Assigned(FEditor) then
+    Exit;
+  P := TCadMirror.Create;
+  P.Seeds := PatternSeeds;
+  R := SelectedPlaneRef;
+  if R <> '' then
+    P.PlaneRef := R;
+  Doc.AddFeature(P);
+  BeginEdit(P, True);
+end;
+
 procedure TMainForm.BeginEdit(F: TCadFeature; AIsNew: Boolean);
 begin
   if Assigned(FEditor) then
@@ -1723,11 +2061,17 @@ begin
   if (F <> nil) and not Accept then
   begin
     if PM.IsNew then
-      Doc.DeleteFeature(F.Id, Err)
+    begin
+      Doc.DeleteFeature(F.Id, Err);
+      { furo novo em face: apaga o esboco de posicao criado junto }
+      if FAutoSketchId > 0 then
+        Doc.DeleteFeature(FAutoSketchId, Err);
+    end
     else if Assigned(FSnapshot) then
       F.LoadParams(FSnapshot);
   end;
   FreeAndNil(FSnapshot);
+  FAutoSketchId := 0;
   PM.Visible := False;
   Tree.Visible := True;
   View.HighlightPrefix := '';
@@ -2142,13 +2486,22 @@ begin
     if F is TCadSketch then
       R := TCadSketch(F).PlaneRef;
   end;
-  if (R = '') or not RB.ResolvePlane(R, Fr, Err) then
+  NormalToRef(R);
+end;
+
+procedure TMainForm.NormalToRef(const ARef: string);
+var
+  Fr: TCadFrame;
+  Err: string;
+begin
+  if (ARef = '') or not RB.ResolvePlane(ARef, Fr, Err) then
   begin
     SetStatus(1, 'Normal a: selecione um plano, face plana ou esboço');
     Exit;
   end;
   { repetir vira para o outro lado }
   FNormalFlip := VDist(View.Camera.Back, Fr.Normal) < 1E-6;
+  View.PushView;
   View.Camera.NormalTo(Fr, FNormalFlip);
   View.FitAll;
 end;
@@ -2336,6 +2689,20 @@ begin
       if ssCtrl in Shift then
       begin
         RebuildClick(nil);
+        Key := 0;
+      end;
+    VK_Z:
+      if (ssCtrl in Shift) and not (ssShift in Shift) then
+      begin
+        UndoClick(nil);
+        Key := 0;
+      end
+      else
+        View.HandleKey(Key, Shift);
+    VK_Y:
+      if ssCtrl in Shift then
+      begin
+        RedoClick(nil);
         Key := 0;
       end;
     VK_1..VK_8, VK_F, VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN:

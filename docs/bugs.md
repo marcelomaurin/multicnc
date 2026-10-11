@@ -740,7 +740,10 @@ percurso disponível ao usuário.
 
 ### BUG-017 — MultiCAD: filete/arredondamento no sketch não está disponível em fluxo normal pela interface
 
-**Status:** ABERTO / CONFIRMADO NA UI  
+**Status:** CORRIGIDO em 11/10/2026 (aguardando confirmação na UI do Windows)  
+**Correção:** selecione duas linhas (ou o ponto do canto) e clique em Filete/Chanfro: pede o
+raio (ou "d1 x d2") e aplica; com a ferramenta Filete ativa, a prévia do arco aparece no canto
+sob o mouse e o clique aplica. Teste `TestFilletSelection` no `test_multicad`.  
 **Componente:** MultiCAD / Sketch / Interface  
 **Prioridade:** Alta
 

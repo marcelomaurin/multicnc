@@ -870,6 +870,16 @@ end;
 
 { ---------- aplicar ferramenta aos corpos ---------- }
 
+function BoxesOverlap(const A, B: TCadBox3): Boolean;
+const
+  E = 1E-4;
+begin
+  Result := not (A.Empty or B.Empty) and
+    (A.Min.X <= B.Max.X + E) and (B.Min.X <= A.Max.X + E) and
+    (A.Min.Y <= B.Max.Y + E) and (B.Min.Y <= A.Max.Y + E) and
+    (A.Min.Z <= B.Max.Z + E) and (B.Min.Z <= A.Max.Z + E);
+end;
+
 procedure TCadRebuilder.ApplyTool(F: TCadFeature; Tool: TCadMesh; IsCut, Merge, FlipSide,
   ScopeAll: Boolean; const ScopeBodies: TCadStrArray);
 var
@@ -965,6 +975,12 @@ begin
         if SameText(ScopeBodies[K], 'body:' + B.Name) then
           InScope := True;
       if not InScope then
+      begin
+        NewList.Add(B.Clone);
+        Continue;
+      end;
+      { ferramenta longe do corpo: nada a cortar (e evita a booleana) }
+      if not FlipSide and not BoxesOverlap(B.Mesh.Bounds, Tool.Bounds) then
       begin
         NewList.Add(B.Clone);
         Continue;
@@ -1838,8 +1854,12 @@ var
   Seed: TCadFeature;
   Nm: Double;
   Mirror: Boolean;
+  Outside: Integer;
+  LastWarn: string;
 begin
   E := '';
+  Outside := 0;
+  LastWarn := '';
   SetLength(Mats, 0);
   Mirror := P is TCadMirror;
   if P is TCadLinearPattern then
@@ -1942,11 +1962,20 @@ begin
       T.RefreshPlaneNormals;
       for J := 0 to T.FaceCount - 1 do
         T.SetFaceName(J, P.Name + '/' + IntToStr(I + 1) + '/' + T.Faces[J].Name);
+      P.SetState(fsOk, '');
       ApplyTool(P, T, Rec.IsCut, Rec.Merge, Rec.FlipSide, True, nil);
       if P.State = fsError then
         Exit;
+      if P.State = fsWarning then
+      begin
+        Inc(Outside);
+        LastWarn := P.Message;
+      end;
     end;
-  if Inst = 0 then;
+  if Outside > 0 then
+    P.SetState(fsWarning, Format('%d de %d cópia(s) com aviso: %s', [Outside, Inst, LastWarn]))
+  else
+    P.SetState(fsOk, '');
 end;
 
 { ---------- reconstrucao ---------- }

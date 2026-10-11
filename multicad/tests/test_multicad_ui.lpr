@@ -10,7 +10,7 @@ program test_multicad_ui;
 uses
   {$IFDEF UNIX}cthreads,{$ENDIF}
   Interfaces, Forms, Graphics, SysUtils, ComCtrls, multicad_types, multicad_document, multicad_feature,
-  multicad_sketchtools, multicad_materialdlg,
+  multicad_sketchtools, multicad_materialdlg, multicad_hole, multicad_pattern,
   multicad_sketch, multicad_extrude, multicad_rebuild, multicad_camera,
   multicad_softrender, multicad_view3d, multicad_main;
 
@@ -99,6 +99,9 @@ var
   S: TCadSketch;
   Ses: TCadSketchSession;
   Dlg: TForm;
+  Hole: TCadHole;
+  Circ: TCadCircularPattern;
+  N0: Integer;
   Fn: string;
   St: TCadDisplayStyle;
   I, Errs: Integer;
@@ -160,6 +163,39 @@ begin
     F.ApplyMaterial('Alumínio 6061-T6', -1);
     Pump;
     Shot(F, '09_aluminio');
+    { furo roscado e padrao circular na placa, desfazer e refazer }
+    S := F.Document.AddSketch('face:' + F.Document.Feature(5).Name + '/fim');
+    S.AddPoint(20, 10);
+    Hole := TCadHole.Create;
+    Hole.SketchId := S.Id;
+    Hole.HoleType := htTapped;
+    Hole.Size := 'M5';
+    F.Document.AddFeature(Hole);
+    Circ := TCadCircularPattern.Create;
+    Circ.Seeds := [Hole.Id];
+    Circ.AxisRef := 'y';
+    Circ.Count := 4;
+    F.Document.AddFeature(Circ);
+    F.RefreshModel;
+    F.MarkModified;
+    Pump;
+    Errs := 0;
+    for I := 0 to F.Document.Count - 1 do
+      if F.Document.Feature(I).State = fsError then
+      begin
+        Inc(Errs);
+        Writeln('  erro: ', F.Document.Feature(I).Name, ': ', F.Document.Feature(I).Message);
+      end;
+    Check(Errs = 0, 'furo M5 e padrao circular sem erro');
+    Check(Length(F.Rebuilder.ThreadMarks) = 1, 'rosca cosmetica do furo');
+    Shot(F, '10_furos_padrao');
+    N0 := F.Document.Count;
+    F.DoUndo;
+    Pump;
+    Check(F.Document.Count = N0 - 3, Format('desfazer tira o furo e o padrao (%d -> %d)', [N0, F.Document.Count]));
+    F.DoRedo;
+    Pump;
+    Check(F.Document.Count = N0, 'refazer devolve');
     F.View3D.SetView(svFront);
     Pump;
     Shot(F, '03_frontal');

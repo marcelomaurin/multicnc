@@ -9,8 +9,9 @@ materiais, malha rotulada, ICadKernel), 1 (esboco com solver, graus de liberdade
 2 (extrusao, corte, revolucao, planos, booleanas, reconstrucao) e 3 (vista 3D por software,
 arvore, PropertyManager, modo esboco) e 4 (STL/DXF, medir, Abrir no MultiSlicer) concluidas;
 e 5A (cotas em mm, digitar medidas, grade, inferencia, arcos, filete/chanfro de esboco,
-mouse do SolidWorks) concluidas; 459 checks no nucleo + teste de interface. Proxima: 5B
-(furo, padroes, espelho); pendencias da vista na 3E. Limites em TAREFA.md.
+mouse do SolidWorks) concluidas; 459 checks no nucleo + teste de interface. 5B (furo,
+padroes, espelho, desfazer) concluida. Proxima: fase 6 (filete, chanfro e casca 3D);
+pendencias da vista na 3E. Limites em TAREFA.md.
 O plano completo esta em `TAREFA.md` (fases 0 a 8) e o projeto tecnico em `ARCHITECTURE.md` (modelo `.mcad`, solver
 Newton/LM, nucleo em malha rotulada + CSG BSP atras de `ICadKernel`, OpenGL, exportacao).
 Referencia de fluxo: SolidWorks 2014 (sketch com restricoes e cotas, arvore de operacoes,
@@ -40,6 +41,12 @@ Documento CAD, features, sketches, extrusoes, transformacoes geometricas, viewpo
 - src/features/multicad_rebuild.pas: TCadRebuilder (arvore -> corpos, referencias, cache).
 - src/features/multicad_export.pas: STL (orientacao Y->Z / face na mesa) e DXF R12.
 - src/features/multicad_measure.pas: Medir (area, diametro, distancias, angulos).
+- src/features/multicad_hole.pas: assistente de furo (tipos, perfil de revolucao).
+- src/features/multicad_pattern.pas: padrao linear, circular e espelhar.
+- src/core/multicad_threads.pas: tabelas de rosca, passagem, rebaixo e escareado.
+- src/core/multicad_undo.pas: desfazer/refazer por estados do documento.
+- src/ui/multicad_textures.pas e data/textures: texturas dos materiais.
+- src/ui/multicad_materialdlg.pas: janela de material.
 - src/sketch/multicad_sketchtools.pas: ferramentas do modo esboco sem LCL (cliques -> entidades,
   captura, inferencia, grade, H/V automaticas, cota inteligente e desenho das cotas, medida
   digitada, arcos, filete/chanfro com canto virtual, relacoes, construcao, apagar).

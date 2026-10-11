@@ -27,7 +27,7 @@ documento, *feature* e *sketch*.
 | 3 Vista 3D e árvore | concluída (10/10), com pendências na 3E | `multicad_camera` (Y para cima, vistas padrão, Normal a, orbitar, deslocar, zoom no cursor, enquadrar, raio do pixel), `multicad_softrender` (z-buffer por software, 5 estilos, arestas de recurso e silhuetas, seleção exata por buffer de Id, seção), `multicad_view3d` (controle da vista, cubo de vistas, tríade, planos, esboços, origem, prévia), `multicad_sketchtools` (ferramentas do esboço sem LCL: linha em cadeia com H/V automáticas, retângulo, círculo, arco 3 pontos, linha de centro, ponto, captura com coincidente, cota inteligente, relações, apagar), `multicad_sketchedit` (modo esboço na vista), `multicad_propman` (PropertyManager de extrusão, corte, revolução e plano) e janela principal no padrão da suíte. `multicad.exe` Win64 em `bin/`. |
 | 4 Exportação e suíte | concluída (10/10) | `multicad_export` (STL binário e texto com orientação Y→Z, face na mesa ou como no modelo, apoiado em Z = 0 e centrado; DXF R12 do esboço e do contorno de face plana), `multicad_measure` (área, diâmetro, distância entre planos e eixos, ângulos), aba Exportar com "Abrir no MultiSlicer", Medir na aba Avaliar, booleana tenta de novo com a árvore BSP em outra ordem quando a malha sai aberta, critério de pronto coberto por `TestExport`. Instalador e bandeja já incluem o MultiCAD; Central de Testes com o teste do núcleo e o de interface. |
 | 5A Esboço com medidas e mouse | concluída (10/10) | Pedido do usuário antes do furo: cotas desenhadas em mm (linhas de chamada, setas, arrastar o texto), digitar a medida durante o desenho, grade em mm com captura, linhas de inferência, ponto médio, construção, arco tangente e pelo centro, filete e chanfro de esboço com canto virtual, mouse e teclado como no SolidWorks (roda para frente afasta, giro em torno do centro da peça ou da entidade clicada com o botão do meio, rolar, duplo clique do meio enquadra, Z/Shift+Z, vista anterior). |
-| 5B Furo, padrões, espelho | pendente | |
+| 5B Furo, padrões, espelho | concluída (11/10) | Desfazer/refazer (Ctrl+Z / Ctrl+Y), assistente de furo com tabelas ISO (`multicad_threads`, `multicad_hole`), padrão linear, padrão circular e espelhar (`multicad_pattern`), rosca cosmética na vista, filete/chanfro de esboço pela seleção com prévia (BUG-017). |
 | 6 Filete, chanfro, casca | pendente | |
 | 7 Desenho 2D | pendente | |
 | 8 OpenCascade (opcional) | pendente | |
@@ -298,15 +298,28 @@ Como ficou (fase 3):
 - [x] Esboço: o plano marcado (árvore ou vista) é o plano do esboço; sem plano marcado abre a
       lista de planos (ou "Clicar numa face plana da peça...").
 
-### Fase 5B: furo, padrões e espelho (≈ 4 h)
-- [ ] `multicad_threads` com tabelas em `data/*.json`: roscas ISO 261/262 M2 a M24 (passo
-      normal e fino), broca para rosca, folgas ISO 273 (fina, normal, larga), rebaixo ISO 4762,
-      escareado 90° ISO 10642.
-- [ ] Assistente de furo: simples, passagem para parafuso, roscado, rebaixado, escareado, cego
-      com ponta 118° (pontos de um *sketch* na face).
-- [ ] Rosca cosmética: atributo da face, mostrado na vista e levado ao desenho.
-- [ ] Teste: M8 gera furo Ø6,8; passagem M8 normal Ø9,0; rebaixo M8 Ø13 × 8,6 (pela tabela).
-- [ ] Padrão linear e circular de operações; espelhar por plano.
+### Fase 5B: furo, padrões e espelho (concluída em 11/10)
+- [x] Desfazer / refazer de tudo (Ctrl+Z, Ctrl+Y e botões ao lado de Novo): até 100 estados
+      do documento; no modo esboço volta a editar o mesmo esboço.
+- [x] Tabelas (`multicad_threads`, valores típicos): roscas M2 a M24 com passo normal e fino,
+      broca para rosca (D − passo), passagem ISO 273 (fino, normal, largo), rebaixo para
+      ISO 4762 (DIN 974-1) e escareado 90° ISO 10642.
+- [x] Assistente de furo (`multicad_hole`): simples, passagem para parafuso, roscado,
+      rebaixado, escareado; cego (ponta 118° opcional) ou passante; posições = pontos de um
+      esboço (comando Furo numa face cria o esboço com o ponto no centro da face; edite o
+      esboço para cotar ou acrescentar furos). Faces com nome (`Furo1/2/parede`,
+      `rebaixo`, `escareado`, `ponta`...).
+- [x] Rosca cosmética: círculo tracejado no diâmetro nominal na entrada do furo roscado.
+- [x] Testes: M8 broca 6,75 (≈6,8), M8 fino 7,0; passagem M8 normal Ø9,0; rebaixo M8
+      Ø15 × 8,6 (DIN 974-1; o Ø13 citado antes era o da cabeça); volumes do furo passante,
+      cego com ponta, rebaixado, padrões e espelho.
+- [x] Padrão linear (1 ou 2 direções: x, y, z, linha, eixo ou face plana), padrão circular
+      (eixo x/y/z, linha, eixo ou face cilíndrica; espaçamento igual) e espelhar (plano ou face
+      plana) das operações escolhidas (nomes ou clique numa face da operação). Cópias fora
+      da peça viram aviso.
+- [x] BUG-017: filete/chanfro de esboço com duas linhas ou o ponto do canto já selecionados
+      aplica direto (pede o raio); na ferramenta Filete a prévia do arco aparece no canto sob o
+      mouse.
 
 ### Fase 6: filete, chanfro e casca (≈ 6 h)
 - [ ] Filete e chanfro em arestas retas e circulares entre faces planas e cilíndricas.

@@ -92,6 +92,7 @@ type
     procedure DrawPlanes;
     procedure DrawSketches;
     procedure DrawOrigin;
+    procedure DrawThreads;
     procedure Blit;
     procedure PaintCube(C: TCanvas);
     procedure PaintTriad(C: TCanvas);
@@ -600,6 +601,33 @@ begin
   end;
 end;
 
+procedure TCadView3D.DrawThreads;
+var
+  M: TCadThreadMarks;
+  I, K, N: Integer;
+  Fr: TCadFrame;
+  P, Q: TCadVec3;
+  A: Double;
+begin
+  { rosca cosmetica: circulo tracejado no diametro nominal, na entrada }
+  if FRB = nil then
+    Exit;
+  M := FRB.ThreadMarks;
+  for I := 0 to High(M) do
+  begin
+    Fr := FrameFromNormal(M[I].Center, M[I].Axis);
+    N := 48;
+    P := VAdd(Fr.Origin, VScale(Fr.XDir, M[I].Radius));
+    for K := 1 to N do
+    begin
+      A := 2 * Pi * K / N;
+      Q := VAdd(Fr.Origin, VAdd(VScale(Fr.XDir, M[I].Radius * Cos(A)), VScale(Fr.YDir, M[I].Radius * Sin(A))));
+      FRaster.DrawLine3D(P, Q, CadRGB(40, 50, 70), 1, True, 3);
+      P := Q;
+    end;
+  end;
+end;
+
 procedure TCadView3D.DrawOrigin;
 var
   L: Double;
@@ -653,6 +681,7 @@ begin
   FRaster.SetSection(False, FSection.Origin, FSection.Normal);
   DrawPlanes;
   DrawSketches;
+  DrawThreads;
   DrawOrigin;
   if Assigned(FPreviewCache) then
   begin
