@@ -1,10 +1,10 @@
-# Instalador Windows MultiSuite 007
+# Instalador Windows MultiSuite 008
 
 Windows 64 bits, Git, Python 3.9+, Lazarus/Free Pascal 64 bits e Inno Setup 6 ou 7.
 
 ## Gerar
 
-    installer\windows\build_release.bat -Version 0.07 -SetupSeq 007
+    installer\windows\build_release.bat -Version 0.08 -SetupSeq 008
 
 O script procura as ferramentas nas pastas usuais. Os caminhos podem ser definidos
 por LAZBUILD, FPC, PYTHON e ISCC. MULTICNC_CHATGPT_DIR aponta para as dependencias
@@ -15,7 +15,7 @@ commit, acrescente -AllowDirty; o manifesto registra source_dirty=true.
 
 O build compila os 13 executaveis, executa os testes de console, inclui relatorio de testes e
 documentacao, valida a arquitetura amd64 e gera manifesto, relatorio e SHA256SUMS.
-Os executaveis atualizados ficam em bin. setup_multcnc_007.exe fica em setup e bin; a copia de staging
+Os executaveis atualizados ficam em bin. setup_multcnc_008.exe fica em setup e bin; a copia de staging
 e os logs ficam em dist. Feche os aplicativos da suite antes de substituir bin.
 
 ## Conteudo e inicializacao
@@ -50,9 +50,9 @@ Nao distribuir um instalador se o build falhar. Compilacao e testes de console
 nao substituem verificacao interativa da instalacao ou ensaio com hardware.
 Projetos e relatorios pertencem ao usuario, fora de Program Files.
 Publicar uma GitHub Release/tag continua uma etapa separada.
-## Setup 007 gerado
+## Setup 008 gerado
 
-[Instalador Windows x64](../../setup/setup_multcnc_007.exe) · [Notas e validação](../../docs/SETUP_007.md) · [Galeria de imagens](../../imgs/README.md)
+[Instalador Windows x64](../../setup/setup_multcnc_008.exe) · [Notas e validação](../../docs/SETUP_008.md) · [Galeria de imagens](../../imgs/README.md)
 
 | LaserPCB | LaserArt |
 |---|---|

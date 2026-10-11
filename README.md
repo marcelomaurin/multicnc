@@ -2,9 +2,9 @@
 
 **Idiomas:** Português · [English](README_EN.md) · [Español](README_ES.md) · [Français](README_FR.md) · [Deutsch](README_DE.md) · [Русский](README_RU.md) · [中文](README_ZH.md) · [العربية](README_AR.md) · [हिन्दी](README_HI.md)
 
-## Download Windows — setup 007
+## Download Windows — setup 008
 
-[Baixar setup_multcnc_007.exe](setup/setup_multcnc_007.exe) · [Notas da versão 0.07](docs/SETUP_007.md) · [Instalação e compilação](installer/windows/README.md)
+[Baixar setup_multcnc_008.exe](setup/setup_multcnc_008.exe) · [Notas da versão 0.08](docs/SETUP_008.md) · [Instalação e compilação](installer/windows/README.md)
 
 O pacote Windows x64 inclui 13 aplicativos, os perfis de laser do MultiCNC, a configuração de Mesa compartilhada entre LaserArt/LaserPCB e a biblioteca de componentes do MakePCB disponível no LaserPCB. A bandeja `multisuite_tray.exe` abre as ferramentas instaladas e pode iniciar com o Windows. O setup apresenta capturas dos projetos durante a instalação.
 
@@ -514,7 +514,7 @@ Por isso, consulte também a documentação específica de cada módulo antes de
 
 ## Instalador Windows
 
-A suíte possui empacotamento Inno Setup em `installer/windows`. O pacote atual é [setup 007 / versão 0.07](docs/SETUP_007.md), disponível em `setup` e `bin`, com capturas de LaserPCB e LaserArt incorporadas ao instalador.
+A suíte possui empacotamento Inno Setup em `installer/windows`. O pacote atual é [setup 008 / versão 0.08](docs/SETUP_008.md), disponível em `setup` e `bin`, com capturas de LaserPCB e LaserArt incorporadas ao instalador.
 
 O script `build_release.bat` compila as ferramentas e executa os testes de console antes de gerar o instalador. **Windows Installer** publica o executável e seus metadados como artefatos. **Linux Packages** gera DEB/tar para amd64 e arm64 em runners nativos e armhf em userspace ARMv7 emulado. Emulação não comprova operação em uma placa ARM física. Consulte `SHA256SUMS`, o commit e os resultados dentro de cada pacote.
 

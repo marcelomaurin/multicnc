@@ -1,0 +1,462 @@
+{
+  "version": "0.08",
+  "source_commit": "a2098a2cfa1547c5237cb1eeaeb25347bba512bb",
+  "source_dirty": false,
+  "os": "windows",
+  "arch": "amd64",
+  "host": "Windows-10-10.0.19045-SP0",
+  "fpc": "3.2.2",
+  "lazarus": "4.6",
+  "console_tests_executed": true,
+  "console_tests": 87,
+  "files": [
+    {
+      "path": "docs/AI_TOOLS_GUIDE.md",
+      "sha256": "8775056e1125025dec40456da5da2425b49c93895041f266ef317b23cb2f2835"
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "sha256": "215ccfa78e5c6146a1c4dc27b194049dc3d8f77c0ddd7dfd11ac21d599fc6254"
+    },
+    {
+      "path": "docs/bugs.md",
+      "sha256": "c4c014c16dc525ee67bb01795aa26ffee2ae31c112d8c1df1f494dcf44c543d5"
+    },
+    {
+      "path": "docs/CONCILIACAO_BRANCHES.md",
+      "sha256": "3f045de0edc04fbcfd89f3ea81565d1160852c995e7e3326dc6a126f72e63ac6"
+    },
+    {
+      "path": "docs/CONTRATO_GCODE.md",
+      "sha256": "eb17ace0cb2ab8766925773f9a0a6c0196cee9f6d6757bab835c24800b70d655"
+    },
+    {
+      "path": "docs/FLUXOS_IMPLEMENTADOS.md",
+      "sha256": "b9e3db7459c38ce0feb0a638ca10c2916e75654c6970766a7bfe5217404b7058"
+    },
+    {
+      "path": "docs/LASER_PROFILES.md",
+      "sha256": "1d749c62e5a44dce726dbf64847d8b83ee7c32a8f96c1a7325bb9cad4efad793"
+    },
+    {
+      "path": "docs/OUTLINE.md",
+      "sha256": "140dfaa791aff5a4d5627022eb14bb9f22f5dd841b63d0c77daa71c82952cc69"
+    },
+    {
+      "path": "docs/PENDENCIAS.md",
+      "sha256": "c18fb1451252186b931408a0349ad49b6fbf6c9975b087b54c5f4f2ce8555d6d"
+    },
+    {
+      "path": "docs/SETUP_007.md",
+      "sha256": "85da3f22c518323cf245ef538cb64fdfd3d258e6757bc4fec75697f4b7e243c6"
+    },
+    {
+      "path": "docs/SIMUCNC_COM0COM.md",
+      "sha256": "50c4980a5887db855051f23f7bd874ad7fd9fc27a4b9a11efeb4c06c7e35eb16"
+    },
+    {
+      "path": "docs/SIMUCNC_TCP.md",
+      "sha256": "eed7829db3c59f9457ee255a2e06883ff04db4c8efe611e296b3612969548c9e"
+    },
+    {
+      "path": "laserart.exe",
+      "sha256": "13691fda2f12bf0230a5663e07c70ded7aa06b37f7af3acdad876ab088ad4e85"
+    },
+    {
+      "path": "laserpcb.exe",
+      "sha256": "1d78f4e66087322ce4e43d574bde9a460ce2dc8080e4622bc1843b811dba3c01"
+    },
+    {
+      "path": "makepcb.exe",
+      "sha256": "cc2fd179afa14b416025cc910ebc5716ef10f203283610d8a383288f7ee48038"
+    },
+    {
+      "path": "makerouter.exe",
+      "sha256": "89ed47c3b60c47c9b894f56c5986868f6ab33fd9368ccd910da3244572aa99de"
+    },
+    {
+      "path": "multiassembly.exe",
+      "sha256": "9cd9c4060106b9dc2962a64a30bdf909ecc847a6c107dc0ce29190c39df2871c"
+    },
+    {
+      "path": "multicad.exe",
+      "sha256": "79bd79624f7d75c7bcd009225647bab88877e2dd6704a49dcfd886b652735da5"
+    },
+    {
+      "path": "multicam.exe",
+      "sha256": "0478ac4df4c580f5242892ad1d5197044feae48dbb76b7f82ffdaa69d4b12804"
+    },
+    {
+      "path": "multicnc.exe",
+      "sha256": "6b7e55269171d9d1641d3214f96d32e45c5f171388f4e06ef8302de3a505e2cc"
+    },
+    {
+      "path": "multiphysics.exe",
+      "sha256": "9c46c2b3e8c86b850e0bbbfff8f2c0896fc2ea6f5d21d0bbfc51282b57963bdd"
+    },
+    {
+      "path": "multislicer.exe",
+      "sha256": "f6fffe915d36666a726c40e2b4af6632992e7502d41fe2bc3b6a946f0b7fab1e"
+    },
+    {
+      "path": "multisuite_tray.exe",
+      "sha256": "13d38a2d86c29afa18826e18d401affecee78b497b76d9bf1551ba4525f651d8"
+    },
+    {
+      "path": "qa-tests.json",
+      "sha256": "d44b4dbae38406f343c7289a1ea29f1b6ce6398961235f9220203868b1317d4e"
+    },
+    {
+      "path": "routerpcb.exe",
+      "sha256": "a80f842fb288c69e341c8d9baf76868c78df708e54474a35b6e34882044ef8f8"
+    },
+    {
+      "path": "SimuCNC.exe",
+      "sha256": "bf6bf62b4249aa4a86fe804a3101c0f79b63f0ec27a595d9b2a4f7e6681d08e4"
+    },
+    {
+      "path": "tests/laserart/test_calibration_matrix.exe",
+      "sha256": "409d2f75d8922546864000a3b64ec20e941f3a5c44ebe72e344cdd52615986aa"
+    },
+    {
+      "path": "tests/laserpcb/test_alignment.exe",
+      "sha256": "a530cd4f746851a43f5b9464b7353663dea6f38f80161c07612efbabdab2af96"
+    },
+    {
+      "path": "tests/laserpcb/test_board.exe",
+      "sha256": "82cd4688fef4db9db8e83099f47064b57461407f442d899d10606baa33a33452"
+    },
+    {
+      "path": "tests/laserpcb/test_drill.exe",
+      "sha256": "6eb6d54df90e35967e58b27704dd38b97aeaf3292cf79d9aed9c6cc514e77933"
+    },
+    {
+      "path": "tests/laserpcb/test_job.exe",
+      "sha256": "7154535f47559e2f7a48cafef681ddff125519cd275eac588c042b0ad2ff9c80"
+    },
+    {
+      "path": "tests/laserpcb/test_layout.exe",
+      "sha256": "b12cc21a7fa447385a1adbc2ab8f58ab2f343aaca7a63c635fc2b172cb415d4f"
+    },
+    {
+      "path": "tests/laserpcb/test_pipeline.exe",
+      "sha256": "9b93ff54f3924a8c403ed7a9b4b87c972f707859f59ddb7a519d681b7119f9ed"
+    },
+    {
+      "path": "tests/laserpcb/test_raster.exe",
+      "sha256": "32bf31739b87da5d98900779560fde300d1e137f15b409ab247000835ce06ac3"
+    },
+    {
+      "path": "tests/makerouter/test_makerouter.exe",
+      "sha256": "2c343bc3cb4bfa5a9f4cc8d33b62700714e8efc1fc8f88d52314fdbb59313892"
+    },
+    {
+      "path": "tests/multiassembly/test_engineering.exe",
+      "sha256": "231e062a88dd9e4cb4e5c6f4a1b589a0c86efe008a4282e24b16fd981cabc5f9"
+    },
+    {
+      "path": "tests/multiassembly/test_multiassembly.exe",
+      "sha256": "7604b926e4b662b1d7636817b4cdb4598d13acbfd12139ea0e0e98a4bb197532"
+    },
+    {
+      "path": "tests/multicad/test_log.exe",
+      "sha256": "816d070d49efd83c9e44a393e13c06c947c933933de7b4e2628c75b53db7dec0"
+    },
+    {
+      "path": "tests/multicad/test_multicad.exe",
+      "sha256": "15f8f6cd6c17764b54dc88448470d2a7a38c9c8d97edff5ceba0217072e0661f"
+    },
+    {
+      "path": "tests/multicad/test_parametric.exe",
+      "sha256": "27f896c6d99b6ea203582190251f1c2d54fcada02511bda4d6dd87f005598673"
+    },
+    {
+      "path": "tests/multicad/test_smart_dimension.exe",
+      "sha256": "ce1be383499e04dda14bfead5588ece488105dc0121608ed1d9947711c6722f3"
+    },
+    {
+      "path": "tests/multicam/test_advanced_mechanical.exe",
+      "sha256": "5771e7aeb73b9fd65d3a0f50c4199a442bda01b7abe0477f8f9d831843a43975"
+    },
+    {
+      "path": "tests/multicam/test_collision.exe",
+      "sha256": "d7f72f91603d7b32b975fecaeb61a1fba101e2e6c81d8b4eb2c27d4a104b743a"
+    },
+    {
+      "path": "tests/multicam/test_demo_pipeline.exe",
+      "sha256": "fd6ba2236ce59712df382ba09801a337f4c66e198960f283b8b65f39c627cf9e"
+    },
+    {
+      "path": "tests/multicam/test_electronics_simulation.exe",
+      "sha256": "af56069a577c6c353f4ad1f0c599caf6e886158630ed0e0c3eb7826bf42aafca"
+    },
+    {
+      "path": "tests/multicam/test_hsm.exe",
+      "sha256": "30b9a7fadf8a2ab6ae533ddd97067498c29691ead65962784c34ac10a40cc1e9"
+    },
+    {
+      "path": "tests/multicam/test_integrated_simulator.exe",
+      "sha256": "97bc54de9f014dc89e2df1284778997902d172f6b40e2aff24affd431bf6ea01"
+    },
+    {
+      "path": "tests/multicam/test_mechanical_cam.exe",
+      "sha256": "d9a7aca0270f8524665c34a83d906c20a7629d0488c9d9c789b79e56a5de9c5f"
+    },
+    {
+      "path": "tests/multicam/test_mechanical_setup.exe",
+      "sha256": "dfe1217fad745093fd36d2f8f3ab1ea47be5dce243f4ec4850e6a769fd1c88e1"
+    },
+    {
+      "path": "tests/multicam/test_pcb_heightmap.exe",
+      "sha256": "54096454c52b204d251a221fd7c972b20044205a6f714d00fd4b23f6288ed20c"
+    },
+    {
+      "path": "tests/multicam/test_pcb_outside_heightmap.exe",
+      "sha256": "ac0673875b1acbfad2044252548190083b0f3bfd7def585e4a84dc67b7c8f213"
+    },
+    {
+      "path": "tests/multicam/test_pcb_segmented_heightmap.exe",
+      "sha256": "5a226d89f92b8da74b0e6c9eca40a80f9f5362f30d432a1a8e8df88a98c3dd66"
+    },
+    {
+      "path": "tests/multicam/test_profile.exe",
+      "sha256": "9a7d3d398a88be4b43b3fbd32c1dd5f1ebb1a820a47daacb9e7f527890352149"
+    },
+    {
+      "path": "tests/multicam/test_real_physics.exe",
+      "sha256": "764d7080d2eb53df93aada619d14ad32449b273f7933384ca4eceda013f42af3"
+    },
+    {
+      "path": "tests/multicam/test_simulation.exe",
+      "sha256": "21bdc81ade4d9727e5774ef2fd60d481b44ecbc5c7c2de73932f4e54356e50e0"
+    },
+    {
+      "path": "tests/multicam/test_simulation_session.exe",
+      "sha256": "3dbf6d4205396fb19e60c284b182176a89eaa3d357c97961c17a5991ce9a5215"
+    },
+    {
+      "path": "tests/multicnc/debug_parser.exe",
+      "sha256": "e536ddb53db67a852d052ea19d56dffc19d0eb36d5340bf2c81848910f717e6c"
+    },
+    {
+      "path": "tests/multicnc/test_connection_startup.exe",
+      "sha256": "1a30fa47237f1a5c95eb0f7f1fc3ac39b5420e0e17bacfa971e4494106ba4526"
+    },
+    {
+      "path": "tests/multicnc/test_controller.exe",
+      "sha256": "6f6e1cec934bb1a2f8285fe05759ead15d77d1ff0983e4fab5c5e7d38b6b0764"
+    },
+    {
+      "path": "tests/multicnc/test_equipment.exe",
+      "sha256": "749ffd59ef0579c8ed39f6baa2717e8800e9cc80152b7583c98f9d2be0fa3f29"
+    },
+    {
+      "path": "tests/multicnc/test_gcode_trace.exe",
+      "sha256": "a25fa5914938114dea5b835fa9a91fcba35c8b407d74ca51624ac8ad4a34dcd9"
+    },
+    {
+      "path": "tests/multicnc/test_grbl_legacy.exe",
+      "sha256": "ddda1843f16dd48cf76ce0a17107d41e52fee5f491de51bf6a9b0c9c94b95a44"
+    },
+    {
+      "path": "tests/multicnc/test_grbl_regressions.exe",
+      "sha256": "c1fc31c7ec9bb111e4157dea36878f22fe635fc82759ae13fef4f15e9336b178"
+    },
+    {
+      "path": "tests/multicnc/test_laser_profiles.exe",
+      "sha256": "831210a6cfc9203f8e33ed8255f3a04902bf19e66bce0b5dfd130eb9b58a0193"
+    },
+    {
+      "path": "tests/multicnc/test_locale_invariant.exe",
+      "sha256": "26f73b44076d4af9840e3e2b8ed822654581baa24f658503f41251b7103da6ec"
+    },
+    {
+      "path": "tests/multicnc/test_outline.exe",
+      "sha256": "d20cd9a7d34cac1c2f35cc9b0064a48b3242f96ea9b3e85fa42adfb8060bc979"
+    },
+    {
+      "path": "tests/multicnc/test_printer_temperatures.exe",
+      "sha256": "c14062506440667ddc315567f4f70b30b651a8123cf3e8bacd81ef8148febaf4"
+    },
+    {
+      "path": "tests/multicnc/test_router_profiles.exe",
+      "sha256": "ccc468af85fb6c2afb7c7ce382bc3d853b9f7b54d8e8eb1eed6dae0a6c73f663"
+    },
+    {
+      "path": "tests/multicnc/test_serial_transport.exe",
+      "sha256": "db9dfa4e5c42304f526659d8c8b181bbc42448e72e1f06ba22818acc77c1e40e"
+    },
+    {
+      "path": "tests/multicnc/test_session.exe",
+      "sha256": "f557377249b63c510821b48833433d615e38647d60f94f445e72fa6a7ef7b88b"
+    },
+    {
+      "path": "tests/multicnc/test_shared_geometry.exe",
+      "sha256": "0f1aad966744ae21d72ce643bad7a16f62c625eba8c8365281260be711da3b52"
+    },
+    {
+      "path": "tests/multicnc/test_shared_heightmap.exe",
+      "sha256": "7bfd1b1293741537ed906d63aeacf90ed05c89818aee6c387e888191543644d7"
+    },
+    {
+      "path": "tests/multicnc/test_shared_zcompensation.exe",
+      "sha256": "4a25f248093659600366b37b4a61840ea5b621b262f0fcacba27085fb9ece500"
+    },
+    {
+      "path": "tests/multicnc/test_simu_temperature_control.exe",
+      "sha256": "97d466cc76802bf3ddf68b5d08ed1909fe896d50970be89e65ca7f06655b1272"
+    },
+    {
+      "path": "tests/multicnc/test_simulator.exe",
+      "sha256": "613e04b11056704203abe54bd775a3b4cab986ab7fa68b95ebc0e685f3edfe89"
+    },
+    {
+      "path": "tests/multicnc/test_streaming.exe",
+      "sha256": "c09c3465218a2bc666e80af100a1ac7f1207951fffb20bc55c44a0754bc35232"
+    },
+    {
+      "path": "tests/multiphysics/test_actuator_scheduler.exe",
+      "sha256": "681fdf57f0a12eafb5bc9885fc482ed67c1aa0d734535fa43b5171c474bf857a"
+    },
+    {
+      "path": "tests/multiphysics/test_buoyancy.exe",
+      "sha256": "7385f7af805eeed54aab55d0ae03a7de01736725a2162af561dc73b60728f779"
+    },
+    {
+      "path": "tests/multiphysics/test_cnc_cycle.exe",
+      "sha256": "c1be89402c8593f16522f5a6cd0c0f97c2e6def4953e22880c223a4949e6b244"
+    },
+    {
+      "path": "tests/multiphysics/test_common_electronics.exe",
+      "sha256": "8ea12b389a175b094a988b9ddb1ef957e98c9e89f1d88d3c97387f49b2cbb463"
+    },
+    {
+      "path": "tests/multiphysics/test_degradation_faults.exe",
+      "sha256": "eb64075394baedd927b71136a91cf4dc4c79cb396035f0bd297d7dbb8febff57"
+    },
+    {
+      "path": "tests/multiphysics/test_digital_power.exe",
+      "sha256": "7d015fbf3d47d3bb7d83b186c16aa1172618c4d094cb5bdcbcdfbce29d7edc42"
+    },
+    {
+      "path": "tests/multiphysics/test_electromagnetics.exe",
+      "sha256": "42328d287e1b352c55a257874cbbc8b9baf4218e6791ad4b8f52cef95a55428f"
+    },
+    {
+      "path": "tests/multiphysics/test_energy_chemistry.exe",
+      "sha256": "1f26ecf768f930104546f577a325f92c18b489b1c8a24f7444655f0f1919b90a"
+    },
+    {
+      "path": "tests/multiphysics/test_environment.exe",
+      "sha256": "08263e65f36a5ea603cc3252dc9272fbc4c9d562d420d0691eb78a7936e6ce66"
+    },
+    {
+      "path": "tests/multiphysics/test_extended_models.exe",
+      "sha256": "34bc3d3aa284249972af9f3a80adbc237646fd0865c1a174c2613a2a52f50e74"
+    },
+    {
+      "path": "tests/multiphysics/test_graph_runtime.exe",
+      "sha256": "9f1dc61591818c2a3813a1fd3a463283c18860d43e20ea84e3e50ace15277ea7"
+    },
+    {
+      "path": "tests/multiphysics/test_integration_suite.exe",
+      "sha256": "f3c9b70cf748194f744102c90214137af622eb7ccaad21e471959c0ae78bc61f"
+    },
+    {
+      "path": "tests/multiphysics/test_machine_faults.exe",
+      "sha256": "df094521974211e45ecbb8524a7b28e4d6d05be40e7c2bb0db3e1989d86b9367"
+    },
+    {
+      "path": "tests/multiphysics/test_machine_xyz.exe",
+      "sha256": "12cf3d21ef38aa9082321b9e9c8dec974b69bfda6867b741d85b2c29cb49425f"
+    },
+    {
+      "path": "tests/multiphysics/test_materials.exe",
+      "sha256": "4d7bc0ebd95543cc1fbd45b851e1a0e4cf78beba0195e1ac9804544f398ed856"
+    },
+    {
+      "path": "tests/multiphysics/test_mcu.exe",
+      "sha256": "0509a16d003233b7c30f8a0807014ba6959ad1ac050bb438303b631f5c21174a"
+    },
+    {
+      "path": "tests/multiphysics/test_mcu_stepper.exe",
+      "sha256": "ca1ce10b5a3e263442b9cdf13c023df79b95df99e0691fb2020a2667c93c9953"
+    },
+    {
+      "path": "tests/multiphysics/test_mechanics.exe",
+      "sha256": "7af2e5b6018d8b0aa5486d0935a9432a80f0bf785539a1304b06dac7a50bc785"
+    },
+    {
+      "path": "tests/multiphysics/test_mna.exe",
+      "sha256": "32fef8fe95d80d940a8f92b7d0b3b6865ccd14e6d97d4e1ea1b3027737041fff"
+    },
+    {
+      "path": "tests/multiphysics/test_newton_ode.exe",
+      "sha256": "243b839dcf90a719e672da8504b243b84486731dae7346fbd6814b496aa3cfe9"
+    },
+    {
+      "path": "tests/multiphysics/test_physical_devices.exe",
+      "sha256": "6a31a7faf8cff2d0eaac7b5782ea9edae171e8a818036a00a2251895917b5df1"
+    },
+    {
+      "path": "tests/multiphysics/test_rigidbody.exe",
+      "sha256": "060a34bcdab8fcbddc6d1defec16288b8e50c2a086e2e2b23fac2469b81f2ee3"
+    },
+    {
+      "path": "tests/multiphysics/test_runtime.exe",
+      "sha256": "7536150d3a7228a875f9946a3340106a1a7c4ffa240f339356327988f87d773c"
+    },
+    {
+      "path": "tests/multiphysics/test_scheduler.exe",
+      "sha256": "1d93e7120ae6bf9f7aea0f9fe29a2be3569155002dac8ca761eab822691c239f"
+    },
+    {
+      "path": "tests/multiphysics/test_transient_nonlinear.exe",
+      "sha256": "aba7bdc97c87141431a4914cb1644fcb3739c93a81995380ddf7498896b9f248"
+    },
+    {
+      "path": "tests/multiphysics/test_unified_merge.exe",
+      "sha256": "abd12e5ed05d237c8f9a8553b8142d948986b5bb39c4ea64f501dcc2c01ed2ab"
+    },
+    {
+      "path": "tests/multislicer/test_layout3d.exe",
+      "sha256": "05715ac48a297084c7b58a868ab15d8ea1cf6a120fd1584c2894254b353750f0"
+    },
+    {
+      "path": "tests/multislicer/test_modern_slicer.exe",
+      "sha256": "66415bcedd89c0f1b7ac4db51c6dad793f5d3564d6cb023072bd2635213fca3a"
+    },
+    {
+      "path": "tests/multisuite/test_context.exe",
+      "sha256": "560754ea2a3921786737b28003487e45823dfd5325368312c6163a81d47d24a6"
+    },
+    {
+      "path": "tests/multisuite/test_launcher_delivery.exe",
+      "sha256": "774603769312d6f1ef924e76635abbd11621a3827d9ea9756c223efd06e0846b"
+    },
+    {
+      "path": "tests/multisuite/test_launcher_paths.exe",
+      "sha256": "2693c19e5939f6b1d1383e6a96b57aa6e85bde9d80065d36c82dd668e074abe8"
+    },
+    {
+      "path": "tests/multisuite/test_registry.exe",
+      "sha256": "9dfcd1f7773e8a44084e2c9b32b204994796cc63dc3b034336d0039d51969be8"
+    },
+    {
+      "path": "tests/multisuite/test_runner.exe",
+      "sha256": "8c2971ced7cf6cbd4c4cea363d21d85460af545528fc6ecfdc7d707b187c429e"
+    },
+    {
+      "path": "tests/multisuite/test_workspace.exe",
+      "sha256": "02c59c850a56c4147a60f00cb9fc3b84d4327d36aea6d685c3869a25cd4feaa6"
+    },
+    {
+      "path": "tests/multisuite/test_workspace_validation.exe",
+      "sha256": "6a9729b3be9bdc3a56b77d2fcaf12d1172e9e1e4c96921270acf599292b5c097"
+    },
+    {
+      "path": "tests/routerpcb/test_routerpcb.exe",
+      "sha256": "2a28301b73731a76fea4622c856c1162c928d2530e52074fff6e7e9fcd609d7d"
+    }
+  ]
+}
