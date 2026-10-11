@@ -1,6 +1,6 @@
 program test_ui;
 {$mode objfpc}{$H+}
-uses Types, Interfaces, Forms, Controls, StdCtrls, SysUtils, Graphics, laserpcb_main, laserpcb_project, multisuite_controls;
+uses Types, Interfaces, Forms, Controls, StdCtrls, SysUtils, Graphics, laserpcb_main, laserpcb_project, laserpcb_layertable, multisuite_controls;
 var F:TLaserPCBForm; DataDir:string; N:Integer;
 procedure Check(Ok:Boolean; const Msg:string);
 begin if not Ok then raise Exception.Create(Msg);end;
@@ -89,6 +89,7 @@ begin
   finally Image.Free;end;
 end;
 begin
+  try
   DataDir:='laserpcb/tests/data/';
   if not FileExists(DataDir+'demo-F_Cu.gtl') then
     DataDir:=IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0)))+'data'+PathDelim;
@@ -102,25 +103,25 @@ begin
     F.OpenFile(DataDir+'demo-NPTH-slot.drl');
     SetField('Potencia calibrada (S)','250');SetField('Velocidade calibrada (mm/min)','600');
     SetField('Diametro calibrado do feixe (mm)','0.2');
-    Click('3  Camadas');
+    Click('4  Camadas e laser');
     Check(F.Project.OperationCount>=4,'UI default layers');
     Click('Atualizar trajetorias');
     Check(F.Project.Operation(0).Generated,'UI CAM not generated');
     Check(F.Project.CopperMask.CountSet>0,'UI copper preview empty');CheckCopperRendering;
     Snapshot('process');
     Click('Validar');Check(Badge='Trabalho valido','UI validation: '+Badge);Snapshot('validated');
-    Click('2  Posicionar');Click('Duplicar');Click('Distribuir placas');
+    Click('1  Placa');Click('Duplicar');Click('Distribuir placas');
     Check(F.Project.Layout.Count=2,'UI copies');
     Click('Girar 90 graus');Check(F.Project.Layout.Item(1).Rotation=90,'UI rotate');
     SetField('Escala X','0');Click('Aplicar posicao');
     Check(F.Project.Layout.Item(1).ScaleX=1,'invalid scale mutated model');
     SetField('Escala X','1');Snapshot('position');
-    Click('5  Furos laser');
+    Click('4  Camadas e laser');
     Check(FindButton(F,'Marcar centros a laser')<>nil,'Laser hole marking available');
     Check(FindButton(F,'Aneis para corte a laser')<>nil,'Laser hole paths available');
     Check(FindButton(F,'Gerar furacao (Router)')=nil,'Router drilling removed from laser UI');
     Snapshot('laser-holes');
-    Click('3  Camadas');FindCombo('Marcar furos (laser)').ItemIndex:=4;
+    Click('4  Camadas e laser');FindCombo('Marcar furos (laser)').ItemIndex:=4;
     Click('Atualizar trajetorias');
     Check(F.Project.Operation(0).Mode=cmDrillMarks,'UI layer mode from editor');
     Check(Length(F.Project.Operation(0).ItemPaths[0])=F.Project.Drills.HoleCount,'UI drill marks');
@@ -134,8 +135,16 @@ begin
     Check(FindButton(F,'Gerar G-code').Left>=0,'export button offscreen');
     Check(FindButton(F,'Abrir no MultiCNC').BoundsRect.Right<=FindButton(F,'Abrir no MultiCNC').Parent.ClientWidth,'send button offscreen');
     Snapshot('minimum');
+    { Valida a velocidade de uma operacao com Saida ligada. O contorno
+      selecionado apos excluir a camada nova continua com Saida desligada. }
+    for N:=0 to F.ComponentCount-1 do if F.Components[N] is TLPLayerTable then
+    begin
+      TLPLayerTable(F.Components[N]).Selected:=0;
+      TLPLayerTable(F.Components[N]).OnSelectLayer(F.Components[N],0);
+    end;
     SetField('Velocidade calibrada (mm/min)','0');Click('Validar');
     Check(Badge<>'Trabalho valido','UI accepted uncalibrated speed');
     Writeln('PASS: native UI import, layers, CAM, preview, validation, copies, rotation, drilling, marks, invalid parameters, minimum size');
   finally F.Free;end;
+  except on E:Exception do begin Writeln('FAIL: ',E.Message);Halt(1);end;end;
 end.

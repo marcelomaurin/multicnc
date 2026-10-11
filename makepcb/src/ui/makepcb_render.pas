@@ -58,6 +58,7 @@ type
     Doc: TMPDocument;
     Mode: TMPViewMode;
     ShowTop, ShowBottom, ShowSilk, ShowGrid, ShowRatsnest: Boolean;
+    NormalBackgroundColor, NormalBoardColor: TColor;
     ArtworkLayer: TMPLayer;        { face impressa na arte final }
     ArtworkMirror: Boolean;
     SelKind: TMPSelKind;
@@ -134,6 +135,7 @@ constructor TMPRenderer.Create;
 begin
   inherited Create;
   Mode := vmNormal;
+  NormalBackgroundColor:=TColor($F4EFEA);NormalBoardColor:=clWhite;
   ShowTop := True; ShowBottom := True; ShowSilk := True; ShowGrid := True;
   ShowRatsnest := True;
   ArtworkLayer := mlBottomCopper;
@@ -640,7 +642,7 @@ begin
     vmArtwork: begin Bg := clWhite; Board := clWhite; end;
     vmRealWorld, vmUnpopulated: begin Bg := TColor($2A2622); Board := TColor($2F7A2A); end;
   else
-    begin Bg := TColor($F4EFEA); Board := clWhite; end;
+    begin Bg := NormalBackgroundColor; Board := NormalBoardColor; end;
   end;
   if FBare then
   begin
@@ -698,7 +700,7 @@ begin
   else
   begin
     Mask := Board;
-    if Mode = vmNormal then Mask := clWhite;
+    if Mode = vmNormal then Mask := NormalBoardColor;
     if Mode = vmNormal then
     begin
       { na edicao a face de baixo fica por baixo, como vista do lado dos componentes }

@@ -17,7 +17,9 @@ jobs:
           lazbuild --ws=nogui multicad/tests/test_multicad.lpi
           lazbuild --ws=nogui multicad/tests/test_log.lpi
           lazbuild --ws=nogui multicad/tests/test_smart_dimension.lpi
-          cd multicad/tests && ./test_multicad && ./test_log && ./test_smart_dimension
+          lazbuild --ws=nogui multicad/tests/test_blend_sequence.lpi
+          lazbuild --ws=nogui multicad/tests/test_sketch_pattern.lpi
+          cd multicad/tests && ./test_multicad && ./test_log && ./test_smart_dimension && ./test_blend_sequence && ./test_sketch_pattern
       - name: Build the application
         run: lazbuild --ws=gtk2 multicad/src/app/multicad.lpi
       - name: UI test (janela, vista 3D, esboco, PropertyManager)
@@ -30,6 +32,8 @@ jobs:
           lazbuild --ws=gtk2 multicad/tests/test_cut_failure_ui.lpi
           lazbuild --ws=gtk2 multicad/tests/test_plane_cancel_ui.lpi
           lazbuild --ws=gtk2 multicad/tests/test_smart_dimension_ui.lpi
+          lazbuild --ws=gtk2 multicad/tests/test_blend_sequence_ui.lpi
+          lazbuild --ws=gtk2 multicad/tests/test_sketch_pattern_ui.lpi
           cd multicad/tests && xvfb-run -a -s "-screen 0 1600x1000x24" ./test_multicad_ui shots
           xvfb-run -a ./test_extrude_ui
           xvfb-run -a ./test_selection_ui
@@ -37,6 +41,8 @@ jobs:
           xvfb-run -a ./test_cut_failure_ui
           xvfb-run -a ./test_plane_cancel_ui
           xvfb-run -a ./test_smart_dimension_ui
+          xvfb-run -a ./test_blend_sequence_ui
+          xvfb-run -a ./test_sketch_pattern_ui
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -69,6 +75,14 @@ jobs:
           if errorlevel 1 exit /b 1
           test_smart_dimension.exe
           if errorlevel 1 exit /b 1
+          lazbuild test_blend_sequence.lpi
+          if errorlevel 1 exit /b 1
+          test_blend_sequence.exe
+          if errorlevel 1 exit /b 1
+          lazbuild test_sketch_pattern.lpi
+          if errorlevel 1 exit /b 1
+          test_sketch_pattern.exe
+          if errorlevel 1 exit /b 1
           cd ..\..
           lazbuild multicad\src\app\multicad.lpi
           if errorlevel 1 exit /b 1
@@ -86,6 +100,10 @@ jobs:
           if errorlevel 1 exit /b 1
           lazbuild multicad\tests\test_smart_dimension_ui.lpi
           if errorlevel 1 exit /b 1
+          lazbuild multicad\tests\test_blend_sequence_ui.lpi
+          if errorlevel 1 exit /b 1
+          lazbuild multicad\tests\test_sketch_pattern_ui.lpi
+          if errorlevel 1 exit /b 1
           cd multicad\tests
           test_multicad_ui.exe
           if errorlevel 1 exit /b 1
@@ -100,4 +118,8 @@ jobs:
           test_plane_cancel_ui.exe
           if errorlevel 1 exit /b 1
           test_smart_dimension_ui.exe
+          if errorlevel 1 exit /b 1
+          test_blend_sequence_ui.exe
+          if errorlevel 1 exit /b 1
+          test_sketch_pattern_ui.exe
           if errorlevel 1 exit /b 1

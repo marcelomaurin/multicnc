@@ -1,9 +1,11 @@
 # Arquitetura LaserPCB
 
-Arquivos -> importadores -> projeto em mm -> máscaras/CAM -> posicionamento -> prévia -> validação -> G-code -> MultiCNC.
+Placa (dimensoes, importacao e posicao) -> componentes -> ligacoes/trilhas -> camadas e laser -> validar/gerar -> MultiCNC. Gerber/SVG pronto segue diretamente da placa para CAM.
 
+- laserpcb_design conecta o documento eletrico compartilhado do MakePCB ao LaserPCB: .mpcb completo, DRC e roteamento das faces externas. A adaptacao Top de face simples espelha apenas a copia de trabalho do roteador e devolve as trilhas a face fisica original. O editor central aparece nas etapas 2/3; nas demais, a previa laser original e mantida.
+- laserpcb_components converte pads, trilhas, areas, contornos e furos sem perder as redes do documento. A importacao explicita de conjuntos continua limitada a componentes.
 - laserpcb_project conecta SVG, camadas Gerber, Excellon, máscaras, processos e cópias na mesa.
-- Camadas de corte (TLPOperation, estilo LightBurn): cada camada guarda processo, origem, potência, velocidade, passadas, sobreposição, cor, Saída e Ver. GenerateOperations aplica cada camada ao motor de CAM único (Generate) e guarda as trajetórias por cópia; BuildOperationsJob junta as camadas com Saída num único trabalho, com potência/velocidade por ponto e passadas expandidas; ValidateOperations cita a camada em cada erro.
+- Camadas de corte (TLPOperation, estilo LightBurn): cada camada guarda face fisica de cobre (0 = face ativa), processo, origem, potência, velocidade, passadas, sobreposição, cor, Saída e Ver. GenerateOperations aplica cada camada ao motor de CAM único (Generate) e guarda as trajetórias por cópia; BuildOperationsJob junta as camadas com Saída num único trabalho, com potência/velocidade por ponto e passadas expandidas; ValidateOperations cita a camada em cada erro. OperationOnActiveCopper filtra geracao, previa, estimativa, validacao e job pela mesma face. As camadas internas aceitam Gerber; o editor e o roteador usam Top/Bottom.
 - laserpcb_layertable desenha a tabela "Cortes / Camadas"; a paleta 00–29 reutiliza TLAPalette do LaserArt (laserart/src/ui).
 - laserpcb_svg adapta o parser do LaserArt, mantendo unidades, viewBox, curvas e coordenadas de PCB sem o deslocamento automático do editor.
 - laserpcb_raster compõe Gerber com polaridade e furos; o contorno da placa usa preenchimento par/ímpar para preservar recortes internos.

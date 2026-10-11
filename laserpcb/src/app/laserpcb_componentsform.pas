@@ -59,7 +59,7 @@ begin
  if FLibraryFile='' then FLibraryFile:=LPSharedLibraryFile;
  FLib.LoadUserFile(FLibraryFile);
  FDoc:=TMPDocument.Create;FDoc.BoardW:=Project.Width;FDoc.BoardH:=Project.Height;FDoc.DoubleSided:=True;
- if Project.ComponentSetJSON<>'' then LPLoadComponentSet(FDoc,FLib,Project.ComponentSetJSON);
+ if Project.ComponentSetJSON<>'' then LPLoadPCBDesign(FDoc,FLib,Project.ComponentSetJSON);
  Renderer:=TMPRenderer.Create;Renderer.Doc:=FDoc;Renderer.ShowRatsnest:=False;
  Header:=TSuiteHeader.Create(Self);Header.Parent:=Self;Header.Align:=alTop;Header.Height:=72;
  Header.Setup('Componentes','Biblioteca compartilhada com o MakePCB / formas para o laser',sikLayers);

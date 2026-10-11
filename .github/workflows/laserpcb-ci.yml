@@ -26,6 +26,8 @@ jobs:
           xvfb-run -a ./laserpcb/tests/test_ui /tmp/laserpcb-ui
           lazbuild --ws=gtk2 laserpcb/tests/test_components.lpi
           xvfb-run -a ./laserpcb/tests/test_components
+          lazbuild --ws=gtk2 laserpcb/tests/test_workflow.lpi
+          xvfb-run -a ./laserpcb/tests/test_workflow
       - uses: actions/upload-artifact@v4
         with:
           name: LaserPCB-Linux-UI
@@ -61,6 +63,10 @@ jobs:
           lazbuild laserpcb\tests\test_components.lpi
           if errorlevel 1 exit /b 1
           laserpcb\tests\test_components.exe
+          if errorlevel 1 exit /b 1
+          lazbuild laserpcb\tests\test_workflow.lpi
+          if errorlevel 1 exit /b 1
+          laserpcb\tests\test_workflow.exe
           if errorlevel 1 exit /b 1
       - uses: actions/upload-artifact@v4
         with:

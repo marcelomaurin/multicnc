@@ -22,7 +22,7 @@ interface
 
 uses
   Classes, SysUtils, Math, multicad_types, multicad_sketch, multicad_solver,
-  multicad_document;
+  multicad_document, multicad_sketchpattern;
 
 type
   TCadSketchToolKind = (tkSelect, tkLine, tkRectangle, tkCircle, tkArc3P,
@@ -142,6 +142,7 @@ type
     function AddRelation(K: TConstraintKind): Boolean;
     { Apaga as entidades selecionadas. }
     function DeleteSelection: Boolean;
+    function ApplyPattern(const Settings: TCadSketchPatternSettings): Boolean;
     { Cria a cota entre itens (usado pela ferramenta e pelos testes). }
     function AddSmartDimension(const A: TCadPickItem; const B: TCadPickItem;
       HasB: Boolean; const AValueText: string): Integer;
@@ -189,6 +190,15 @@ function PickItem(AEnt, APt: Integer): TCadPickItem;
 begin
   Result.Ent := AEnt;
   Result.Pt := APt;
+end;
+
+function TCadSketchSession.ApplyPattern(const Settings: TCadSketchPatternSettings): Boolean;
+var Seeds: TCadIdArray; I: Integer;
+begin
+  SetLength(Seeds,Length(Selection));
+  for I:=0 to High(Selection) do Seeds[I]:=Selection[I].Ent;
+  Result:=CadSketchPattern(FSketch,Seeds,Settings,LastMessage)>0;
+  if Result then begin Tool:=tkSelect;ClearSelection;Solve;end;
 end;
 
 procedure TCadSketchSession.SetReferencePoints(const Points: TCadReferencePoints);

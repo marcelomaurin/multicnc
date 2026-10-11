@@ -3,12 +3,43 @@ unit laserpcb_main;
 interface
 uses Classes, SysUtils, Math, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls,
   Dialogs, Graphics, laserpcb_project, laserpcb_preview, laserpcb_layout,
-  laserpcb_types, laserpcb_layertable, laserpcb_roles, laserart_widgets, multisuite_controls, multisuite_icons;
+  laserpcb_types, laserpcb_layertable, laserpcb_roles, makepcb_model, makepcb_library, makepcb_editor, makepcb_gallery, laserart_widgets, multisuite_controls, multisuite_icons;
 type
   TLaserPCBForm = class(TForm)
   private
     P: TLaserPCBProject;
     View: TLaserPCBPreview;
+    DesignDoc: TMPDocument;
+    DesignLib: TMPLibrary;
+    DesignEditor: TMPEditor;
+    DesignGallery: TMPGallery;
+    DesignSearch: TEdit;
+    TrackWidthEdit, ClearanceEdit: TEdit;
+    RouteLog: TMemo;
+    PCBInfoLabel: TLabel;
+    OperationCopperBox: TComboBox;
+    FDesignStamp: string;
+    FDesignDirty: Boolean;
+    function EnsureDesign: Boolean;
+    procedure SyncDesign;
+    procedure DesignChanged(Sender: TObject);
+    procedure DesignStatus(Sender: TObject; const AText: string);
+    procedure DesignPick(Sender: TObject; FP: TMPFootprint);
+    procedure DesignFilter(Sender: TObject);
+    procedure DesignToolClick(Sender: TObject);
+    procedure DesignUndoClick(Sender: TObject);
+    procedure DesignRedoClick(Sender: TObject);
+    procedure DesignRotateClick(Sender: TObject);
+    procedure DesignFlipClick(Sender: TObject);
+    procedure DesignDeleteClick(Sender: TObject);
+    procedure DesignRulesChanged(Sender: TObject);
+    procedure ReadDesignRules;
+    procedure AutoRouteClick(Sender: TObject);
+    procedure CheckDesignClick(Sender: TObject);
+    function CheckDesign(Errors: TStrings): Boolean;
+    procedure SaveDesignClick(Sender: TObject);
+    procedure OpenDesignClick(Sender: TObject);
+  private
     LayerList: TListBox;
     Pages: TPageControl;
     Nav: array[0..4] of TSuiteButton;
@@ -97,11 +128,13 @@ type
     procedure OpenFile(const FN: string);
     property Project: TLaserPCBProject read P;
     property Preview: TLaserPCBPreview read View;
+    property PCBDesign: TMPDocument read DesignDoc;
+    property PCBEditor: TMPEditor read DesignEditor;
   end;
 implementation
 uses laserpcb_job, laserpcb_gcode, laserpcb_profile, laserpcb_nesting,
   laserpcb_geom, laserpcb_alignment, laserpcb_drill, multisuite_numfmt, multisuite_registry,
-  multisuite_launcher, multisuite_types, multisuite_context, laserart_bedform, laserpcb_boardform, laserpcb_referenceform, laserpcb_componentsform;
+  multisuite_launcher, multisuite_types, multisuite_context, laserart_bedform, laserpcb_boardform, laserpcb_referenceform, laserpcb_componentsform, laserpcb_components, laserpcb_design, makepcb_route, makepcb_drc;
 
 function TLaserPCBForm.Button(ParentControl: TWinControl; const AText: string;
   X,Y,W: Integer; AIcon: TSuiteIconKind; Handler: TNotifyEvent): TSuiteButton;
@@ -132,14 +165,16 @@ end;
 constructor TLaserPCBForm.Create(AOwner: TComponent);
 var Header: TSuiteHeader; Sidebar, Work, Bar, Footer: TPanel; Right: TPageControl;
   Page: TTabSheet; Scroll: TScrollBox; I: Integer; B: TSuiteButton; Role: TLPLayerRole;
-const Names: array[0..4] of string = ('1  Importar','2  Posicionar','3  Camadas','4  Saida','5  Furos laser');
-  Icons: array[0..4] of TSuiteIconKind = (sikLayers,sikMove,sikGear,sikTests,sikFlame);
+const Names: array[0..4] of string = ('1  Placa','2  Posicionar componentes','3  Trilhas','4  Camadas e laser','5  Validar e gerar');
+  Icons: array[0..4] of TSuiteIconKind = (sikLayers,sikMove,sikPen,sikFlame,sikTests);
 begin
   inherited CreateNew(AOwner,1);
   Caption := 'LaserPCB - MultiSuite'; Width := 1240; Height := 850;
   Constraints.MinWidth := 1040; Constraints.MinHeight := 680; Position := poScreenCenter;
   Font.Name := SUITE_FONT; Font.Size := 10; Color := clSuiteSurface;
   P := TLaserPCBProject.Create; FUpdating := True;
+  DesignDoc := TMPDocument.Create; DesignLib := MakePCBLibrary;
+  DesignLib.LoadUserFile(LPSharedLibraryFile);
   Header := TSuiteHeader.Create(Self); Header.Parent := Self; Header.Align := alTop; Header.Height := 72;
   Header.Setup('LaserPCB','Preparacao de placas  /  MultiSuite',sikLaserPCB);
   Footer := TPanel.Create(Self); Footer.Parent := Self; Footer.Align := alBottom;
@@ -189,30 +224,63 @@ begin
         LabelAt(Scroll,'Confira a funcao dos Gerbers sem atributo X2. O CAM precisa de um contorno fechado.',
           16,256,260,84);
         Button(Scroll,'Abrir arquivos...',16,354,290,sikFolder,@OpenClick);
+        Button(Scroll,'Criar / configurar placa',16,396,290,sikLayers,@FitClick);
+        BedW := Field(Scroll,'Mesa: largura (mm)','400',440);
+        BedH := Field(Scroll,'Mesa: altura (mm)','400',496);
+        Margin := Field(Scroll,'Margem da mesa (mm)','5',552);
+        Spacing := Field(Scroll,'Espaco entre placas (mm)','2',608);
+        Button(Scroll,'Duplicar',16,670,124,sikCopy,@CopyClick);
+        Button(Scroll,'Excluir',152,670,124,sikTrash,@RemoveClick);
+        Button(Scroll,'Distribuir placas',16,712,290,sikMove,@NestClick);
+        PosX := Field(Scroll,'Placa selecionada: X (mm)','5',768);
+        PosY := Field(Scroll,'Placa selecionada: Y (mm)','5',824);
+        Rotation := Field(Scroll,'Rotacao (graus)','0',880);
+        ScaleX := Field(Scroll,'Escala X','1',936);
+        ScaleY := Field(Scroll,'Escala Y','1',992);
+        Locked := Check(Scroll,'Travar placa',16,1052,False); Locked.OnChange := @SettingsChanged;
+        Button(Scroll,'Aplicar posicao',16,1092,290,sikTarget,@ApplyClick);
+        Button(Scroll,'Girar 90 graus',16,1134,290,sikMove,@RotateClick);
+        Button(Scroll,'Adicionar zona proibida',16,1176,290,sikRect,@KeepOutClick);
+        Button(Scroll,'Alinhar 2 fiduciais',16,1218,290,sikTarget,@AlignClick);
+        LabelAt(Scroll,'Camera nao configurada. Informe as coordenadas medidas dos fiduciais.',
+          16,1268,260,70);
       end;
       1:
       begin
-        BedW := Field(Scroll,'Mesa: largura (mm)','400',58);
-        BedH := Field(Scroll,'Mesa: altura (mm)','400',114);
-        Margin := Field(Scroll,'Margem da mesa (mm)','5',170);
-        Spacing := Field(Scroll,'Espaco entre placas (mm)','2',226);
-        Button(Scroll,'Duplicar',16,288,124,sikCopy,@CopyClick);
-        Button(Scroll,'Excluir',152,288,124,sikTrash,@RemoveClick);
-        Button(Scroll,'Distribuir placas',16,330,290,sikMove,@NestClick);
-        PosX := Field(Scroll,'Placa selecionada: X (mm)','5',386);
-        PosY := Field(Scroll,'Placa selecionada: Y (mm)','5',442);
-        Rotation := Field(Scroll,'Rotacao (graus)','0',498);
-        ScaleX := Field(Scroll,'Escala X','1',554);
-        ScaleY := Field(Scroll,'Escala Y','1',610);
-        Locked := Check(Scroll,'Travar placa',16,670,False); Locked.OnChange := @SettingsChanged;
-        Button(Scroll,'Aplicar posicao',16,710,290,sikTarget,@ApplyClick);
-        Button(Scroll,'Girar 90 graus',16,752,290,sikMove,@RotateClick);
-        Button(Scroll,'Adicionar zona proibida',16,794,290,sikRect,@KeepOutClick);
-        Button(Scroll,'Alinhar 2 fiduciais',16,836,290,sikTarget,@AlignClick);
-        LabelAt(Scroll,'Camera nao configurada. Informe as coordenadas medidas dos fiduciais.',
-          16,886,260,70);
+        LabelAt(Scroll,'Escolha um componente e clique na placa. Arraste para mover; R gira; Del exclui.',16,58,290,64);
+        Button(Scroll,'Selecionar',16,132,140,sikTarget,@DesignToolClick).Tag:=Ord(etSelect);
+        Button(Scroll,'Girar 90 graus',166,132,140,sikMove,@DesignRotateClick);
+        Button(Scroll,'Biblioteca / conjuntos...',16,174,290,sikLayers,@ComponentsClick);
+        Button(Scroll,'Virar componente (Top / Bottom)',16,218,290,sikMirrorH,@DesignFlipClick);
+        DesignSearch:=TEdit.Create(Self);DesignSearch.Parent:=Scroll;
+        DesignSearch.SetBounds(16,264,290,28);DesignSearch.TextHint:='Buscar componente';DesignSearch.OnChange:=@DesignFilter;
+        DesignGallery:=TMPGallery.Create(Self);DesignGallery.Parent:=Scroll;
+        DesignGallery.SetBounds(16,304,290,400);DesignGallery.Lib:=DesignLib;DesignGallery.OnPick:=@DesignPick;
+        Button(Scroll,'Abrir projeto PCB...',16,724,290,sikFolder,@OpenDesignClick);
+        Button(Scroll,'Salvar projeto PCB...',16,766,290,sikSave,@SaveDesignClick);
       end;
       2:
+      begin
+        LabelAt(Scroll,'Defina as ligacoes entre terminais antes de rotear. A camada ativa fica na barra superior.',16,58,290,64);
+        Button(Scroll,'Selecionar',16,132,140,sikTarget,@DesignToolClick).Tag:=Ord(etSelect);
+        Button(Scroll,'Ligar terminais',166,132,140,sikLayers,@DesignToolClick).Tag:=Ord(etWire);
+        Button(Scroll,'Trilha',16,174,140,sikPen,@DesignToolClick).Tag:=Ord(etTrack);
+        Button(Scroll,'Area de cobre',166,174,140,sikRect,@DesignToolClick).Tag:=Ord(etArea);
+        TrackWidthEdit:=Field(Scroll,'Largura minima / nova trilha (mm)','0.8',224);TrackWidthEdit.OnChange:=@DesignRulesChanged;
+        ClearanceEdit:=Field(Scroll,'Folga minima (mm)','0.5',280);ClearanceEdit.OnChange:=@DesignRulesChanged;
+        Button(Scroll,'Rotear automaticamente',16,346,290,sikWand,@AutoRouteClick);
+        Button(Scroll,'Verificar trilhas',16,388,290,sikTests,@CheckDesignClick);
+        Button(Scroll,'Desfazer',16,430,140,sikArrowLeft,@DesignUndoClick);
+        Button(Scroll,'Refazer',166,430,140,sikArrowRight,@DesignRedoClick);
+        Button(Scroll,'Excluir selecionado',16,472,290,sikTrash,@DesignDeleteClick);
+        PCBInfoLabel:=LabelAt(Scroll,'',16,520,290,64);
+        RouteLog:=TMemo.Create(Self);RouteLog.Parent:=Scroll;RouteLog.Name:='RouteLog';
+        RouteLog.Clear;
+        RouteLog.SetBounds(16,594,290,180);RouteLog.ReadOnly:=True;RouteLog.ScrollBars:=ssAutoVertical;
+        LabelAt(Scroll,'Trilha: clique nos pontos; termine num terminal ou com botao direito. Dupla face pode exigir vias com ligacao fisica entre as faces.',16,790,290,90);
+        Button(Scroll,'Salvar projeto PCB...',16,894,290,sikSave,@SaveDesignClick);
+      end;
+      3:
       begin
         { "Cortes / Camadas": cada camada e um processo do mesmo trabalho }
         Layers := TLPLayerTable.Create(Self); Layers.Parent := Scroll;
@@ -277,8 +345,23 @@ begin
         Button(Scroll,'Tabela de referencias (web)',16,1446,290,sikTests,@LaserReferencesClick);
         LayerPowerInfo:=LabelAt(Scroll,'',16,1494,280,120);
         LayerPowerInfo.Name:='LayerPowerInfo';
+        LabelAt(Scroll,'Aplicar na camada de cobre',16,1630,290,18);
+        OperationCopperBox:=TComboBox.Create(Self);OperationCopperBox.Parent:=Scroll;
+        OperationCopperBox.SetBounds(16,1652,290,30);OperationCopperBox.Style:=csDropDownList;
+        OperationCopperBox.OnChange:=@SettingsChanged;
+        LabelAt(Scroll,'FUROS COM CNC LASER',16,1718,280,20).Font.Style:=[fsBold];
+        LabelAt(Scroll,'Use o Excellon para marcar centros, percorrer contornos ou gerar aneis de corte. Potencia, velocidade e passadas sao da camada laser.',16,1748,280,88);
+        DrillMin:=DrillField(Scroll,'Diametro minimo (mm, 0 = todos)','0',1844);
+        DrillMax:=DrillField(Scroll,'Diametro maximo (mm, 0 = todos)','0',1900);
+        DrillPTH:=Check(Scroll,'Metalizados (PTH)',16,1962,True); DrillPTH.OnChange:=@DrillChanged;
+        DrillNPTH:=Check(Scroll,'Nao metalizados (NPTH)',16,1990,True); DrillNPTH.OnChange:=@DrillChanged;
+        Button(Scroll,'Marcar centros a laser',16,2040,290,sikTarget,@AddHoleLayerClick).Tag:=0;
+        Button(Scroll,'Contornos dos furos',16,2084,290,sikFlame,@AddHoleLayerClick).Tag:=1;
+        Button(Scroll,'Aneis para corte a laser',16,2128,290,sikFlame,@AddHoleLayerClick).Tag:=2;
+        LaserPowerInfo:=LabelAt(Scroll,'Selecione o laser no botao Mesa ou informe a potencia optica em Camadas.',16,2192,280,160);
+        LaserPowerInfo.Name:='LaserPowerInfo';
       end;
-      3:
+      4:
       begin
         State := TSuiteBadge.Create(Self); State.Parent := Scroll; State.SetBounds(16,60,260,32);
         State.Caption := 'Aguardando validacao'; State.DotColor := clSuiteWarning;
@@ -292,20 +375,6 @@ begin
         Button(Scroll,'Validar agora',16,580,290,sikTests,@ValidateClick);
         Button(Scroll,'Salvar G-code...',16,622,290,sikSave,@ExportClick);
       end;
-      4:
-      begin
-        LabelAt(Scroll,'FUROS COM CNC LASER',16,58,280,20).Font.Style:=[fsBold];
-        LabelAt(Scroll,'Use o Excellon para marcar centros, percorrer contornos ou gerar aneis de corte. Potencia, velocidade e passadas sao da camada laser.',16,88,280,88);
-        DrillMin:=DrillField(Scroll,'Diametro minimo (mm, 0 = todos)','0',184);
-        DrillMax:=DrillField(Scroll,'Diametro maximo (mm, 0 = todos)','0',240);
-        DrillPTH:=Check(Scroll,'Metalizados (PTH)',16,302,True); DrillPTH.OnChange:=@DrillChanged;
-        DrillNPTH:=Check(Scroll,'Nao metalizados (NPTH)',16,330,True); DrillNPTH.OnChange:=@DrillChanged;
-        Button(Scroll,'Marcar centros a laser',16,380,290,sikTarget,@AddHoleLayerClick).Tag:=0;
-        Button(Scroll,'Contornos dos furos',16,424,290,sikFlame,@AddHoleLayerClick).Tag:=1;
-        Button(Scroll,'Aneis para corte a laser',16,468,290,sikFlame,@AddHoleLayerClick).Tag:=2;
-        LaserPowerInfo:=LabelAt(Scroll,'Selecione o laser no botao Mesa ou informe a potencia optica em Camadas.',16,532,280,160);
-        LaserPowerInfo.Name:='LaserPowerInfo';
-      end;
     end;
   end;
   Work := TPanel.Create(Self); Work.Parent := Self; Work.Align := alClient;
@@ -313,6 +382,7 @@ begin
   Bar := TPanel.Create(Self); Bar.Parent := Work; Bar.Align := alTop; Bar.Height := 84; Bar.BevelOuter := bvNone;
   LabelAt(Bar,'Camada da placa',12,4,150,18);
   SideBox := TComboBox.Create(Self); SideBox.Parent := Bar; SideBox.SetBounds(12,26,120,30);
+  SideBox.Name:='CopperSide';OperationCopperBox.Name:='OperationCopper';
   SideBox.Style := csDropDownList; SideBox.Items.Add('Top'); SideBox.Items.Add('Bottom');
   SideBox.ItemIndex := 0; SideBox.OnChange := @CopperSideChanged;
   Button(Bar,'Placas',142,22,100,sikFit,@FitClick);
@@ -330,6 +400,12 @@ begin
   View := TLaserPCBPreview.Create(Self); View.Parent := Work; View.Align := alClient;
   View.Project := P; View.Layout := P.Layout; View.OnSelectionChanged := @RefreshSelection;
   View.OnLayoutChanged := @PlacementChanged;
+  DesignEditor:=TMPEditor.Create(Self);DesignEditor.Parent:=Work;DesignEditor.Align:=alClient;
+  DesignEditor.Lib:=DesignLib;DesignEditor.Doc:=DesignDoc;DesignEditor.Visible:=False;
+  DesignEditor.PlaceOnActiveLayer:=True;
+  DesignEditor.Renderer.NormalBackgroundColor:=View.Color;
+  DesignEditor.Renderer.NormalBoardColor:=RGBToColor(224,238,231);
+  DesignEditor.OnChange:=@DesignChanged;DesignEditor.OnStatus:=@DesignStatus;
   Pages.ActivePageIndex := 0; Nav[0].SetLook(sbsSolid,clSuitePrimary,sikLayers);
   FUpdating := False;
   OnResize := @ResizeUI; OnShow := @ShowUI;
@@ -346,7 +422,7 @@ end;
 procedure TLaserPCBForm.ShowUI(Sender: TObject);
 begin ResizeUI(Sender); View.FitBoards; end;
 destructor TLaserPCBForm.Destroy;
-begin View.Project := nil; View.Layout := nil; P.Free; inherited Destroy; end;
+begin DesignEditor.Doc:=nil; DesignDoc.Free; View.Project := nil; View.Layout := nil; P.Free; inherited Destroy; end;
 function TLaserPCBForm.Number(Edit: TEdit; const What: string): Double;
 begin
   if not TryParseFloat(Edit.Text,Result) or not FiniteNumber(Result) or (Abs(Result) > 1e9) then
@@ -463,6 +539,15 @@ end;
 procedure TLaserPCBForm.FocusPage(N: Integer);
 var I: Integer;
 begin
+  if (N<0) or (N>4) then Exit;
+  try
+    if DesignEditor.Visible then ReadDesignRules;
+    if N in [1,2] then begin if not EnsureDesign then Exit; end
+    else SyncDesign;
+  except on E:Exception do begin ShowError(E);Exit;end;end;
+  DesignEditor.CancelOperation;
+  DesignEditor.Visible:=N in [1,2];View.Visible:=not DesignEditor.Visible;
+  if DesignEditor.Visible then begin DesignEditor.BringToFront;DesignEditor.Tool:=etSelect;end;
   Pages.ActivePageIndex := N;
   for I := 0 to 4 do if I = N then Nav[I].SetLook(sbsSolid,clSuitePrimary)
   else Nav[I].SetLook(sbsSoft,clSuitePrimary);
@@ -496,10 +581,24 @@ begin
   View.SelectedIndex := 0; View.FitBoards;
 end;
 procedure TLaserPCBForm.NewClick(Sender: TObject);
-begin FEditOp := nil; P.Clear; View.SelectedIndex := -1; RefreshSources; Log.Clear; View.FitBed; Status.Caption := 'Novo trabalho. Importe os arquivos da placa.'; end;
+begin
+  DesignEditor.CancelOperation;DesignEditor.Visible:=False;View.Visible:=True;
+  FDesignDirty:=False;FDesignStamp:='';DesignDoc.Clear;DesignEditor.ClearHistory;DesignEditor.Doc:=DesignDoc;
+  FocusPage(0);FEditOp:=nil;P.Clear;View.SelectedIndex:=-1;RefreshSources;Log.Clear;View.FitBed;
+  Status.Caption:='Novo trabalho. Crie uma placa ou importe os arquivos.';
+end;
 procedure TLaserPCBForm.OpenFile(const FN: string);
 begin
   try
+    if SameText(ExtractFileExt(FN),'.mpcb') then
+    begin
+      FEditOp:=nil;
+      LPOpenPCBDesign(FN,DesignLib,P,DesignDoc);
+      DesignEditor.CancelOperation;DesignEditor.Visible:=False;View.Visible:=True;
+      FDesignDirty:=True;SyncDesign;DesignEditor.Doc:=DesignDoc;DesignEditor.ClearHistory;
+      RefreshSources;RefreshSelection(nil);FocusPage(2);DesignEditor.ZoomToBoard;Exit;
+    end;
+    SyncDesign;
     FEditOp := nil;
     if DirectoryExists(FN) then
     begin
@@ -513,7 +612,7 @@ begin
     RefreshSources;
     if not P.HasSVG then
       try P.RebuildMasks; except on E:Exception do Status.Caption := E.Message; end;
-    Log.Lines.Assign(P.Warnings); View.Invalidate;
+    Log.Lines.Assign(P.Warnings); FocusPage(0); View.Invalidate;
   except on E: Exception do ShowError(E); end;
 end;
 procedure TLaserPCBForm.OpenClick(Sender: TObject);
@@ -522,7 +621,7 @@ begin
   D := TOpenDialog.Create(Self);
   try
     D.Options := D.Options+[ofAllowMultiSelect,ofFileMustExist];
-    D.Filter := 'PCB (SVG, Gerber, Excellon)|*.svg;*.gbr;*.ger;*.gtl;*.gbl;*.gts;*.gbs;*.gto;*.gbo;*.gm1;*.gko;*.drl;*.xln;*.exc|Todos os arquivos|*';
+    D.Filter := 'Projeto PCB (*.mpcb)|*.mpcb|PCB (SVG, Gerber, Excellon)|*.svg;*.gbr;*.ger;*.gtl;*.gbl;*.gts;*.gbs;*.gto;*.gbo;*.gm1;*.gko;*.drl;*.xln;*.exc|Todos os arquivos|*';
     if D.Execute then for I := 0 to D.Files.Count-1 do OpenFile(D.Files[I]);
   finally D.Free; end;
 end;
@@ -604,6 +703,13 @@ begin
   if FUpdating then Exit;
   if P.CopperLayerCount>0 then P.SelectCopperLayer(SideBox.ItemIndex+1)
   else begin P.Side:=TPCBLayerSide(SideBox.ItemIndex); P.InvalidateCAM; end;
+  if DesignEditor.Visible then
+  begin
+    DesignEditor.CancelOperation;
+    if not EnsureDesign then FocusPage(0)
+    else if P.Side=lsTop then DesignEditor.ActiveLayer:=mlTopCopper else DesignEditor.ActiveLayer:=mlBottomCopper;
+    DesignEditor.Invalidate;
+  end;
   P.MirrorBottom:=Mirror.Checked;
   FExportedFile:=''; SendButton.Enabled:=False; View.Invalidate;
   State.Caption:='Alteracoes pendentes'; State.DotColor:=clSuiteWarning;
@@ -623,13 +729,15 @@ begin
       if (F.BoardWidth>P.Layout.BedWidth-2*P.Layout.Margin) or
          (F.BoardHeight>P.Layout.BedHeight-2*P.Layout.Margin) then
         raise Exception.Create('A placa deve caber na area util da mesa.');
-      FEditOp:=nil;
+      FDesignDirty:=False;FDesignStamp:='';DesignDoc.Clear;DesignEditor.Doc:=DesignDoc;DesignEditor.ClearHistory;
+      DesignEditor.CancelOperation;DesignEditor.Visible:=False;View.Visible:=True;
+      FocusPage(0);FEditOp:=nil;
       P.CreateBoard(F.BoardWidth,F.BoardHeight,F.LayerCount,F.SingleBottom);
       FUpdating:=True;
       try Mirror.Checked:=True; finally FUpdating:=False; end;
       RefreshSources; RefreshSelection(Sender); View.FitBoards; View.Invalidate;
       State.Caption:='Placa criada'; State.DotColor:=clSuiteWarning;
-      Status.Caption:=Format('Placa %.2f x %.2f mm, %d camadas de cobre. Importe a geometria de cada camada.',
+      Status.Caption:=Format('Placa %.2f x %.2f mm, %d camadas de cobre. Posicione os componentes ou importe as camadas prontas.',
         [P.Width,P.Height,P.CopperLayerCount],InvariantFS);
     except on E:Exception do ShowError(E); end;
   finally F.Free; end;
@@ -640,9 +748,11 @@ begin
   if P.HasSVG or(P.Width<=0) then begin Status.Caption:='Crie uma placa no botao Placas ou importe Gerber antes dos componentes.';Exit;end;
   F:=nil;
   try
+    SyncDesign;
     F:=TLPComponentsForm.CreateFor(Self,P);
     if F.ShowModal=mrOK then begin FEditOp:=nil;RefreshSources;P.RebuildMasks;View.Invalidate;
-      Status.Caption:='Componentes aplicados: confira as camadas e calibre os parametros do laser.';end;
+      EnsureDesign;DesignGallery.Reload;
+      Status.Caption:='Componentes aplicados. Confira as ligacoes na etapa Trilhas.';end;
   except on E:Exception do ShowError(E);end;
   F.Free;
 end;
@@ -695,18 +805,18 @@ begin
   end;
 end;
 procedure TLaserPCBForm.ZoomInClick(Sender: TObject);
-begin View.ZoomIn; end;
+begin if DesignEditor.Visible then DesignEditor.ZoomBy(1.25) else View.ZoomIn; end;
 procedure TLaserPCBForm.ZoomOutClick(Sender: TObject);
-begin View.ZoomOut; end;
+begin if DesignEditor.Visible then DesignEditor.ZoomBy(0.8) else View.ZoomOut; end;
 procedure TLaserPCBForm.Prepared;
 var I: Integer; Op: TLPOperation; S: string; Cut, Travel, Secs: Double;
 begin
-  ReadSettings; P.GenerateOperations; View.Invalidate; Layers.Invalidate;
+  SyncDesign; ReadSettings; P.GenerateOperations; View.Invalidate; Layers.Invalidate;
   S := '';
   for I := 0 to P.OperationCount-1 do
   begin
     Op := P.Operation(I);
-    if not Op.Output then Continue;
+    if not Op.Output or not P.OperationOnActiveCopper(Op) then Continue;
     if S <> '' then S := S+#10;
     S := S+Format('%s %s: %.0f mm, %dx',[Op.Caption,Op.Name,Op.CutLength,Max(1,Op.Passes)],InvariantFS);
   end;
@@ -724,10 +834,11 @@ begin
 end;
 procedure TLaserPCBForm.ValidateClick(Sender: TObject);
 begin
-  FocusPage(3);
+  FocusPage(4);
   try
+    Log.Clear;
     Prepared;
-    if P.ValidateOperations(Log.Lines,True) then
+    if CheckDesign(Log.Lines) and P.ValidateOperations(Log.Lines,True) then
     begin Log.Lines.Add('Pronto para gerar G-code.'); State.Caption := 'Trabalho valido'; State.DotColor := clSuiteSuccess; Status.Caption := 'Geometria e parametros validados.'; end
     else begin State.Caption := 'Corrigir antes de exportar'; State.DotColor := clSuiteDanger; Status.Caption := Log.Lines[0]; end;
   except on E: Exception do ShowError(E); end;
@@ -736,8 +847,9 @@ procedure TLaserPCBForm.ExportClick(Sender: TObject);
 var D: TSaveDialog; Job: TLaserPCBJob;
 begin
   try
+    Log.Clear;
     Prepared;
-    if not P.ValidateOperations(Log.Lines,True) then begin FocusPage(3); raise Exception.Create(Log.Lines.Text); end;
+    if not CheckDesign(Log.Lines) or not P.ValidateOperations(Log.Lines,True) then begin FocusPage(4); raise Exception.Create(Log.Lines.Text); end;
     D := TSaveDialog.Create(Self);
     try
       D.Filter := 'G-code|*.gcode'; D.DefaultExt := 'gcode'; D.Options := D.Options+[ofOverwritePrompt];
@@ -852,6 +964,7 @@ begin
   if TryStrToInt(Passes.Text,N) and (N >= 1) and (N <= 1000) then Op.Passes := N;
   if TryParseFloat(Overlap.Text,V) and FiniteNumber(V) and (V >= 0) and (V <= 90) then Op.Overlap := V/100;
   if TryParseFloat(MarkDia.Text,V) and FiniteNumber(V) and (V > 0) then Op.MarkDiameter := V;
+  if OperationCopperBox.ItemIndex>=0 then Op.CopperLayer:=OperationCopperBox.ItemIndex;
   LayerTitle.Caption := 'CAMADA '+Op.Caption+'  -  '+CamModeName(Op.Mode);
   SourceBox.Enabled := Op.Mode = cmLayerHatch;
   MarkKindBox.Enabled := Op.Mode = cmDrillMarks; MarkDia.Enabled := MarkKindBox.Enabled;
@@ -861,9 +974,11 @@ procedure TLaserPCBForm.RefreshLayerSources;
 var I, Keep: Integer;
 begin
   Keep := SourceBox.ItemIndex;
+  OperationCopperBox.Items.Clear;OperationCopperBox.Items.Add('Face ativa');
+  for I:=1 to P.CopperLayerCount do OperationCopperBox.Items.Add(P.CopperLayerName(I));
   SourceBox.Items.Clear;
   for I := 0 to P.SourceCount-1 do
-    if P.Source(I).ComponentGeometry then LayerList.Items.Add(P.Source(I).FileName)
+    if P.Source(I).ComponentGeometry then SourceBox.Items.Add(P.Source(I).FileName)
     else if P.Source(I).CopperIndex>0 then
       SourceBox.Items.Add('Cobre '+P.CopperLayerName(P.Source(I).CopperIndex)+' | '+ExtractFileName(P.Source(I).FileName))
     else SourceBox.Items.Add(LayerRoleName(P.Source(I).Role)+' | '+ExtractFileName(P.Source(I).FileName));
@@ -881,7 +996,7 @@ begin
     end;
     LayerTitle.Caption := 'CAMADA '+Op.Caption+'  -  '+CamModeName(Op.Mode);
     LayerName.Text := Op.Name; ModeBox.ItemIndex := Ord(Op.Mode);
-    ProcessBox.ItemIndex:=Ord(Op.Process);
+    ProcessBox.ItemIndex:=Ord(Op.Process);OperationCopperBox.ItemIndex:=Op.CopperLayer;
     if Op.SourceLayer < SourceBox.Items.Count then SourceBox.ItemIndex := Op.SourceLayer;
     SourceBox.Enabled := Op.Mode = cmLayerHatch;
     Power.Text := FloatToStr(Op.Power,InvariantFS); Feed.Text := FloatToStr(Op.Feed,InvariantFS);
@@ -895,7 +1010,7 @@ end;
 procedure TLaserPCBForm.LayerSelected(Sender: TObject; Index: Integer);
 begin
   LoadLayerEditor;
-  if Pages.ActivePageIndex <> 2 then FocusPage(2);
+  if Pages.ActivePageIndex <> 3 then FocusPage(3);
 end;
 procedure TLaserPCBForm.LayerToggled(Sender: TObject; Index: Integer);
 begin
@@ -959,7 +1074,7 @@ procedure TLaserPCBForm.AddHoleLayerClick(Sender:TObject);
 var Op:TLPOperation;
 begin
   CommitLayerEditor;
-  Op:=P.AddOperation(cmDrillMarks,'Furos a laser',6);
+  Op:=P.AddOperation(cmDrillMarks,'Furos a laser',6);Op.CopperLayer:=P.ActiveCopperIndex;
   Op.MarkKind:=TLPMarkKind(TSuiteButton(Sender).Tag);
   Op.Process:=lpMarking;
   case Op.MarkKind of
@@ -968,7 +1083,7 @@ begin
     mkCutHole: Op.Name:='Aneis de corte dos furos';
   end;
   Layers.Selected:=P.OperationCount-1; LoadLayerEditor;
-  SettingsChanged(Sender); FocusPage(2);
+  SettingsChanged(Sender); FocusPage(3);
 end;
 procedure TLaserPCBForm.LaserReferencesClick(Sender:TObject);
 var F:TLaserReferenceForm; W:Double;
@@ -1035,6 +1150,8 @@ begin
   end;
   SettingsChanged(Sender); UpdateLaserPower;
 end;
+{$I laserpcb_designui.inc}
+
 procedure TLaserPCBForm.ShowError(E: Exception);
 begin
   Status.Caption := E.Message; Log.Lines.Add(E.Message);

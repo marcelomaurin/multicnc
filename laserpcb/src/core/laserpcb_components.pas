@@ -6,6 +6,7 @@ uses Classes,SysUtils,Math,fpjson,jsonparser,makepcb_model,makepcb_library,
 function LPSharedLibraryFile:string;
 function LPImportComponentLibrary(Lib:TMPLibrary;const FileName:string):Integer;
 procedure LPLoadComponentSet(Doc:TMPDocument;Lib:TMPLibrary;const Text:string);
+procedure LPLoadPCBDesign(Doc:TMPDocument;Lib:TMPLibrary;const Text:string);
 procedure LPApplyComponents(Doc:TMPDocument;Project:TLaserPCBProject);
 implementation
 uses makepcb_gerber;
@@ -58,6 +59,15 @@ begin
     Temp.FromJSON(O.AsJSON,@Lib.Resolve);
     Doc.FromJSON(Temp.ToJSON,@Lib.Resolve);
   finally Temp.Free;D.Free;end;
+end;
+procedure LPLoadPCBDesign(Doc:TMPDocument;Lib:TMPLibrary;const Text:string);
+var Temp:TMPDocument;
+begin
+  Temp:=TMPDocument.Create;
+  try
+    Temp.FromJSON(Text,@Lib.Resolve);
+    Doc.FromJSON(Temp.ToJSON,@Lib.Resolve);
+  finally Temp.Free;end;
 end;
 procedure LPApplyComponents(Doc:TMPDocument;Project:TLaserPCBProject);
 var Top,Bottom,SilkTop,SilkBottom,L:TLPGerberLayer;Holes,D:TLPDrillFile;

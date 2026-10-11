@@ -28,7 +28,8 @@ uses
   multicad_solver, multicad_extrude, multicad_revolve, multicad_rebuild,
   multicad_camera, multicad_softrender, multicad_view3d, multicad_sketchtools, multicad_extrudeedit,
   multicad_sketchedit, multicad_propman, multicad_undo, multicad_hole, multicad_pattern, multicad_blend, multicad_materialdlg, multicad_textures, multicad_export, multicad_measure,
-  multisuite_types, multisuite_registry, multisuite_launcher, multisuite_context;
+  multisuite_types, multisuite_registry, multisuite_launcher, multisuite_context,
+  multicad_sketchpattern, multicad_sketchpatterndlg;
 
 type
   TCadTab = (ctFeatures, ctSketch, ctEvaluate, ctView, ctExport, ctAbout);
@@ -78,6 +79,7 @@ type
     procedure HoleClick(Sender: TObject);
     procedure LinearPatternClick(Sender: TObject);
     procedure CircularPatternClick(Sender: TObject);
+    procedure SketchPatternClick(Sender: TObject);
     procedure MirrorClick(Sender: TObject);
     procedure BlendClick(Sender: TObject);
     procedure StopBlendEdit;
@@ -604,6 +606,8 @@ begin
         RibbonButton('Adicionar relação', sikLayers, @RelationMenuClick).Enabled := InSketch;
         RibbonButton('Linha de apoio', sikMirrorH, @ConstructionClick).Enabled := InSketch;
         RibbonButton('Apagar', sikTrash, @DeleteSketchClick, 0, 90).Enabled := InSketch;
+        RibbonButton('Padrão linear', sikCopy, @SketchPatternClick, Ord(skpLinear)).Enabled := InSketch;
+        RibbonButton('Padrão circular', sikRedo, @SketchPatternClick, Ord(skpCircular)).Enabled := InSketch;
         RibbonSep;
         FGridBtn := RibbonButton('Grade', sikFrame, @GridClick, 0);
         FGridSnapBtn := RibbonButton('Capturar na grade', sikTarget, @GridSnapClick, 0);
@@ -2190,6 +2194,30 @@ begin
       Result[0] := Doc.Feature(I).Id;
       Exit;
     end;
+end;
+
+procedure TMainForm.SketchPatternClick(Sender: TObject);
+var D: TCadSketchPatternDialog; Kind: TCadSketchPatternKind;
+begin
+  if not Assigned(FEditor) or PM.Visible then Exit;
+  if Length(FEditor.Session.Selection)=0 then begin
+    FEditor.SetTool(tkSelect);ShowTab(ctSketch);
+    SetStatus(1,'Selecione as entidades a repetir (Ctrl para somar) e clique no padrão.');
+    Exit;
+  end;
+  Kind:=TCadSketchPatternKind(TComponent(Sender).Tag);
+  D:=TCadSketchPatternDialog.CreatePattern(Self,Doc,Kind,Length(FEditor.Session.Selection));
+  try
+    if D.ShowModal<>mrOK then begin CadLog('SKETCH.PATTERN.CANCEL',D.Caption);Exit;end;
+    if not FEditor.Session.ApplyPattern(D.Settings) then begin
+      CadLog('SKETCH.PATTERN.ERROR',FEditor.Session.LastMessage);
+      CadMessageDlg(FEditor.Session.LastMessage,mtWarning,[mbOK],0);Exit;
+    end;
+    CadLog('SKETCH.PATTERN',Format('kind=%d countX=%d countY=%d spacingX=%g spacingY=%g centerX=%g centerY=%g angle=%g',
+      [Ord(Kind),D.Settings.CountX,D.Settings.CountY,D.Settings.SpacingX,D.Settings.SpacingY,
+       D.Settings.Center.X,D.Settings.Center.Y,D.Settings.Angle]));
+    FEditor.View3DChanged;ShowTab(ctSketch);
+  finally D.Free;end;
 end;
 
 procedure TMainForm.LinearPatternClick(Sender: TObject);

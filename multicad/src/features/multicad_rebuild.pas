@@ -2232,6 +2232,7 @@ end;
 procedure TCadRebuilder.BuildBlend(F: TCadBlendBase);
 var
   Items: TCadBlendItems;
+  Ops: TCadBoolOperands;
   I, K, Bi, Done, Skipped: Integer;
   Err, FirstErr: string;
   Cur, R: TCadMesh;
@@ -2257,6 +2258,29 @@ begin
           Any := True;
       if not Any then
         Continue;
+      Ops := nil;
+      for K := 0 to 1 do
+        for I := 0 to High(Items) do
+          if (Items[I].Body = Bi) and (Items[I].IsCut = (K = 0)) then
+          begin
+            SetLength(Ops, Length(Ops) + 1);
+            Ops[High(Ops)].Mesh := Items[I].Tool;
+            if Items[I].IsCut then Ops[High(Ops)].Op := boDifference
+            else Ops[High(Ops)].Op := boUnion;
+          end;
+      if Length(Ops) > 1 then
+      begin
+        CadLog('BLEND.SEQUENCE.START', Format('id=%d body=%d tools=%d', [F.Id, Bi, Length(Ops)]));
+        R := CadBooleanBlendSequence(Body(Bi).Mesh, Ops, Err);
+        if R <> nil then
+        begin
+          CadLog('BLEND.SEQUENCE.END', Format('id=%d body=%d triangles=%d volume=%.6f',
+            [F.Id, Bi, R.TriCount, R.Volume]));
+          Body(Bi).Mesh.Free; Body(Bi).Mesh := R;
+          Inc(Done, Length(Ops)); Continue;
+        end;
+        CadLog('BLEND.SEQUENCE.FALLBACK', Format('id=%d body=%d error=%s', [F.Id, Bi, Err]));
+      end;
       Cur := Body(Bi).Mesh.Clone;
       { cortes (arestas convexas) antes das unioes (concavas): a booleana
         fica mais estavel nessa ordem }

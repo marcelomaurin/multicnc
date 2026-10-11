@@ -70,8 +70,7 @@ begin
     begin
       if (Main.Components[I] is TSuiteButton) and
         (TSuiteButton(Main.Components[I]).Caption='Placas') then Button:=TSuiteButton(Main.Components[I]);
-      if Main.Components[I] is TComboBox then
-        if TComboBox(Main.Components[I]).Items.IndexOf('Top')>=0 then S:=TComboBox(Main.Components[I]);
+      if Main.Components[I].Name='CopperSide' then S:=TComboBox(Main.Components[I]);
     end;
     Check((Button<>nil) and (S<>nil),'Placas button and copper selection');
     Run(0,1,1,False);

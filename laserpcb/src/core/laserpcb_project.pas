@@ -30,6 +30,7 @@ type
     ColorIndex: Integer;       { paleta 00..29 }
     Mode: TLPCamMode;
     Process: TLaserProcess;
+    CopperLayer: Integer;      { 0 = face ativa; 1..N = camada fisica da placa }
     SourceLayer: Integer;      { cmLayerHatch: indice da camada importada }
     Power, Feed, Overlap: Double;
     Passes: Integer;
@@ -143,6 +144,7 @@ type
     { copia os parametros da camada para os campos do processo unico }
     procedure ApplyOperation(Op: TLPOperation);
     { gera as camadas com Saida ou Mostrar ligado; erro cita a camada }
+    function OperationOnActiveCopper(Op: TLPOperation): Boolean;
     procedure GenerateOperations;
     procedure InvalidateOperations;
     function ValidateOperations(Errors: TStrings; ForExport: Boolean): Boolean;
@@ -909,7 +911,7 @@ begin
 end;
 
 procedure TLaserPCBProject.CreateDefaultOperations;
-var I: Integer; Op: TLPOperation;
+var I,K: Integer; Op: TLPOperation;CopperRole:TLPLayerRole;
 
   function HasMode(M: TLPCamMode): Boolean;
   var K: Integer;
@@ -940,12 +942,16 @@ begin
   if (Drills.HoleCount > 0) and not HasMode(cmDrillMarks) then
   begin Op := AddOperation(cmDrillMarks,'Marcar furos',6); Op.Output := False; end;
   for I := 0 to SourceCount-1 do
-    if (Source(I).Role in [lrTopMask,lrBottomMask,lrTopSilk,lrBottomSilk]) and not HasSource(I) then
+    if (Source(I).Role in [lrTopMask,lrBottomMask,lrTopSilk,lrBottomSilk]) and
+      (Source(I).Layer.ShapeCount>0) and not HasSource(I) then
     begin
       if Source(I).Role in [lrTopMask,lrBottomMask] then
         Op := AddOperation(cmLayerHatch,LayerRoleName(Source(I).Role),3)
       else Op := AddOperation(cmLayerHatch,LayerRoleName(Source(I).Role),5);
       Op.SourceLayer := I; Op.Output := False;
+      if Source(I).ComponentGeometry then Op.Show:=False;
+      if Source(I).Role in [lrTopMask,lrTopSilk] then CopperRole:=lrTopCopper else CopperRole:=lrBottomCopper;
+      for K:=1 to CopperLayerCount do if CopperSource(K).Role=CopperRole then begin Op.CopperLayer:=K;Break;end;
     end;
   if (FindRole(lrOutline) <> nil) and not HasMode(cmOutline) then
   begin Op := AddOperation(cmOutline,'Contorno da placa',0); Op.Output := False; end;
@@ -963,6 +969,16 @@ begin
   if Op.Mode = cmLayerHatch then SelectedLayer := Op.SourceLayer;
 end;
 
+function TLaserPCBProject.OperationOnActiveCopper(Op: TLPOperation): Boolean;
+var S:TLPSource;
+begin
+  if Op.CopperLayer=0 then Exit(True);
+  S:=CopperSource(Op.CopperLayer);
+  if S=nil then Exit(False);
+  if ActiveCopperIndex>0 then Exit(Op.CopperLayer=ActiveCopperIndex);
+  Result:=((Side=lsTop) and (S.Role=lrTopCopper)) or
+    ((Side=lsBottom) and (S.Role=lrBottomCopper));
+end;
 procedure TLaserPCBProject.GenerateOperations;
 var I, J, Count: Integer; Op: TLPOperation; SavedMode: TLPCamMode; SavedProfile: TLaserProfile;
   SavedOverlap, SavedMarkDia: Double; SavedSelected: Integer; SavedMark: TLPMarkKind;
@@ -974,7 +990,7 @@ begin
     for I := 0 to OperationCount-1 do
     begin
       Op := Operation(I);
-      if not (Op.Output or Op.Show) then Continue;
+      if not (Op.Output or Op.Show) or not OperationOnActiveCopper(Op) then Continue;
       if (Op.Mode = cmLayerHatch) and ((Op.SourceLayer < 0) or (Op.SourceLayer >= SourceCount)) then
         raise Exception.Create(Op.Caption+' '+Op.Name+': escolha a camada a preencher');
       ApplyOperation(Op);
@@ -1007,7 +1023,9 @@ begin
   for I := 0 to OperationCount-1 do
   begin
     Op := Operation(I);
-    if not Op.Output then Continue;
+    if (Op.CopperLayer<0) or (Op.CopperLayer>CopperLayerCount) then
+      begin Errors.Add(Op.Name+': camada de cobre invalida');Continue;end;
+    if not Op.Output or not OperationOnActiveCopper(Op) then Continue;
     Inc(Outputs); Name := Op.Caption+' '+Op.Name+': ';
     if not FiniteNumber(Op.Power) or (Op.Power <= 0) then Errors.Add(Name+'potencia nao calibrada')
     else if Op.Power > Profile.SMax then Errors.Add(Name+'potencia maior que o S-max')
@@ -1048,7 +1066,7 @@ begin
     for I := 0 to OperationCount-1 do
     begin
       Op := Operation(I);
-      if not (Op.Output and Op.Generated) then Continue;
+      if not (Op.Output and Op.Generated) or not OperationOnActiveCopper(Op) then Continue;
       { Na isolacao as passadas ja sao aneis de offset. }
       if Op.Mode = cmIsolation then Repeats := 1 else Repeats := Max(1,Op.Passes);
       for R := 1 to Repeats do
@@ -1074,7 +1092,7 @@ begin
   for I := 0 to OperationCount-1 do
   begin
     Op := Operation(I);
-    if not (Op.Output and Op.Generated) then Continue;
+    if not (Op.Output and Op.Generated) or not OperationOnActiveCopper(Op) then Continue;
     if Op.Mode = cmIsolation then Repeats := 1 else Repeats := Max(1,Op.Passes);
     for R := 1 to Repeats do
       for J := 0 to Min(Layout.Count,Length(Op.ItemPaths))-1 do

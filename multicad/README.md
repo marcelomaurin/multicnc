@@ -188,3 +188,38 @@ Regressao: `test_multicad` verifica projecao, eixo, volume e malha fechada; `tes
 - Executavel Windows: bin/multicad.exe; identificacao em Sobre: 0.0.8.0.
 - Corrige a conservacao de area da aproximacao do arco de filete, mantendo
   os pontos de tangencia e passando a verificacao de volume analitico.
+
+## Correcao do filete em varias arestas (0.0.8.1)
+- As ferramentas de filete/chanfro de um corpo sao aplicadas na mesma arvore
+  BSP. A superficie e triangulada e soldada ao final, evitando a perda
+  acumulada de fragmentos finos nas intersecoes entre arredondamentos.
+- Mantida a validacao de malha fechada e orientada. Booleanas comuns e
+  operacoes de uma unica aresta mantem o caminho existente; o calculo
+  sequencial anterior continua como alternativa se o conjunto falhar.
+- O log registra BLEND.SEQUENCE.START/END/FALLBACK, com quantidade de
+  ferramentas, triangulos, volume e eventual erro.
+- test_blend_sequence reproduz o caso da 008: bloco 50 x 30 x 26,9 mm com
+  dois cortes e filete R2 nas 12 arestas. Verifica fechamento, superficies
+  persistentes, volume analitico dos quatro filetes verticais, ordem de
+  selecao, raio menor, persistencia e rejeicao de entradas invalidas.
+
+## Padroes de geometria no esboco (0.0.8.2)
+- A aba Esboco oferece Padrao linear e Padrao circular durante a edicao.
+  Selecione a geometria com Selecionar (Ctrl soma entidades) e abra o comando.
+- Linear: quantidades incluindo o original e espacamentos nos eixos X/Y do
+  plano ativo. Quantidade 1 desativa a direcao; espacamento negativo inverte.
+- Circular: quantidade, centro X/Y e angulo total. Uma volta de 360 graus
+  distribui as instancias sem repetir o original; angulos parciais incluem
+  o ponto final. Angulo negativo inverte o sentido.
+- Cria linhas, circulos, arcos e pontos independentes e editaveis, conservando
+  geometria normal/de apoio e linhas de centro. Nao cria vinculo parametrico
+  com a entidade original, nem duplica suas cotas ou referencias externas.
+- Cancelar nao altera o esboco. O conjunto entra como uma unica etapa em
+  Desfazer/Refazer e persiste no arquivo .mcad. Validacao precede a criacao;
+  ate 10000 novas entidades por comando. Eventos SKETCH.PATTERN registrados.
+- Os padroes de operacoes 3D existentes continuam na aba Operacoes. Mantidos
+  cores, controles e estrutura do CommandManager; adicionados os dois botoes
+  no espaco existente da aba Esboco.
+- test_sketch_pattern e test_sketch_pattern_ui verificam coordenadas, tipos
+  de entidades, limites, perfis extrudaveis, dialogos, cancelamento, historico,
+  e persistencia, inclusive num plano lateral.

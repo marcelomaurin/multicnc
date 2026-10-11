@@ -22,6 +22,11 @@ uses
 
 type
   TCadBoolOp = (boUnion, boDifference, boIntersection);
+  TCadBoolOperand = record
+    Mesh: TCadMesh;
+    Op: TCadBoolOp;
+  end;
+  TCadBoolOperands = array of TCadBoolOperand;
 
 { A op B. Devolve nova malha (pode ter volume zero, ex. diferenca que remove
   tudo). nil e AError em falha (resultado nao fechado). }
@@ -29,6 +34,10 @@ function CadBoolean(A, B: TCadMesh; Op: TCadBoolOp; out AError: string): TCadMes
 { Igual, comecando pelas faces curvas tratadas como planas (melhor para as
   ferramentas de filete/chanfro, tangentes as faces do solido). }
 function CadBooleanBlend(A, B: TCadMesh; Op: TCadBoolOp; out AError: string): TCadMesh;
+{ Apply tangent tools to one BSP and triangulate only the final boundary.
+  The meshes remain owned by the caller. }
+function CadBooleanBlendSequence(A: TCadMesh; const Tools: TCadBoolOperands;
+  out AError: string): TCadMesh;
 { Numero de pecas separadas (componentes conexos por vertices compartilhados). }
 function CadMeshComponents(M: TCadMesh): Integer;
 { Separa em pecas; o chamador libera as malhas. }
@@ -1591,6 +1600,118 @@ begin
     TB.Free;
   end;
   Result := BuildResult(Faces, PR, NR, AError);
+end;
+
+function BlendSequenceAttempt(A: TCadMesh; const Tools: TCadBoolOperands;
+  Attempt: Integer; Cull: Boolean; out AError: string): TCadMesh;
+var
+  Faces: array of TCadFaceInfo;
+  Originals, Flat, Raw: TCadMesh;
+  TA, TB: TNode;
+  PA, PB, PR: TPolyArr;
+  NA, NB, NR, I, J: Integer;
+  BA, BB, Bounds: TCadBox3;
+
+  function Polys(M: TCadMesh; out Count: Integer): TPolyArr;
+  var
+    Map: array of Integer;
+    F, K: Integer;
+  begin
+    SetLength(Map, M.FaceCount);
+    for F := 0 to M.FaceCount - 1 do
+    begin
+      K := 0;
+      while (K < Length(Faces)) and (Faces[K].Name <> M.Faces[F].Name) do Inc(K);
+      if K = Length(Faces) then
+      begin SetLength(Faces, K + 1); Faces[K] := M.Faces[F]; end;
+      Map[F] := K;
+    end;
+    Result := MeshToPolys(M, Map, Count);
+    if Attempt = 0 then SortByPlaneArea(Result, Count)
+    else Permute(Result, Count, Attempt);
+  end;
+
+begin
+  Result := nil; AError := ''; Faces := nil;
+  Originals := TCadMesh.Create;
+  TA := TNode.Create;
+  try
+    for I := 0 to A.FaceCount - 1 do Originals.AddFace(A.Faces[I]);
+    Flat := Planarize(A);
+    try PA := Polys(Flat, NA); finally Flat.Free; end;
+    Build(TA, PA, NA);
+    Bounds := A.Bounds;
+    for I := 0 to High(Tools) do
+    begin
+      for J := 0 to Tools[I].Mesh.FaceCount - 1 do Originals.AddFace(Tools[I].Mesh.Faces[J]);
+      Flat := Planarize(Tools[I].Mesh);
+      try PB := Polys(Flat, NB); finally Flat.Free; end;
+      TB := TNode.Create;
+      try
+        Build(TB, PB, NB);
+        BA := Bounds; BB := Tools[I].Mesh.Bounds;
+        if not Cull then begin BA := BoxEmpty; BB := BoxEmpty; end;
+        case Tools[I].Op of
+          boDifference:
+            begin
+              Invert(TA);
+              ClipTo(TA, TB, BB, False);
+              ClipTo(TB, TA, BA, True);
+              Invert(TB);
+              ClipTo(TB, TA, BA, True);
+              Invert(TB);
+              PR := AllPolys(TB, NR);
+              Build(TA, PR, NR);
+              Invert(TA);
+            end;
+          boUnion:
+            begin
+              ClipTo(TA, TB, BB, False);
+              ClipTo(TB, TA, BA, False);
+              Invert(TB);
+              ClipTo(TB, TA, BA, False);
+              Invert(TB);
+              PR := AllPolys(TB, NR);
+              Build(TA, PR, NR);
+              BB := Tools[I].Mesh.Bounds;
+              if not BB.Empty then begin BoxAdd(Bounds, BB.Min); BoxAdd(Bounds, BB.Max); end;
+            end;
+        else
+          AError := 'Operação inválida na sequência de filetes'; Exit;
+        end;
+      finally TB.Free; end;
+    end;
+    PR := AllPolys(TA, NR);
+    Raw := BuildResult(Faces, PR, NR, AError);
+    if Raw <> nil then
+    begin
+      try Result := Restore(Raw, Originals, Originals); finally Raw.Free; end;
+      Result.RefreshPlaneNormals;
+    end;
+  finally TA.Free; Originals.Free; end;
+end;
+
+function CadBooleanBlendSequence(A: TCadMesh; const Tools: TCadBoolOperands;
+  out AError: string): TCadMesh;
+var
+  Mode, K, I: Integer;
+  Err: string;
+begin
+  Result := nil; AError := '';
+  if (A = nil) or not A.CheckClosed(AError) then
+  begin AError := 'Corpo inválido na sequência de filetes: ' + AError; Exit; end;
+  for I := 0 to High(Tools) do
+    if (Tools[I].Mesh = nil) or not Tools[I].Mesh.CheckClosed(AError) or
+      not (Tools[I].Op in [boUnion, boDifference]) then
+    begin AError := 'Ferramenta inválida na sequência de filetes: ' + AError; Exit; end;
+  if Length(Tools) = 0 then begin Result := A.Clone; Exit; end;
+  for Mode := 0 to 1 do
+    for K := 0 to 1 do
+    begin
+      Result := BlendSequenceAttempt(A, Tools, K, Mode = 1, Err);
+      if Result <> nil then begin AError := ''; Exit; end;
+      if AError = '' then AError := Err;
+    end;
 end;
 
 { ---------- componentes ---------- }

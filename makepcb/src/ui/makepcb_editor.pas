@@ -92,6 +92,7 @@ type
     function DoMouseWheel(Shift: TShiftState; WheelDelta: Integer; MousePos: TPoint): Boolean; override;
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
   public
+    PlaceOnActiveLayer: Boolean; { opt-in para editores que escolhem a face pela barra }
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     procedure ZoomToBoard;
@@ -258,7 +259,8 @@ begin
   FGhost.Footprint := FPlaceFP;
   FGhost.Rotation := Rot;
   { SMD em face simples vai do lado do cobre (embaixo, espelhado) }
-  FGhost.Flipped := FPlaceFP.HasSMD and (FDoc <> nil) and not FDoc.DoubleSided;
+  if PlaceOnActiveLayer then FGhost.Flipped:=FPlaceFP.HasSMD and (FActiveLayer=mlBottomCopper)
+  else FGhost.Flipped := FPlaceFP.HasSMD and (FDoc <> nil) and not FDoc.DoubleSided;
   FGhost.X := FMouse.X; FGhost.Y := FMouse.Y;
 end;
 

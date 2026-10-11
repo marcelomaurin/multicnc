@@ -125,7 +125,7 @@ begin
       begin
         Op := FProject.Operation(J);
         if Op.Generated then Any := True;
-        if Op.Show and Op.Generated then
+        if Op.Show and Op.Generated and FProject.OperationOnActiveCopper(Op) then
         begin
           Canvas.Pen.Width := 1;
           DrawPaths(Layout.Item(I),Op.PathsFor(I),LayerColor(Op.ColorIndex));
