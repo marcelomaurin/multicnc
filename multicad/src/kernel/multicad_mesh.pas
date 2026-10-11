@@ -81,6 +81,8 @@ type
     procedure Append(Other: TCadMesh);
     procedure Transform(const M: TCadMat4);
     procedure Flip;
+    { Renomeia uma face (padroes: "PadrãoL1/2/Corte-Extrusão1/fim"). }
+    procedure SetFaceName(I: Integer; const AName: string);
     { Recalcula normal (e ponto) das faces planas pelos triangulos. }
     procedure RefreshPlaneNormals;
 
@@ -325,6 +327,11 @@ begin
   FGrid.Clear;
   for I := 0 to FVertCount - 1 do
     GridInsert(I);
+end;
+
+procedure TCadMesh.SetFaceName(I: Integer; const AName: string);
+begin
+  FFaces[I].Name := AName;
 end;
 
 procedure TCadMesh.Flip;
