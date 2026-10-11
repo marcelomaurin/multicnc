@@ -27,7 +27,7 @@ uses
   multicad_document, multicad_refgeom, multicad_sketch, multicad_solver,
   multicad_profile, multicad_extrude, multicad_revolve, multicad_mesh,
   multicad_sweep, multicad_csg, multicad_bridge, multicad_triangulate,
-  multicad_hole, multicad_pattern;
+  multicad_hole, multicad_pattern, multicad_blend, multicad_blendgeom;
 
 type
   TCadBody = class
@@ -80,6 +80,8 @@ type
     procedure BuildRevolve(R: TCadRevolve);
     procedure BuildHole(H: TCadHole);
     procedure BuildPattern(P: TCadPatternBase);
+    procedure BuildBlend(F: TCadBlendBase);
+    procedure BuildShell(S: TCadShell);
     procedure StoreTool(F: TCadFeature; Tool: TCadMesh; IsCut, Merge, FlipSide: Boolean);
     function ResolveDir(const ARef: string; out D: TCadVec3; out AError: string): Boolean;
     function ResolveAxis(const ARef: string; out A, U: TCadVec3; out AError: string): Boolean;
@@ -1997,6 +1999,275 @@ begin
     X.Dir2.Depth := V;
 end;
 
+{ ---------- filete, chanfro e casca (fase 6) ---------- }
+
+function BodyIndexOfFace(L: TFPObjectList; const AName: string; out AFace: Integer): Integer;
+var
+  I: Integer;
+begin
+  for I := 0 to L.Count - 1 do
+  begin
+    AFace := TCadBody(L[I]).Mesh.FaceIndex(AName);
+    if AFace >= 0 then
+      Exit(I);
+  end;
+  AFace := -1;
+  Result := -1;
+end;
+
+procedure TCadRebuilder.BuildBlend(F: TCadBlendBase);
+type
+  TPair = record
+    Body, FA, FB: Integer;
+  end;
+var
+  Pairs: array of TPair;
+  I, J, K, Bi, Bj, FA, FB, Done, Skipped: Integer;
+  A, B, Err, FirstErr: string;
+  Nb: TCadIdArray;
+  M, Cur, R, Tool: TCadMesh;
+  Chains: TCadEdgeChains;
+  P: TCadBlendParams;
+  IsCut, Dup: Boolean;
+  Tools: TFPObjectList;
+  Cuts: array of Boolean;
+  V0: Double;
+
+  procedure AddPair(ABody, X, Y: Integer);
+  var
+    Q: Integer;
+  begin
+    for Q := 0 to High(Pairs) do
+      if (Pairs[Q].Body = ABody) and (((Pairs[Q].FA = X) and (Pairs[Q].FB = Y)) or
+        ((Pairs[Q].FA = Y) and (Pairs[Q].FB = X))) then
+        Exit;
+    SetLength(Pairs, Length(Pairs) + 1);
+    Pairs[High(Pairs)].Body := ABody;
+    Pairs[High(Pairs)].FA := X;
+    Pairs[High(Pairs)].FB := Y;
+  end;
+
+begin
+  if FBodies.Count = 0 then
+  begin
+    F.SetState(fsError, CAD_FEATURE_NAMES[F.Kind] + ' sem corpo: crie um ressalto antes');
+    Exit;
+  end;
+  P := Default(TCadBlendParams);
+  P.ChordTol := FChord;
+  if F is TCadFillet3D then
+  begin
+    P.Kind := bkFillet;
+    P.Radius := TCadFillet3D(F).Radius;
+  end
+  else
+  begin
+    P.Kind := bkChamfer;
+    TCadChamfer3D(F).Distances(P.D1, P.D2);
+  end;
+  Pairs := nil;
+  FirstErr := '';
+  Skipped := 0;
+  for I := 0 to High(F.Edges) do
+    if CadParseEdgeRef(F.Edges[I], A, B) then
+    begin
+      Bi := BodyIndexOfFace(FBodies, A, FA);
+      Bj := BodyIndexOfFace(FBodies, B, FB);
+      if (Bi < 0) or (Bi <> Bj) then
+      begin
+        Inc(Skipped);
+        if FirstErr = '' then FirstErr := 'aresta não encontrada: ' + A + ' | ' + B;
+        Continue;
+      end;
+      AddPair(Bi, FA, FB);
+    end
+    else if Copy(F.Edges[I], 1, 5) = 'face:' then
+    begin
+      Bi := BodyIndexOfFace(FBodies, Copy(F.Edges[I], 6, MaxInt), FA);
+      if Bi < 0 then
+      begin
+        Inc(Skipped);
+        if FirstErr = '' then FirstErr := 'face não encontrada: ' + Copy(F.Edges[I], 6, MaxInt);
+        Continue;
+      end;
+      M := Body(Bi).Mesh;
+      Nb := CadFaceNeighbors(M, FA);
+      for K := 0 to High(Nb) do
+        { costura entre faces coplanares nao e aresta }
+        if not ((M.Faces[FA].Surf = skPlane) and (M.Faces[Nb[K]].Surf = skPlane) and
+          (VDot(M.Faces[FA].Axis, M.Faces[Nb[K]].Axis) > 0.99999)) then
+          AddPair(Bi, FA, Nb[K]);
+    end;
+  if Length(Pairs) = 0 then
+  begin
+    F.SetState(fsError, 'Nenhuma aresta válida (' + FirstErr + ')');
+    Exit;
+  end;
+  Done := 0;
+  for Bi := 0 to FBodies.Count - 1 do
+  begin
+    Dup := False;
+    for I := 0 to High(Pairs) do
+      if Pairs[I].Body = Bi then
+        Dup := True;
+    if not Dup then
+      Continue;
+    M := Body(Bi).Mesh;
+    V0 := M.Volume;
+    Tools := TFPObjectList.Create(True);
+    Cuts := nil;
+    try
+      { ferramentas calculadas no solido original }
+      for I := 0 to High(Pairs) do
+      begin
+        if Pairs[I].Body <> Bi then
+          Continue;
+        Chains := CadEdgeChains(M, Pairs[I].FA, Pairs[I].FB);
+        for J := 0 to High(Chains) do
+        begin
+          Tool := CadBlendTool(M, Pairs[I].FA, Pairs[I].FB, Chains[J], P,
+            F.Name + '/' + IntToStr(Tools.Count + 1), IsCut, Err);
+          if Tool = nil then
+          begin
+            Inc(Skipped);
+            if FirstErr = '' then
+              FirstErr := M.Faces[Pairs[I].FA].Name + ' | ' + M.Faces[Pairs[I].FB].Name + ': ' + Err;
+            Continue;
+          end;
+          Tools.Add(Tool);
+          SetLength(Cuts, Length(Cuts) + 1);
+          Cuts[High(Cuts)] := IsCut;
+        end;
+      end;
+      Cur := M.Clone;
+      { cortes (arestas convexas) antes das unioes (concavas): a booleana
+        fica mais estavel nessa ordem }
+      for K := 0 to 1 do
+      for I := 0 to Tools.Count - 1 do
+      begin
+        if Cuts[I] <> (K = 0) then
+          Continue;
+        if Cuts[I] then
+          R := CadBooleanBlend(Cur, TCadMesh(Tools[I]), boDifference, Err)
+        else
+          R := CadBooleanBlend(Cur, TCadMesh(Tools[I]), boUnion, Err);
+        if R = nil then
+        begin
+          Cur.Free;
+          F.SetState(fsError, 'Falha na booleana do ' + LowerCase(CAD_FEATURE_NAMES[F.Kind]) +
+            ': ' + Err + ' (tente um valor menor)');
+          Exit;
+        end;
+        Cur.Free;
+        Cur := R;
+        Inc(Done);
+      end;
+      if Abs(Cur.Volume - V0) < 1E-9 * Max(1, V0) then;
+      Body(Bi).Mesh.Free;
+      Body(Bi).Mesh := Cur;
+    finally
+      Tools.Free;
+    end;
+  end;
+  if Done = 0 then
+    F.SetState(fsError, 'Nenhuma aresta aplicada (' + FirstErr + ')')
+  else if Skipped > 0 then
+    F.SetState(fsWarning, Format('%d aresta(s) ignorada(s): %s', [Skipped, FirstErr]))
+  else
+    F.SetState(fsOk, '');
+end;
+
+procedure TCadRebuilder.BuildShell(S: TCadShell);
+var
+  I, K, Fi, Done: Integer;
+  Targets: array of Boolean;
+  Removed: array of Boolean;
+  M, Outer, Inner, R: TCadMesh;
+  Err, FName: string;
+  Any: Boolean;
+begin
+  if FBodies.Count = 0 then
+  begin
+    S.SetState(fsError, 'Casca sem corpo: crie um ressalto antes');
+    Exit;
+  end;
+  SetLength(Targets, FBodies.Count);
+  Any := False;
+  for I := 0 to High(S.Faces) do
+  begin
+    FName := S.Faces[I];
+    if Copy(FName, 1, 5) = 'face:' then
+      FName := Copy(FName, 6, MaxInt);
+    K := BodyIndexOfFace(FBodies, FName, Fi);
+    if K < 0 then
+    begin
+      S.SetState(fsError, 'Face não encontrada: ' + FName);
+      Exit;
+    end;
+    Targets[K] := True;
+    Any := True;
+  end;
+  if not Any then
+    for I := 0 to High(Targets) do
+      Targets[I] := True;
+  Done := 0;
+  for I := 0 to FBodies.Count - 1 do
+  begin
+    if not Targets[I] then
+      Continue;
+    M := Body(I).Mesh;
+    SetLength(Removed, M.FaceCount);
+    for K := 0 to High(Removed) do
+      Removed[K] := False;
+    for K := 0 to High(S.Faces) do
+    begin
+      FName := S.Faces[K];
+      if Copy(FName, 1, 5) = 'face:' then
+        FName := Copy(FName, 6, MaxInt);
+      Fi := M.FaceIndex(FName);
+      if Fi >= 0 then
+        Removed[Fi] := True;
+    end;
+    if S.Outward then
+    begin
+      Outer := CadOffsetMesh(M, S.Thickness, 0, Removed, Err);
+      Inner := CadOffsetMesh(M, 0, S.Thickness, Removed, Err);
+    end
+    else
+    begin
+      Outer := M.Clone;
+      Inner := CadOffsetMesh(M, -S.Thickness, S.Thickness, Removed, Err);
+    end;
+    try
+      for K := 0 to Inner.FaceCount - 1 do
+        Inner.SetFaceName(K, S.Name + '/' + Inner.Faces[K].Name);
+      if (Inner.Volume <= 0) or (Inner.Volume >= Outer.Volume) or not Inner.CheckClosed(Err) then
+      begin
+        S.SetState(fsError, 'Espessura grande demais para esta peça');
+        Exit;
+      end;
+      R := CadBoolean(Outer, Inner, boDifference, Err);
+      if R = nil then
+      begin
+        S.SetState(fsError, 'Falha na casca: ' + Err + ' (tente uma espessura menor)');
+        Exit;
+      end;
+      Body(I).Mesh.Free;
+      Body(I).Mesh := R;
+      Inc(Done);
+    finally
+      Outer.Free;
+      Inner.Free;
+    end;
+  end;
+  if Done = 0 then
+    S.SetState(fsError, 'Nenhum corpo para a casca')
+  else
+    S.SetState(fsOk, '');
+end;
+
+{ ---------- reconstrucao ---------- }
+
 function TCadRebuilder.Rebuild: Integer;
 var
   I, Last, J: Integer;
@@ -2068,6 +2339,10 @@ begin
       BuildHole(TCadHole(F))
     else if F is TCadPatternBase then
       BuildPattern(TCadPatternBase(F))
+    else if F is TCadBlendBase then
+      BuildBlend(TCadBlendBase(F))
+    else if F is TCadShell then
+      BuildShell(TCadShell(F))
     else if F.Kind = cfOrigin then
       F.SetState(fsOk, '')
     else
