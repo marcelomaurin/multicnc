@@ -196,6 +196,10 @@ begin
       Shot(F, '05a_esboco_cotas_filete');
       F.ExitSketchMode;
       Pump;
+      { regressao: ao sair do esboco ele deve permanecer como selecao da
+        proxima operacao (ressalto/corte), sem exigir clicar no contorno. }
+      Check(F.View3D.Selected.IndexOf('sketch:' + IntToStr(S.Id)) >= 0,
+        'ultimo esboco fica selecionado para a proxima operacao');
       Errs := 0;
       for I := 0 to F.Document.Count - 1 do
         if F.Document.Feature(I).State = fsError then
