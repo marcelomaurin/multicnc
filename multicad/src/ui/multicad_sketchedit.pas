@@ -43,6 +43,8 @@ type
     FDragMoved: Boolean;
     FGrid: Boolean;
     FInput: TEdit;
+    FLineLengthLocked: Boolean;
+    FLineLength: Double;
     FOnChanged: TNotifyEvent;
     FOnStatus: TNotifyEvent;
     function ToLocal(X, Y: Integer; out P: TCadVec2): Boolean;
@@ -149,6 +151,8 @@ begin
   FSketch := ASketch;
   FDragDim := -1;
   FGrid := True;
+  FLineLengthLocked := False;
+  FLineLength := 0;
   if not ARB.SketchFrame(ASketch, FFrame, Err) then
     FFrame := StdFrame(spFrontal);
   FSession := TCadSketchSession.Create(ADoc, ASketch);
@@ -264,6 +268,8 @@ end;
 procedure TCadSketchEditor.SetTool(T: TCadSketchToolKind);
 begin
   HideInput;
+  FLineLengthLocked := False;
+  FLineLength := 0;
   FSession.Tool := T;
   Changed;
 end;
@@ -273,7 +279,11 @@ begin
   if Typing then
     HideInput
   else if FSession.ClickCount > 0 then
-    FSession.Cancel
+  begin
+    FLineLengthLocked := False;
+    FLineLength := 0;
+    FSession.Cancel;
+  end
   else
     FSession.Tool := tkSelect;
   Changed;
@@ -391,7 +401,10 @@ begin
     Exit;
   FInput.Left := EnsureRange(FMouseX + 18, 0, Max(0, FView.ClientWidth - FInput.Width));
   FInput.Top := EnsureRange(FMouseY + 18, 0, Max(0, FView.ClientHeight - 28));
-  FInput.Hint := FSession.TypeHint;
+  if FLineLengthLocked and (FSession.Tool in [tkLine, tkCenterline]) then
+    FInput.Hint := 'Ângulo em graus; comprimento travado em ' + Fmm(FLineLength) + ' mm'
+  else
+    FInput.Hint := FSession.TypeHint;
   FInput.ShowHint := True;
   FInput.Text := AFirst;
   FInput.Visible := True;
@@ -411,13 +424,60 @@ begin
 end;
 
 procedure TCadSketchEditor.InputKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+var
+  V: Double;
+  Err, T: string;
 begin
   case Key of
+    VK_TAB:
+      begin
+        { Na linha, Tab alterna para o ângulo sem criar a entidade. }
+        if FSession.Tool in [tkLine, tkCenterline] then
+        begin
+          Key := 0;
+          if not FLineLengthLocked then
+          begin
+            T := StringReplace(LowerCase(Trim(FInput.Text)), 'mm', '', [rfReplaceAll]);
+            if FDoc.Eval(T, V, Err) and (V > 0) then
+            begin
+              FLineLength := V;
+              FLineLengthLocked := True;
+              FInput.Text := '';
+              FInput.Hint := 'Ângulo em graus; comprimento travado em ' + Fmm(V) + ' mm';
+              FInput.Color := clWindow;
+            end
+            else
+              FInput.Color := $00C8C8FF;
+          end;
+        end;
+      end;
     VK_RETURN:
       begin
         Key := 0;
-        if FSession.ApplyTyped(FInput.Text) then
-          HideInput
+        { Primeiro Enter trava apenas o comprimento. O mouse continua livre
+          para escolher o ângulo; um segundo valor define o ângulo. }
+        if (FSession.Tool in [tkLine, tkCenterline]) and not FLineLengthLocked then
+        begin
+          T := StringReplace(LowerCase(Trim(FInput.Text)), 'mm', '', [rfReplaceAll]);
+          if (Pos('<', T) = 0) and FDoc.Eval(T, V, Err) and (V > 0) then
+          begin
+            FLineLength := V;
+            FLineLengthLocked := True;
+            HideInput;
+            Changed;
+            Exit;
+          end;
+        end;
+        if FLineLengthLocked and (FSession.Tool in [tkLine, tkCenterline]) then
+          T := Fmm(FLineLength) + '<' + Trim(FInput.Text)
+        else
+          T := FInput.Text;
+        if FSession.ApplyTyped(T) then
+        begin
+          FLineLengthLocked := False;
+          FLineLength := 0;
+          HideInput;
+        end
         else
           FInput.Color := $00C8C8FF;
         Changed;
@@ -425,6 +485,8 @@ begin
     VK_ESCAPE:
       begin
         Key := 0;
+        FLineLengthLocked := False;
+        FLineLength := 0;
         HideInput;
         FView.Invalidate;
       end;
@@ -545,6 +607,8 @@ procedure TCadSketchEditor.ViewMove(Sender: TObject; Shift: TShiftState; X, Y: I
   var Handled: Boolean);
 var
   P: TCadVec2;
+  S0: TCadSnap;
+  DX, DY, L: Double;
 begin
   Handled := True;
   FMouseIn := True;
@@ -553,6 +617,20 @@ begin
   UpdateTol;
   if not ToLocal(X, Y, P) then
     Exit;
+  { Comprimento digitado: a ponta acompanha somente a direção do mouse. }
+  if FLineLengthLocked and (FSession.Tool in [tkLine, tkCenterline]) and
+    (FSession.ClickCount = 1) then
+  begin
+    S0 := FSession.ClickAt(0);
+    DX := P.X - S0.P.X;
+    DY := P.Y - S0.P.Y;
+    L := Sqrt(DX * DX + DY * DY);
+    if L > 1E-9 then
+      P := V2(S0.P.X + DX / L * FLineLength,
+              S0.P.Y + DY / L * FLineLength)
+    else
+      P := V2(S0.P.X + FLineLength, S0.P.Y);
+  end;
   if (FDragDim >= 0) and (ssLeft in Shift) then
   begin
     if (Abs(X - FDragX) > 3) or (Abs(Y - FDragY) > 3) then
