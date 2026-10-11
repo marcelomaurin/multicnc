@@ -2,6 +2,12 @@
 
 **Idiomas:** Português · [English](README_EN.md) · [Español](README_ES.md) · [Français](README_FR.md) · [Deutsch](README_DE.md) · [Русский](README_RU.md) · [中文](README_ZH.md) · [العربية](README_AR.md) · [हिन्दी](README_HI.md)
 
+## Download Windows — setup 007
+
+[Baixar setup_multcnc_007.exe](setup/setup_multcnc_007.exe) · [Notas da versão 0.07](docs/SETUP_007.md) · [Instalação e compilação](installer/windows/README.md)
+
+O pacote Windows x64 inclui 13 aplicativos, os perfis de laser do MultiCNC, a configuração de Mesa compartilhada entre LaserArt/LaserPCB e a biblioteca de componentes do MakePCB disponível no LaserPCB. A bandeja `multisuite_tray.exe` abre as ferramentas instaladas e pode iniciar com o Windows. O setup apresenta capturas dos projetos durante a instalação.
+
 ## Uma plataforma integrada para projetar, simular e fabricar
 
 O **MultiCNC** é uma suíte aberta de fabricação digital criada para aproximar, em um único ecossistema, as etapas de **projeto, preparação, simulação e operação de máquinas**.
@@ -33,7 +39,7 @@ FABRICAÇÃO
 | Aplicação | Visão |
 |---|---|
 | **MultiCNC** | Operação e controle das máquinas |
-| **MultiSuite** | Ponto de entrada para toda a suíte |
+| **MultiSuite Bandeja** | Atalhos para abrir os aplicativos instalados |
 | **MultiCAD** | Projeto e preparação geométrica |
 | **MultiCAM** | Preparação de trajetórias e fabricação |
 | **MakeRouter** | Projeto e usinagem de madeira na CNC Router |
@@ -73,7 +79,7 @@ O MultiCNC é **open source** e está em desenvolvimento contínuo. Os módulos 
 | Aplicação / módulo | O que faz | Use quando quiser |
 |---|---|---|
 | **MultiCNC** | Análise de G-code, prévia e envio simulado; núcleo de protocolos e transportes | Inspecionar trabalhos e testar o envio antes da integração com hardware |
-| **MultiSuite** | Projetos globais, arquivos, workflow manual e launcher | Criar, salvar, reabrir e organizar um projeto, escolhendo a ferramenta de cada arquivo |
+| **MultiSuite Bandeja** | Menu de atalhos ao lado do relógio | Abrir os aplicativos instalados a partir de `multisuite_tray.exe` |
 | **MultiPhysics** | Simulação física multidomínio | Estudar eletricidade, eletrônica, mecânica, térmica, magnetismo, materiais, sensores, motores, energia e falhas |
 | **Ferramentas de projeto mecânico** | Projeto e preparação de peças e conjuntos | Trabalhar com geometria, peças mecânicas, montagem e preparação para CNC Router |
 | **Ferramentas de PCB/eletrônica** | Projeto de circuitos e placas | Trabalhar com esquemas, componentes, conexões e PCB |
@@ -83,22 +89,20 @@ O MultiCNC é **open source** e está em desenvolvimento contínuo. Os módulos 
 | **MakeRouter** | Projeto e usinagem de madeira, no estilo do Aspire | Desenhar a peça, fazer relevo, percursos (perfil, bolsão, furação, V-Carve, 3D), simular e mandar ao MultiCNC |
 | **Ferramentas CNC Router/CAM** | Preparação de usinagem mecânica | Preparar operações, trajetórias e trabalhos para Router |
 | **Montagem eletromecânica** | Visualização conjunta de mecânica e eletrônica | Ver componentes mecânicos, placas, sensores, motores e conexões no mesmo projeto |
-| **Central de Testes** | Executa os testes de console incluídos no pacote | Verificar os núcleos instalados e salvar um relatório por usuário |
 
-MultiCNC analisa G-code e simula o envio; MultiPhysics simula o comportamento físico; as ferramentas de projeto criam e preparam o projeto; MultiSuite organiza os arquivos e abre as aplicações.
+MultiCNC analisa G-code e simula o envio; MultiPhysics simula o comportamento físico; as ferramentas de projeto criam e preparam o projeto; MultiSuite Bandeja abre os aplicativos instalados.
 
 ## Funcionalidades disponíveis nas interfaces
 
 | Aplicação | Fluxo implementado |
 |---|---|
-| MultiSuite | Novo/abrir/salvar/salvar como `.msuite`, recentes, adicionar/remover arquivos e selecionar a ferramenta responsável; MultiPhysics permanece registrado. Etapas do workflow são atualizadas manualmente. |
-| MultiCNC | Abre `--file`, diálogo ou arquivo arrastado; preserva comentários, calcula a trajetória no analisador existente, apresenta vistas XY/XZ/YZ, limites editáveis, avisos e relatório exportável. Erros bloqueiam o início da simulação. |
+| MultiSuite Bandeja | Painel de atalhos com a aparência restaurada, busca e aplicativos existentes em `bin`; menu de contexto com Abrir painel e Sair. |
+| MultiCNC | Conexão serial, equipamentos salvos por nome, detecção da versão GRBL, prévia do G-code, execução com controle de fluxo e Frame para laser. |
+| LaserPCB | Placas Top/Bottom/N camadas, Mesa com equipamentos salvos, componentes compartilhados, tratamentos laser por camada e G-code. |
+| LaserArt | Desenhos, textos, vetores, imagens e camadas para laser; Mesa com equipamentos salvos no MultiCNC. |
 | MultiSlicer | Importa STL, configura camadas, paredes, infill, mesa, bico, velocidade, temperaturas e Marlin/Klipper; mostra percursos por camada. Prévia e exportação usam o mesmo pipeline e alterações invalidam o resultado anterior. |
-| Central de Testes | Procura testes na instalação ou árvore de desenvolvimento; executa em pastas temporárias, captura stdout/stderr e códigos de saída e grava relatórios em uma pasta gravável do usuário. |
 
-Os recursos de protocolo, streaming e TCP estão no núcleo. A GUI MultiCNC ainda usa o simulador; não anuncia conexão física nem telemetria como disponíveis na tela. O analisador assume a origem de trabalho X0 Y0 Z0 e sinaliza operações que tornam a análise parcial. Veja [o painel](src/app/README.md) e [o fluxo integrado](docs/FLUXOS_IMPLEMENTADOS.md).
-
-Os arquivos de `releases/0.1.0` são históricos e anteriores aos commits `960dbafd`/`67682e1a` do painel. Os novos pipelines geram **0.1.1-dev** como artefatos do Actions, com `build-manifest.json`, `qa-tests.json` e `SHA256SUMS`. A existência de um workflow não comprova aprovação: confira o run e o commit de origem do artefato antes de publicar uma release.
+O MultiCNC concentra a conexão e a execução física. LaserArt e LaserPCB preparam os trabalhos e os enviam ao MultiCNC; o botão Mesa dos dois programas utiliza os equipamentos laser salvos em `multicnc.json`. Veja [perfis e fontes](docs/LASER_PROFILES.md), [Frame](docs/OUTLINE.md), [LaserPCB](laserpcb/README.md) e [LaserArt](laserart/README.md).
 
 ## Motores da modernização de 2026
 
@@ -124,7 +128,7 @@ bash tests/run_all.sh            # todos os módulos
 bash tests/run_all.sh multicam   # um módulo
 ```
 
-O script descobre os testes de console, compila com `fpc` e executa cada um. Os executáveis ficam ao lado de cada `.lpr`, onde a Central de Testes os encontra. O workflow **Suite CI** roda os testes, compila todos os `.lpi` e executa testes das interfaces MultiCNC, MultiSuite e MultiSlicer com Xvfb. Relatórios estruturados registram cada resultado; compilar sem executar é registrado como `not-run`.
+O script descobre os testes de console, compila com `fpc` e executa cada um. Os executáveis de teste ficam ao lado de cada `.lpr`. A interface da Central de Testes não é distribuída no setup 007. O workflow **Suite CI** roda os testes, compila todos os `.lpi` e executa testes das interfaces MultiCNC, MultiSuite e MultiSlicer com Xvfb. Relatórios estruturados registram cada resultado; compilar sem executar é registrado como `not-run`.
 
 ```bash
 python3 tools/verify_suite.py gui --run  # Lazarus/GTK2, Xvfb e xauth
@@ -210,15 +214,11 @@ pinagem, configuração, diagnóstico e a alternativa com com0com no Windows 11.
 
 ---
 
-## 2. MultiSuite — gestor unificado
+## 2. MultiSuite Bandeja — acesso às ferramentas
 
-O **MultiSuite** é o ponto central para reunir as aplicações do projeto.
+O `multisuite_tray.exe` mantém os atalhos ao lado do relógio, com a aparência restaurada da bandeja. Clique no ícone, procure o aplicativo e abra sua ferramenta. A lista considera os executáveis instalados e inclui MultiCAD, LaserPCB, LaserArt e SimuCNC.
 
-Sua função é facilitar o acesso às ferramentas sem obrigar o usuário a conhecer a estrutura interna do repositório ou procurar cada executável manualmente.
-
-A proposta é permitir selecionar o tipo de trabalho e abrir a ferramenta apropriada: controle CNC, projeto mecânico, PCB, Laser, Router, montagem, simulação ou testes.
-
-Use o **MultiSuite** quando quiser **entrar na suíte por uma única aplicação e escolher o que deseja fazer**.
+O menu de contexto oferece **Abrir painel** e **Sair**. A inicialização com o Windows é uma opção marcada por padrão no instalador. O pacote Windows não inclui `multisuite.exe`, Central de Testes ou MultiPCB; o projeto de placas continua no MakePCB.
 
 ---
 
@@ -320,6 +320,16 @@ MakePCB (esquema + placa) --Gerber + Excellon--> LaserPCB  (isolação a laser) 
 
 Detalhes em [makepcb/README.md](makepcb/README.md).
 
+### LaserPCB — montar formas e preparar PCB para laser
+
+Crie uma placa em mm com cobre Top, Bottom, Top/Bottom ou N camadas. No botão **Componentes**, use a mesma biblioteca e o mesmo criador do MakePCB para montar pads, contornos e furos, importar bibliotecas JSON e abrir/salvar conjuntos `.mpcb`. O LaserPCB aproveita as formas; esquema, redes e roteamento permanecem no MakePCB.
+
+Cada camada escolhe tratamento de tinta/verniz, remoção direta de cobre ou marcação, com potência em percentual ou watts nominais, velocidade e passadas. A tabela de referências mantém as fontes e distingue dados fornecidos de parâmetros ausentes. O botão **Mesa** utiliza a mesma janela do LaserArt para escolher um laser salvo no MultiCNC e aplicar sua área X/Y.
+
+![LaserPCB: placa, cobre, trajetórias e parâmetros por camada](imgs/Laserpcb01.png)
+
+[Guia completo e galeria do LaserPCB](laserpcb/README.md) · [Referências de potência laser](laserpcb/docs/REFERENCIAS_LASER.md)
+
 ### RouterPCB — fresar a placa na CNC Router
 
 O **RouterPCB** (`routerpcb/`) é a ponte entre o MakePCB e o MultiCNC no modo **CNC Router**,
@@ -335,7 +345,7 @@ do MakePCB e gera os programas na ordem de execução:
 
 O G-code é GRBL puro, com cabeçalho `; RouterPCB -> MultiCNC (CNC Router)`, e reaproveita os
 importadores e o CAM raster do LaserPCB. No MakePCB, "Abrir no RouterPCB" já leva a pasta
-exportada; o RouterPCB fica no grupo **Preparar** do MultiSuite e da bandeja e entra no
+exportada; o RouterPCB pode ser aberto pela bandeja e entra no
 instalador a partir da versão 0.03 (`bin/routerpcb.exe`, `bin/setup_multcnc_003.exe`).
 
 | | |
@@ -347,13 +357,15 @@ Uso e detalhes em [routerpcb/README.md](routerpcb/README.md); andamento em
 
 ---
 
-## 6. Ferramentas Laser
+## 6. LaserArt — desenhos e gravação
 
-As ferramentas Laser são destinadas à preparação de trabalhos para **corte e gravação a laser**.
+O LaserArt cria e prepara logos, textos, vetores e imagens para gravação e corte. A edição usa camadas com potência, velocidade e passadas; a prévia e o G-code são preparados antes de abrir o trabalho no MultiCNC.
 
-O objetivo inclui trabalhar com desenhos, imagens, logos e arte, preparando o conteúdo para posterior geração e execução do trabalho na máquina.
+No botão **Mesa**, selecione um laser salvo no MultiCNC, inclusive CUSTOM: as dimensões X/Y passam a definir a mesa do desenho. O ajuste manual continua disponível.
 
-Use essa área quando quiser **criar ou preparar um trabalho para Laser CNC**.
+![LaserArt: composição vetorial de exemplo e cortes por camada](imgs/Laserart01.png)
+
+[Guia e galeria do LaserArt](laserart/README.md) · [Todas as novas capturas](imgs/README.md)
 
 ---
 
@@ -410,7 +422,7 @@ Use essa ferramenta quando quiser **visualizar como todo o equipamento será mon
 
 ---
 
-## 9. Central de Testes
+## 9. Testes de desenvolvimento
 
 A suíte possui programas e rotinas de teste destinados principalmente ao desenvolvimento.
 
@@ -428,7 +440,7 @@ Eles verificam módulos como:
 - curto-circuito e outras falhas;
 - integração entre subsistemas.
 
-Use a **Central de Testes** quando estiver desenvolvendo o projeto, procurando regressões ou verificando se uma alteração quebrou outra funcionalidade.
+Execute `python tools/verify_suite.py console` para verificar os núcleos. Os testes de interface usam os projetos `.lpi` específicos. O setup 007 inclui o relatório `qa-tests.json`; a Central de Testes permanece apenas nos fontes de desenvolvimento.
 
 ---
 
@@ -502,7 +514,7 @@ Por isso, consulte também a documentação específica de cada módulo antes de
 
 ## Instalador Windows
 
-A suíte possui empacotamento Inno Setup em `installer/windows`.
+A suíte possui empacotamento Inno Setup em `installer/windows`. O pacote atual é [setup 007 / versão 0.07](docs/SETUP_007.md), disponível em `setup` e `bin`, com capturas de LaserPCB e LaserArt incorporadas ao instalador.
 
 O script `build_release.bat` compila as ferramentas e executa os testes de console antes de gerar o instalador. **Windows Installer** publica o executável e seus metadados como artefatos. **Linux Packages** gera DEB/tar para amd64 e arm64 em runners nativos e armhf em userspace ARMv7 emulado. Emulação não comprova operação em uma placa ARM física. Consulte `SHA256SUMS`, o commit e os resultados dentro de cada pacote.
 
@@ -510,4 +522,4 @@ O script `build_release.bat` compila as ferramentas e executa os testes de conso
 
 ## Em uma frase
 
-**MultiCNC controla. MultiPhysics simula. As ferramentas de projeto criam e preparam. A montagem une os sistemas. MultiSuite organiza tudo. A Central de Testes valida o desenvolvimento.**
+**MultiCNC controla. MultiPhysics simula. As ferramentas de projeto criam e preparam. A montagem une os sistemas. A bandeja abre as ferramentas. Os testes verificam o desenvolvimento.**

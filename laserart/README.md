@@ -4,6 +4,14 @@ Editor de arte para laser da suite MultiCNC: logos, textos, vetores e imagens
 para gravacao e corte. O fluxo segue o LightBurn (area de trabalho,
 ferramentas, paleta de camadas, Cuts/Layers) e a tabela de camadas do RDWorks.
 
+## Capturas da interface
+
+![Composição vetorial de exemplo na mesa de 130 × 130 mm](../imgs/Laserart01.png)
+
+![Texto selecionado e edição dos parâmetros da camada](../imgs/Laserart02.png)
+
+![Mesa: equipamento laser salvo no MultiCNC](../imgs/Laserart03.png)
+
 ## Responsabilidades
 - importar SVG (camada por cor) e imagens (BMP/PNG/JPG)
 - criar texto (qualquer fonte), retangulo, elipse, poligono e linha

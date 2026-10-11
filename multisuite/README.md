@@ -1,97 +1,46 @@
-# MultiSuite
+# MultiSuite Bandeja
 
-Gestor visual e ponto de entrada da suite MultiCNC.
+O executável distribuído no Windows é **multisuite_tray.exe**: atalhos para abrir as aplicações instaladas ao lado do relógio, com o padrão visual restaurado da bandeja.
 
-## Missao
+## Usar a bandeja
 
-O **MultiSuite** organiza o ecossistema MultiCNC por objetivo do usuario. Ele nao substitui as ferramentas especializadas: apresenta o fluxo de trabalho, mantem o contexto do projeto e abre a aplicacao adequada para cada etapa.
+Clique no ícone para abrir o painel de aplicativos. A busca filtra as ferramentas; selecione um aplicativo para iniciá-lo. Setas navegam, Enter abre o resultado e Esc fecha o painel. O painel também fecha quando perde o foco.
 
-A ideia central da interface e simples:
+O menu de contexto oferece **Abrir painel** e **Sair**. Não contém abertura de um aplicativo MultiSuite separado, Central de Testes ou configurações de inicialização. A opção de iniciar com o Windows fica no instalador.
 
-```text
-IDEIA -> PROJETO -> SIMULACAO -> PREPARACAO -> VALIDACAO -> FABRICACAO
-```
+`--tray` inicia apenas na área de notificação; `--show` solicita a abertura do painel. O processo permanece em segundo plano enquanto a bandeja estiver ativa. Use **Sair** para encerrá-lo.
 
-## Nova interface com menu lateral
+## Aplicativos
 
-A tela principal foi reorganizada como um hub visual. O menu lateral permanece disponivel durante toda a navegacao e separa as funcoes por finalidade:
+A lista utiliza o registro e os executáveis disponíveis. O setup 007 inclui:
 
-- **Visao geral:** apresenta a proposta da suite, fluxo de fabricacao e atalhos.
-- **Projeto atual:** mostra artefatos e o estado das etapas do workspace.
-- **Projetar:** MultiCAD, MakePCB, MakeRouter, LaserPCB e LaserArt.
-- **Preparar:** MultiCAM, RouterPCB e MultiSlicer.
-- **Simular:** MultiPhysics e MultiAssembly.
-- **Fabricar:** MultiCNC.
-- **Ferramentas:** acesso direto a todos os modulos e a Central de Testes.
-- **Configuracoes:** informacoes e futura centralizacao de preferencias, idioma, caminhos e integracoes.
+| Aplicativo | Finalidade |
+|---|---|
+| MultiCNC | Conexão, prévia e execução de trabalhos na máquina |
+| SimuCNC | Simulação de router, laser e impressora |
+| MultiCAD | Projeto mecânico paramétrico |
+| MultiAssembly | Montagem eletromecânica |
+| MultiPhysics | Simulação física |
+| MultiCAM | Preparação e simulação de usinagem |
+| MultiSlicer | Preparação para impressão 3D |
+| MakePCB | Esquema, componentes e projeto de placa |
+| MakeRouter | Desenho e usinagem de madeira |
+| RouterPCB | Isolação, furação e recorte por fresagem |
+| LaserPCB | Montagem das formas dos componentes e preparação de PCB para laser |
+| LaserArt | Desenhos, textos, imagens e vetores para laser |
 
-A area central utiliza cartoes para apresentar cada aplicacao com nome, finalidade e botao de abertura. O objetivo e que o usuario escolha **o que deseja fazer**, sem precisar conhecer previamente a estrutura interna do repositorio.
+O décimo terceiro executável é a própria bandeja. MultiPCB foi removido; o projeto de placas está no MakePCB. O pacote não inclui `multisuite.exe` nem `multisuite_test_center.exe`.
 
-## Visao geral
+## Instalação Windows
 
-A pagina inicial apresenta:
+[Setup 007](../setup/setup_multcnc_007.exe) · [Notas da versão](../docs/SETUP_007.md) · [Como gerar o instalador](../installer/windows/README.md)
 
-- identidade do MultiCNC Suite;
-- fluxo completo da ideia a fabricacao;
-- acesso rapido ao MultiCNC;
-- criacao do projeto demonstracao;
-- acesso a Central de Testes;
-- cartoes de todas as aplicacoes registradas.
+A tarefa **Iniciar a MultiSuite Bandeja com o Windows** vem marcada por padrão e registra `multisuite_tray.exe --tray` na inicialização do usuário. Pode ser desmarcada no setup ou desativada nas configurações de inicialização do Windows. A desinstalação remove esse registro.
 
-## Projeto atual
+## Desenvolvimento
 
-O workspace continua independente das aplicacoes especializadas. A pagina **Projeto atual** mostra:
+`src/tray/multisuite_tray.lpi` gera a bandeja. Os ícones e controles são reutilizados de `src/core/multisuite_icons.pas` e `multisuite_controls.pas`.
 
-- nome e diretorio do projeto;
-- arvore de artefatos;
-- ferramenta proprietaria de cada artefato;
-- estado das etapas do workflow;
-- abertura contextual do artefato por duplo clique.
+O launcher procura o executável instalado, os caminhos dos projetos de desenvolvimento, `bin` e a raiz do repositório. A lógica de CAD, EDA, CAM, laser e controle permanece nas ferramentas especializadas.
 
-O formato `.msuite` persiste o contexto global sem substituir os formatos de cada modulo.
-
-## Aplicacoes
-
-- **MultiCAD:** CAD mecanico.
-- **MakePCB:** placa do zero (estilo PCB Wizard), Gerber + Excellon para o LaserPCB.
-- **MultiAssembly:** montagem eletromecanica.
-- **MultiPhysics:** simulacao fisica multidominio.
-- **MultiCAM:** CAM e simulacao CNC Router.
-- **MultiSlicer:** fatiamento para impressao 3D.
-- **LaserPCB:** preparacao de PCB para laser.
-- **RouterPCB:** fresagem de PCB na CNC Router (isolacao, furacao, recorte e nivelamento) a partir do Gerber + Excellon do MakePCB. Grupo Preparar.
-- **LaserArt:** imagem, vetor e arte para laser.
-- **MultiCNC:** controle e execucao da maquina fisica.
-
-## Regra de arquitetura
-
-**MultiSuite orquestra.** A logica de CAD, EDA, CAM, slicing, laser, assembly, simulacao e controle permanece em seus respectivos modulos.
-
-O registro central descreve as ferramentas, o workspace representa o projeto global e o launcher inicia executaveis independentes repassando o contexto quando disponivel.
-
-## Abertura contextual
-
-Os artefatos da arvore possuem uma ferramenta proprietaria. O duplo clique resolve essa ferramenta no registro e inicia o executavel com:
-
-```text
---project <diretorio-do-workspace> --file <artefato>
-```
-
-O modulo `multisuite_context.pas` define o parser comum desses argumentos. Cada aplicacao especializada deve incorporar esse contrato ao seu fluxo de inicializacao.
-
-Enquanto um formato ainda nao possuir loader, a aplicacao deve preservar o contexto recebido e informar que a abertura daquele formato ainda nao esta implementada; nunca deve fingir que carregou o documento.
-
-## MultiSuite Bandeja (atalho ao lado do relogio)
-
-`src/tray/multisuite_tray.lpi` gera o `multisuite_tray`, um aplicativo que fica na area de notificacao (bandeja, ao lado do relogio).
-
-- **Clique no icone:** abre/fecha um painel vertical, sem borda, ancorado acima da barra de tarefas (respeita barra embaixo, em cima ou nas laterais).
-- **Painel:** botao principal *Abrir MultiSuite*, campo de busca e uma lista vertical de botoes com icone, agrupados em Projetar, Preparar, Simular e Fabricar. Rodape com Central de testes e Sair.
-- **Teclado:** digitar filtra; Enter abre a primeira ferramenta encontrada (ou o MultiSuite, com a busca vazia); setas navegam; Esc fecha.
-- **Botao direito:** Abrir painel, Abrir MultiSuite, Iniciar com o Windows (chave `HKCU\...\Run`, com `--tray`) e Sair.
-- **Parametros:** `--tray` inicia apenas na bandeja; sem parametros o painel abre ao iniciar.
-- O painel fecha sozinho ao perder o foco. No Windows 11 usa cantos arredondados nativos.
-
-Os icones de traco ficam em `src/core/multisuite_icons.pas`: sao desenhados em codigo (grade 24x24, super-amostragem 4x com anti-aliasing e canal alfa), sem arquivos de imagem nem pacotes externos, e podem ser reutilizados pelas demais telas da suite.
-
-O launcher (`multisuite_launcher.pas`) procura cada executavel na pasta do proprio app, na pasta do projeto Lazarus da ferramenta (`ProjectFile` do registro), em `bin/` e na raiz, de modo que funciona tanto instalado quanto direto da arvore de desenvolvimento.
+Os fontes de workspace `.msuite`, do gestor de desenvolvimento e dos testes permanecem no repositório, mas esses executáveis não fazem parte da distribuição Windows atual. Para testes de console, execute `python tools/verify_suite.py console`.

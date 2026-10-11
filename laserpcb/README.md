@@ -2,6 +2,18 @@
 
 Prepara placas para laser com SVG, Gerber e Excellon e gera trajetórias de marcação, retirada de material e furos para CNC Laser. A conexão, o Frame e a execução pertencem ao MultiCNC.
 
+## Capturas da interface
+
+Exemplos reais de preparação de uma placa. As capturas mostram o estado da interface na geração das imagens; os parâmetros exibidos pertencem ao exemplo.
+
+![Placa, cobre, trajetórias e parâmetros por camada](../imgs/Laserpcb01.png)
+
+| Posicionamento das cópias | Criação da placa e pilha de cobre |
+|---|---|
+| ![Posicionar placas na mesa](../imgs/Laserpcb02.png) | ![Placas: Top, Bottom e prévia das camadas](../imgs/Laserpcb03.png) |
+
+![Mesa: escolha de um equipamento salvo no MultiCNC](../imgs/Laserpcb04.png)
+
 ## Fluxo da interface
 
 1. **Importar:** abra vários Gerbers e os arquivos PTH/NPTH. Confira a função de cada camada; a detecção usa atributos X2 e nomes/extensões. Um SVG inicia um trabalho vetorial. Placas feitas no **MakePCB** chegam como uma pasta: `laserpcb --file <pasta>` (botão "Abrir no LaserPCB") importa todos os Gerber/Excellon dela e, em face simples, já seleciona o lado Bottom.

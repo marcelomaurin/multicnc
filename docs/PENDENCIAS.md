@@ -1,7 +1,18 @@
-# Pendencias da suite (atualizado 09/10/2026)
+# Pendencias da suite (atualizado 10/10/2026)
 
 Lista do que ficou aberto. Detalhes do LaserArt em
 `laserart/docs/LASERART_PLANO.md`.
+
+## Entrega de 10/10/2026 — setup 007
+
+- Instalador Windows 0.07 em `setup/setup_multcnc_007.exe` e `bin`: 13 executaveis, seis imagens durante a instalacao, 84 testes de console aprovados e nenhuma falha.
+- MultiCNC: perfis comerciais de laser com fontes, GLYPHO 5W/10W, CUSTOM e Frame; cadastro em multicnc.json.
+- LaserArt/LaserPCB: botao Mesa compartilha a janela e a selecao de lasers cadastrados no MultiCNC.
+- LaserPCB: placa Top/Bottom/N camadas em mm, tratamento e potencia por camada, marcacao/contorno de furos e tabela de referencias. Componentes usam biblioteca e criador do MakePCB; importacao de bibliotecas e conjuntos .mpcb.
+- Bandeja restaurada com os aplicativos atuais; MultiPCB removido, preservando as rotinas utilizadas por outros modulos em src/shared.
+- Guias e capturas: `laserpcb/README.md`, `laserart/README.md`, `imgs/README.md` e `docs/SETUP_007.md`.
+- Pendentes: ensaios dos parametros no equipamento/material real, persistencia completa da sessao CAM do LaserPCB e integracoes descritas nos planos de cada modulo. Conjuntos de componentes ja podem ser salvos separadamente em .mpcb.
+- MultiCAD: melhorias remotas sincronizadas ate b8dd705; consulte `multicad/docs/TAREFA.md` para o estado atual. Os registros abaixo preservam o historico das entregas anteriores.
 
 ## MultiCAD (09/10/2026) - decisoes aprovadas, fases 0 e 1 concluidas
 - CAD parametrico de pecas no fluxo do SolidWorks 2014: sketch com restricoes e cotas,

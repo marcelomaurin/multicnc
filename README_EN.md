@@ -1,5 +1,18 @@
 # MultiCNC
 
+## Windows setup 007 / version 0.07
+
+[Download the Windows x64 installer](setup/setup_multcnc_007.exe) · [Release notes](docs/SETUP_007.md)
+
+The package includes 13 applications. MultiSuite Tray opens the installed tools; the separate MultiSuite hub, Test Center and MultiPCB executables are not distributed. LaserPCB now reuses MakePCB's component library and creator, supports importing libraries and component sets, and provides laser processes per layer. LaserArt and LaserPCB share the Bed dialog for laser equipment saved in MultiCNC.
+
+| LaserPCB | LaserArt |
+|---|---|
+| ![PCB layers and laser parameters](imgs/Laserpcb01.png) | ![Vector artwork and layers](imgs/Laserart01.png) |
+
+See the updated [LaserPCB guide](laserpcb/README.md), [LaserArt guide](laserart/README.md) and [screenshot gallery](imgs/README.md).
+
+
 **Languages:** [Português](README.md) · English · [Español](README_ES.md) · [Français](README_FR.md) · [Deutsch](README_DE.md) · [Русский](README_RU.md) · [中文](README_ZH.md) · [العربية](README_AR.md) · [हिन्दी](README_HI.md)
 
 ## An integrated platform to design, simulate and manufacture

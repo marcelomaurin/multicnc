@@ -24,10 +24,10 @@ Inclui MultiSuite Bandeja, MultiCAD, MultiAssembly,
 MultiPhysics, MultiCAM, MultiSlicer, MakePCB, MakeRouter, RouterPCB, LaserPCB,
 LaserArt, MultiCNC, SimuCNC.
 
-O multisuite_tray.exe e somente um menu de aplicativos ao lado do relogio.
-Clicar com o botao esquerdo ou direito mostra os programas instalados para abrir.
-Inclui MultiCAD, SimuCNC e os demais aplicativos disponiveis, sem painel central,
-busca ou opcoes de configuracao no menu. O executavel multisuite.exe nao faz parte
+O multisuite_tray.exe e somente um painel de atalhos ao lado do relogio, com o padrao visual restaurado.
+Clique no icone para abrir os programas; o menu de contexto oferece Abrir painel e Sair.
+Inclui MultiCAD, SimuCNC e os demais aplicativos disponiveis. O painel permite buscar
+aplicativos; nao inclui o hub MultiSuite separado ou opcoes de configuracao no menu. O executavel multisuite.exe nao faz parte
 do pacote Windows. MultiPCB tambem foi retirado. A atualizacao remove as copias
 antigas desses executaveis e seus atalhos.
 
@@ -50,3 +50,10 @@ Nao distribuir um instalador se o build falhar. Compilacao e testes de console
 nao substituem verificacao interativa da instalacao ou ensaio com hardware.
 Projetos e relatorios pertencem ao usuario, fora de Program Files.
 Publicar uma GitHub Release/tag continua uma etapa separada.
+## Setup 007 gerado
+
+[Instalador Windows x64](../../setup/setup_multcnc_007.exe) · [Notas e validação](../../docs/SETUP_007.md) · [Galeria de imagens](../../imgs/README.md)
+
+| LaserPCB | LaserArt |
+|---|---|
+| ![Placas e camadas para laser](../../imgs/Laserpcb01.png) | ![Arte e vetores para laser](../../imgs/Laserart01.png) |

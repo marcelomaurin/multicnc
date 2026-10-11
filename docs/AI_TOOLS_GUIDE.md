@@ -3,7 +3,7 @@
 Este documento e o ponto de entrada para qualquer IA que altere este repositorio.
 
 ## Gestor principal
-MultiSuite Bandeja e a porta de entrada: um menu para abrir os aplicativos instalados. O Windows distribui multisuite_tray.exe, sem painel central.
+MultiSuite Bandeja e a porta de entrada: painel de atalhos para abrir os aplicativos instalados, com a aparencia restaurada. O Windows distribui multisuite_tray.exe, sem multisuite.exe ou Central de Testes.
 
 ## Regra principal
 Antes de escrever codigo, identifique qual ferramenta e dona da responsabilidade. Nao duplique funcionalidades entre modulos.
@@ -18,7 +18,7 @@ Antes de escrever codigo, identifique qual ferramenta e dona da responsabilidade
 | MultiCAM | Planejamento de usinagem CNC Router, toolpaths, simulacao de usinagem e G-code |
 | MultiSlicer | Fatiamento e posicionamento para impressao 3D |
 | MultiPhysics | Simulacao fisica multidominio da montagem (eletrica, mecanica, termica, falhas); nao executa hardware |
-| LaserPCB | Preparacao/alinhamento de PCB para processo laser |
+| LaserPCB | Montagem das formas dos componentes compartilhados com MakePCB, placas Top/Bottom/N camadas e preparacao/alinhamento para laser; Mesa compartilhada com LaserArt |
 | LaserArt | Imagens, logos, textos, vetores e arte para laser (pasta `laserart/`) |
 | MultiCNC | Conexao, seguranca, protocolo e execucao fisica da maquina |
 | SimuCNC | Simulador de maquina (impressora, router, laser) com porta serial virtual/TCP (pasta `src/simucnc/`) |
