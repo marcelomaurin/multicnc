@@ -27,7 +27,7 @@ uses
   multicad_document, multicad_feature, multicad_refgeom, multicad_sketch, multicad_mesh,
   multicad_solver, multicad_extrude, multicad_revolve, multicad_rebuild,
   multicad_camera, multicad_softrender, multicad_view3d, multicad_sketchtools,
-  multicad_sketchedit, multicad_propman, multicad_export, multicad_measure,
+  multicad_sketchedit, multicad_propman, multicad_materialdlg, multicad_textures, multicad_export, multicad_measure,
   multisuite_types, multisuite_registry, multisuite_launcher, multisuite_context;
 
 type
@@ -42,7 +42,7 @@ type
     TabButtons: array[TCadTab] of TSuiteButton;
     FileButtons: TPanel;
     Tree: TTreeView;
-    TreeMenu: TPopupMenu;
+    TreeMenu, MatMenu, PartMenu: TPopupMenu;
     RelMenu: TPopupMenu;
     PM: TCadPropManager;
     View: TCadView3D;
@@ -107,6 +107,12 @@ type
     procedure MenuNormalTo(Sender: TObject);
     procedure RenameFeature(F: TCadFeature; const ANew: string);
     procedure ChooseMaterial;
+    procedure MaterialMenuEdit(Sender: TObject);
+    procedure MaterialMenuDefault(Sender: TObject);
+    procedure PartMenuRename(Sender: TObject);
+    procedure MenuSketchOnPlane(Sender: TObject);
+    procedure TreeContextPopup(Sender: TObject; MousePos: TPoint; var Handled: Boolean);
+    procedure ChoosePlaneForSketch;
     { operacoes }
     procedure SketchClick(Sender: TObject);
     procedure StartSketch(const APlaneRef: string);
@@ -174,6 +180,7 @@ type
     procedure EditFeatureById(AId: Integer);
     procedure CancelEdit;
     procedure ExitSketchMode;
+    procedure ApplyMaterial(const AName: string; AColor: Integer);
   end;
 
 implementation
@@ -322,7 +329,23 @@ begin
   AddMenu('-', nil);
   AddMenu('Retroceder até aqui', @MenuRollHere);
   AddMenu('Retroceder até o fim', @MenuRollEnd);
-  AddMenu('Normal a', @MenuNormalTo);
+  AddMenu('Vista (normal ao plano)', @MenuNormalTo);
+  AddMenu('-', nil);
+  AddMenu('Novo esboço neste plano', @MenuSketchOnPlane);
+  MatMenu := TPopupMenu.Create(Self);
+  MI := TMenuItem.Create(MatMenu);
+  MI.Caption := 'Editar material...';
+  MI.OnClick := @MaterialMenuEdit;
+  MatMenu.Items.Add(MI);
+  MI := TMenuItem.Create(MatMenu);
+  MI.Caption := 'Material padrão (' + CAD_DEFAULT_MATERIAL + ')';
+  MI.OnClick := @MaterialMenuDefault;
+  MatMenu.Items.Add(MI);
+  PartMenu := TPopupMenu.Create(Self);
+  MI := TMenuItem.Create(PartMenu);
+  MI.Caption := 'Renomear';
+  MI.OnClick := @PartMenuRename;
+  PartMenu.Items.Add(MI);
 
   RelMenu := TPopupMenu.Create(Self);
   for K := Low(TConstraintKind) to High(TConstraintKind) do
@@ -386,6 +409,7 @@ begin
   Tree.OnEditing := @TreeEditing;
   Tree.OnEdited := @TreeEdited;
   Tree.OnMouseDown := @TreeMouseDown;
+  Tree.OnContextPopup := @TreeContextPopup;
   Tree.BorderStyle := bsNone;
 
   PM := TCadPropManager.Create(Self);
@@ -602,6 +626,7 @@ end;
 procedure TMainForm.RebuildModel;
 begin
   RB.Rebuild;
+  View.SetAppearance(Doc.AppearanceColor, CadTextureIndex(Doc.MaterialData.Texture));
   View.ModelChanged;
   RefreshTree;
   UpdatePartStatus;
@@ -904,7 +929,9 @@ begin
   TreeMenu.Items[3].Enabled := TreeMenu.Items[3].Enabled and not (F.Kind in [cfOrigin]) and
     not ((F is TCadPlane) and (TCadPlane(F).PlaneType = ptStandard));
   TreeMenu.Items[9].Enabled := (Doc.RollbackIndex >= 0) or IsRoll;
-  TreeMenu.Items[10].Enabled := Assigned(F) and ((F is TCadSketch) or (F is TCadPlane));
+  TreeMenu.Items[10].Enabled := Assigned(F) and ((F is TCadSketch) or (F is TCadPlane)) and
+    not Assigned(FEditor);
+  TreeMenu.Items[12].Enabled := (F is TCadPlane) and not PM.Visible and not Assigned(FEditor);
 end;
 
 procedure TMainForm.MenuEdit(Sender: TObject);
@@ -1004,43 +1031,82 @@ end;
 
 procedure TMainForm.ChooseMaterial;
 var
-  F: TForm;
-  L: TListBox;
-  B: TButton;
-  I: Integer;
-  M: TCadMaterial;
+  M: string;
+  C: Integer;
 begin
-  F := TForm.CreateNew(Self);
-  try
-    F.Caption := 'Material';
-    F.Position := poOwnerFormCenter;
-    F.Width := 320;
-    F.Height := 380;
-    L := TListBox.Create(F);
-    L.Parent := F;
-    L.Align := alClient;
-    for I := 0 to CadMaterialCount - 1 do
-    begin
-      M := CadMaterial(I);
-      L.Items.Add(M.Name);
-      if SameText(M.Name, Doc.Material) then
-        L.ItemIndex := I;
-    end;
-    B := TButton.Create(F);
-    B.Parent := F;
-    B.Align := alBottom;
-    B.Caption := 'Aplicar';
-    B.ModalResult := mrOK;
-    B.Default := True;
-    if (F.ShowModal = mrOK) and (L.ItemIndex >= 0) then
-    begin
-      Doc.Material := L.Items[L.ItemIndex];
-      Modified;
-      RefreshTree;
-      UpdatePartStatus;
-    end;
-  finally
-    F.Free;
+  M := Doc.Material;
+  C := Doc.MaterialColor;
+  if not CadChooseMaterial(Self, M, C) then
+    Exit;
+  Doc.Material := M;
+  Doc.MaterialColor := C;
+  Modified;
+  View.SetAppearance(Doc.AppearanceColor, CadTextureIndex(Doc.MaterialData.Texture));
+  RefreshTree;
+  UpdatePartStatus;
+end;
+
+procedure TMainForm.ApplyMaterial(const AName: string; AColor: Integer);
+begin
+  Doc.Material := AName;
+  Doc.MaterialColor := AColor;
+  Modified;
+  View.SetAppearance(Doc.AppearanceColor, CadTextureIndex(Doc.MaterialData.Texture));
+  RefreshTree;
+  UpdatePartStatus;
+end;
+
+procedure TMainForm.MaterialMenuEdit(Sender: TObject);
+begin
+  ChooseMaterial;
+end;
+
+procedure TMainForm.MaterialMenuDefault(Sender: TObject);
+begin
+  Doc.Material := CAD_DEFAULT_MATERIAL;
+  Doc.MaterialColor := -1;
+  Modified;
+  View.SetAppearance(Doc.AppearanceColor, CadTextureIndex(Doc.MaterialData.Texture));
+  RefreshTree;
+  UpdatePartStatus;
+end;
+
+procedure TMainForm.PartMenuRename(Sender: TObject);
+begin
+  if Assigned(Tree.Items.GetFirstNode) then
+    Tree.Items.GetFirstNode.EditText;
+end;
+
+procedure TMainForm.MenuSketchOnPlane(Sender: TObject);
+var
+  F: TCadFeature;
+begin
+  F := SelectedFeature;
+  if F is TCadPlane then
+    StartSketch('plane:' + IntToStr(F.Id));
+end;
+
+procedure TMainForm.TreeContextPopup(Sender: TObject; MousePos: TPoint; var Handled: Boolean);
+var
+  N: TTreeNode;
+  P: TPoint;
+begin
+  N := Tree.GetNodeAt(MousePos.X, MousePos.Y);
+  if N = nil then
+    Exit;
+  N.Selected := True;
+  P := Tree.ClientToScreen(MousePos);
+  case PtrInt(N.Data) of
+    NODE_MATERIAL:
+      begin
+        MatMenu.PopUp(P.X, P.Y);
+        Handled := True;
+      end;
+    NODE_PART:
+      begin
+        PartMenu.PopUp(P.X, P.Y);
+        Handled := True;
+      end;
   end;
 end;
 
@@ -1175,13 +1241,82 @@ var
 begin
   if Assigned(FEditor) or PM.Visible then
     Exit;
+  { o plano marcado (na arvore ou na vista) e o plano do esboco }
   R := SelectedPlaneRef;
+  if (R = '') and (SelectedFeature is TCadPlane) then
+    R := 'plane:' + IntToStr(SelectedFeature.Id);
   if R <> '' then
   begin
     StartSketch(R);
     Exit;
   end;
-  { como no SolidWorks: mostra os planos padrao e espera a escolha }
+  ChoosePlaneForSketch;
+end;
+
+procedure TMainForm.ChoosePlaneForSketch;
+var
+  F: TForm;
+  L: TListBox;
+  B: TButton;
+  Lb: TLabel;
+  I: Integer;
+  Ids: array of Integer;
+  R: TModalResult;
+begin
+  { nada marcado: escolher o plano (ou clicar numa face plana na vista) }
+  F := TForm.CreateNew(Self);
+  try
+    F.Caption := 'Plano do esboço';
+    F.BorderStyle := bsDialog;
+    F.Position := poOwnerFormCenter;
+    F.Width := 340;
+    F.Height := 320;
+    Lb := TLabel.Create(F);
+    Lb.Parent := F;
+    Lb.SetBounds(12, 10, 316, 18);
+    Lb.Caption := 'Escolha o plano onde desenhar:';
+    L := TListBox.Create(F);
+    L.Parent := F;
+    L.SetBounds(12, 32, 316, 190);
+    SetLength(Ids, 0);
+    for I := 0 to Doc.Count - 1 do
+      if (Doc.Feature(I) is TCadPlane) and not Doc.Feature(I).Suppressed then
+      begin
+        L.Items.Add(Doc.Feature(I).Name);
+        SetLength(Ids, Length(Ids) + 1);
+        Ids[High(Ids)] := Doc.Feature(I).Id;
+      end;
+    L.ItemIndex := 0;
+    B := TButton.Create(F);
+    B.Parent := F;
+    B.SetBounds(12, 234, 316, 30);
+    B.Caption := 'Clicar numa face plana da peça...';
+    B.ModalResult := mrRetry;
+    B := TButton.Create(F);
+    B.Parent := F;
+    B.SetBounds(150, 270, 86, 30);
+    B.Caption := 'Esboçar';
+    B.Default := True;
+    B.ModalResult := mrOK;
+    B := TButton.Create(F);
+    B.Parent := F;
+    B.SetBounds(242, 270, 86, 30);
+    B.Caption := 'Cancelar';
+    B.Cancel := True;
+    B.ModalResult := mrCancel;
+    L.OnDblClick := nil;
+    R := F.ShowModal;
+    if (R = mrOK) and (L.ItemIndex >= 0) then
+    begin
+      StartSketch('plane:' + IntToStr(Ids[L.ItemIndex]));
+      Exit;
+    end;
+    if R <> mrRetry then
+      Exit;
+  finally
+    F.Free;
+  end;
+  { escolher na vista: mostra os planos padrao e espera o clique }
   FPendingSketch := True;
   View.ShowStdPlane(MCAD_ID_FRONTAL, True);
   View.ShowStdPlane(MCAD_ID_SUPERIOR, True);

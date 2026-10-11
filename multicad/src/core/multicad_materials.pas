@@ -6,7 +6,11 @@ unit multicad_materials;
   em GPa, coeficiente de Poisson). Servem para massa e para o MultiPhysics;
   para projeto critico, use o valor do fornecedor.
   A tabela embutida pode ser ampliada por data/materials.json:
-    [ {"name": "...", "density": 7850, "e_gpa": 200, "poisson": 0.29}, ... ] *)
+    [ {"name": "...", "density": 7850, "e_gpa": 200, "poisson": 0.29,
+       "category": "Metais", "texture": "steel", "color": "#A8AEB4",
+       "color_choice": false}, ... ]
+  Aparencia: textura (multicad_textures) e cor base; plasticos de
+  impressao 3D (PLA, ABS, PETG...) deixam o usuario escolher a cor. *)
 
 {$mode objfpc}{$H+}
 
@@ -21,6 +25,10 @@ type
     Density: Double;   { kg/m3 }
     EModulus: Double;  { GPa }
     Poisson: Double;
+    Category: string;  { Metais, Plásticos, Madeiras, Outros }
+    Texture: string;   { textura da aparencia (multicad_textures) }
+    Color: LongWord;   { cor base $RRGGBB }
+    ColorChoice: Boolean; { o usuario escolhe a cor (PLA, ABS, PETG...) }
   end;
   TCadMaterialArray = array of TCadMaterial;
 
@@ -41,30 +49,46 @@ implementation
 var
   GMaterials: TCadMaterialArray;
 
-function Mat(const N: string; D, E, P: Double): TCadMaterial;
+function Mat(const N: string; D, E, P: Double; const Cat: string = 'Outros';
+  const Tex: string = 'plain'; Col: LongWord = $B4BEC8; Choice: Boolean = False): TCadMaterial;
 begin
   Result.Name := N;
   Result.Density := D;
   Result.EModulus := E;
   Result.Poisson := P;
+  Result.Category := Cat;
+  Result.Texture := Tex;
+  Result.Color := Col;
+  Result.ColorChoice := Choice;
 end;
 
 procedure InitDefaults;
 begin
   SetLength(GMaterials, 0);
   GMaterials := [
-    Mat('Aço 1020', 7870, 200, 0.29),
-    Mat('Aço 1045', 7850, 205, 0.29),
-    Mat('Aço inox 304', 8000, 193, 0.29),
-    Mat('Alumínio 6061-T6', 2700, 68.9, 0.33),
-    Mat('Latão', 8500, 100, 0.34),
-    Mat('Ferro fundido cinzento', 7200, 100, 0.26),
-    Mat('Nylon 6', 1140, 2.8, 0.39),
-    Mat('POM (acetal)', 1410, 2.9, 0.35),
-    Mat('ABS', 1050, 2.2, 0.35),
-    Mat('PLA', 1240, 3.5, 0.36),
-    Mat('PETG', 1270, 2.1, 0.38),
-    Mat('MDF', 750, 4.0, 0.25)
+    Mat('Aço 1020', 7870, 200, 0.29, 'Metais', 'steel', $A8AEB4),
+    Mat('Aço 1045', 7850, 205, 0.29, 'Metais', 'steel', $A2A8AE),
+    Mat('Aço inox 304', 8000, 193, 0.29, 'Metais', 'brushed', $C8CDD2),
+    Mat('Aço inox 316', 8000, 193, 0.30, 'Metais', 'brushed', $C6CBD0),
+    Mat('Alumínio 6061-T6', 2700, 68.9, 0.33, 'Metais', 'brushed', $D2D6DA),
+    Mat('Alumínio 5052', 2680, 70.3, 0.33, 'Metais', 'brushed', $D6D9DC),
+    Mat('Latão', 8500, 100, 0.34, 'Metais', 'brushed', $D2B060),
+    Mat('Cobre', 8960, 117, 0.34, 'Metais', 'brushed', $C87850),
+    Mat('Ferro fundido cinzento', 7200, 100, 0.26, 'Metais', 'cast', $6E7074),
+    Mat('PLA', 1240, 3.5, 0.36, 'Plásticos', 'plastic', $F0F0F0, True),
+    Mat('ABS', 1050, 2.2, 0.35, 'Plásticos', 'plastic', $303236, True),
+    Mat('PETG', 1270, 2.1, 0.38, 'Plásticos', 'plastic', $3C8CDC, True),
+    Mat('TPU (flexível)', 1210, 0.03, 0.48, 'Plásticos', 'rubber', $2A2A2E, True),
+    Mat('Nylon 6', 1140, 2.8, 0.39, 'Plásticos', 'plastic', $EDE8DA, True),
+    Mat('POM (acetal)', 1410, 2.9, 0.35, 'Plásticos', 'plastic', $F2F2EE, True),
+    Mat('Acrílico (PMMA)', 1180, 3.2, 0.37, 'Plásticos', 'plastic', $D8EEF4, True),
+    Mat('Policarbonato', 1200, 2.4, 0.37, 'Plásticos', 'plastic', $E0EAF0, True),
+    Mat('Madeira (pinus)', 500, 9.0, 0.30, 'Madeiras', 'wood', $D9B47C),
+    Mat('Madeira (eucalipto)', 750, 13.0, 0.30, 'Madeiras', 'wood_dark', $A8643C),
+    Mat('Compensado', 600, 8.0, 0.30, 'Madeiras', 'plywood', $D4AE7A),
+    Mat('MDF', 750, 4.0, 0.25, 'Madeiras', 'mdf', $B48E64),
+    Mat('Borracha', 1150, 0.01, 0.49, 'Outros', 'rubber', $28282A),
+    Mat('Vidro', 2500, 70, 0.22, 'Outros', 'plastic', $C8E4E8)
   ];
 end;
 
@@ -97,7 +121,7 @@ begin
   if Result then
     M := GMaterials[I]
   else
-    M := Mat('', 0, 0, 0);
+    M := Mat('', 0, 0, 0, 'Outros', 'plain', $B4BEC8, False);
 end;
 
 function CadLoadMaterials(const AFileName: string; out AError: string): Boolean;
@@ -142,6 +166,27 @@ begin
         M.Density := O.Get('density', 0.0);
         M.EModulus := O.Get('e_gpa', 0.0);
         M.Poisson := O.Get('poisson', 0.0);
+        { aparencia: o que nao vier no arquivo fica como estava (ou padrao) }
+        K := CadMaterialIndex(M.Name);
+        if K >= 0 then
+        begin
+          M.Category := GMaterials[K].Category;
+          M.Texture := GMaterials[K].Texture;
+          M.Color := GMaterials[K].Color;
+          M.ColorChoice := GMaterials[K].ColorChoice;
+        end
+        else
+        begin
+          M.Category := 'Outros';
+          M.Texture := 'plain';
+          M.Color := $B4BEC8;
+          M.ColorChoice := False;
+        end;
+        if O.Find('category') <> nil then M.Category := O.Get('category', M.Category);
+        if O.Find('texture') <> nil then M.Texture := O.Get('texture', M.Texture);
+        if O.Find('color') <> nil then
+          M.Color := LongWord(StrToIntDef('$' + StringReplace(O.Get('color', ''), '#', '', []), M.Color));
+        if O.Find('color_choice') <> nil then M.ColorChoice := O.Get('color_choice', M.ColorChoice);
         if (M.Name = '') or (M.Density <= 0) then
         begin
           AError := Format('Item %d sem nome ou densidade', [I]);

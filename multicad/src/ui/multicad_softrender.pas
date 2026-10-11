@@ -25,7 +25,7 @@ interface
 
 uses
   Classes, SysUtils, Math, Generics.Collections, multicad_types, multicad_mesh,
-  multicad_camera;
+  multicad_camera, multicad_textures;
 
 type
   TCadDisplayStyle = (dsShadedEdges, dsShaded, dsHiddenRemoved,
@@ -56,6 +56,7 @@ type
     HiColor: LongWord;
     HoverFace: Integer;       { face sob o mouse (-1 = nenhuma) }
     HoverColor: LongWord;
+    Texture: Integer;         { textura do material (multicad_textures); 0 = lisa }
   end;
 
   TCadRaster = class
@@ -64,6 +65,9 @@ type
     FCam: TCadCamera;
     FClipOn: Boolean;
     FClipO, FClipN: TCadVec3;
+    FTex: Integer;                     { textura do triangulo atual }
+    FTexW: array[0..2] of TCadVec3;    { cantos no mundo (para a textura) }
+    FTexN: TCadVec3;
     procedure Plot(X, Y: Integer; Depth: Single; C: LongWord; AId: Integer;
       WriteDepth: Boolean; Alpha: Double);
     procedure FillTri(const P0, P1, P2: TCadScreenPt; I0, I1, I2: Double;
@@ -163,6 +167,7 @@ begin
   Result.HiColor := CAD_SELECT_COLOR;
   Result.HoverFace := -1;
   Result.HoverColor := CAD_HOVER_COLOR;
+  Result.Texture := 0;
 end;
 
 function CadPickCode(ATag, AFace: Integer): Integer;
@@ -461,6 +466,11 @@ begin
       if WriteColor then
       begin
         L := W0 * I0 + W1 * I1 + W2 * I2;
+        if FTex > 0 then
+          L := L * CadTexFactor(FTex, V3(
+            W0 * FTexW[0].X + W1 * FTexW[1].X + W2 * FTexW[2].X,
+            W0 * FTexW[0].Y + W1 * FTexW[1].Y + W2 * FTexW[2].Y,
+            W0 * FTexW[0].Z + W1 * FTexW[1].Z + W2 * FTexW[2].Z), FTexN);
         Plot(X, Y, Z, CadRGB(EnsureRange(Round(BR * L), 0, 255),
           EnsureRange(Round(BG * L), 0, 255), EnsureRange(Round(BB * L), 0, 255)),
           AId, WriteDepth, Alpha);
@@ -637,9 +647,20 @@ begin
         if FClipOn and not Facing(I) then
           Base := SectionColor;
         AId := CadPickCode(Opt.Tag, F);
+        if (Opt.Texture > 0) and (Base = Opt.Color) then
+          FTex := Opt.Texture
+        else
+          FTex := 0;
+        FTexN := Cache.TriN[I];
         for K := 1 to NPoly - 2 do
+        begin
+          FTexW[0] := Pw[0];
+          FTexW[1] := Pw[K];
+          FTexW[2] := Pw[K + 1];
           FillTri(Sp[0], Sp[K], Sp[K + 1], Lt[0], Lt[K], Lt[K + 1], Base, AId,
             Alpha >= 1, FillCol, Alpha);
+        end;
+        FTex := 0;
       end;
     { 2. arestas }
     if (Style = dsShaded) and (Opt.Alpha >= 1) then

@@ -281,6 +281,23 @@ Como ficou (fase 3):
       configuração). Teclado: setas 15°, Shift+setas 90°, Alt+←/→ rola, Ctrl+setas desloca,
       Z/Shift+Z afasta/aproxima, Ctrl+Shift+Z vista anterior.
 
+### Fase 5A2: material, aparência e planos (pedido em 10/10)
+- [x] Árvore: renomear a peça (botão direito ou F2); botão direito em "Material" →
+      "Editar material..." (ou duplo clique) abre a escolha por categoria: Metais (aços 1020,
+      1045, inox 304/316, alumínios 6061 e 5052, latão, cobre, ferro fundido), Plásticos (PLA,
+      ABS, PETG, TPU, Nylon, POM, acrílico, policarbonato), Madeiras (pinus, eucalipto,
+      compensado, MDF) e Outros (borracha, vidro), com amostra, densidade, E e Poisson.
+- [x] Plásticos de impressão 3D escolhem a cor (12 cores prontas ou "Outra cor..."); a cor
+      fica gravada no `.mcad` (`material_color`).
+- [x] Texturas guardadas em `data/textures/*.png` (geradas por `tools/gen_textures.py`) e
+      embutidas no executável: aço, escovado (inox, alumínio, latão, cobre), ferro fundido,
+      plástico, borracha, madeira, madeira escura, compensado e MDF. A vista 3D mostra a peça
+      com a cor e a textura do material (projeção pelos três planos).
+- [x] Botão direito num plano: "Vista (normal ao plano)" (de novo vira o lado) e "Novo esboço
+      neste plano".
+- [x] Esboço: o plano marcado (árvore ou vista) é o plano do esboço; sem plano marcado abre a
+      lista de planos (ou "Clicar numa face plana da peça...").
+
 ### Fase 5B: furo, padrões e espelho (≈ 4 h)
 - [ ] `multicad_threads` com tabelas em `data/*.json`: roscas ISO 261/262 M2 a M24 (passo
       normal e fino), broca para rosca, folgas ISO 273 (fina, normal, larga), rebaixo ISO 4762,

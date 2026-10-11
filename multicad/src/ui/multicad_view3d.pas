@@ -75,6 +75,8 @@ type
     FPivot: TCadVec3;            { centro de giro escolhido (clique do meio) }
     FPivotSet, FShowPivot: Boolean;
     FReverseWheel, FSkipPush: Boolean;
+    FPartColor: LongWord;
+    FPartTexture: Integer;
     FHistory: TFPObjectList;     { vistas anteriores (Ctrl+Shift+Z) }
     FOnPick: TCadPickEvent;
     FOnNormalTo: TNotifyEvent;
@@ -130,6 +132,10 @@ type
     procedure PreviousView;
     { Roda do mouse invertida (padrao SolidWorks: para frente afasta). }
     property ReverseWheel: Boolean read FReverseWheel write FReverseWheel;
+    { Aparencia do material: cor ($RRGGBB) e textura (multicad_textures). }
+    procedure SetAppearance(AColor: LongWord; ATexture: Integer);
+    property PartColor: LongWord read FPartColor;
+    property PartTexture: Integer read FPartTexture;
     procedure ShowStdPlane(AId: Integer; AShow: Boolean);
     function IsHidden(AId: Integer): Boolean;
     procedure SetHidden(AId: Integer; AHidden: Boolean);
@@ -197,6 +203,8 @@ begin
   FCam := TCadCamera.Create;
   FRaster := TCadRaster.Create;
   FBmp := TBitmap.Create;
+  FPartColor := CAD_PART_COLOR;
+  FPartTexture := 0;
   FCaches := TFPObjectList.Create(True);
   FHistory := TFPObjectList.Create(True);
   FSelected := TStringList.Create;
@@ -258,6 +266,13 @@ begin
     S := BoxSize(FModelBox);
     FPlaneHalf := Max(40, 0.6 * Max(S.X, Max(S.Y, S.Z)));
   end;
+  Redraw;
+end;
+
+procedure TCadView3D.SetAppearance(AColor: LongWord; ATexture: Integer);
+begin
+  FPartColor := AColor;
+  FPartTexture := ATexture;
   Redraw;
 end;
 
@@ -618,7 +633,8 @@ begin
   for I := 0 to FCaches.Count - 1 do
   begin
     M := TCadMeshCache(FCaches[I]).Mesh;
-    Opt := CadDrawOptions(CAD_PART_COLOR, I + 1);
+    Opt := CadDrawOptions(FPartColor, I + 1);
+    Opt.Texture := FPartTexture;
     N := 0;
     if FHighlightPrefix <> '' then
       Opt.HiColor := CAD_PREVIEW_COLOR;

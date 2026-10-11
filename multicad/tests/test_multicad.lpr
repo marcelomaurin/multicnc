@@ -12,7 +12,7 @@ uses
   multicad_document, multicad_mesh, multicad_kernel, multicad_solver,
   multicad_profile, multicad_triangulate, multicad_sweep, multicad_bridge, multicad_csg, multicad_revolve, multicad_rebuild,
   multicad_camera, multicad_softrender, multicad_sketchtools, multicad_export,
-  multicad_measure, multislicer_types, multislicer_mesh, multislicer_stl;
+  multicad_measure, multicad_textures, multislicer_types, multislicer_mesh, multislicer_stl;
 
 var
   Passed, Failed: Integer;
@@ -2159,6 +2159,81 @@ begin
   end;
 end;
 
+procedure TestMaterialAppearance;
+var
+  D, D2: TCadDocument;
+  M: TCadMaterial;
+  Err: string;
+  I, W, Mn, Mx: Integer;
+  F, FMin, FMax: Double;
+  Cam: TCadCamera;
+  R: TCadRaster;
+  Mesh: TCadMesh;
+  Cache: TCadMeshCache;
+  Opt: TCadDrawOptions;
+  C: LongWord;
+begin
+  Check(CadFindMaterial('PLA', M) and M.ColorChoice and (M.Category = 'Plásticos'), 'PLA: plastico com escolha de cor');
+  Check(CadFindMaterial('ABS', M) and M.ColorChoice, 'ABS com escolha de cor');
+  Check(CadFindMaterial('Madeira (pinus)', M) and (M.Texture = 'wood') and not M.ColorChoice, 'madeira com textura de veios');
+  Check(CadFindMaterial('Aço 1020', M) and (M.Category = 'Metais'), 'aco nos metais');
+  Check(CadTextureIndex('wood') > 0, 'textura de madeira embutida');
+  { cor do PLA gravada no .mcad }
+  D := TCadDocument.Create;
+  D2 := TCadDocument.Create;
+  try
+    D.NewPart;
+    D.Material := 'PLA';
+    D.MaterialColor := $2A64C8;
+    Check(D.AppearanceColor = $2A64C8, 'PLA azul');
+    Check(D2.LoadFromJSON(D.ToJSON, Err) and (D2.Material = 'PLA') and (D2.MaterialColor = $2A64C8),
+      'material e cor salvos no .mcad ' + Err);
+    D.Material := 'Aço 1020';
+    Check(D.AppearanceColor = $A8AEB4, 'aco ignora cor escolhida (sem escolha de cor)');
+  finally
+    D.Free;
+    D2.Free;
+  end;
+  { textura varia a cor da madeira }
+  FMin := 9; FMax := 0;
+  for I := 0 to 199 do
+  begin
+    F := CadTexFactor(CadTextureIndex('wood'), V3(I * 0.37, 5, I * 0.21), V3(0, 1, 0));
+    FMin := Min(FMin, F);
+    FMax := Max(FMax, F);
+  end;
+  Check((FMin < 0.85) and (FMax > 1.0), Format('veios da madeira variam a cor (%.2f a %.2f)', [FMin, FMax]));
+  { render com textura }
+  Cam := TCadCamera.Create;
+  R := TCadRaster.Create;
+  Mesh := CadMakeBox(V3(0, 0, 0), V3(60, 40, 20), 'Caixa');
+  Cache := TCadMeshCache.Create(Mesh);
+  try
+    R.SetSize(160, 120);
+    Cam.SetViewport(160, 120);
+    Cam.StdView(svFront);
+    Cam.Fit(Mesh.Bounds);
+    R.Style := dsShaded;
+    R.BeginFrame(Cam);
+    Opt := CadDrawOptions($D9B47C, 1);
+    Opt.Texture := CadTextureIndex('wood');
+    R.DrawMesh(Cache, Opt);
+    Mn := 999; Mx := -1;
+    for W := 40 to 120 do
+    begin
+      C := R.ColorAt(W, 60);
+      Mn := Min(Mn, Integer((C shr 16) and $FF));
+      Mx := Max(Mx, Integer((C shr 16) and $FF));
+    end;
+    Check(Mx - Mn > 12, Format('face com textura tem tons diferentes (%d a %d)', [Mn, Mx]));
+  finally
+    Cache.Free;
+    Mesh.Free;
+    R.Free;
+    Cam.Free;
+  end;
+end;
+
 begin
   Passed := 0;
   Failed := 0;
@@ -2178,6 +2253,7 @@ begin
   TestSketchTools;
   TestSketchTools2;
   TestSketchTools3;
+  TestMaterialAppearance;
   TestExport;
   Writeln(Format('MultiCAD: %d checks, %d falhas', [Passed + Failed, Failed]));
   if Failed > 0 then

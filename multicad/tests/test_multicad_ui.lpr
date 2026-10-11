@@ -10,7 +10,7 @@ program test_multicad_ui;
 uses
   {$IFDEF UNIX}cthreads,{$ENDIF}
   Interfaces, Forms, Graphics, SysUtils, ComCtrls, multicad_types, multicad_document, multicad_feature,
-  multicad_sketchtools,
+  multicad_sketchtools, multicad_materialdlg,
   multicad_sketch, multicad_extrude, multicad_rebuild, multicad_camera,
   multicad_softrender, multicad_view3d, multicad_main;
 
@@ -98,6 +98,7 @@ var
   F: TMainForm;
   S: TCadSketch;
   Ses: TCadSketchSession;
+  Dlg: TForm;
   Fn: string;
   St: TCadDisplayStyle;
   I, Errs: Integer;
@@ -143,6 +144,22 @@ begin
       Shot(F, '02_estilo_' + IntToStr(Ord(St)));
     end;
     F.View3D.Style := dsShadedEdges;
+    { materiais com aparencia }
+    F.ApplyMaterial('PLA', $2A64C8);
+    Pump;
+    Check(Pos('PLA', F.FeatureTree.Items[1].Text) > 0, 'arvore mostra o material PLA');
+    Shot(F, '07_pla_azul');
+    Dlg := CadMaterialDialog(F, 'PLA', $2A64C8);
+    Dlg.Show;
+    Pump;
+    Shot(Dlg, '07b_dialogo_material');
+    Dlg.Free;
+    F.ApplyMaterial('Madeira (pinus)', -1);
+    Pump;
+    Shot(F, '08_madeira');
+    F.ApplyMaterial('Alumínio 6061-T6', -1);
+    Pump;
+    Shot(F, '09_aluminio');
     F.View3D.SetView(svFront);
     Pump;
     Shot(F, '03_frontal');
