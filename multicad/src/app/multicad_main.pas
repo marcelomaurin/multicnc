@@ -619,7 +619,9 @@ end;
 
 procedure TMainForm.SetStatus(I: Integer; const S: string);
 begin
-  Status.Panels[I].Text := S;
+  { so repinta a barra de status quando o texto muda de fato }
+  if Status.Panels[I].Text <> S then
+    Status.Panels[I].Text := S;
 end;
 
 procedure TMainForm.UpdatePartStatus;

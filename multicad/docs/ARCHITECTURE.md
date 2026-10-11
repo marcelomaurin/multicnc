@@ -281,8 +281,15 @@ entidade) e, abaixo de 360°, `Revolve1/inicio` e `Revolve1/fim`.
 muda a câmera e cada tique desenha no máximo um quadro inteiro num back buffer fixo (peça,
 esboço, cotas, cubo, eixos) e o apresenta com uma única cópia para a janela, sem apagar o
 fundo e sem passar pelo WM_PAINT durante a interação. Texturas com mipmap e filtro bilinear
-(não cintilam) e resolução dinâmica (metade) enquanto arrasta se o quadro passar de ~28 ms;
-ao soltar, volta à resolução cheia.
+(não cintilam) e resolução dinâmica (metade) só durante o arrasto se o quadro passar de
+~40 ms, fixa até soltar o botão (alternar nítido/borrado também parece piscar; a roda do
+mouse sempre usa resolução cheia).
+
+No Windows segue as práticas Win32 anti-piscada: `WM_ERASEBKGND` responde 1 (fundo nunca
+apagado), apresentação por um único `BitBlt` do back buffer num DC obtido com `GetDC`,
+`ValidateRect` depois (descarta WM_PAINT pendente) e `DwmFlush` para sincronizar com o
+compositor do Windows (o "vsync" dos jogos, evita imagem rasgada). A barra de status só é
+repintada quando o texto muda.
 
 **Como está (fase 3):** a vista usa hoje só o renderizador por software
 (`multicad_softrender`: z-buffer, buffer de Id por pixel para a seleção, arestas de recurso e

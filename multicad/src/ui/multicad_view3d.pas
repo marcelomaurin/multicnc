@@ -25,7 +25,7 @@ interface
 
 uses
   Classes, SysUtils, Math, Controls, Graphics, ExtCtrls, LCLType, LCLIntf, GraphType,
-  IntfGraphics, contnrs, multicad_types, multicad_mesh, multicad_document,
+  IntfGraphics, LMessages, contnrs, multicad_types, multicad_mesh, multicad_document,
   multicad_feature, multicad_refgeom, multicad_sketch, multicad_rebuild,
   multicad_camera, multicad_softrender;
 
@@ -115,6 +115,8 @@ type
   protected
     procedure Paint; override;
     procedure EraseBackground(DC: HDC); override;
+    { WM_ERASEBKGND: responde "ja apagado" (1) sem pintar nada. }
+    procedure WMEraseBkgnd(var Message: TLMEraseBkgnd); message LM_ERASEBKGND;
     procedure Resize; override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
@@ -328,9 +330,13 @@ begin
   end;
   if FDirty then
   begin
-    F := 1;
-    if FInteractive and (FAvgMs > 28) then
-      F := 2;   { resolucao dinamica enquanto mexe, como nos jogos }
+    { resolucao dinamica so durante o arrasto, e fixa ate soltar o botao:
+      alternar nitido/borrado a cada quadro tambem parece piscar }
+    F := FRenderFactor;
+    if not (FInteractive and FDragging) then
+      F := 1
+    else if (F = 1) and (FAvgMs > 40) then
+      F := 2;
     T0 := GetTickCount64;
     RenderScene(F);
     FAvgMs := FAvgMs * 0.7 + (GetTickCount64 - T0) * F * F * 0.3;
@@ -1035,11 +1041,68 @@ begin
   end;
 end;
 
-procedure TCadView3D.Present;
+{$IFDEF WINDOWS}
+{ chamadas Win32 usadas so aqui (sem a unit Windows, que conflita com TBitmap) }
+function W32GetDC(W: PtrUInt): PtrUInt; stdcall; external 'user32.dll' name 'GetDC';
+function W32ReleaseDC(W, DC: PtrUInt): LongInt; stdcall; external 'user32.dll' name 'ReleaseDC';
+function W32ValidateRect(W: PtrUInt; R: Pointer): LongBool; stdcall; external 'user32.dll' name 'ValidateRect';
+function W32BitBlt(D: PtrUInt; X, Y, W, H: LongInt; S: PtrUInt; SX, SY: LongInt;
+  Rop: LongWord): LongBool; stdcall; external 'gdi32.dll' name 'BitBlt';
+function W32LoadLibrary(N: PAnsiChar): PtrUInt; stdcall; external 'kernel32.dll' name 'LoadLibraryA';
+function W32GetProcAddress(M: PtrUInt; N: PAnsiChar): Pointer; stdcall; external 'kernel32.dll' name 'GetProcAddress';
+
+type
+  TDwmFlushProc = function: LongInt; stdcall;
+var
+  GDwmFlush: TDwmFlushProc = nil;
+  GDwmTried: Boolean = False;
+
+procedure WaitCompositor;
+var
+  Lib: PtrUInt;
 begin
-  { "present": uma unica copia do back buffer para a janela }
+  { como os jogos com vsync: espera o compositor (DWM) do Windows terminar o
+    quadro, para a copia nao "rasgar" a imagem no meio da tela }
+  if not GDwmTried then
+  begin
+    GDwmTried := True;
+    Lib := W32LoadLibrary('dwmapi.dll');
+    if Lib <> 0 then
+      Pointer(GDwmFlush) := W32GetProcAddress(Lib, 'DwmFlush');
+  end;
+  if Assigned(GDwmFlush) then
+    GDwmFlush();
+end;
+{$ENDIF}
+
+procedure TCadView3D.Present;
+{$IFDEF WINDOWS}
+var
+  DC: PtrUInt;
+{$ENDIF}
+begin
+  { "present": uma unica copia (BitBlt) do back buffer para a janela, sem
+    apagar o fundo antes - a tecnica classica anti-piscada do Win32 }
   Compose;
+  {$IFDEF WINDOWS}
+  DC := W32GetDC(Handle);
+  if DC <> 0 then
+  begin
+    W32BitBlt(DC, 0, 0, FFrameBmp.Width, FFrameBmp.Height,
+      FFrameBmp.Canvas.Handle, 0, 0, $00CC0020 { SRCCOPY });
+    W32ReleaseDC(Handle, DC);
+    { a janela ja esta atualizada: descarta pedidos de WM_PAINT pendentes }
+    W32ValidateRect(Handle, nil);
+    WaitCompositor;
+  end;
+  {$ELSE}
   Canvas.Draw(0, 0, FFrameBmp);
+  {$ENDIF}
+end;
+
+procedure TCadView3D.WMEraseBkgnd(var Message: TLMEraseBkgnd);
+begin
+  Message.Result := 1;
 end;
 
 procedure TCadView3D.Paint;
@@ -1222,6 +1285,8 @@ begin
     FDragging := False;
     FShowPivot := False;
     FInteractive := False;
+    if FRenderFactor <> 1 then
+      FDirty := True;   { volta a resolucao cheia ao soltar }
     if not FMoved then
     begin
       { so clicou: some o historico desta "vista" }
