@@ -277,6 +277,13 @@ entidade) e, abaixo de 360°, `Revolve1/inicio` e `Revolve1/fim`.
 - Alternativa por *software* (z-buffer em Pascal) para miniaturas, testes sem GPU e máquinas
   sem OpenGL.
 
+**Desenho sem piscar (técnica de jogos):** laço de quadros a ~60 por segundo; o mouse só
+muda a câmera e cada tique desenha no máximo um quadro inteiro num back buffer fixo (peça,
+esboço, cotas, cubo, eixos) e o apresenta com uma única cópia para a janela, sem apagar o
+fundo e sem passar pelo WM_PAINT durante a interação. Texturas com mipmap e filtro bilinear
+(não cintilam) e resolução dinâmica (metade) enquanto arrasta se o quadro passar de ~28 ms;
+ao soltar, volta à resolução cheia.
+
 **Como está (fase 3):** a vista usa hoje só o renderizador por software
 (`multicad_softrender`: z-buffer, buffer de Id por pixel para a seleção, arestas de recurso e
 silhuetas, seção). É o mesmo código no Windows e no Linux e não depende de driver; o caminho
