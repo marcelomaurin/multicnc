@@ -7,11 +7,11 @@ program test_multicad;
 {$mode objfpc}{$H+}
 
 uses
-  SysUtils, Classes, Math, multicad_types, multicad_units, multicad_materials,
+  SysUtils, Classes, Math, fpjson, multicad_types, multicad_units, multicad_materials,
   multicad_feature, multicad_refgeom, multicad_sketch, multicad_extrude,
   multicad_document, multicad_mesh, multicad_kernel, multicad_solver,
   multicad_profile, multicad_triangulate, multicad_sweep, multicad_bridge, multicad_csg, multicad_revolve, multicad_rebuild,
-  multicad_camera, multicad_softrender, multicad_sketchtools, multicad_export,
+  multicad_camera, multicad_depthdrag, multicad_softrender, multicad_sketchtools, multicad_export,
   multicad_measure, multicad_textures, multislicer_types, multislicer_mesh, multislicer_stl;
 
 var
@@ -2234,6 +2234,80 @@ begin
   end;
 end;
 
+procedure TestExtrudeHandles;
+var D:TCadDocument;RB:TCadRebuilder;S:TCadSketch;X,Cut:TCadExtrude;
+  Cam:TCadCamera;A,Axis:TCadVec3;Factor,Depth,Value,Vol:Double;H:TCadDepthHandle;P:TCadScreenPt;I:Integer;
+begin
+  D:=TCadDocument.Create;RB:=TCadRebuilder.Create(D);Cam:=TCadCamera.Create;
+  try
+    D.NewPart;S:=D.AddSketch('plane:1');S.AddRectangle(-20,-15,20,15);X:=D.AddExtrude(S.Id,20);
+    Check(RB.Rebuild=0,'alca: ressalto valido');
+    Check(RB.ExtrudeHandle(X,1,A,Axis,Factor) and NearV(A,V3(0,0,0)) and NearV(Axis,V3(0,0,1)),
+      'alca: centro e normal do ressalto');
+    S:=D.AddSketch('face:'+X.Name+'/fim');S.AddCircle(0,0,3);Cut:=D.AddExtrude(S.Id,5,True);
+    Check(RB.Rebuild=0,'alca: corte cego valido');
+    Check(RB.ExtrudeHandle(Cut,1,A,Axis,Factor) and Near(A.Z,20) and NearV(Axis,V3(0,0,-1)),
+      'alca: corte entra pela face');
+    Vol:=RB.TotalVolume;Cut.Dir1.Depth:=8;Check(RB.Rebuild=0,'alca: reconstruir corte mais profundo');
+    Check(Abs((Vol-RB.TotalVolume)-Pi*9*3)<2,'alca: volume corresponde a profundidade do furo');
+    Check(RB.Body(0).Mesh.IsClosed,'alca: corte preserva malha fechada');
+    Cut.Dir1.EndCond:=ecThroughAll;Check(not RB.ExtrudeHandle(Cut,1,A,Axis,Factor),'alca: passante nao oferece profundidade arbitraria');
+    Cut.Dir1.EndCond:=ecBlind;Cut.Dir1.Reverse:=True;
+    Check(RB.ExtrudeHandle(Cut,1,A,Axis,Factor) and NearV(Axis,V3(0,0,1)),'alca: inverter direcao');
+    X.Dir1.EndCond:=ecMidPlane;
+    Check(RB.ExtrudeHandle(X,1,A,Axis,Factor) and Near(Factor,0.5),'alca: plano medio usa metade na geometria e total no campo');
+    X.Dir1.EndCond:=ecBlind;X.UseDir2:=True;X.StartKind:=esOffset;X.StartOffset:=3;
+    Check(RB.ExtrudeHandle(X,2,A,Axis,Factor) and NearV(Axis,V3(0,0,-1)) and Near(A.Z,-3),'alca: direcao 2 e inicio deslocado');
+    for I:=0 to 2 do
+    begin
+      Cam.SetViewport(800,600);Cam.Scale:=8;Cam.Target:=V3(0,0,5);Cam.Distance:=100;
+      Cam.Perspective:=I=1;Cam.StdView(svIso);if I=2 then Cam.StdView(svFront);
+      A:=V3(0,0,20);Axis:=V3(0,0,-1);
+      Check(CadDepthHandle(Cam,A,Axis,1,5,1,H),'alca: projecao valida');
+      Depth:=12;
+      if H.Fallback then
+        Value:=CadDepthAtMouse(Cam,H,H.Base.X+H.ScreenDir.X*Depth*H.PixelsPerMM+H.Offset.X,
+          H.Base.Y+H.ScreenDir.Y*Depth*H.PixelsPerMM+H.Offset.Y)
+      else
+      begin
+        P:=Cam.Project(VAdd(A,VScale(Axis,Depth)));
+        Value:=CadDepthAtMouse(Cam,H,P.X+H.Offset.X,P.Y+H.Offset.Y);
+      end;
+      Check(Near(Value,Depth,1E-7),'alca: pixels para mm em ortografica, perspectiva e vista normal');
+      Check(H.Fallback=(I=2),'alca: alternativa legivel quando o eixo aponta para a camera');
+    end;
+  finally Cam.Free;RB.Free;D.Free;end;
+end;
+
+
+procedure TestReferenceCacheRestoration;
+var D:TCadDocument;RB:TCadRebuilder;S:TCadSketch;X:TCadExtrude;
+  P,Q:TCadPlane;A:TCadAxis;O:TJSONObject;Fr:TCadFrame;E:string;Depth:Double;
+begin
+  D:=TCadDocument.Create;RB:=TCadRebuilder.Create(D);O:=TJSONObject.Create;
+  try
+    S:=D.AddSketch('plane:1');S.AddRectangle(-10,-10,10,10);X:=D.AddExtrude(S.Id,10);
+    P:=D.AddPlane(ptCoincident,['face:'+X.Name+'/fim']);
+    Q:=D.AddPlane(ptOffset,['plane:'+IntToStr(P.Id)],3);
+    A:=TCadAxis.Create;A.AxisType:=atTwoPlanes;SetLength(A.Refs,2);
+    A.Refs[0]:='plane:'+IntToStr(P.Id);A.Refs[1]:='plane:3';D.AddFeature(A);
+    Check(RB.Rebuild=0,'referencias: peca inicial valida');Depth:=RB.TotalVolume;
+    Check((RB.Rebuild=0) and (RB.Recomputed=0),'referencias: cache sem mudancas preservado');
+    P.SaveParams(O);P.LoadParams(O);
+    Check(not P.FrameValid,'referencias: restaurar parametros invalida o referencial derivado');
+    Check(RB.Rebuild=0,'referencias: reconstruir depois de restaurar plano');
+    Check(P.FrameValid and (P.State=fsOk),'referencias: cache nao pula plano com referencial invalidado');
+    Check(RB.ResolvePlane('plane:'+IntToStr(P.Id),Fr,E) and Near(Fr.Origin.Z,10),
+      'referencias: plano pode receber esboco depois de cancelar edicao');
+    Check(Q.FrameValid and Near(Q.Frame.Origin.Z,13),'referencias: plano dependente continua correto');
+    O.Clear;A.SaveParams(O);A.LoadParams(O);Check(not A.Valid,'referencias: restaurar eixo invalida geometria');
+    Check(RB.Rebuild=0,'referencias: reconstruir depois de restaurar eixo');
+    Check(A.Valid and (A.State=fsOk),'referencias: cache nao pula eixo invalidado');
+    Check(Near(RB.TotalVolume,Depth),'referencias: restauracao nao altera solido');
+    Check((RB.Rebuild=0) and (RB.Recomputed=0),'referencias: cache volta a ser reutilizado');
+  finally O.Free;RB.Free;D.Free;end;
+end;
+
 begin
   Passed := 0;
   Failed := 0;
@@ -2248,7 +2322,9 @@ begin
   TestSweep;
   TestCSG;
   TestRebuild;
+  TestReferenceCacheRestoration;
   TestCamera;
+  TestExtrudeHandles;
   TestRender;
   TestSketchTools;
   TestSketchTools2;

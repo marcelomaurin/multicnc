@@ -21,7 +21,7 @@ uses
   Classes, SysUtils, Math, Controls, StdCtrls, ExtCtrls, Forms, Graphics,
   multicad_types, multicad_units, multicad_document, multicad_feature,
   multicad_refgeom, multicad_extrude, multicad_revolve, multisuite_controls,
-  multisuite_icons;
+  multisuite_icons, multicad_log;
 
 type
   TCadPropManager = class(TCustomPanel)
@@ -79,6 +79,7 @@ type
     { Referencia clicada na vista. True se um campo a recebeu. }
     function SetPickedRef(const ARef: string): Boolean;
     procedure ShowMessageText(const S: string; IsError: Boolean);
+    procedure SetExtrudeDepth(Direction: Integer; Depth: Double; const Expr: string = '');
     property Feature: TCadFeature read FFeature;
     property IsNew: Boolean read FIsNew;
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
@@ -254,10 +255,32 @@ end;
 procedure TCadPropManager.ShowMessageText(const S: string; IsError: Boolean);
 begin
   FMsg.Caption := S;
+  if IsError and (S<>'') then CadLog('ERROR.PROPERTY',S);
   if IsError then
     FMsg.Font.Color := clSuiteDanger
   else
     FMsg.Font.Color := clSuiteWarning;
+end;
+
+procedure TCadPropManager.SetExtrudeDepth(Direction: Integer; Depth: Double; const Expr: string);
+var X: TCadExtrude; E: TEdit;
+begin
+  if not (FFeature is TCadExtrude) or IsNan(Depth) or IsInfinite(Depth) or (Depth<=CAD_TOL) then Exit;
+  X:=TCadExtrude(FFeature);
+  if Direction=1 then
+  begin
+    if not CadEndNeedsDepth(X.Dir1.EndCond) then Exit;
+    X.Dir1.Depth:=Depth;X.Dir1.DepthExpr:=Expr;E:=edDepth1;
+  end
+  else if (Direction=2) and X.UseDir2 and CadEndNeedsDepth(X.Dir2.EndCond) then
+  begin X.Dir2.Depth:=Depth;X.Dir2.DepthExpr:=Expr;E:=edDepth2;end
+  else Exit;
+  FUpdating:=True;
+  try
+    if Expr='' then E.Text:=CadFmt(Depth,4) else E.Text:=Expr;
+    E.Color:=clWindow;
+  finally FUpdating:=False;end;
+  if Assigned(FOnChange) then FOnChange(Self);
 end;
 
 function TCadPropManager.Num(E: TEdit; out V: Double): Boolean;
@@ -273,7 +296,10 @@ begin
         E.Color := clWindow;
     end
     else
+    begin
+      CadLog('ERROR.INPUT','field='+E.Name+' value='+E.Text+' error='+Err);
       E.Color := BAD_COLOR;
+    end;
   end;
 end;
 
@@ -350,6 +376,8 @@ begin
     edDepth1 := AddEdit('Profundidade', X.Dir1.DepthExpr)
   else
     edDepth1 := AddEdit('Profundidade', CadFmt(X.Dir1.Depth));
+  edDepth1.Name:='ExtrudeDepth1';
+  edDepth1.Hint:='Arraste a seta na vista para ajustar. Shift faz ajuste fino.';edDepth1.ShowHint:=True;
   edTarget1 := AddRef('Face / vértice / corpo alvo', X.Dir1.Target);
   edOff1 := AddEdit('Distância de deslocamento', CadFmt(X.Dir1.Offset));
   ckDraft1 := AddCheck('Inclinação', Abs(X.Dir1.Draft) > 0);
@@ -372,6 +400,7 @@ begin
     end;
   cbEnd2 := AddCombo('', Names, I2);
   edDepth2 := AddEdit('Profundidade', CadFmt(X.Dir2.Depth));
+  edDepth2.Name:='ExtrudeDepth2';
   edTarget2 := AddRef('Alvo da direção 2', X.Dir2.Target);
   Section('Recurso fino');
   ckThin := AddCheck('Recurso fino', X.Thin);

@@ -57,6 +57,8 @@ function JBool(O: TJSONObject; const K: string; Def: Boolean): Boolean;
 
 implementation
 
+uses multicad_log;
+
 var
   GClasses: array[TCadFeatureKind] of TCadFeatureClass;
 
@@ -94,6 +96,8 @@ procedure TCadFeature.SetState(AState: TCadFeatureState; const AMsg: string);
 begin
   State := AState;
   Message := AMsg;
+  if AState in [fsWarning,fsError] then
+    CadLog('FEATURE.STATE',Format('id=%d name=%s state=%d message=%s',[Id,Name,Ord(AState),AMsg]));
 end;
 
 procedure RegisterCadFeature(AKind: TCadFeatureKind; AClass: TCadFeatureClass);

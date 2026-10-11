@@ -43,6 +43,8 @@ const
 
 implementation
 
+uses multicad_log;
+
 type
   TCadParser = class
   private
@@ -379,6 +381,7 @@ begin
   except
     on E: Exception do
     begin
+      CadLog('ERROR.EXPRESSION','value='+AText+' error='+E.Message);
       AError := E.Message;
       Result := False;
     end;

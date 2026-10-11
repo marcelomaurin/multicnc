@@ -9,6 +9,12 @@
    <ResourceType Value="res" />
    <Icon Value="0"/>
   </General>
+  <VersionInfo>
+   <UseVersionInfo Value="True"/>
+   <MinorVersionNr Value="3"/>
+   <RevisionNr Value="6"/>
+   <StringTable CompanyName="Maurinsoft" FileDescription="MultiCAD" ProductName="MultiCAD / MultiSuite" ProductVersion="0.3.6.0"/>
+  </VersionInfo>
   <BuildModes Count="1">
    <Item1 Name="Default" Default="True" />
   </BuildModes>
@@ -41,6 +47,7 @@
   <Linking>
    <Debugging>
     <GenerateDebugInfo Value="True" />
+    <UseLineInfoUnit Value="True" />
    </Debugging>
    <Options>
     <Win32>

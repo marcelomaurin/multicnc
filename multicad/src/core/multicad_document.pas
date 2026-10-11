@@ -105,7 +105,7 @@ const
 implementation
 
 uses
-  multicad_units;
+  multicad_units, multicad_log;
 
 constructor TCadDocument.Create;
 begin
@@ -253,6 +253,7 @@ begin
   else
     FFeatures.Add(F);
   Modified := True;
+  CadLog('FEATURE.ADD',Format('id=%d name=%s class=%s',[F.Id,F.Name,F.ClassName]));
 end;
 
 function TCadDocument.AddSketch(const APlaneRef, AName: string): TCadSketch;
@@ -375,6 +376,7 @@ begin
       [F.Name, Length(D)]);
     Exit;
   end;
+  CadLog('FEATURE.DELETE',Format('id=%d name=%s',[F.Id,F.Name]));
   FFeatures.Delete(I);
   F.Free;
   if (RollbackIndex > I) then
@@ -665,7 +667,7 @@ begin
       Result := True;
     except
       on E: Exception do
-        AError := E.Message;
+        begin CadLogException('documento',E);AError := E.Message;end;
     end;
   finally
     for I := 0 to List.Count - 1 do
@@ -707,7 +709,7 @@ begin
     except
       on E: Exception do
       begin
-        AError := E.Message;
+        begin CadLogException('documento',E);AError := E.Message;end;
         if FileExists(Tmp) then
           DeleteFile(Tmp);
       end;
@@ -726,6 +728,7 @@ begin
   if not FileExists(AFileName) then
   begin
     AError := 'Arquivo não encontrado: ' + AFileName;
+    CadLog('ERROR.FILE',AError);
     Exit;
   end;
   SL := TStringList.Create;
@@ -735,7 +738,7 @@ begin
     except
       on E: Exception do
       begin
-        AError := E.Message;
+        begin CadLogException('documento',E);AError := E.Message;end;
         Exit;
       end;
     end;

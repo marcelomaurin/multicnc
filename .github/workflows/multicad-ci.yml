@@ -15,14 +15,28 @@ jobs:
         run: |
           set -e
           lazbuild --ws=nogui multicad/tests/test_multicad.lpi
-          cd multicad/tests && ./test_multicad
+          lazbuild --ws=nogui multicad/tests/test_log.lpi
+          lazbuild --ws=nogui multicad/tests/test_smart_dimension.lpi
+          cd multicad/tests && ./test_multicad && ./test_log && ./test_smart_dimension
       - name: Build the application
         run: lazbuild --ws=gtk2 multicad/src/app/multicad.lpi
       - name: UI test (janela, vista 3D, esboco, PropertyManager)
         run: |
           set -e
           lazbuild --ws=gtk2 multicad/tests/test_multicad_ui.lpi
+          lazbuild --ws=gtk2 multicad/tests/test_extrude_ui.lpi
+          lazbuild --ws=gtk2 multicad/tests/test_selection_ui.lpi
+          lazbuild --ws=gtk2 multicad/tests/test_sketch_visibility_ui.lpi
+          lazbuild --ws=gtk2 multicad/tests/test_cut_failure_ui.lpi
+          lazbuild --ws=gtk2 multicad/tests/test_plane_cancel_ui.lpi
+          lazbuild --ws=gtk2 multicad/tests/test_smart_dimension_ui.lpi
           cd multicad/tests && xvfb-run -a -s "-screen 0 1600x1000x24" ./test_multicad_ui shots
+          xvfb-run -a ./test_extrude_ui
+          xvfb-run -a ./test_selection_ui
+          xvfb-run -a ./test_sketch_visibility_ui
+          xvfb-run -a ./test_cut_failure_ui
+          xvfb-run -a ./test_plane_cancel_ui
+          xvfb-run -a ./test_smart_dimension_ui
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -47,11 +61,43 @@ jobs:
           cd multicad\tests
           test_multicad.exe
           if errorlevel 1 exit /b 1
+          lazbuild test_log.lpi
+          if errorlevel 1 exit /b 1
+          test_log.exe
+          if errorlevel 1 exit /b 1
+          lazbuild test_smart_dimension.lpi
+          if errorlevel 1 exit /b 1
+          test_smart_dimension.exe
+          if errorlevel 1 exit /b 1
           cd ..\..
           lazbuild multicad\src\app\multicad.lpi
           if errorlevel 1 exit /b 1
           lazbuild multicad\tests\test_multicad_ui.lpi
           if errorlevel 1 exit /b 1
+          lazbuild multicad\tests\test_extrude_ui.lpi
+          if errorlevel 1 exit /b 1
+          lazbuild multicad\tests\test_selection_ui.lpi
+          if errorlevel 1 exit /b 1
+          lazbuild multicad\tests\test_sketch_visibility_ui.lpi
+          if errorlevel 1 exit /b 1
+          lazbuild multicad\tests\test_cut_failure_ui.lpi
+          if errorlevel 1 exit /b 1
+          lazbuild multicad\tests\test_plane_cancel_ui.lpi
+          if errorlevel 1 exit /b 1
+          lazbuild multicad\tests\test_smart_dimension_ui.lpi
+          if errorlevel 1 exit /b 1
           cd multicad\tests
           test_multicad_ui.exe
+          if errorlevel 1 exit /b 1
+          test_extrude_ui.exe
+          if errorlevel 1 exit /b 1
+          test_selection_ui.exe
+          if errorlevel 1 exit /b 1
+          test_sketch_visibility_ui.exe
+          if errorlevel 1 exit /b 1
+          test_cut_failure_ui.exe
+          if errorlevel 1 exit /b 1
+          test_plane_cancel_ui.exe
+          if errorlevel 1 exit /b 1
+          test_smart_dimension_ui.exe
           if errorlevel 1 exit /b 1

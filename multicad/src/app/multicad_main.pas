@@ -22,16 +22,16 @@ interface
 
 uses
   Classes, SysUtils, Math, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls,
-  Graphics, Dialogs, Menus, LCLType, fpjson, jsonparser, multisuite_controls,
+  Graphics, Dialogs, Menus, LCLType, LCLIntf, multicad_log, multicad_diagnostics, multicad_commandmanager, fpjson, jsonparser, multisuite_controls,
   multisuite_icons, multicad_types, multicad_units, multicad_materials,
   multicad_document, multicad_feature, multicad_refgeom, multicad_sketch, multicad_mesh,
   multicad_solver, multicad_extrude, multicad_revolve, multicad_rebuild,
-  multicad_camera, multicad_softrender, multicad_view3d, multicad_sketchtools,
+  multicad_camera, multicad_softrender, multicad_view3d, multicad_sketchtools, multicad_extrudeedit,
   multicad_sketchedit, multicad_propman, multicad_materialdlg, multicad_textures, multicad_export, multicad_measure,
   multisuite_types, multisuite_registry, multisuite_launcher, multisuite_context;
 
 type
-  TCadTab = (ctFeatures, ctSketch, ctEvaluate, ctView, ctExport);
+  TCadTab = (ctFeatures, ctSketch, ctEvaluate, ctView, ctExport, ctAbout);
 
   TMainForm = class(TForm)
   private
@@ -41,6 +41,7 @@ type
     TabBar, Ribbon, LeftPane: TPanel;
     TabButtons: array[TCadTab] of TSuiteButton;
     FileButtons: TPanel;
+    MainMenuBar: TMainMenu;
     Tree: TTreeView;
     TreeMenu, MatMenu, PartMenu: TPopupMenu;
     RelMenu: TPopupMenu;
@@ -50,6 +51,7 @@ type
     Splitter: TSplitter;
     FTab: TCadTab;
     FEditor: TCadSketchEditor;
+    FExtrudeEditor: TCadExtrudeEditor;
     FSnapshot: TJSONObject;     { parametros antes de editar (Cancelar) }
     FSnapName: string;
     FPendingSketch: Boolean;    { esperando escolher plano/face para o esboco }
@@ -59,7 +61,7 @@ type
     FRibX, FRibY: Integer;
     FGridBtn, FGridSnapBtn, FWheelBtn: TSuiteButton;
     SketchPanel: TPanel;
-    SketchTitle, SketchSel: TLabel;
+    SketchTitle, SketchSel, SketchHint: TLabel;
     LineKind: TRadioGroup;
     FUpdatingPanel: Boolean;
     FRefreshingTree: Boolean;
@@ -71,7 +73,13 @@ type
       AHandler: TNotifyEvent; ATag: Integer = 0; AWidth: Integer = 0): TSuiteButton;
     procedure RibbonSep;
     procedure TabClick(Sender: TObject);
+    procedure LayoutCommandManager(Sender: TObject);
+    procedure BuildMainMenu;
+    procedure CloseClick(Sender: TObject);
     { arquivo }
+    procedure AboutClick(Sender: TObject);
+    procedure LogClick(Sender: TObject);
+    procedure ApplicationError(Sender: TObject; E: Exception);
     procedure NewClick(Sender: TObject);
     procedure OpenClick(Sender: TObject);
     procedure SaveClick(Sender: TObject);
@@ -157,6 +165,7 @@ type
     procedure StyleClick(Sender: TObject);
     procedure ViewClick(Sender: TObject);
     procedure NormalToClick(Sender: TObject);
+    procedure NormalToRef(const ARef: string);
     procedure PerspectiveClick(Sender: TObject);
     procedure PlanesClick(Sender: TObject);
     { vista }
@@ -176,7 +185,10 @@ type
     property Rebuilder: TCadRebuilder read RB;
     property View3D: TCadView3D read View;
     property FeatureTree: TTreeView read Tree;
+    property CommandRibbon: TPanel read Ribbon;
+    property CommandTabs: TPanel read TabBar;
     property SketchEditor: TCadSketchEditor read FEditor;
+    property ExtrudeEditor: TCadExtrudeEditor read FExtrudeEditor;
     procedure EditSketchById(AId: Integer);
     procedure EditFeatureById(AId: Integer);
     procedure CancelEdit;
@@ -187,7 +199,7 @@ type
 implementation
 
 const
-  TAB_NAMES: array[TCadTab] of string = ('Operações', 'Esboço', 'Avaliar', 'Exibir', 'Exportar');
+  TAB_NAMES: array[TCadTab] of string = ('Operações', 'Esboço', 'Avaliar', 'Exibir', 'Exportar', 'Sobre');
   NODE_PART = -100;
   NODE_MATERIAL = -101;
   NODE_ROLLBACK = -102;
@@ -211,7 +223,11 @@ begin
   Doc.NewPart;
   RB := TCadRebuilder.Create(Doc);
   BuildUI;
+  BuildMainMenu;
+  OnResize:=@LayoutCommandManager;
   LoadSettings;
+  Application.AddOnExceptionHandler(@ApplicationError);
+  CadLog('WINDOW.OPEN','version='+CadExecutableVersion);
   RebuildModel;
   View.SetView(svIso);
   UpdateCaption;
@@ -219,6 +235,9 @@ end;
 
 destructor TMainForm.Destroy;
 begin
+  Application.RemoveOnExceptionHandler(@ApplicationError);
+  CadLog('WINDOW.CLOSE',Caption);
+  FreeAndNil(FExtrudeEditor);
   FreeAndNil(FEditor);
   FSnapshot.Free;
   RB.Free;
@@ -235,7 +254,7 @@ var
 
   function FileBtn(const S: string; AIcon: TSuiteIconKind; H: TNotifyEvent): TSuiteButton;
   begin
-    Result := TSuiteButton.Create(Self);
+    Result := TCadLoggedButton.Create(Self);
     Result.Parent := FileButtons;
     Result.Align := alLeft;
     Result.BorderSpacing.Around := 3;
@@ -247,7 +266,7 @@ var
 
   procedure AddMenu(const S: string; H: TNotifyEvent; ATag: Integer = 0);
   begin
-    MI := TMenuItem.Create(TreeMenu);
+    MI := TCadLoggedMenuItem.Create(TreeMenu);
     MI.Caption := S;
     MI.OnClick := H;
     MI.Tag := ATag;
@@ -264,27 +283,29 @@ begin
   TabBar := TPanel.Create(Self);
   TabBar.Parent := Self;
   TabBar.Align := alTop;
-  TabBar.Top := 100;
-  TabBar.Height := 38;
+  TabBar.Top := 200;
+  TabBar.Height := 30;
   TabBar.BevelOuter := bvNone;
   TabBar.Color := clSuiteCard;
   for T := Low(TCadTab) to High(TCadTab) do
   begin
-    B := TSuiteButton.Create(Self);
+    B := TCadCommandTab.Create(Self);
     B.Parent := TabBar;
-    B.SetBounds(8 + Ord(T) * 118, 4, 112, 30);
+    B.SetBounds(8 + Ord(T) * 112, 0, 112, 30);
     B.Caption := TAB_NAMES[T];
     B.Tag := Ord(T);
     B.OnClick := @TabClick;
     TabButtons[T] := B;
   end;
   FileButtons := TPanel.Create(Self);
-  FileButtons.Parent := TabBar;
+  FileButtons.Parent := Header;
   FileButtons.Align := alRight;
-  FileButtons.Width := 4 * 102 + 8;
+  FileButtons.BorderSpacing.Top:=12;
+  FileButtons.BorderSpacing.Bottom:=12;
+  FileButtons.Width := 448;
   FileButtons.BevelOuter := bvNone;
   FileButtons.Color := clSuiteCard;
-  FileBtn('Salvar como', sikSave, @SaveAsClick);
+  FileBtn('Salvar como', sikSave, @SaveAsClick).Width:=128;
   FileBtn('Salvar', sikSave, @SaveClick);
   FileBtn('Abrir', sikFolder, @OpenClick);
   FileBtn('Novo', sikNew, @NewClick);
@@ -292,7 +313,7 @@ begin
   Ribbon := TPanel.Create(Self);
   Ribbon.Parent := Self;
   Ribbon.Align := alTop;
-  Ribbon.Top := 200;
+  Ribbon.Top := 100;
   Ribbon.Height := 50;
   Ribbon.BevelOuter := bvNone;
   Ribbon.Color := clSuiteSurface;
@@ -334,16 +355,16 @@ begin
   AddMenu('-', nil);
   AddMenu('Novo esboço neste plano', @MenuSketchOnPlane);
   MatMenu := TPopupMenu.Create(Self);
-  MI := TMenuItem.Create(MatMenu);
+  MI := TCadLoggedMenuItem.Create(MatMenu);
   MI.Caption := 'Editar material...';
   MI.OnClick := @MaterialMenuEdit;
   MatMenu.Items.Add(MI);
-  MI := TMenuItem.Create(MatMenu);
+  MI := TCadLoggedMenuItem.Create(MatMenu);
   MI.Caption := 'Material padrão (' + CAD_DEFAULT_MATERIAL + ')';
   MI.OnClick := @MaterialMenuDefault;
   MatMenu.Items.Add(MI);
   PartMenu := TPopupMenu.Create(Self);
-  MI := TMenuItem.Create(PartMenu);
+  MI := TCadLoggedMenuItem.Create(PartMenu);
   MI.Caption := 'Renomear';
   MI.OnClick := @PartMenuRename;
   PartMenu.Items.Add(MI);
@@ -352,7 +373,7 @@ begin
   for K := Low(TConstraintKind) to High(TConstraintKind) do
     if not IsDimensionKind(K) then
     begin
-      MI := TMenuItem.Create(RelMenu);
+      MI := TCadLoggedMenuItem.Create(RelMenu);
       MI.Caption := CadConstraintName(K);
       MI.Tag := Ord(K);
       MI.OnClick := @RelationClick;
@@ -372,27 +393,34 @@ begin
   SketchTitle.SetBounds(10, 6, 250, 18);
   SketchTitle.Font.Style := [fsBold];
   SketchSel := TLabel.Create(Self);
+  SketchSel.Name := 'SketchToolSummary';
   SketchSel.Parent := SketchPanel;
-  SketchSel.SetBounds(10, 28, 250, 34);
+  SketchSel.SetBounds(10, 28, Max(1, SketchPanel.ClientWidth-20), 34);
   SketchSel.WordWrap := True;
   SketchSel.AutoSize := False;
   SketchSel.Anchors := [akLeft, akTop, akRight];
   LineKind := TRadioGroup.Create(Self);
+  LineKind.Name := 'SketchLineKind';
   LineKind.Parent := SketchPanel;
-  LineKind.SetBounds(8, 66, 252, 70);
+  LineKind.SetBounds(8, 66, Max(1, SketchPanel.ClientWidth-16), 70);
   LineKind.Caption := 'Tipo de linha';
   LineKind.Anchors := [akLeft, akTop, akRight];
   LineKind.Items.Add('Linha normal (contorno da peça)');
   LineKind.Items.Add('Linha de apoio (tracejada)');
   LineKind.ItemIndex := 0;
   LineKind.OnClick := @LineKindClick;
-  with TLabel.Create(Self) do
+  SketchHint := TLabel.Create(Self);
+  SketchHint.Name := 'SketchToolHint';
+  with SketchHint do
   begin
     Parent := SketchPanel;
     SetBounds(10, 140, 250, 36);
     AutoSize := False;
     WordWrap := True;
-    Anchors := [akLeft, akTop, akRight];
+    BorderSpacing.Left := 10;
+    BorderSpacing.Right := 10;
+    BorderSpacing.Bottom := 6;
+    Align := alBottom;
     Font.Color := clSuiteMuted;
     Caption := 'Sem seleção, a escolha vale para as próximas linhas.';
   end;
@@ -435,21 +463,23 @@ end;
 function TMainForm.RibbonButton(const ACaption: string; AIcon: TSuiteIconKind;
   AHandler: TNotifyEvent; ATag: Integer; AWidth: Integer): TSuiteButton;
 begin
-  Result := TSuiteButton.Create(Ribbon);
+  Result := TCadCommandButton.Create(Ribbon);
   Result.Parent := Ribbon;
   if AWidth = 0 then
-    AWidth := Max(84, Round(Result.Canvas.TextWidth(ACaption) * 1.12) + 54);
+    AWidth := EnsureRange(Round(Result.Canvas.TextWidth(ACaption) * 0.65) + 14, 78, 124);
   { quebra de linha quando nao cabe (aba Esboco tem duas linhas) }
   if (FRibX > 8) and (FRibX + AWidth > Max(Ribbon.ClientWidth, ClientWidth) - 8) then
   begin
     FRibX := 8;
-    Inc(FRibY, 40);
+    Inc(FRibY, 86);
   end;
-  Result.SetBounds(FRibX, FRibY, AWidth, 34);
+  Result.SetBounds(FRibX, FRibY, AWidth, 80);
   Inc(FRibX, AWidth + 6);
   Result.Caption := ACaption;
   Result.Tag := ATag;
   Result.SetLook(sbsSoft, clSuitePrimary, AIcon);
+  TCadCommandButton(Result).SetCommandIcon(AIcon);
+  Result.Hint:=ACaption;Result.ShowHint:=True;
   Result.OnClick := AHandler;
 end;
 
@@ -462,7 +492,7 @@ begin
   B := TBevel.Create(Ribbon);
   B.Parent := Ribbon;
   B.Shape := bsLeftLine;
-  B.SetBounds(FRibX, FRibY + 2, 4, 30);
+  B.SetBounds(FRibX, FRibY + 2, 4, 76);
   Inc(FRibX, 8);
 end;
 
@@ -473,6 +503,7 @@ var
   K: TCadSketchToolKind;
   InSketch: Boolean;
 begin
+  CadLog('TAB',TAB_NAMES[T]);
   FTab := T;
   for TT := Low(TCadTab) to High(TCadTab) do
     if TT = T then
@@ -480,7 +511,12 @@ begin
     else
       TabButtons[TT].SetLook(sbsSoft, clSuitePrimary);
   for I := Ribbon.ControlCount - 1 downto 0 do
-    Ribbon.Controls[I].Free;
+  begin
+    { Click is called before WMLButtonUp finishes using the control.
+      Hide now, release after dispatch so switching tools/tabs is safe. }
+    Ribbon.Controls[I].Visible:=False;
+    Application.ReleaseComponent(Ribbon.Controls[I]);
+  end;
   FRibX := 8;
   FRibY := 8;
   FGridBtn := nil;
@@ -570,6 +606,11 @@ begin
         if View.ReverseWheel then
           FWheelBtn.SetLook(sbsSolid, clSuitePrimary, sikZoomIn);
       end;
+    ctAbout:
+      begin
+        RibbonButton('Sobre o MultiCAD', sikHome, @AboutClick);
+        RibbonButton('Abrir log', sikFolder, @LogClick);
+      end;
     ctExport:
       begin
         RibbonButton('STL para impressão 3D...', sikExport, @ExportSTLClick);
@@ -579,7 +620,53 @@ begin
           clSuitePrimary, sikSlicer);
       end;
   end;
-  Ribbon.Height := FRibY + 34 + 8;
+  Ribbon.Height := FRibY + 80 + 8;
+end;
+
+procedure TMainForm.LayoutCommandManager(Sender: TObject);
+begin
+  if Assigned(Ribbon) and Assigned(TabButtons[ctFeatures]) then ShowTab(FTab);
+end;
+
+procedure TMainForm.CloseClick(Sender: TObject);
+begin Close;end;
+
+procedure TMainForm.BuildMainMenu;
+var Root,Item:TMenuItem;
+  function Category(const Caption:string):TMenuItem;
+  begin
+    Result:=TCadLoggedMenuItem.Create(MainMenuBar);Result.Caption:=Caption;
+    MainMenuBar.Items.Add(Result);
+  end;
+  procedure Command(const Caption:string;Handler:TNotifyEvent;Tag:Integer=0);
+  begin
+    Item:=TCadLoggedMenuItem.Create(MainMenuBar);Item.Caption:=Caption;
+    Item.Tag:=Tag;Item.OnClick:=Handler;Root.Add(Item);
+  end;
+begin
+  MainMenuBar:=TMainMenu.Create(Self);Menu:=MainMenuBar;
+  Root:=Category('Arquivo');
+  Command('Novo',@NewClick);Command('Abrir...',@OpenClick);
+  Command('Salvar',@SaveClick);Command('Salvar como...',@SaveAsClick);
+  Command('-',nil);Command('Sair',@CloseClick);
+  Root:=Category('Editar');
+  Command('Editar operação',@MenuEdit);Command('Editar esboço',@MenuEditSketch);
+  Command('Renomear',@MenuRename);Command('Excluir',@MenuDelete);
+  Root:=Category('Exibir');
+  Command('Frontal',@ViewClick,Ord(svFront));Command('Superior',@ViewClick,Ord(svTop));
+  Command('Direita',@ViewClick,Ord(svRight));Command('Isométrica',@ViewClick,Ord(svIso));
+  Command('Normal a',@NormalToClick);Command('Enquadrar',@ViewClick,-1);
+  Command('Perspectiva',@PerspectiveClick);Command('Planos padrão',@PlanesClick);
+  Root:=Category('Inserir');
+  Command('Esboço',@SketchClick);Command('Plano',@PlaneClick);
+  Command('-',nil);Command('Ressalto extrudado',@ExtrudeClick);Command('Corte extrudado',@CutClick);
+  Command('Ressalto revolucionado',@RevolveClick);Command('Corte revolucionado',@RevolveCutClick);
+  Root:=Category('Ferramentas');
+  Command('Reconstruir',@RebuildClick);Command('Propriedades de massa',@MassClick);
+  Command('Medir',@MeasureClick);Command('Exportar STL...',@ExportSTLClick);
+  Command('Exportar DXF...',@ExportDXFClick);
+  Root:=Category('Sobre');
+  Command('Sobre o MultiCAD',@AboutClick);Command('Abrir log',@LogClick);
 end;
 
 procedure TMainForm.TabClick(Sender: TObject);
@@ -775,6 +862,7 @@ var
 begin
   View.Selected.Clear;
   F := SelectedFeature;
+  CadLogFeature('SELECT.TREE',F);
   if F = nil then
   begin
     View.HighlightPrefix := '';
@@ -878,7 +966,7 @@ begin
   end;
   if Doc.FindByName(S) <> nil then
   begin
-    MessageDlg('Já existe uma operação chamada "' + S + '"', mtWarning, [mbOK], 0);
+    CadMessageDlg('Já existe uma operação chamada "' + S + '"', mtWarning, [mbOK], 0);
     S := F.Name;
     Exit;
   end;
@@ -909,7 +997,7 @@ begin
     F := Doc.FindById(Id);
   end
   else
-    MessageDlg('Não foi possível renomear: ' + Err, mtError, [mbOK], 0);
+    CadMessageDlg('Não foi possível renomear: ' + Err, mtError, [mbOK], 0);
 end;
 
 procedure TMainForm.TreeMouseDown(Sender: TObject; Button: TMouseButton;
@@ -1012,11 +1100,11 @@ begin
   F := SelectedFeature;
   if F = nil then
     Exit;
-  if MessageDlg('Excluir "' + F.Name + '"?', mtConfirmation, [mbYes, mbNo], 0) <> mrYes then
+  if CadMessageDlg('Excluir "' + F.Name + '"?', mtConfirmation, [mbYes, mbNo], 0) <> mrYes then
     Exit;
   if not Doc.DeleteFeature(F.Id, Err) then
   begin
-    MessageDlg(Err, mtWarning, [mbOK], 0);
+    CadMessageDlg(Err, mtWarning, [mbOK], 0);
     Exit;
   end;
   View.Selected.Clear;
@@ -1142,7 +1230,7 @@ begin
   Result := True;
   if not Doc.Modified then
     Exit;
-  case MessageDlg('Salvar as alterações em "' + Doc.Name + '"?', mtConfirmation,
+  case CadMessageDlg('Salvar as alterações em "' + Doc.Name + '"?', mtConfirmation,
     [mbYes, mbNo, mbCancel], 0) of
     mrYes:
       begin
@@ -1155,10 +1243,39 @@ begin
   end;
 end;
 
+procedure TMainForm.ApplicationError(Sender: TObject; E: Exception);
+begin
+  CadLogException('Application',E);
+  Application.ShowException(E);
+end;
+
+procedure TMainForm.AboutClick(Sender: TObject);
+var S: string;
+begin
+  S:='MultiCAD - Maurinsoft / MultiSuite'+LineEnding+
+    'Modelagem paramétrica de peças: esboços, extrusões, cortes e revoluções.'+LineEnding+LineEnding+
+    'Versão do executável: '+CadExecutableVersion+LineEnding+
+    'Compilação: '+{$I %DATE%}+' '+{$I %TIME%}+LineEnding+
+    'Executável: '+ParamStr(0)+LineEnding+'Log: '+CadLogPath;
+  if CadLogError<>'' then S:=S+LineEnding+'Falha no log: '+CadLogError;
+  CadMessageDlg('Sobre o MultiCAD',S,mtInformation,[mbOK],0);
+end;
+
+procedure TMainForm.LogClick(Sender: TObject);
+begin
+  if (CadLogPath='') or not FileExists(CadLogPath) then
+    CadMessageDlg('Log indisponivel: '+CadLogError,mtWarning,[mbOK],0)
+  else if not OpenDocument(CadLogPath) then
+    CadMessageDlg('Nao foi possivel abrir o log: '+CadLogPath,mtWarning,[mbOK],0);
+end;
+
 procedure TMainForm.NewClick(Sender: TObject);
 begin
   if not ConfirmDiscard then
     Exit;
+  CadLog('DOCUMENT.NEW','nova peca');
+  FLastSketchId:=0;FPendingSketch:=False;
+  Tree.Selected:=nil;
   Doc.NewPart;
   RB.Invalidate;
   View.Selected.Clear;
@@ -1171,12 +1288,18 @@ function TMainForm.OpenFile(const AFile: string): Boolean;
 var
   Err: string;
 begin
+  if PM.Visible then EndEdit(False);
+  if Assigned(FEditor) then ExitSketch(nil);
+  CadLog('DOCUMENT.OPEN',AFile);
   Result := Doc.LoadFromFile(AFile, Err);
   if not Result then
   begin
-    MessageDlg('Não foi possível abrir "' + AFile + '":' + LineEnding + Err, mtError, [mbOK], 0);
+    CadLog('ERROR.FILE',AFile+': '+Err);
+    CadMessageDlg('Não foi possível abrir "' + AFile + '":' + LineEnding + Err, mtError, [mbOK], 0);
     Exit;
   end;
+  FLastSketchId:=0;FPendingSketch:=False;
+  Tree.Selected:=nil;
   RB.Invalidate;
   View.Selected.Clear;
   RebuildModel;
@@ -1204,9 +1327,13 @@ function TMainForm.SaveTo(const AFile: string): Boolean;
 var
   Err: string;
 begin
+  CadLog('DOCUMENT.SAVE',AFile);
   Result := Doc.SaveToFile(AFile, Err);
   if not Result then
-    MessageDlg('Não foi possível salvar:' + LineEnding + Err, mtError, [mbOK], 0);
+  begin
+    CadLog('ERROR.FILE',AFile+': '+Err);
+    CadMessageDlg('Não foi possível salvar:' + LineEnding + Err, mtError, [mbOK], 0);
+  end;
   UpdateCaption;
 end;
 
@@ -1237,7 +1364,9 @@ end;
 
 procedure TMainForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
+  CadLog('WINDOW.CLOSE_REQUEST',Caption);
   CanClose := ConfirmDiscard;
+  CadLog('WINDOW.CLOSE_ALLOWED',BoolToStr(CanClose,True));
 end;
 
 { ---------- esboco ---------- }
@@ -1352,13 +1481,14 @@ var
   Fr: TCadFrame;
   Err: string;
 begin
+  CadLog('SKETCH.CREATE',APlaneRef);
   FPendingSketch := False;
   View.ShowStdPlane(MCAD_ID_FRONTAL, False);
   View.ShowStdPlane(MCAD_ID_SUPERIOR, False);
   View.ShowStdPlane(MCAD_ID_LATERAL, False);
   if not RB.ResolvePlane(APlaneRef, Fr, Err) then
   begin
-    MessageDlg('Não dá para esboçar em "' + APlaneRef + '": ' + Err, mtWarning, [mbOK], 0);
+    CadMessageDlg('Não dá para esboçar em "' + APlaneRef + '": ' + Err, mtWarning, [mbOK], 0);
     Exit;
   end;
   S := Doc.AddSketch(APlaneRef);
@@ -1369,6 +1499,7 @@ end;
 
 procedure TMainForm.EditSketch(S: TCadSketch);
 begin
+  CadLogFeature('SKETCH.EDIT',S);
   if PM.Visible then
     EndEdit(False);
   FreeAndNil(FEditor);
@@ -1387,10 +1518,12 @@ end;
 procedure TMainForm.ExitSketch(Sender: TObject);
 var
   S: TCadSketch;
+  I: Integer;
 begin
   if FEditor = nil then
     Exit;
   S := FEditor.Sketch;
+  CadLogFeature('SKETCH.EXIT',S);
   if Assigned(S) then
     FLastSketchId := S.Id;
   FreeAndNil(FEditor);
@@ -1400,6 +1533,10 @@ begin
   SetStatus(0, '');
   UpdateSketchPanel;
   RebuildModel;
+  { The tree and viewport must point to the sketch just completed. }
+  for I:=0 to Tree.Items.Count-1 do
+    if PtrInt(Tree.Items[I].Data)=FLastSketchId then
+    begin Tree.Selected:=Tree.Items[I];Tree.Items[I].MakeVisible;Break;end;
   ShowTab(ctFeatures);
 end;
 
@@ -1490,7 +1627,7 @@ begin
       L.LoadFromFile(SettingsFile);
       View.ReverseWheel := L.Values['reverse_wheel'] = '1';
     except
-      { configuracao ilegivel: fica o padrao }
+      on E:Exception do CadLogException('ler configuracao '+SettingsFile,E);
     end;
   finally
     L.Free;
@@ -1511,7 +1648,7 @@ begin
         L.Values['reverse_wheel'] := '0';
       L.SaveToFile(SettingsFile);
     except
-      { sem permissao: so nao grava }
+      on E:Exception do CadLogException('salvar configuracao '+SettingsFile,E);
     end;
   finally
     L.Free;
@@ -1538,6 +1675,7 @@ end;
 
 procedure TMainForm.EditorChanged(Sender: TObject);
 begin
+  if FEditor<>nil then CadLogFeature('SKETCH.CHANGE',FEditor.Sketch);
   Modified;
   UpdateSketchPanel;
 end;
@@ -1545,7 +1683,9 @@ end;
 procedure TMainForm.UpdateSketchPanel;
 var
   St: Integer;
-  T: string;
+  T, HintText: string;
+  Tool, K: TCadSketchToolKind;
+  DrawGeometry: Boolean;
 begin
   SketchPanel.Visible := Assigned(FEditor);
   if FEditor = nil then
@@ -1553,11 +1693,47 @@ begin
   FUpdatingPanel := True;
   try
     SketchTitle.Caption := 'Esboço: ' + FEditor.Sketch.Name;
+    Tool := FEditor.Session.Tool;
     T := FEditor.Session.SelectionText;
     St := FEditor.Session.SelectionConstructionState;
-    if T = '' then
-      T := 'Nada selecionado. Clique numa linha com Selecionar para ver e trocar o tipo.';
-    SketchSel.Caption := T;
+    if T = '' then T := 'Nada selecionado.';
+    SketchSel.Caption := CAD_TOOL_NAMES[Tool] + LineEnding + T;
+    DrawGeometry := Tool in [tkLine, tkRectangle, tkCircle, tkArc3P,
+      tkCenterline, tkPoint, tkArcCenter, tkArcTangent];
+    LineKind.Visible := DrawGeometry or ((Tool=tkSelect) and (St<>0));
+    if Tool in [tkLine, tkCenterline] then begin
+      LineKind.Caption := 'Tipo de linha';
+      if LineKind.Items[0]<>'Linha normal (contorno da peça)' then begin
+        LineKind.Items[0] := 'Linha normal (contorno da peça)';
+        LineKind.Items[1] := 'Linha de apoio (tracejada)';
+      end;
+    end else begin
+      LineKind.Caption := 'Tipo de geometria';
+      if LineKind.Items[0]<>'Contorno da peça' then begin
+        LineKind.Items[0] := 'Contorno da peça';
+        LineKind.Items[1] := 'Geometria de apoio (tracejada)';
+      end;
+    end;
+    if LineKind.Visible then begin
+      SketchHint.Height := 36;
+      if (Tool=tkSelect) and (St<>0) then
+        HintText := 'A escolha altera a geometria selecionada.'
+      else HintText := 'A escolha vale para a próxima geometria desenhada.';
+    end else begin
+      SketchHint.Height := 110;
+      case Tool of
+        tkDimension: HintText := 'Selecione uma reta, círculo ou dois pontos. Mova o mouse para escolher X, Y ou comprimento real e clique para confirmar. Também aceita pontos de esboços anteriores visíveis.';
+        tkFillet: HintText := 'Clique perto do encontro de duas retas para aplicar o filete. Digite o raio durante a operação.';
+        tkChamfer: HintText := 'Clique perto do encontro de duas retas para aplicar o chanfro. Digite as distâncias durante a operação.';
+      else
+        HintText := 'Clique na geometria para selecioná-la. Selecione uma linha ou curva para consultar suas propriedades e trocar o tipo.';
+      end;
+    end;
+    SketchHint.Caption := HintText;
+    for K := Low(TCadSketchToolKind) to High(TCadSketchToolKind) do
+      if Assigned(FToolButtons[K]) then
+        if K=Tool then FToolButtons[K].SetLook(sbsSolid, clSuitePrimary)
+        else FToolButtons[K].SetLook(sbsSoft, clSuitePrimary);
     case St of
       1: LineKind.ItemIndex := 0;
       2: LineKind.ItemIndex := 1;
@@ -1609,27 +1785,22 @@ begin
     ExitSketch(nil);
     Exit;
   end;
-  F := SelectedFeature;
-  if F is TCadSketch then
-    Exit(TCadSketch(F));
-  { O esboco que o usuario acabou de finalizar e a escolha natural para
-    a proxima operacao. Isto evita escolher outro esboco nao consumido. }
-  if FLastSketchId > 0 then
-  begin
-    F := Doc.FindById(FLastSketchId);
-    if (F is TCadSketch) and (ConsumerIndex(Doc, FLastSketchId) < 0) and
-      (TCadSketch(F).EntityCount > 0) then
-      Exit(TCadSketch(F));
-    FLastSketchId := 0;
-  end;
   for I := 0 to View.Selected.Count - 1 do
     if Pos('sketch:', View.Selected[I]) = 1 then
     begin
       Id := StrToIntDef(Copy(View.Selected[I], 8, MaxInt), 0);
       F := Doc.FindById(Id);
-      if F is TCadSketch then
-        Exit(TCadSketch(F));
+      if F is TCadSketch then Exit(TCadSketch(F));
     end;
+  F := SelectedFeature;
+  if F is TCadSketch then Exit(TCadSketch(F));
+  if FLastSketchId > 0 then
+  begin
+    F := Doc.FindById(FLastSketchId);
+    if (F is TCadSketch) and (ConsumerIndex(Doc, FLastSketchId) < 0) and
+      (TCadSketch(F).EntityCount > 0) then Exit(TCadSketch(F));
+    FLastSketchId := 0;
+  end;
   { o ultimo esboco ainda nao usado }
   for I := Doc.Count - 1 downto 0 do
     if (Doc.Feature(I) is TCadSketch) and (ConsumerIndex(Doc, Doc.Feature(I).Id) < 0) and
@@ -1644,14 +1815,20 @@ var
   IsCut: Boolean;
 begin
   if PM.Visible then
+  begin
+    CadLog('COMMAND.BLOCKED','extrusao: confirme ou cancele a operacao aberta');
+    SetStatus(0,'Confirme (OK) ou cancele a operação aberta antes de criar outro corte ou ressalto.');
     Exit;
+  end;
   IsCut := Sender = nil;
   S := FindSketchForFeature;
   if S = nil then
   begin
-    MessageDlg('Selecione um esboço (ou crie um na aba Esboço).', mtInformation, [mbOK], 0);
+    CadLog('ERROR.SELECTION','extrusao: nenhum esboco disponivel; view='+View.Selected.CommaText);
+    CadMessageDlg('Selecione um esboço (ou crie um na aba Esboço).', mtInformation, [mbOK], 0);
     Exit;
   end;
+  CadLogFeature('EXTRUDE.SKETCH cut='+BoolToStr(IsCut,True),S);
   X := Doc.AddExtrude(S.Id, 10, IsCut);
   BeginEdit(X, True);
 end;
@@ -1671,7 +1848,7 @@ begin
   S := FindSketchForFeature;
   if S = nil then
   begin
-    MessageDlg('Selecione um esboço com uma linha de centro.', mtInformation, [mbOK], 0);
+    CadMessageDlg('Selecione um esboço com uma linha de centro.', mtInformation, [mbOK], 0);
     Exit;
   end;
   R := Doc.AddRevolve(S.Id, 360, Sender = nil);
@@ -1701,17 +1878,27 @@ procedure TMainForm.BeginEdit(F: TCadFeature; AIsNew: Boolean);
 begin
   if Assigned(FEditor) then
     ExitSketch(nil);
+  if PM.Visible then begin if PM.Feature=F then Exit;EndEdit(False);end;
+  CadLogFeature('FEATURE.EDIT new='+BoolToStr(AIsNew,True),F);
   FreeAndNil(FSnapshot);
   FSnapshot := TJSONObject.Create;
   F.SaveParams(FSnapshot);
   FSnapName := F.Name;
   View.Selected.Clear;
   View.HighlightPrefix := F.Name + '/';
+  if F is TCadExtrude then
+    View.OperationSketchId:=TCadExtrude(F).SketchId
+  else if F is TCadRevolve then
+    View.OperationSketchId:=TCadRevolve(F).SketchId
+  else
+    View.OperationSketchId:=0;
   Tree.Visible := False;
   PM.Visible := True;
   PM.Edit(Doc, F, AIsNew);
   RebuildModel;
   PMChange(nil);
+  if F is TCadExtrude then
+    FExtrudeEditor:=TCadExtrudeEditor.Create(View,RB,PM,TCadExtrude(F));
 end;
 
 procedure TMainForm.EndEdit(Accept: Boolean);
@@ -1719,7 +1906,10 @@ var
   F: TCadFeature;
   Err: string;
 begin
+  FreeAndNil(FExtrudeEditor);
   F := PM.Feature;
+  View.OperationSketchId:=0;
+  CadLogFeature('FEATURE.END accept='+BoolToStr(Accept,True),F);
   if (F <> nil) and not Accept then
   begin
     if PM.IsNew then
@@ -1731,6 +1921,7 @@ begin
   PM.Visible := False;
   Tree.Visible := True;
   View.HighlightPrefix := '';
+  SetStatus(0,'');
   if Accept then
     Modified;
   RebuildModel;
@@ -1744,6 +1935,7 @@ begin
   F := PM.Feature;
   if F = nil then
     Exit;
+  CadLogFeature('FEATURE.PARAMETERS',F);
   V := F.Validate;
   if V = '' then
   begin
@@ -1758,7 +1950,10 @@ begin
       PM.ShowMessageText('', False);
   end
   else
+  begin
+    CadLog('ERROR.VALIDATION',F.Name+': '+V);
     PM.ShowMessageText(V, True);
+  end;
 end;
 
 procedure TMainForm.PMOK(Sender: TObject);
@@ -1776,10 +1971,14 @@ begin
     Exit;
   end;
   RB.Rebuild;
+  { Rebuild replaces the meshes borrowed by the view caches. Refresh them
+    before a modal dialog can dispatch WM_PAINT, including the No path. }
+  View.ModelChanged;
+  UpdatePartStatus;
   if F.State = fsError then
   begin
     { como no SolidWorks: aceita, mas fica marcada em vermelho na arvore }
-    if MessageDlg(F.Message + LineEnding + 'Manter a operação com erro?', mtWarning,
+    if CadMessageDlg(F.Message + LineEnding + 'Manter a operação com erro?', mtWarning,
       [mbYes, mbNo], 0) <> mrYes then
       Exit;
   end;
@@ -1804,7 +2003,7 @@ var
 begin
   if RB.BodyCount = 0 then
   begin
-    MessageDlg('A peça ainda não tem corpos sólidos.', mtInformation, [mbOK], 0);
+    CadMessageDlg('A peça ainda não tem corpos sólidos.', mtInformation, [mbOK], 0);
     Exit;
   end;
   Vol := 0;
@@ -1828,7 +2027,7 @@ begin
     [M.Name, CadFmt(M.Density, 0), CadFmt(Vol, 2), CadFmt(Area, 2),
      CadFmt(CadMassKg(M, Vol) * 1000, 2), CadFmt(C.X, 3), CadFmt(C.Y, 3), CadFmt(C.Z, 3),
      RB.BodyCount]);
-  MessageDlg('Propriedades de massa - ' + Doc.Name, S, mtInformation, [mbOK], 0);
+  CadMessageDlg('Propriedades de massa - ' + Doc.Name, S, mtInformation, [mbOK], 0);
 end;
 
 procedure TMainForm.MeasureClick(Sender: TObject);
@@ -1837,7 +2036,7 @@ var
 begin
   R := CadMeasure(RB, View.Selected);
   try
-    MessageDlg('Medir', R.Lines.Text, mtInformation, [mbOK], 0);
+    CadMessageDlg('Medir', R.Lines.Text, mtInformation, [mbOK], 0);
   finally
     R.Lines.Free;
   end;
@@ -1912,7 +2111,7 @@ begin
       ABinary := RF.ItemIndex = 0;
       if (AOrient = soFaceDown) and not SelectedFaceNormal(N) then
       begin
-        MessageDlg('Selecione na vista a face plana que vai apoiada na mesa.', mtInformation, [mbOK], 0);
+        CadMessageDlg('Selecione na vista a face plana que vai apoiada na mesa.', mtInformation, [mbOK], 0);
         Result := False;
       end;
     end;
@@ -1931,7 +2130,7 @@ begin
   Result := False;
   if RB.BodyCount = 0 then
   begin
-    MessageDlg('A peça ainda não tem corpos sólidos.', mtInformation, [mbOK], 0);
+    CadMessageDlg('A peça ainda não tem corpos sólidos.', mtInformation, [mbOK], 0);
     Exit;
   end;
   SetLength(Meshes, RB.BodyCount);
@@ -1942,7 +2141,7 @@ begin
   if Result then
     SetStatus(0, 'STL gravado: ' + AFile)
   else
-    MessageDlg('Não foi possível exportar o STL:' + LineEnding + Err, mtError, [mbOK], 0);
+    CadMessageDlg('Não foi possível exportar o STL:' + LineEnding + Err, mtError, [mbOK], 0);
 end;
 
 procedure TMainForm.ExportSTLClick(Sender: TObject);
@@ -2006,7 +2205,7 @@ begin
     end;
     if S = nil then
     begin
-      MessageDlg('Selecione uma face plana na vista ou um esboço na árvore.', mtInformation, [mbOK], 0);
+      CadMessageDlg('Selecione uma face plana na vista ou um esboço na árvore.', mtInformation, [mbOK], 0);
       Exit;
     end;
     Base := S.Name;
@@ -2037,7 +2236,7 @@ begin
         SetStatus(0, 'DXF gravado: ' + D.FileName);
     end;
     if not Ok then
-      MessageDlg('Não foi possível exportar o DXF:' + LineEnding + Err, mtError, [mbOK], 0);
+      CadMessageDlg('Não foi possível exportar o DXF:' + LineEnding + Err, mtError, [mbOK], 0);
   finally
     D.Free;
   end;
@@ -2076,7 +2275,7 @@ begin
       C.ProjectRoot, Fn, Err) then
       SetStatus(0, 'Peça aberta no MultiSlicer: ' + Fn)
     else
-      MessageDlg('Não foi possível abrir o MultiSlicer:' + LineEnding + Err + LineEnding +
+      CadMessageDlg('Não foi possível abrir o MultiSlicer:' + LineEnding + Err + LineEnding +
         'O STL foi gravado em ' + Fn, mtWarning, [mbOK], 0);
   finally
     Registry.Free;
@@ -2126,8 +2325,7 @@ end;
 
 procedure TMainForm.NormalToClick(Sender: TObject);
 var
-  R, Err: string;
-  Fr: TCadFrame;
+  R: string;
   F: TCadFeature;
 begin
   if Assigned(FEditor) then
@@ -2142,7 +2340,13 @@ begin
     if F is TCadSketch then
       R := TCadSketch(F).PlaneRef;
   end;
-  if (R = '') or not RB.ResolvePlane(R, Fr, Err) then
+  NormalToRef(R);
+end;
+
+procedure TMainForm.NormalToRef(const ARef: string);
+var Fr: TCadFrame; Err: string;
+begin
+  if (ARef = '') or not RB.ResolvePlane(ARef, Fr, Err) then
   begin
     SetStatus(1, 'Normal a: selecione um plano, face plana ou esboço');
     Exit;
@@ -2200,6 +2404,7 @@ var
   I, Id: Integer;
   N: TTreeNode;
 begin
+  CadLog('SELECT.VIEW',ARef+' ctrl='+BoolToStr(ssCtrl in Shift,True));
   if PM.Visible then
   begin
     if PM.SetPickedRef(ARef) then
@@ -2265,6 +2470,8 @@ end;
 
 procedure TMainForm.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 begin
+  if (Key=VK_ESCAPE) and Assigned(FExtrudeEditor) and FExtrudeEditor.CancelDrag then
+  begin Key:=0;Exit;end;
   if Tree.IsEditing or (Assigned(FEditor) and FEditor.Typing) then
     Exit;
   if (ActiveControl is TCustomEdit) or (ActiveControl is TCustomComboBox) then

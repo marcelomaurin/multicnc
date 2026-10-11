@@ -20,7 +20,7 @@ interface
 
 uses
   Classes, SysUtils, Types, Math, Controls, Graphics, Dialogs, StdCtrls, Forms, LCLType,
-  LCLIntf, multicad_types, multicad_document, multicad_sketch, multicad_solver,
+  LCLIntf, multicad_types, multicad_feature, multicad_document, multicad_sketch, multicad_solver,
   multicad_rebuild, multicad_camera, multicad_softrender, multicad_view3d,
   multicad_sketchtools;
 
@@ -31,6 +31,9 @@ type
     FDoc: TCadDocument;
     FSketch: TCadSketch;
     FFrame: TCadFrame;
+    FRB: TCadRebuilder;
+    FReferences: TCadReferencePoints;
+    FBackground: array of TSketchEntity;
     FSession: TCadSketchSession;
     FHover: TCadPickItem;
     FHasHover: Boolean;
@@ -47,6 +50,8 @@ type
     FLineLength: Double;
     FOnChanged: TNotifyEvent;
     FOnStatus: TNotifyEvent;
+    procedure RefreshReferences;
+    procedure DrawReferences(C: TCanvas);
     function ToLocal(X, Y: Integer; out P: TCadVec2): Boolean;
     function ToScreen(const P: TCadVec2): TPoint;
     procedure ViewDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState;
@@ -149,6 +154,7 @@ begin
   FView := AView;
   FDoc := ADoc;
   FSketch := ASketch;
+  FRB:=ARB;
   FDragDim := -1;
   FGrid := True;
   FLineLengthLocked := False;
@@ -156,6 +162,7 @@ begin
   if not ARB.SketchFrame(ASketch, FFrame, Err) then
     FFrame := StdFrame(spFrontal);
   FSession := TCadSketchSession.Create(ADoc, ASketch);
+  RefreshReferences;
   FSession.OnAskValue := @AskValue;
   FSession.OnAskDim := @AskDim;
   FView.ActiveSketchId := ASketch.Id;
@@ -227,6 +234,48 @@ begin
     FOnStatus(Self);
 end;
 
+procedure TCadSketchEditor.RefreshReferences;
+var I,J,K,N:Integer;S:TCadSketch;Fr:TCadFrame;E,Projected:TSketchEntity;P,Tmp:TCadVec2;Err:string;Parallel:Boolean;
+begin
+  FReferences:=nil;FBackground:=nil;
+  for I:=0 to FDoc.IndexOfId(FSketch.Id)-1 do begin
+    if not (FDoc[I] is TCadSketch) or FDoc[I].Suppressed or
+      (FDoc[I].State=fsError) or FView.IsHidden(FDoc[I].Id) then Continue;
+    S:=TCadSketch(FDoc[I]);if not FRB.SketchFrame(S,Fr,Err) then Continue;
+    Parallel:=Abs(VDot(Fr.Normal,FFrame.Normal))>1-1E-8;
+    for J:=0 to S.EntityCount-1 do begin
+      E:=S.Entity(J);if E.SourceRef<>'' then Continue;
+      for K:=1 to 4 do if SketchReferencePoint(S,E.Id,K,P) then begin
+        N:=Length(FReferences);SetLength(FReferences,N+1);
+        FReferences[N].Ref:=SketchPointRef(S.Id,E.Id,K);
+        FReferences[N].P:=FrameToLocal(FFrame,FrameToWorld(Fr,P));
+      end;
+      Projected:=E;Projected.P1:=FrameToLocal(FFrame,FrameToWorld(Fr,E.P1));
+      Projected.P2:=FrameToLocal(FFrame,FrameToWorld(Fr,E.P2));Projected.P3:=FrameToLocal(FFrame,FrameToWorld(Fr,E.P3));
+      if (E.Kind in [seCircle,seArc]) and not Parallel then Projected.Kind:=sePoint;
+      if (E.Kind=seArc) and Parallel and (VDot(Fr.Normal,FFrame.Normal)<0) then begin
+        Tmp:=Projected.P2;Projected.P2:=Projected.P3;Projected.P3:=Tmp;
+      end;
+      N:=Length(FBackground);SetLength(FBackground,N+1);FBackground[N]:=Projected;
+    end;
+  end;
+  FSession.SetReferencePoints(FReferences);
+end;
+
+procedure TCadSketchEditor.DrawReferences(C: TCanvas);
+var I:Integer;P:TPoint;Col:TColor;
+begin
+  C.Pen.Width:=1;
+  for I:=0 to High(FBackground) do DrawEntity(C,FBackground[I],CadToColor(CAD_EDGE_COLOR),True);
+  if FSession.Tool<>tkDimension then Exit;
+  for I:=0 to High(FReferences) do begin
+    P:=ToScreen(FReferences[I].P);Col:=CadToColor(CAD_EDGE_COLOR);
+    if FSession.IsSelected(-2-I,1) then Col:=CadToColor(CAD_SELECT_COLOR)
+    else if FHasHover and (FHover.Ent=-2-I) then Col:=CadToColor(CAD_HOVER_COLOR);
+    C.Pen.Color:=Col;C.Brush.Color:=Col;C.Rectangle(P.X-2,P.Y-2,P.X+3,P.Y+3);
+  end;
+end;
+
 procedure TCadSketchEditor.NormalTo;
 var
   B: TCadBox3;
@@ -270,6 +319,7 @@ begin
   HideInput;
   FLineLengthLocked := False;
   FLineLength := 0;
+  RefreshReferences;
   FSession.Tool := T;
   Changed;
 end;
@@ -570,7 +620,7 @@ begin
     Exit;
   end;
   { texto de uma cota: arrastar (move o texto) ou clicar (edita o valor) }
-  if FSession.Tool in [tkSelect, tkDimension] then
+  if (FSession.PlacingDim=0) and (FSession.Tool in [tkSelect, tkDimension]) then
     for I := 0 to High(FDimRects) do
       if PtInRect(FDimRects[I], Point(X, Y)) then
       begin
@@ -1112,6 +1162,7 @@ begin
   C.Line(P.X + 22, P.Y, P.X + 17, P.Y + 3);
   C.Line(P.X, P.Y - 22, P.X - 3, P.Y - 17);
   C.Line(P.X, P.Y - 22, P.X + 3, P.Y - 17);
+  DrawReferences(C);
   { cotas embaixo das entidades }
   DrawDims(C);
   { entidades }

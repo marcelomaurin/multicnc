@@ -46,6 +46,8 @@ const
 
 implementation
 
+uses multicad_log;
+
 var
   GMaterials: TCadMaterialArray;
 
@@ -210,7 +212,7 @@ begin
       Result := True;
     except
       on E: Exception do
-        AError := E.Message;
+        begin CadLogException('materiais',E);AError := E.Message;end;
     end;
   finally
     Data.Free;

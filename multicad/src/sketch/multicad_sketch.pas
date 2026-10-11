@@ -31,6 +31,7 @@ type
     Kind: TSketchEntityKind;
     P1, P2, P3: TCadVec2;
     Radius: Double;
+    SourceRef: string;   { projected reference point: sketch:<id>/<entity>.<point> }
     Construction: Boolean;
     Centerline: Boolean;   { linha de centro (eixo de revolucao); e construcao }
   end;
@@ -63,6 +64,9 @@ type
     constructor Create; override;
     procedure Clear;
     function AddPoint(X, Y: Double): Integer;
+    function AddReferencePoint(const ARef: string; const P: TCadVec2): Integer;
+    procedure DeleteUnusedReferencePoints;
+    procedure SetConstraintKind(I: Integer; K: TConstraintKind);
     function AddLine(X1, Y1, X2, Y2: Double; AConstruction: Boolean = False): Integer;
     function AddCenterline(X1, Y1, X2, Y2: Double): Integer;
     { Arco pelo centro, inicio e fim (anti-horario). O fim e ajustado ao raio. }
@@ -116,11 +120,58 @@ type
     function Dependencies: TCadIdArray; override;
   end;
 
+function SketchPointRef(SketchId, EntityId, Pt: Integer): string;
+function ParseSketchPointRef(const Ref: string; out SketchId, EntityId, Pt: Integer): Boolean;
+function SketchReferencePoint(S: TCadSketch; EntityId, Pt: Integer; out P: TCadVec2): Boolean;
 function IsDimensionKind(K: TConstraintKind): Boolean;
 { Linhas de restricao/cota em portugues, como no SolidWorks. }
 function CadConstraintName(K: TConstraintKind): string;
 
 implementation
+
+function SketchPointRef(SketchId, EntityId, Pt: Integer): string;
+begin Result:=Format('sketch:%d/%d.%d',[SketchId,EntityId,Pt]);end;
+
+function ParseSketchPointRef(const Ref: string; out SketchId, EntityId, Pt: Integer): Boolean;
+var A,B:Integer;
+begin
+  A:=Pos('/',Ref);B:=Pos('.',Ref);SketchId:=0;EntityId:=0;Pt:=0;
+  Result:=(Copy(Ref,1,7)='sketch:') and (A>7) and (B>A);
+  if not Result then Exit;
+  SketchId:=StrToIntDef(Copy(Ref,8,A-8),0);EntityId:=StrToIntDef(Copy(Ref,A+1,B-A-1),0);
+  Pt:=StrToIntDef(Copy(Ref,B+1,MaxInt),0);
+  Result:=(SketchId>0) and (EntityId>0) and (Pt in [1..4]);
+end;
+
+function SketchReferencePoint(S: TCadSketch; EntityId, Pt: Integer; out P: TCadVec2): Boolean;
+var I:Integer;E:TSketchEntity;
+begin
+  I:=S.EntityIndex(EntityId);Result:=I>=0;if not Result then Exit;E:=S.Entity(I);
+  if Pt=4 then begin Result:=E.Kind=seLine;if Result then P:=V2((E.P1.X+E.P2.X)/2,(E.P1.Y+E.P2.Y)/2);end
+  else Result:=S.PointOf(EntityId,Pt,P) and ((Pt=1) or ((Pt=2) and (E.Kind in [seLine,seArc])) or ((Pt=3) and (E.Kind=seArc)));
+end;
+
+function TCadSketch.AddReferencePoint(const ARef: string; const P: TCadVec2): Integer;
+var I,OwnerId,EntityId,Pt:Integer;E:TSketchEntity;
+begin
+  if not ParseSketchPointRef(ARef,OwnerId,EntityId,Pt) then raise Exception.Create('Referência externa inválida: '+ARef);
+  for I:=0 to EntityCount-1 do if FEntities[I].SourceRef=ARef then Exit(FEntities[I].Id);
+  Result:=AddPoint(P.X,P.Y);I:=EntityIndex(Result);E:=Entity(I);E.SourceRef:=ARef;E.Construction:=True;SetEntity(I,E);
+end;
+
+procedure TCadSketch.DeleteUnusedReferencePoints;
+var I,J:Integer;Used:Boolean;
+begin
+  for I:=EntityCount-1 downto 0 do if FEntities[I].SourceRef<>'' then begin
+    Used:=False;
+    for J:=0 to ConstraintCount-1 do if (FConstraints[J].EntityA=FEntities[I].Id) or
+      (FConstraints[J].EntityB=FEntities[I].Id) or (FConstraints[J].EntityC=FEntities[I].Id) then Used:=True;
+    if not Used then DeleteEntity(FEntities[I].Id);
+  end;
+end;
+
+procedure TCadSketch.SetConstraintKind(I: Integer; K: TConstraintKind);
+begin FConstraints[I].Kind:=K;end;
 
 function IsDimensionKind(K: TConstraintKind): Boolean;
 begin
@@ -465,11 +516,12 @@ end;
 
 procedure TCadSketch.SetEntity(I: Integer; const E: TSketchEntity);
 begin
+  FEntities[I].SourceRef := E.SourceRef;
   FEntities[I].P1 := E.P1;
   FEntities[I].P2 := E.P2;
   FEntities[I].P3 := E.P3;
   FEntities[I].Radius := E.Radius;
-  FEntities[I].Construction := E.Construction;
+  FEntities[I].Construction := E.Construction or (E.SourceRef<>'');
   FEntities[I].Centerline := E.Centerline;
 end;
 
@@ -637,6 +689,7 @@ begin
     E := TJSONObject.Create;
     E.Add('id', FEntities[I].Id);
     E.Add('kind', CAD_ENTITY_CODES[FEntities[I].Kind]);
+    if FEntities[I].SourceRef<>'' then E.Add('reference_point',FEntities[I].SourceRef);
     SaveV2(E, 'p1', FEntities[I].P1);
     if FEntities[I].Kind in [seLine, seArc] then
       SaveV2(E, 'p2', FEntities[I].P2);
@@ -734,7 +787,9 @@ begin
       E.P2 := LoadV2(EO, 'p2');
       E.P3 := LoadV2(EO, 'p3');
       E.Radius := JNum(EO, 'r', 0);
-      E.Construction := JBool(EO, 'construction', False);
+      E.SourceRef:=JStr(EO,'reference_point','');
+      if (E.SourceRef<>'') and (E.Kind<>sePoint) then raise Exception.Create('Referência externa deve ser um ponto');
+      E.Construction := JBool(EO, 'construction', False) or (E.SourceRef<>'');
       E.Centerline := JBool(EO, 'centerline', False);
       AddEntity(E);
     end;
@@ -809,7 +864,7 @@ end;
 
 function TCadSketch.Dependencies: TCadIdArray;
 var
-  RefId: Integer;
+  RefId,I,J,EntId,Pt: Integer;
 begin
   Result := nil;
   RefId := CadRefFeatureId(PlaneRef);
@@ -817,6 +872,10 @@ begin
   begin
     SetLength(Result, 1);
     Result[0] := RefId;
+  end;
+  for I:=0 to EntityCount-1 do if ParseSketchPointRef(FEntities[I].SourceRef,RefId,EntId,Pt) then begin
+    J:=0;while (J<Length(Result)) and (Result[J]<>RefId) do Inc(J);
+    if J=Length(Result) then begin SetLength(Result,J+1);Result[J]:=RefId;end;
   end;
 end;
 

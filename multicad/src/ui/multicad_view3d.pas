@@ -69,6 +69,7 @@ type
     FSection: TCadFrame;
     FShowOrigin: Boolean;
     FActiveSketchId: Integer;
+    FOperationSketchId: Integer; { perfil da operacao em edicao, visivel sobre o solido }
     FHighlightPrefix: string;
     FNeedFit: Boolean;           { enquadrar quando a vista tiver tamanho }
     FMoved: Boolean;             { arrastou (nao foi so clique) }
@@ -87,6 +88,7 @@ type
     FOnViewMouseMove: TCadMoveEvent;
     FOnHoverChange: TNotifyEvent;
     function GetStyle: TCadDisplayStyle;
+    procedure SetOperationSketchId(AValue: Integer);
     procedure SetStyle(AValue: TCadDisplayStyle);
     procedure RenderScene;
     procedure DrawPlanes;
@@ -148,6 +150,7 @@ type
     property ShowOrigin: Boolean read FShowOrigin write FShowOrigin;
     { Esboco em edicao (desenhado pelo editor, nao pela vista). }
     property ActiveSketchId: Integer read FActiveSketchId write FActiveSketchId;
+    property OperationSketchId: Integer read FOperationSketchId write SetOperationSketchId;
     property ModelBox: TCadBox3 read FModelBox;
     { Faces cujo nome comeca com este prefixo ("Extrude2/") ficam na cor da
       previa (operacao em edicao). }
@@ -166,6 +169,8 @@ type
 function CadToColor(C: LongWord): TColor;
 
 implementation
+
+uses multicad_log;
 
 const
   CUBE_SIZE = 44;
@@ -235,6 +240,7 @@ end;
 
 procedure TCadView3D.SetModel(ADoc: TCadDocument; ARB: TCadRebuilder);
 begin
+  FOperationSketchId:=0;
   FDoc := ADoc;
   FRB := ARB;
   ModelChanged;
@@ -280,6 +286,14 @@ procedure TCadView3D.Redraw;
 begin
   FDirty := True;
   Invalidate;
+end;
+
+procedure TCadView3D.SetOperationSketchId(AValue: Integer);
+begin
+  if FOperationSketchId=AValue then Exit;
+  FOperationSketchId:=AValue;
+  CadLog('VIEW.OPERATION_SKETCH','id='+IntToStr(AValue));
+  Redraw;
 end;
 
 function TCadView3D.GetStyle: TCadDisplayStyle;
@@ -533,7 +547,8 @@ var
   Col: LongWord;
   A0, A1, Sweep, T: Double;
   P, Q: TCadVec3;
-  Dash, Code: Integer;
+  Dash, Code, LineWidth: Integer;
+  Profile, IsSelected, DepthTest: Boolean;
 begin
   if (FDoc = nil) or (FRB = nil) then
     Exit;
@@ -545,19 +560,26 @@ begin
     if (FDoc.RollbackIndex >= 0) and (I >= FDoc.RollbackIndex) then
       Continue;
     Ref := 'sketch:' + IntToStr(F.Id);
-    if IsHidden(F.Id) then
+    Profile:=F.Id=FOperationSketchId;
+    IsSelected:=FSelected.IndexOf(Ref)>=0;
+    if IsHidden(F.Id) and not Profile then
       Continue;
-    if ConsumedSketch(F.Id) and (FSelected.IndexOf(Ref) < 0) and (FHover <> Ref) then
+    if ConsumedSketch(F.Id) and not Profile and not IsSelected and (FHover <> Ref) then
       Continue;
     S := TCadSketch(F);
     if not FRB.SketchFrame(S, Fr, Err) then
       Continue;
     Col := CadRGB(30, 60, 150);
-    if FSelected.IndexOf(Ref) >= 0 then
+    if IsSelected or Profile then
       Col := CAD_SELECT_COLOR
     else if FHover = Ref then
       Col := CAD_HOVER_COLOR;
     Code := FeatureCode(I);
+    { Editing/selection is an overlay: a profile on the back face or inside
+      the solid must remain visible without hiding/changing that solid. }
+    DepthTest:=not (IsSelected or Profile);
+    LineWidth:=1;
+    if not DepthTest then LineWidth:=2;
     for K := 0 to S.EntityCount - 1 do
     begin
       E := S.Entity(K);
@@ -566,10 +588,10 @@ begin
         Dash := 6;
       case E.Kind of
         seLine:
-          FRaster.DrawLine3D(FrameToWorld(Fr, E.P1), FrameToWorld(Fr, E.P2), Col, 1,
-            True, Dash, Code);
+          FRaster.DrawLine3D(FrameToWorld(Fr, E.P1), FrameToWorld(Fr, E.P2), Col, LineWidth,
+            DepthTest, Dash, Code);
         sePoint:
-          FRaster.DrawPoint3D(FrameToWorld(Fr, E.P1), Col, 3, True, Code);
+          FRaster.DrawPoint3D(FrameToWorld(Fr, E.P1), Col, 3, DepthTest, Code);
         seCircle, seArc:
           begin
             if E.Kind = seCircle then
@@ -591,7 +613,7 @@ begin
             begin
               T := A0 + Sweep * J / N;
               Q := FrameToWorld(Fr, V2(E.P1.X + E.Radius * Cos(T), E.P1.Y + E.Radius * Sin(T)));
-              FRaster.DrawLine3D(P, Q, Col, 1, True, Dash, Code);
+              FRaster.DrawLine3D(P, Q, Col, LineWidth, DepthTest, Dash, Code);
               P := Q;
             end;
           end;

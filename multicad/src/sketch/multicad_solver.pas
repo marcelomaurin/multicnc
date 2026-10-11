@@ -71,6 +71,7 @@ type
   TPtRef = record
     Valid: Boolean;
     Constant: Boolean;   { origem }
+    Position: TCadVec2;
     IX, IY: Integer;     { indices em X }
   end;
 
@@ -172,12 +173,14 @@ begin
     else
       Ents[I].Count := 0;
     end;
+    if E.SourceRef<>'' then Ents[I].Count:=0;
     Inc(N, Ents[I].Count);
   end;
   SetLength(X, N);
   for I := 0 to S.EntityCount - 1 do
   begin
     E := S.Entity(I);
+    if E.SourceRef<>'' then Continue;
     K := Ents[I].Base;
     case E.Kind of
       sePoint: begin X[K] := E.P1.X; X[K + 1] := E.P1.Y; end;
@@ -291,6 +294,7 @@ function TSystem.Pt(AEnt, APt: Integer): TPtRef;
 var
   EI, B: Integer;
 begin
+  Result:=Default(TPtRef);
   Result.Valid := False;
   Result.Constant := False;
   Result.IX := -1;
@@ -304,6 +308,9 @@ begin
   EI := EntIdx(AEnt);
   if EI < 0 then
     Exit;
+  if S.Entity(EI).SourceRef<>'' then begin
+    Result.Valid:=APt in [0,1];Result.Constant:=True;Result.Position:=S.Entity(EI).P1;Exit;
+  end;
   B := Ents[EI].Base;
   case Ents[EI].Kind of
     sePoint:
@@ -340,7 +347,7 @@ end;
 function TSystem.PX(const P: TPtRef; const AX: TDoubleArray): Double;
 begin
   if P.Constant then
-    Result := 0
+    Result := P.Position.X
   else
     Result := AX[P.IX];
 end;
@@ -348,7 +355,7 @@ end;
 function TSystem.PY(const P: TPtRef; const AX: TDoubleArray): Double;
 begin
   if P.Constant then
-    Result := 0
+    Result := P.Position.Y
   else
     Result := AX[P.IY];
 end;
@@ -934,6 +941,7 @@ begin
   for I := 0 to S.EntityCount - 1 do
   begin
     E := S.Entity(I);
+    if E.SourceRef<>'' then Continue;
     K := Ents[I].Base;
     case E.Kind of
       sePoint: E.P1 := V2(X[K], X[K + 1]);

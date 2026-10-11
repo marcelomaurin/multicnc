@@ -53,6 +53,12 @@ type
     Text: string;
   end;
 
+  TCadReferencePoint = record
+    Ref: string;
+    P: TCadVec2;
+  end;
+  TCadReferencePoints = array of TCadReferencePoint;
+
   TCadPickItem = record
     Ent, Pt: Integer;   { Pt = 0: a entidade inteira }
   end;
@@ -77,6 +83,9 @@ type
     FOnAskDim: TCadAskDimEvent;
     FPlaceId: Integer;        { cota sendo colocada (segue o mouse) }
     FPairDone: Boolean;
+    FReferences: TCadReferencePoints;
+    function LocalDimensionItem(const Item: TCadPickItem): TCadPickItem;
+    procedure UpdateDimensionDirection(const P: TCadVec2);
     procedure FinishDimension(const P: TCadVec2);
     procedure MarkNewConstruction(AFrom: Integer);
     procedure SetTool(AValue: TCadSketchToolKind);
@@ -102,6 +111,7 @@ type
     LastMessage: string;
     constructor Create(ADoc: TCadDocument; ASketch: TCadSketch);
     property Sketch: TCadSketch read FSketch;
+    procedure SetReferencePoints(const Points: TCadReferencePoints);
     property Tool: TCadSketchToolKind read FTool write SetTool;
     property OnAskValue: TCadAskValueEvent read FOnAskValue write FOnAskValue;
     property OnAskDim: TCadAskDimEvent read FOnAskDim write FOnAskDim;
@@ -175,6 +185,19 @@ function PickItem(AEnt, APt: Integer): TCadPickItem;
 begin
   Result.Ent := AEnt;
   Result.Pt := APt;
+end;
+
+procedure TCadSketchSession.SetReferencePoints(const Points: TCadReferencePoints);
+begin FReferences:=Copy(Points);end;
+
+function TCadSketchSession.LocalDimensionItem(const Item: TCadPickItem): TCadPickItem;
+var I:Integer;
+begin
+  Result:=Item;
+  if Item.Ent>=CAD_SKETCH_ORIGIN then Exit;
+  I:=-Item.Ent-2;
+  if (I<0) or (I>=Length(FReferences)) then begin Result:=PickItem(0,0);Exit;end;
+  Result:=PickItem(FSketch.AddReferencePoint(FReferences[I].Ref,FReferences[I].P),1);
 end;
 
 function Dist2(const A, B: TCadVec2): Double;
@@ -432,6 +455,7 @@ begin
   if (S.Ent <> 0) and (Dist2(S.P, P) <= PickTol * 0.7) then
   begin
     Item := PickItem(S.Ent, S.Pt);
+    if (FTool=tkDimension) and (Item.Pt<0) then Item.Pt:=0;
     Exit(True);
   end;
   Best := PickTol;
@@ -444,6 +468,11 @@ begin
       Item := PickItem(FSketch.Entity(I).Id, 0);
     end;
   end;
+  if (Item.Ent=0) and (FTool=tkDimension) then
+    for I:=0 to High(FReferences) do begin
+      D:=Dist2(P,FReferences[I].P);
+      if D<Best then begin Best:=D;Item:=PickItem(-2-I,1);end;
+    end;
   Result := Item.Ent <> 0;
 end;
 
@@ -479,8 +508,7 @@ begin
   if FPlaceId <> 0 then
   begin
     I := FSketch.ConstraintIndex(FPlaceId);
-    if I >= 0 then
-      MoveDimText(I, P);
+    if I >= 0 then begin UpdateDimensionDirection(P);MoveDimText(I, P);end;
   end;
   Cursor := Snap(P);
   CursorInfer := 0;
@@ -805,7 +833,7 @@ begin
           Insert(Item, Selection, 0);
           if Item.Pt = 0 then
           begin
-            FPlaceId := AddSmartDimension(Item, PickItem(0, 0), False, '');
+            FPlaceId := AddSmartDimension(LocalDimensionItem(Item), PickItem(0, 0), False, '');
             if FPlaceId <> 0 then
               MoveDimText(FSketch.ConstraintIndex(FPlaceId), P);
             LastMessage := '';
@@ -819,7 +847,7 @@ begin
             FSketch.DeleteConstraint(FPlaceId);
             FPlaceId := 0;
           end;
-          FPlaceId := AddSmartDimension(FDimFirst, Item, True, '');
+          FPlaceId := AddSmartDimension(LocalDimensionItem(FDimFirst), LocalDimensionItem(Item), True, '');
           if FPlaceId <> 0 then
           begin
             FPairDone := True;
@@ -862,6 +890,7 @@ var
   Txt: string;
   RefOnly, Ok: Boolean;
 begin
+  UpdateDimensionDirection(P);
   I := FSketch.ConstraintIndex(FPlaceId);
   FPlaceId := 0;
   FPairDone := False;
@@ -915,6 +944,7 @@ begin
     FPlaceId := 0;
     Solve;
   end;
+  FSketch.DeleteUnusedReferencePoints;
   FPairDone := False;
   SetLength(FClicks, 0);
   FChainEnt := 0;
@@ -1034,6 +1064,31 @@ begin
     if (Selection[I].Ent = AEnt) and (Selection[I].Pt = APt) then
       Exit(True);
   Result := False;
+end;
+
+procedure TCadSketchSession.UpdateDimensionDirection(const P: TCadVec2);
+var I,IA,IB:Integer;C:TSketchConstraint;G:TCadDimGeom;K:TConstraintKind;V,DX,DY:Double;
+  LineLength,PointPair:Boolean;
+begin
+  I:=FSketch.ConstraintIndex(FPlaceId);if I<0 then Exit;C:=FSketch.Constraint(I);
+  if not (C.Kind in [ckDistance,ckHorizontalDistance,ckVerticalDistance]) then Exit;
+  IA:=FSketch.EntityIndex(C.EntityA);IB:=FSketch.EntityIndex(C.EntityB);
+  LineLength:=(C.EntityB=0) and (IA>=0) and (FSketch.Entity(IA).Kind=seLine);
+  PointPair:=(C.EntityB<>0) and ((IA<0) or (FSketch.Entity(IA).Kind<>seLine) or (C.PointA>0)) and
+    ((IB<0) or (FSketch.Entity(IB).Kind<>seLine) or (C.PointB>0));
+  if not (LineLength or PointPair) or not DimGeometry(I,G) then Exit;
+  DX:=Abs(G.B.X-G.A.X);DY:=Abs(G.B.Y-G.A.Y);K:=ckDistance;
+  if DX<1E-9 then K:=ckVerticalDistance
+  else if DY<1E-9 then K:=ckHorizontalDistance
+  else if (P.X>=Min(G.A.X,G.B.X)) and (P.X<=Max(G.A.X,G.B.X)) and
+    ((P.Y<Min(G.A.Y,G.B.Y)) or (P.Y>Max(G.A.Y,G.B.Y))) then K:=ckHorizontalDistance
+  else if (P.Y>=Min(G.A.Y,G.B.Y)) and (P.Y<=Max(G.A.Y,G.B.Y)) and
+    ((P.X<Min(G.A.X,G.B.X)) or (P.X>Max(G.A.X,G.B.X))) then K:=ckVerticalDistance;
+  if K=C.Kind then Exit;
+  FSketch.SetConstraintKind(I,K);FSketch.SetConstraintExpr(I,'');FSketch.SetConstraintDriving(I,True);
+  if CadMeasureDimension(FSketch,I,V) then FSketch.SetConstraintValue(I,Abs(V));
+  Solve;
+  if LastSolve.Status in [ssConflict,ssOverDefined] then begin FSketch.SetConstraintDriving(I,False);Solve;end;
 end;
 
 function TCadSketchSession.MakeDimension(const A: TCadPickItem; const B: TCadPickItem;

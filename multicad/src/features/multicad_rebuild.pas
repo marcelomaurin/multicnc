@@ -52,6 +52,7 @@ type
     function FeatureSig(F: TCadFeature): string;
     function NewBodyName: string;
     procedure BuildPlane(P: TCadPlane);
+    function RefreshSketchReferences(S: TCadSketch; out Err: string): Boolean;
     procedure BuildAxis(A: TCadAxis);
     procedure BuildExtrude(X: TCadExtrude);
     procedure BuildRevolve(R: TCadRevolve);
@@ -77,6 +78,9 @@ type
     function ResolvePlane(const ARef: string; out Fr: TCadFrame; out AError: string): Boolean;
     function ResolvePoint(const ARef: string; out P: TCadVec3; out AError: string): Boolean;
     function ResolveLine(const ARef: string; out A, B: TCadVec3; out AError: string): Boolean;
+    { Eixo da alca de profundidade, resolvido nos corpos anteriores ao recurso. }
+    function ExtrudeHandle(X: TCadExtrude; Direction: Integer;
+      out Anchor, Axis: TCadVec3; out DepthFactor: Double): Boolean;
     { Operacoes recalculadas na ultima reconstrucao (o resto veio do cache). }
     property Recomputed: Integer read FRecomputed;
     property ChordTol: Double read FChord write FChord;
@@ -85,7 +89,7 @@ type
 implementation
 
 uses
-  multicad_materials;
+  multicad_materials, multicad_log;
 
 { ---------- corpo ---------- }
 
@@ -293,6 +297,68 @@ begin
     Result := Result + Body(I).Mesh.Volume;
 end;
 
+function TCadRebuilder.ExtrudeHandle(X: TCadExtrude; Direction: Integer;
+  out Anchor, Axis: TCadVec3; out DepthFactor: Double): Boolean;
+var
+  Saved: TFPObjectList;
+  S: TCadSketch;
+  F: TCadFeature;
+  Fr, StartFr: TCadFrame;
+  D: TCadExtrudeDir;
+  E: TSketchEntity;
+  B: TCadBox3;
+  A, Z, N: TCadVec3;
+  I, Index: Integer;
+  Offset, Radius: Double;
+  Err: string;
+begin
+  Result:=False;Anchor:=V3(0,0,0);Axis:=V3(0,0,1);DepthFactor:=1;
+  if (X=nil) or not (Direction in [1,2]) then Exit;
+  if Direction=2 then begin if not X.UseDir2 then Exit;D:=X.Dir2;end else D:=X.Dir1;
+  if not CadEndNeedsDepth(D.EndCond) then Exit;
+  Index:=FDoc.IndexOfId(X.Id);
+  Saved:=FBodies;
+  try
+    { A operacao editada pode ter removido a face do esboco. A referencia
+      precisa vir da mesma etapa usada ao construir a extrusao. }
+    if (Index>0) and (Index-1<FSnaps.Count) then FBodies:=TFPObjectList(FSnaps[Index-1]);
+    F:=FDoc.FindById(X.SketchId);if not (F is TCadSketch) then Exit;
+    S:=TCadSketch(F);if not SketchFrame(S,Fr,Err) then Exit;
+    N:=Fr.Normal;Axis:=N;if X.IsCut then Axis:=VNeg(Axis);
+    if Direction=2 then Axis:=VNeg(Axis);
+    if D.DirRef<>'' then
+    begin
+      if not ResolveLine(D.DirRef,A,Z,Err) then Exit;
+      Z:=VNorm(VSub(Z,A));if VDot(Z,Axis)<0 then Z:=VNeg(Z);Axis:=Z;
+    end;
+    if D.Reverse then Axis:=VNeg(Axis);
+    if VLen(Axis)<CAD_EPS then Exit;
+    Offset:=0;
+    case X.StartKind of
+      esOffset:begin Offset:=X.StartOffset;if X.StartReverse then Offset:=-Offset;end;
+      esSurface:begin
+        if not ResolvePlane(X.StartRef,StartFr,Err) then Exit;
+        if Abs(Abs(VDot(StartFr.Normal,N))-1)>1E-9 then Exit;
+        Offset:=VDot(VSub(StartFr.Origin,Fr.Origin),N);
+      end;
+      esVertex:begin if not ResolvePoint(X.StartRef,A,Err) then Exit;Offset:=VDot(VSub(A,Fr.Origin),N);end;
+    end;
+    B:=BoxEmpty;
+    for I:=0 to S.EntityCount-1 do
+    begin
+      E:=S.Entity(I);if E.Construction or E.Centerline or (E.Kind=sePoint) then Continue;
+      Radius:=0;if E.Kind in [seCircle,seArc] then Radius:=E.Radius;
+      BoxAdd(B,V3(E.P1.X-Radius,E.P1.Y-Radius,0));
+      BoxAdd(B,V3(E.P1.X+Radius,E.P1.Y+Radius,0));
+      if E.Kind=seLine then BoxAdd(B,V3(E.P2.X,E.P2.Y,0));
+    end;
+    if B.Empty then Exit;
+    Anchor:=VAdd(FrameToWorld(Fr,V2((B.Min.X+B.Max.X)/2,(B.Min.Y+B.Max.Y)/2)),VScale(Axis,Offset));
+    if D.EndCond=ecMidPlane then DepthFactor:=0.5;
+    Result:=True;
+  finally FBodies:=Saved;end;
+end;
+
 function TCadRebuilder.MassKg: Double;
 begin
   Result := CadMassKg(FDoc.MaterialData, TotalVolume);
@@ -459,6 +525,23 @@ begin
 end;
 
 { ---------- planos e eixos ---------- }
+
+function TCadRebuilder.RefreshSketchReferences(S: TCadSketch; out Err: string): Boolean;
+var I,OwnerId,EntityId,Pt:Integer;F:TCadFeature;E:TSketchEntity;P:TCadVec2;Source,Target:TCadFrame;
+begin
+  Result:=False;Err:='';
+  for I:=0 to S.EntityCount-1 do begin
+    E:=S.Entity(I);if E.SourceRef='' then Continue;
+    if not ParseSketchPointRef(E.SourceRef,OwnerId,EntityId,Pt) then begin Err:='Referência externa inválida: '+E.SourceRef;Exit;end;
+    F:=FDoc.FindById(OwnerId);
+    if not (F is TCadSketch) or (FDoc.IndexOfId(OwnerId)>=FDoc.IndexOfId(S.Id)) then begin Err:='Referência externa precisa de um esboço anterior: '+E.SourceRef;Exit;end;
+    if F.Suppressed or (F.State=fsError) then begin Err:='Esboço de referência indisponível: '+F.Name;Exit;end;
+    if not SketchReferencePoint(TCadSketch(F),EntityId,Pt,P) then begin Err:='Ponto de referência perdido: '+E.SourceRef;Exit;end;
+    if not SketchFrame(TCadSketch(F),Source,Err) or not SketchFrame(S,Target,Err) then Exit;
+    E.P1:=FrameToLocal(Target,FrameToWorld(Source,P));S.SetEntity(I,E);
+  end;
+  Result:=True;
+end;
 
 procedure TCadRebuilder.BuildPlane(P: TCadPlane);
 var
@@ -1506,12 +1589,17 @@ function TCadRebuilder.Rebuild: Integer;
 var
   I, Last, J: Integer;
   F: TCadFeature;
-  Sig, Prev: string;
+  Sig, Prev, RefError: string;
   Reuse: Boolean;
   Snap: TFPObjectList;
   NBodiesBefore: Integer;
+  Started: QWord;
 begin
   Result := 0;
+  Started:=GetTickCount64;
+  CadLog('REBUILD.START',Format('features=%d rollback=%d',[FDoc.Count,FDoc.RollbackIndex]));
+  F:=nil;
+  try
   FRecomputed := 0;
   FBodies.Clear;
   FNextBody := 0;
@@ -1523,6 +1611,7 @@ begin
   for I := 0 to FDoc.Count - 1 do
   begin
     F := FDoc[I];
+    CadLog('REBUILD.FEATURE',Format('id=%d name=%s params=%s',[F.Id,F.Name,FeatureSig(F)]));
     if I > Last then
     begin
       F.SetState(fsOk, 'Abaixo da barra de retrocesso');
@@ -1532,8 +1621,12 @@ begin
     Sig := MD5Print(MD5String(Prev + '|' + FeatureSig(F)));
     { esbocos dependem do proprio estado resolvido: assinatura inclui a geometria }
     Prev := Sig;
+    { LoadParams also invalidates derived plane/axis geometry when Cancel
+      restores identical parameters. Body snapshots do not store that geometry. }
     if Reuse and (I < FSigs.Count) and (FSigs[I] = Sig) and (I < FSnaps.Count) and
-      not (F is TCadSketch) then
+      not (F is TCadSketch) and
+      not ((F is TCadPlane) and not TCadPlane(F).FrameValid) and
+      not ((F is TCadAxis) and not TCadAxis(F).Valid) then
     begin
       { cache: corpos depois desta operacao }
       FBodies.Clear;
@@ -1544,6 +1637,7 @@ begin
       FNextBody := Max(FNextBody, FBodies.Count);
       for J := 0 to FBodies.Count - 1 do
         FNextBody := Max(FNextBody, StrToIntDef(Copy(Body(J).Name, 6, MaxInt), 0));
+      CadLog('REBUILD.CACHE',Format('id=%d state=%d message=%s',[F.Id,Ord(F.State),F.Message]));
       if F.State = fsError then
         Inc(Result);
       Continue;
@@ -1559,7 +1653,8 @@ begin
       BuildAxis(TCadAxis(F))
     else if F is TCadSketch then
     begin
-      FDoc.SolveSketch(TCadSketch(F));
+      if RefreshSketchReferences(TCadSketch(F),RefError) then FDoc.SolveSketch(TCadSketch(F))
+      else F.SetState(fsError,RefError);
       { a geometria resolvida entra na assinatura das seguintes }
       Prev := MD5Print(MD5String(Prev + FeatureSig(F)));
       if not Reuse then
@@ -1586,6 +1681,13 @@ begin
   { descarta cache alem do fim }
   while FSigs.Count > FDoc.Count do FSigs.Delete(FSigs.Count - 1);
   while FSnaps.Count > FDoc.Count do FSnaps.Delete(FSnaps.Count - 1);
+  CadLog('REBUILD.END',Format('errors=%d recomputed=%d bodies=%d elapsed_ms=%d',
+    [Result,FRecomputed,BodyCount,GetTickCount64-Started]));
+  except on E:Exception do
+  begin
+    if F<>nil then CadLog('REBUILD.FAILED',Format('id=%d name=%s',[F.Id,F.Name]));
+    CadLogException('reconstrucao',E);Invalidate;raise;
+  end;end;
 end;
 
 end.

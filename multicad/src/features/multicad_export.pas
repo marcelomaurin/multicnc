@@ -46,6 +46,8 @@ function CadFaceLoops(M: TCadMesh; AFace: Integer): specialize TList<TCadIdArray
 
 implementation
 
+uses multicad_log;
+
 var
   FS: TFormatSettings;
 
@@ -211,6 +213,7 @@ begin
   except
     on E: Exception do
     begin
+      CadLogException('exportacao',E);
       AError := E.Message;
       if FileExists(Tmp) then
         DeleteFile(Tmp);
@@ -331,6 +334,7 @@ begin
   except
     on E: Exception do
     begin
+      CadLogException('exportacao',E);
       AError := E.Message;
       Result := False;
     end;
