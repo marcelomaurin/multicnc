@@ -48,6 +48,7 @@ type
     FCam: TCadCamera;
     FRaster: TCadRaster;
     FBmp: TBitmap;
+    FFrameBmp: TBitmap;          { quadro composto (evita piscar) }
     FImg: TLazIntfImage;
     FCaches: TFPObjectList;
     FPreview: TCadMesh;
@@ -104,6 +105,7 @@ type
     function PivotPoint: TCadVec3;
   protected
     procedure Paint; override;
+    procedure EraseBackground(DC: HDC); override;
     procedure Resize; override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
@@ -204,6 +206,7 @@ begin
   FCam := TCadCamera.Create;
   FRaster := TCadRaster.Create;
   FBmp := TBitmap.Create;
+  FFrameBmp := TBitmap.Create;
   FPartColor := CAD_PART_COLOR;
   FPartTexture := 0;
   FCaches := TFPObjectList.Create(True);
@@ -229,6 +232,7 @@ begin
   FHiddenIds.Free;
   FImg.Free;
   FBmp.Free;
+  FFrameBmp.Free;
   FRaster.Free;
   FCam.Free;
   inherited Destroy;
@@ -890,40 +894,52 @@ begin
   end;
 end;
 
+procedure TCadView3D.EraseBackground(DC: HDC);
+begin
+  { nada: a vista pinta tudo de uma vez (apagar o fundo antes fazia piscar) }
+end;
+
 procedure TCadView3D.Paint;
 var
   S: string;
+  C: TCanvas;
 begin
   if FNeedFit and (ClientWidth >= 50) and (ClientHeight >= 50) then
     FitAll;
   if FDirty or (FRaster.Width <> ClientWidth) or (FRaster.Height <> ClientHeight) then
     RenderScene;
-  Canvas.Draw(0, 0, FBmp);
+  { quadro completo fora da tela (imagem + esboco + cotas + cubo) e uma
+    unica copia para a janela: sem estados intermediarios visiveis }
+  if (FFrameBmp.Width <> FBmp.Width) or (FFrameBmp.Height <> FBmp.Height) then
+    FFrameBmp.SetSize(FBmp.Width, FBmp.Height);
+  C := FFrameBmp.Canvas;
+  C.Draw(0, 0, FBmp);
   if Assigned(FOnOverlay) then
-    FOnOverlay(Self, Canvas);
-  PaintTriad(Canvas);
-  PaintCube(Canvas);
+    FOnOverlay(Self, C);
+  PaintTriad(C);
+  PaintCube(C);
   if FShowPivot then
     with FCam.Project(PivotPoint) do
     begin
-      Canvas.Pen.Color := RGBToColor(220, 60, 40);
-      Canvas.Pen.Width := 2;
-      Canvas.Brush.Style := bsClear;
-      Canvas.Ellipse(Round(X) - 6, Round(Y) - 6, Round(X) + 7, Round(Y) + 7);
-      Canvas.Line(Round(X) - 10, Round(Y), Round(X) + 11, Round(Y));
-      Canvas.Line(Round(X), Round(Y) - 10, Round(X), Round(Y) + 11);
-      Canvas.Pen.Width := 1;
-      Canvas.Brush.Style := bsSolid;
+      C.Pen.Color := RGBToColor(220, 60, 40);
+      C.Pen.Width := 2;
+      C.Brush.Style := bsClear;
+      C.Ellipse(Round(X) - 6, Round(Y) - 6, Round(X) + 7, Round(Y) + 7);
+      C.Line(Round(X) - 10, Round(Y), Round(X) + 11, Round(Y));
+      C.Line(Round(X), Round(Y) - 10, Round(X), Round(Y) + 11);
+      C.Pen.Width := 1;
+      C.Brush.Style := bsSolid;
     end;
   if FSectionOn then
   begin
     S := 'Vista de seção';
-    Canvas.Font.Height := -12;
-    Canvas.Font.Color := RGBToColor(150, 60, 40);
-    Canvas.Brush.Style := bsClear;
-    Canvas.TextOut(12, 10, S);
-    Canvas.Brush.Style := bsSolid;
+    C.Font.Height := -12;
+    C.Font.Color := RGBToColor(150, 60, 40);
+    C.Brush.Style := bsClear;
+    C.TextOut(12, 10, S);
+    C.Brush.Style := bsSolid;
   end;
+  Canvas.Draw(0, 0, FFrameBmp);
 end;
 
 procedure TCadView3D.Resize;
