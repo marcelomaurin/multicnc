@@ -71,3 +71,8 @@ __pycache__/
 !/*/tests/test_*.lpi
 /multicad/tests/test_multicad_ui
 /multicad/tests/shots/
+
+# ponte OpenCascade compilada localmente (CI compila)
+multicad/tests/libmcad_occt.so
+multicad/tests/mcad_occt.dll
+bin/libmcad_occt.so

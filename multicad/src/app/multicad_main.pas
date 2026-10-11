@@ -27,7 +27,7 @@ uses
   multicad_document, multicad_feature, multicad_refgeom, multicad_sketch, multicad_mesh,
   multicad_solver, multicad_extrude, multicad_revolve, multicad_rebuild,
   multicad_camera, multicad_softrender, multicad_view3d, multicad_sketchtools, multicad_extrudeedit,
-  multicad_sketchedit, multicad_propman, multicad_undo, multicad_hole, multicad_pattern, multicad_blend, multicad_materialdlg, multicad_textures, multicad_export, multicad_measure,
+  multicad_sketchedit, multicad_propman, multicad_undo, multicad_hole, multicad_pattern, multicad_blend, multicad_occt, multicad_import, multicad_materialdlg, multicad_textures, multicad_export, multicad_measure,
   multisuite_types, multisuite_registry, multisuite_launcher, multisuite_context,
   multicad_sketchpattern, multicad_sketchpatterndlg;
 
@@ -176,6 +176,10 @@ type
     procedure MeasureClick(Sender: TObject);
     procedure ExportSTLClick(Sender: TObject);
     procedure ExportDXFClick(Sender: TObject);
+    procedure ExportSTEPClick(Sender: TObject);
+    procedure ImportSTEPClick(Sender: TObject);
+    function KernelText: string;
+    procedure KernelClick(Sender: TObject);
     procedure OpenSlicerClick(Sender: TObject);
     function AskStlOptions(out ABinary: Boolean; out AOrient: TCadStlOrient): Boolean;
     function ExportSTLTo(const AFile: string; ABinary: Boolean; AOrient: TCadStlOrient): Boolean;
@@ -663,6 +667,8 @@ begin
       begin
         RibbonButton('STL para impressão 3D...', sikExport, @ExportSTLClick);
         RibbonButton('DXF do esboço ou face...', sikExport, @ExportDXFClick);
+        RibbonButton('STEP (outros CADs)...', sikExport, @ExportSTEPClick);
+        RibbonButton('Importar STEP...', sikImport, @ImportSTEPClick);
         RibbonSep;
         RibbonButton('Abrir no MultiSlicer', sikSlicer, @OpenSlicerClick).SetLook(sbsSolid,
           clSuitePrimary, sikSlicer);
@@ -713,6 +719,8 @@ begin
   Command('Reconstruir',@RebuildClick);Command('Propriedades de massa',@MassClick);
   Command('Medir',@MeasureClick);Command('Exportar STL...',@ExportSTLClick);
   Command('Exportar DXF...',@ExportDXFClick);
+  Command('Exportar STEP...',@ExportSTEPClick);Command('Importar STEP...',@ImportSTEPClick);
+  Command('Núcleo OpenCascade / Pascal',@KernelClick);
   Root:=Category('Sobre');
   Command('Sobre o MultiCAD',@AboutClick);Command('Abrir log',@LogClick);
 end;
@@ -1414,7 +1422,8 @@ begin
     'Modelagem paramétrica de peças: esboços, extrusões, cortes e revoluções.'+LineEnding+LineEnding+
     'Versão do executável: '+CadExecutableVersion+LineEnding+
     'Compilação: '+{$I %DATE%}+' '+{$I %TIME%}+LineEnding+
-    'Executável: '+ParamStr(0)+LineEnding+'Log: '+CadLogPath;
+    'Executável: '+ParamStr(0)+LineEnding+'Log: '+CadLogPath+LineEnding+
+    'Núcleo geométrico: '+KernelText;
   if CadLogError<>'' then S:=S+LineEnding+'Falha no log: '+CadLogError;
   CadMessageDlg('Sobre o MultiCAD',S,mtInformation,[mbOK],0);
 end;
@@ -1827,6 +1836,7 @@ begin
     try
       L.LoadFromFile(SettingsFile);
       View.ReverseWheel := L.Values['reverse_wheel'] = '1';
+      RB.UseOcct := L.Values['kernel'] <> 'pascal';
     except
       on E:Exception do CadLogException('ler configuracao '+SettingsFile,E);
     end;
@@ -1847,6 +1857,10 @@ begin
         L.Values['reverse_wheel'] := '1'
       else
         L.Values['reverse_wheel'] := '0';
+      if RB.UseOcct then
+        L.Values['kernel'] := 'occt'
+      else
+        L.Values['kernel'] := 'pascal';
       L.SaveToFile(SettingsFile);
     except
       on E:Exception do CadLogException('salvar configuracao '+SettingsFile,E);
@@ -2708,6 +2722,115 @@ begin
   finally
     D.Free;
   end;
+end;
+
+function TMainForm.KernelText: string;
+begin
+  if OcctAvailable then
+  begin
+    Result := 'OpenCascade ' + OcctVersion;
+    if not RB.UseOcct then
+      Result := Result + ' (desligado: usando o núcleo Pascal)';
+  end
+  else
+    Result := 'Pascal (malha) — OpenCascade indisponível: ' + OcctLoadError;
+end;
+
+procedure TMainForm.KernelClick(Sender: TObject);
+begin
+  if PM.Visible or Assigned(FEditor) then
+    Exit;
+  if not OcctAvailable then
+  begin
+    CadMessageDlg('Núcleo geométrico: ' + KernelText, mtInformation, [mbOK], 0);
+    Exit;
+  end;
+  RB.UseOcct := not RB.UseOcct;
+  SaveSettings;
+  RebuildModel;
+  SetStatus(0, 'Núcleo geométrico: ' + KernelText);
+end;
+
+procedure TMainForm.ExportSTEPClick(Sender: TObject);
+var
+  D: TSaveDialog;
+  Shapes: array of TOcctShape;
+  I: Integer;
+  Err: string;
+begin
+  if not RB.OcctActive then
+  begin
+    CadMessageDlg('STEP precisa do núcleo OpenCascade.' + LineEnding + KernelText, mtWarning, [mbOK], 0);
+    Exit;
+  end;
+  Shapes := nil;
+  for I := 0 to RB.BodyCount - 1 do
+    if RB.BodyShape(I) <> nil then
+    begin
+      SetLength(Shapes, Length(Shapes) + 1);
+      Shapes[High(Shapes)] := RB.BodyShape(I);
+    end;
+  if Length(Shapes) = 0 then
+  begin
+    CadMessageDlg('A peça não tem sólido para exportar.', mtInformation, [mbOK], 0);
+    Exit;
+  end;
+  D := TSaveDialog.Create(Self);
+  try
+    D.Filter := 'STEP AP214 (*.step;*.stp)|*.step;*.stp';
+    D.DefaultExt := 'step';
+    D.FileName := Doc.Name + '.step';
+    if Doc.FileName <> '' then
+      D.InitialDir := ExtractFilePath(Doc.FileName);
+    D.Options := D.Options + [ofOverwritePrompt];
+    if not D.Execute then
+      Exit;
+    if OcctStepWrite(Shapes, D.FileName, Err) then
+      SetStatus(0, 'STEP gravado: ' + D.FileName)
+    else
+      CadMessageDlg('Não foi possível gravar o STEP: ' + Err, mtError, [mbOK], 0);
+  finally
+    D.Free;
+  end;
+end;
+
+procedure TMainForm.ImportSTEPClick(Sender: TObject);
+var
+  D: TOpenDialog;
+  F: TCadImportStep;
+  Fn: string;
+begin
+  if PM.Visible or Assigned(FEditor) then
+    Exit;
+  if not RB.OcctActive then
+  begin
+    CadMessageDlg('Importar STEP precisa do núcleo OpenCascade.' + LineEnding + KernelText,
+      mtWarning, [mbOK], 0);
+    Exit;
+  end;
+  D := TOpenDialog.Create(Self);
+  try
+    D.Filter := 'STEP (*.step;*.stp)|*.step;*.stp;*.STEP;*.STP';
+    if Doc.FileName <> '' then
+      D.InitialDir := ExtractFilePath(Doc.FileName);
+    if not D.Execute then
+      Exit;
+    Fn := D.FileName;
+  finally
+    D.Free;
+  end;
+  F := TCadImportStep.Create;
+  if Doc.FileName <> '' then
+    F.FileName := ExtractRelativePath(ExtractFilePath(Doc.FileName), Fn)
+  else
+    F.FileName := Fn;
+  Doc.AddFeature(F);
+  RebuildModel;
+  Modified;
+  if F.State = fsError then
+    CadMessageDlg(F.Message, mtWarning, [mbOK], 0)
+  else
+    SetStatus(0, 'Importado: ' + Fn);
 end;
 
 procedure TMainForm.ExportDXFClick(Sender: TObject);

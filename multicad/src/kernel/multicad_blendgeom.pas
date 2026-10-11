@@ -474,6 +474,17 @@ begin
   Result := M.CheckClosed(AError);
 end;
 
+function FaceNormal(M: TCadMesh; ATri: Integer): TCadVec3;
+var
+  F: TCadFaceInfo;
+begin
+  F := M.Faces[M.Tris[ATri].Face];
+  if (F.Surf = skPlane) and (VLen(F.Axis) > 0.5) then
+    Result := VNorm(F.Axis)
+  else
+    Result := M.TriNormal(ATri);
+end;
+
 function StraightTool(M: TCadMesh; const Chain: TCadEdgeChain; const P: TCadBlendParams;
   const APrefix: string; out IsCut: Boolean; out AError: string): TCadMesh;
 var
@@ -505,8 +516,10 @@ begin
     Exit;
   end;
   D := VNorm(D);
-  NA3 := M.TriNormal(Chain.TriA);
-  NB3 := M.TriNormal(Chain.TriB);
+  { normal da face plana (o triangulo vizinho pode ser uma lasca de area
+    zero deixada pela booleana: normal nula e ferramenta vazia) }
+  NA3 := FaceNormal(M, Chain.TriA);
+  NB3 := FaceNormal(M, Chain.TriB);
   { o lado de dentro da face fica a esquerda da aresta (sentido do triangulo) }
   TA3 := VNorm(VCross(NA3, D));
   TB3 := VNorm(VCross(NB3, VNeg(D)));
@@ -622,7 +635,7 @@ begin
   { direcoes 2D: x = radial, y = axial (a partir da aresta) }
   Mi := VLerp(Chain.Pts[0], Chain.Pts[1], 0.5);
   Rho := VNorm(VSub(Mi, AxisPoint(Mi)));
-  NP3 := M.TriNormal(TriP);
+  NP3 := FaceNormal(M, TriP);
   NC3 := M.TriNormal(TriC);
   { direcao para dentro de cada face: a esquerda do segmento no sentido do
     triangulo (Pts[0] -> Pts[1] na face A, ao contrario na B) }

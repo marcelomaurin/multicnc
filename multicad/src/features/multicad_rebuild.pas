@@ -27,13 +27,14 @@ uses
   multicad_document, multicad_refgeom, multicad_sketch, multicad_solver,
   multicad_profile, multicad_extrude, multicad_revolve, multicad_mesh,
   multicad_sweep, multicad_csg, multicad_bridge, multicad_triangulate,
-  multicad_hole, multicad_pattern, multicad_blend, multicad_blendgeom;
+  multicad_hole, multicad_pattern, multicad_blend, multicad_blendgeom, multicad_occt, multicad_import;
 
 type
   TCadBody = class
   public
     Name: string;
     Mesh: TCadMesh;
+    Shape: TOcctShape;   { solido exato (nucleo OpenCascade); nil no nucleo Pascal }
     constructor Create(const AName: string; AMesh: TCadMesh);
     destructor Destroy; override;
     function Clone: TCadBody;
@@ -43,6 +44,7 @@ type
   TCadToolRec = class
   public
     Mesh: TCadMesh;
+    Shape: TOcctShape;
     IsCut, Merge, FlipSide: Boolean;
     destructor Destroy; override;
   end;
@@ -77,6 +79,18 @@ type
     FNextBody: Integer;
     FRecomputed: Integer;
     FChord: Double;
+    { nucleo OpenCascade (fase 8) }
+    FUseOcct, FOcct, FLastOcct: Boolean;
+    FExact: array of TOcctShape;   { solidos exatos da ferramenta em montagem }
+    FExactBroken: Boolean;         { a ferramenta tem algo que so existe em malha }
+    FToolShape: TOcctShape;        { ferramenta exata em aplicacao }
+    procedure ExactReset;
+    procedure ExactAdd(S: TOcctShape);
+    procedure ExactBreak;
+    function TakeToolShape(Tool: TCadMesh; out AError: string): TOcctShape;
+    function ShapeMesh(S: TOcctShape; out AError: string): TCadMesh;
+    procedure ApplyToolOcct(F: TCadFeature; Tool: TCadMesh; IsCut, Merge, FlipSide, ScopeAll: Boolean;
+      const ScopeBodies: TCadStrArray);
     procedure ClearBodies(L: TFPObjectList);
     function CloneBodies(L: TFPObjectList): TFPObjectList;
     function FeatureSig(F: TCadFeature): string;
@@ -92,6 +106,7 @@ type
     function CollectBlend(F: TCadBlendBase; out Items: TCadBlendItems; out Skipped: Integer;
       out FirstErr: string): Boolean;
     procedure BuildShell(S: TCadShell);
+    procedure BuildImport(F: TCadImportStep);
     procedure StoreTool(F: TCadFeature; Tool: TCadMesh; IsCut, Merge, FlipSide: Boolean);
     function ResolveDir(const ARef: string; out D: TCadVec3; out AError: string): Boolean;
     function ResolveAxis(const ARef: string; out A, U: TCadVec3; out AError: string): Boolean;
@@ -123,6 +138,12 @@ type
     { Operacoes recalculadas na ultima reconstrucao (o resto veio do cache). }
     property Recomputed: Integer read FRecomputed;
     property ChordTol: Double read FChord write FChord;
+    { Usar o OpenCascade quando a biblioteca existir (padrao: sim). }
+    property UseOcct: Boolean read FUseOcct write FUseOcct;
+    { O nucleo da ultima reconstrucao foi o OpenCascade. }
+    property OcctActive: Boolean read FOcct;
+    { Solidos exatos dos corpos (para STEP); vazio no nucleo Pascal. }
+    function BodyShape(I: Integer): TOcctShape;
     { Roscas cosmeticas dos furos roscados ativos. }
     function ThreadMarks: TCadThreadMarks;
     { Previa do filete/chanfro: ferramentas juntas sobre os corpos atuais
@@ -147,12 +168,14 @@ end;
 destructor TCadBody.Destroy;
 begin
   Mesh.Free;
+  OcctFree(Shape);
   inherited;
 end;
 
 function TCadBody.Clone: TCadBody;
 begin
   Result := TCadBody.Create(Name, Mesh.Clone);
+  Result.Shape := OcctCopy(Shape);
 end;
 
 { ---------- utilitarios ---------- }
@@ -247,6 +270,7 @@ begin
   FThreadMap := TStringList.Create;
   FThreadMap.OwnsObjects := True;
   FChord := 0.01;
+  FUseOcct := True;
 end;
 
 destructor TCadRebuilder.Destroy;
@@ -262,6 +286,7 @@ end;
 destructor TCadToolRec.Destroy;
 begin
   Mesh.Free;
+  OcctFree(Shape);
   inherited Destroy;
 end;
 
@@ -274,6 +299,7 @@ begin
     Exit;
   R := TCadToolRec.Create;
   R.Mesh := Tool.Clone;
+  R.Shape := OcctCopy(FToolShape);
   R.IsCut := IsCut;
   R.Merge := Merge;
   R.FlipSide := FlipSide;
@@ -395,7 +421,10 @@ var
 begin
   Result := 0;
   for I := 0 to FBodies.Count - 1 do
-    Result := Result + Body(I).Mesh.Volume;
+    if Body(I).Shape <> nil then
+      Result := Result + OcctVolume(Body(I).Shape)   { volume exato do B-Rep }
+    else
+      Result := Result + Body(I).Mesh.Volume;
 end;
 
 function TCadRebuilder.ExtrudeHandle(X: TCadExtrude; Direction: Integer;
@@ -977,6 +1006,245 @@ begin
     (A.Min.Z <= B.Max.Z + E) and (B.Min.Z <= A.Max.Z + E);
 end;
 
+{ ---------- nucleo OpenCascade ---------- }
+
+procedure TCadRebuilder.ExactReset;
+var
+  I: Integer;
+begin
+  for I := 0 to High(FExact) do
+    OcctFree(FExact[I]);
+  FExact := nil;
+  FExactBroken := False;
+end;
+
+procedure TCadRebuilder.ExactAdd(S: TOcctShape);
+begin
+  if S = nil then
+  begin
+    { a parte exata falhou: a ferramenta vai pela malha }
+    FExactBroken := True;
+    Exit;
+  end;
+  SetLength(FExact, Length(FExact) + 1);
+  FExact[High(FExact)] := S;
+end;
+
+procedure TCadRebuilder.ExactBreak;
+begin
+  FExactBroken := True;
+end;
+
+function TCadRebuilder.TakeToolShape(Tool: TCadMesh; out AError: string): TOcctShape;
+var
+  I: Integer;
+  R: TOcctShape;
+begin
+  AError := '';
+  Result := nil;
+  if not FExactBroken and (Length(FExact) > 0) then
+  begin
+    { ferramenta exata: junta as partes (regioes, direcao 2, furos) }
+    Result := FExact[0];
+    FExact[0] := nil;
+    for I := 1 to High(FExact) do
+    begin
+      R := OcctBoolean(Result, FExact[I], 0, AError);
+      if R = nil then
+      begin
+        OcctFree(Result);
+        Break;
+      end;
+      OcctFree(Result);
+      Result := R;
+    end;
+  end;
+  ExactReset;
+  if (Result = nil) and (Tool <> nil) then
+    { so em malha (inclinacao, recorte, tampas): solido poliedrico }
+    Result := OcctFromMesh(Tool, AError);
+end;
+
+function TCadRebuilder.ShapeMesh(S: TOcctShape; out AError: string): TCadMesh;
+begin
+  Result := OcctToMesh(S, FChord, AError);
+end;
+
+function TCadRebuilder.BodyShape(I: Integer): TOcctShape;
+begin
+  Result := Body(I).Shape;
+end;
+
+procedure TCadRebuilder.ApplyToolOcct(F: TCadFeature; Tool: TCadMesh; IsCut, Merge, FlipSide,
+  ScopeAll: Boolean; const ScopeBodies: TCadStrArray);
+var
+  I, K, Touched, NC: Integer;
+  B: TCadBody;
+  TS, R, Merged, Part: TOcctShape;
+  E, Warn, MergedName: string;
+  InScope: Boolean;
+  V0: Double;
+  NewList: TFPObjectList;
+  TB: TCadBox3;
+
+  function MakeBody(const AName: string; S: TOcctShape): TCadBody;
+  var
+    Er: string;
+    Ms: TCadMesh;
+  begin
+    Ms := ShapeMesh(S, Er);
+    if Ms = nil then
+      Ms := TCadMesh.Create;
+    Result := TCadBody.Create(AName, Ms);
+    Result.Shape := S;
+  end;
+
+begin
+  Warn := '';
+  TS := TakeToolShape(Tool, E);
+  if TS = nil then
+  begin
+    Tool.Free;
+    F.SetState(fsError, 'Ferramenta inválida no OpenCascade: ' + E);
+    Exit;
+  end;
+  FToolShape := TS;
+  try
+    StoreTool(F, Tool, IsCut, Merge, FlipSide);
+  finally
+    FToolShape := nil;
+  end;
+  TB := Tool.Bounds;
+  Tool.Free;
+  if not IsCut then
+  begin
+    if (FBodies.Count = 0) or not Merge then
+    begin
+      FBodies.Add(MakeBody(NewBodyName, TS));
+      if (FBodies.Count > 1) and not Merge then
+        Warn := 'Mesclar resultado desligado: novo corpo';
+      if Warn <> '' then F.SetState(fsWarning, Warn) else F.SetState(fsOk, '');
+      Exit;
+    end;
+    Merged := TS;
+    MergedName := '';
+    I := 0;
+    while I < FBodies.Count do
+    begin
+      B := Body(I);
+      InScope := ScopeAll;
+      for K := 0 to High(ScopeBodies) do
+        if SameText(ScopeBodies[K], 'body:' + B.Name) then
+          InScope := True;
+      if not InScope or (B.Shape = nil) then
+      begin
+        Inc(I);
+        Continue;
+      end;
+      R := OcctBoolean(B.Shape, Merged, 0, E);
+      if R = nil then
+      begin
+        OcctFree(Merged);
+        F.SetState(fsError, 'Falha na união (OpenCascade): ' + E);
+        Exit;
+      end;
+      if OcctComponents(R) < OcctComponents(B.Shape) + OcctComponents(Merged) then
+      begin
+        { encostou: funde }
+        if MergedName = '' then MergedName := B.Name;
+        OcctFree(Merged);
+        Merged := R;
+        FBodies.Delete(I);
+      end
+      else
+      begin
+        OcctFree(R);
+        Inc(I);
+      end;
+    end;
+    if MergedName = '' then
+    begin
+      MergedName := NewBodyName;
+      Warn := 'O ressalto não toca nenhum corpo: criou um corpo separado';
+    end;
+    FBodies.Add(MakeBody(MergedName, Merged));
+    if Warn <> '' then F.SetState(fsWarning, Warn) else F.SetState(fsOk, '');
+    Exit;
+  end;
+  { corte }
+  if FBodies.Count = 0 then
+  begin
+    OcctFree(TS);
+    F.SetState(fsError, 'Corte sem corpo: crie um ressalto antes');
+    Exit;
+  end;
+  Touched := 0;
+  NewList := TFPObjectList.Create(True);
+  try
+    for I := 0 to FBodies.Count - 1 do
+    begin
+      B := Body(I);
+      InScope := ScopeAll;
+      for K := 0 to High(ScopeBodies) do
+        if SameText(ScopeBodies[K], 'body:' + B.Name) then
+          InScope := True;
+      if not InScope or (B.Shape = nil) or
+        (not FlipSide and not BoxesOverlap(B.Mesh.Bounds, TB)) then
+      begin
+        NewList.Add(B.Clone);
+        Continue;
+      end;
+      V0 := OcctVolume(B.Shape);
+      if FlipSide then
+        R := OcctBoolean(B.Shape, TS, 2, E)
+      else
+        R := OcctBoolean(B.Shape, TS, 1, E);
+      if R = nil then
+      begin
+        OcctFree(TS);
+        F.SetState(fsError, 'Falha no corte (OpenCascade): ' + E);
+        Exit;
+      end;
+      if Abs(OcctVolume(R) - V0) > 1E-6 * Max(1, V0) then
+        Inc(Touched);
+      NC := OcctComponents(R);
+      if NC = 0 then
+      begin
+        OcctFree(R);
+        Continue;   { corpo consumido }
+      end;
+      if NC > 1 then
+      begin
+        for K := 0 to NC - 1 do
+        begin
+          Part := OcctComponent(R, K);
+          if K = 0 then
+            NewList.Add(MakeBody(B.Name, Part))
+          else
+            NewList.Add(MakeBody(NewBodyName, Part));
+        end;
+        OcctFree(R);
+        Warn := 'O corte separou o corpo em partes';
+      end
+      else
+        NewList.Add(MakeBody(B.Name, R));
+    end;
+    OcctFree(TS);
+    FBodies.Clear;
+    for I := 0 to NewList.Count - 1 do
+      FBodies.Add(NewList[I]);
+    NewList.OwnsObjects := False;
+  finally
+    NewList.Free;
+  end;
+  if Touched = 0 then
+    F.SetState(fsWarning, 'O corte não intercepta o modelo')
+  else if Warn <> '' then
+    F.SetState(fsWarning, Warn)
+  else
+    F.SetState(fsOk, '');
+end;
+
 procedure TCadRebuilder.ApplyTool(F: TCadFeature; Tool: TCadMesh; IsCut, Merge, FlipSide,
   ScopeAll: Boolean; const ScopeBodies: TCadStrArray);
 var
@@ -991,6 +1259,11 @@ var
   V0: Double;
   NewList: TFPObjectList;
 begin
+  if FOcct then
+  begin
+    ApplyToolOcct(F, Tool, IsCut, Merge, FlipSide, ScopeAll, ScopeBodies);
+    Exit;
+  end;
   Warn := '';
   StoreTool(F, Tool, IsCut, Merge, FlipSide);
   if not IsCut then
@@ -1198,6 +1471,7 @@ var
     Depth, St: Double;
     R: Integer;
     Part, Acc, U: TCadMesh;
+    OErr: string;
     ClipFr: TCadFrame;
     NeedClip: Boolean;
     OffS: Double;
@@ -1330,6 +1604,13 @@ var
     begin
       Part := CadSweepExtrude(Fr, Regions[R], Surfs, ADir, St, Depth, Dir.Draft, Dir.DraftOutward,
         APrefix, AErr);
+      if FOcct and (Part <> nil) then
+      begin
+        if Abs(Dir.Draft) > 1E-9 then
+          ExactBreak
+        else
+          ExactAdd(OcctPrism(Fr, Regions[R], Surfs, ADir, St, Depth, APrefix, OErr));
+      end;
       if Part = nil then
       begin
         Acc.Free;
@@ -1345,6 +1626,7 @@ var
     end;
     if NeedClip then
     begin
+      ExactBreak;
       { lado do semiespaco que contem o inicio do perfil }
       Side := VDot(VSub(VAdd(Fr.Origin, VScale(ADir, St)), ClipFr.Origin), ClipFr.Normal);
       U := HalfSpaceMesh(ClipFr, Sign(Side + 1E-12), 4 * L + 1000, APrefix + '/fim');
@@ -1502,6 +1784,7 @@ begin
     end;
     Tool.Free;
     Tool := nil;
+    ExactBreak;
     Caps := Copy(Regions);
     SetLength(CavR, Length(Caps));
     for I := 0 to High(Regions) do
@@ -1576,6 +1859,7 @@ var
   Tool, Part: TCadMesh;
   Ent: TSketchEntity;
   SId, EId, Pt: Integer;
+  OErr: string;
 begin
   E := R.Validate;
   if E <> '' then begin R.SetState(fsError, E); Exit; end;
@@ -1662,6 +1946,9 @@ begin
       Continue;
     Part := CadSweepRevolve(Fr, CadRegionToSweep(Prof.Regions[I]), Surfs, AxA, AxB, St,
       Min(Ang, 360), R.Name, E);
+    if FOcct and (Part <> nil) then
+      ExactAdd(OcctRevolve(Fr, CadRegionToSweep(Prof.Regions[I]), Surfs, AxA, AxB, St,
+        Min(Ang, 360), R.Name, OErr));
     if Part = nil then
     begin
       Tool.Free;
@@ -1768,6 +2055,10 @@ var
   Tool, One: TCadMesh;
   Rec: TCadThreadRec;
   TL: Double;
+  OErr: string;
+  J: Integer;
+  HR0, HZ0, HR1, HZ1: array of Double;
+  HNm: array of string;
 begin
   F := FDoc.FindById(H.SketchId);
   if not (F is TCadSketch) then
@@ -1839,6 +2130,17 @@ begin
     begin
       C := FrameToWorld(Fr, Pts[K]);
       One := RevolveProfile(Prof, C, X, Y, Z, H.Name + '/' + IntToStr(K + 1), Segs);
+      if FOcct then
+      begin
+        SetLength(HR0, Length(Prof)); SetLength(HZ0, Length(Prof));
+        SetLength(HR1, Length(Prof)); SetLength(HZ1, Length(Prof)); SetLength(HNm, Length(Prof));
+        for J := 0 to High(Prof) do
+        begin
+          HR0[J] := Prof[J].R0; HZ0[J] := Prof[J].Z0; HR1[J] := Prof[J].R1; HZ1[J] := Prof[J].Z1;
+          HNm[J] := H.Name + '/' + IntToStr(K + 1) + '/' + Prof[J].Name;
+        end;
+        ExactAdd(OcctRevolveRZ(C, X, Z, HR0, HZ0, HR1, HZ1, HNm, OErr));
+      end;
       try
         Tool.Append(One);
       finally
@@ -2059,6 +2361,9 @@ begin
       T.RefreshPlaneNormals;
       for J := 0 to T.FaceCount - 1 do
         T.SetFaceName(J, P.Name + '/' + IntToStr(I + 1) + '/' + T.Faces[J].Name);
+      ExactReset;
+      if FOcct and (Rec.Shape <> nil) then
+        ExactAdd(OcctTransform(Rec.Shape, Mats[I], '', P.Name + '/' + IntToStr(I + 1) + '/'));
       P.SetState(fsOk, '');
       ApplyTool(P, T, Rec.IsCut, Rec.Merge, Rec.FlipSide, True, nil);
       if P.State = fsError then
@@ -2229,8 +2534,47 @@ begin
   end;
 end;
 
+procedure BlendNames(F: TCadBlendBase; B: TCadBody; out FA, FB: TCadStrArray);
+var
+  I, K, Fi: Integer;
+  A, Bn: string;
+  M: TCadMesh;
+  Nb: TCadIdArray;
+begin
+  FA := nil;
+  FB := nil;
+  M := B.Mesh;
+  for I := 0 to High(F.Edges) do
+    if CadParseEdgeRef(F.Edges[I], A, Bn) then
+    begin
+      if (M.FaceIndex(A) < 0) or (M.FaceIndex(Bn) < 0) then
+        Continue;
+      SetLength(FA, Length(FA) + 1);
+      SetLength(FB, Length(FB) + 1);
+      FA[High(FA)] := A;
+      FB[High(FB)] := Bn;
+    end
+    else if Copy(F.Edges[I], 1, 5) = 'face:' then
+    begin
+      Fi := M.FaceIndex(Copy(F.Edges[I], 6, MaxInt));
+      if Fi < 0 then
+        Continue;
+      Nb := CadFaceNeighbors(M, Fi);
+      for K := 0 to High(Nb) do
+      begin
+        SetLength(FA, Length(FA) + 1);
+        SetLength(FB, Length(FB) + 1);
+        FA[High(FA)] := M.Faces[Fi].Name;
+        FB[High(FB)] := M.Faces[Nb[K]].Name;
+      end;
+    end;
+end;
+
 procedure TCadRebuilder.BuildBlend(F: TCadBlendBase);
 var
+  NA, NB: TCadStrArray;
+  RS: TOcctShape;
+  D1, D2: Double;
   Items: TCadBlendItems;
   Ops: TCadBoolOperands;
   I, K, Bi, Done, Skipped: Integer;
@@ -2241,6 +2585,53 @@ begin
   if FBodies.Count = 0 then
   begin
     F.SetState(fsError, CAD_FEATURE_NAMES[F.Kind] + ' sem corpo: crie um ressalto antes');
+    Exit;
+  end;
+  if FOcct then
+  begin
+    { OpenCascade: filete/chanfro exatos em qualquer aresta }
+    Done := 0;
+    FirstErr := '';
+    for Bi := 0 to FBodies.Count - 1 do
+    begin
+      if Body(Bi).Shape = nil then
+        Continue;
+      BlendNames(F, Body(Bi), NA, NB);
+      if Length(NA) = 0 then
+        Continue;
+      if F is TCadFillet3D then
+        RS := OcctFillet(Body(Bi).Shape, NA, NB, TCadFillet3D(F).Radius, F.Name, Err)
+      else
+      begin
+        TCadChamfer3D(F).Distances(D1, D2);
+        RS := OcctChamfer(Body(Bi).Shape, NA, NB, D1, D2, F.Name, Err);
+      end;
+      if RS = nil then
+      begin
+        F.SetState(fsError, 'Falha no ' + LowerCase(CAD_FEATURE_NAMES[F.Kind]) + ': ' + Err);
+        Exit;
+      end;
+      if Err <> '' then
+        FirstErr := Err;
+      Cur := ShapeMesh(RS, Err);
+      if Cur = nil then
+      begin
+        OcctFree(RS);
+        F.SetState(fsError, 'Falha na tesselagem: ' + Err);
+        Exit;
+      end;
+      OcctFree(Body(Bi).Shape);
+      Body(Bi).Shape := RS;
+      Body(Bi).Mesh.Free;
+      Body(Bi).Mesh := Cur;
+      Inc(Done);
+    end;
+    if Done = 0 then
+      F.SetState(fsError, 'Nenhuma aresta válida')
+    else if FirstErr <> '' then
+      F.SetState(fsWarning, FirstErr)
+    else
+      F.SetState(fsOk, '');
     Exit;
   end;
   if not CollectBlend(F, Items, Skipped, FirstErr) then
@@ -2319,6 +2710,53 @@ begin
     F.SetState(fsOk, '');
 end;
 
+procedure TCadRebuilder.BuildImport(F: TCadImportStep);
+var
+  Fn, E: string;
+  S, Part: TOcctShape;
+  M: TCadMesh;
+  I, N: Integer;
+begin
+  if not FOcct then
+  begin
+    F.SetState(fsError, 'Importar STEP precisa do núcleo OpenCascade (' + OcctLoadError + ')');
+    Exit;
+  end;
+  Fn := F.ResolvedPath(FDoc.FileName);
+  if not FileExists(Fn) then
+  begin
+    F.SetState(fsError, 'Arquivo não encontrado: ' + Fn);
+    Exit;
+  end;
+  S := OcctStepRead(Fn, F.Name, E);
+  if S = nil then
+  begin
+    F.SetState(fsError, E);
+    Exit;
+  end;
+  N := OcctComponents(S);
+  if N = 0 then
+  begin
+    OcctFree(S);
+    F.SetState(fsError, 'O arquivo STEP não tem sólidos');
+    Exit;
+  end;
+  for I := 0 to N - 1 do
+  begin
+    Part := OcctComponent(S, I);
+    M := ShapeMesh(Part, E);
+    if M = nil then
+    begin
+      OcctFree(Part);
+      Continue;
+    end;
+    FBodies.Add(TCadBody.Create(NewBodyName, M));
+    Body(FBodies.Count - 1).Shape := Part;
+  end;
+  OcctFree(S);
+  F.SetState(fsOk, '');
+end;
+
 procedure TCadRebuilder.BuildShell(S: TCadShell);
 var
   I, K, Fi, Done: Integer;
@@ -2327,6 +2765,8 @@ var
   M, Outer, Inner, R: TCadMesh;
   Err, FName: string;
   Any: Boolean;
+  Names: TCadStrArray;
+  RS: TOcctShape;
 begin
   if FBodies.Count = 0 then
   begin
@@ -2358,6 +2798,43 @@ begin
     if not Targets[I] then
       Continue;
     M := Body(I).Mesh;
+    if FOcct and (Body(I).Shape <> nil) then
+    begin
+      Names := nil;
+      for K := 0 to High(S.Faces) do
+      begin
+        FName := S.Faces[K];
+        if Copy(FName, 1, 5) = 'face:' then
+          FName := Copy(FName, 6, MaxInt);
+        if M.FaceIndex(FName) >= 0 then
+        begin
+          SetLength(Names, Length(Names) + 1);
+          Names[High(Names)] := FName;
+        end;
+      end;
+      if S.Outward then
+        RS := OcctShell(Body(I).Shape, Names, S.Thickness, S.Name, Err)
+      else
+        RS := OcctShell(Body(I).Shape, Names, -S.Thickness, S.Name, Err);
+      if RS = nil then
+      begin
+        S.SetState(fsError, 'Falha na casca: ' + Err);
+        Exit;
+      end;
+      R := ShapeMesh(RS, Err);
+      if R = nil then
+      begin
+        OcctFree(RS);
+        S.SetState(fsError, 'Falha na tesselagem: ' + Err);
+        Exit;
+      end;
+      OcctFree(Body(I).Shape);
+      Body(I).Shape := RS;
+      Body(I).Mesh.Free;
+      Body(I).Mesh := R;
+      Inc(Done);
+      Continue;
+    end;
     SetLength(Removed, M.FaceCount);
     for K := 0 to High(Removed) do
       Removed[K] := False;
@@ -2426,6 +2903,14 @@ begin
   F:=nil;
   try
   FRecomputed := 0;
+  FOcct := FUseOcct and OcctAvailable;
+  if FOcct <> FLastOcct then
+  begin
+    { trocou o nucleo: nada do cache serve }
+    FSigs.Clear;
+    FSnaps.Clear;
+    FLastOcct := FOcct;
+  end;
   FBodies.Clear;
   FNextBody := 0;
   Last := FDoc.Count - 1;
@@ -2470,6 +2955,7 @@ begin
     if not (F is TCadSketch) then
       Reuse := False;
     NBodiesBefore := FBodies.Count;
+    ExactReset;
     if F.Suppressed then
       F.SetState(fsOk, 'Suprimido')
     else if F is TCadPlane then
@@ -2497,6 +2983,8 @@ begin
       BuildBlend(TCadBlendBase(F))
     else if F is TCadShell then
       BuildShell(TCadShell(F))
+    else if F is TCadImportStep then
+      BuildImport(TCadImportStep(F))
     else if F.Kind = cfOrigin then
       F.SetState(fsOk, '')
     else

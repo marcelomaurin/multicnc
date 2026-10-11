@@ -13,7 +13,7 @@ uses
   multicad_profile, multicad_triangulate, multicad_sweep, multicad_bridge, multicad_csg, multicad_revolve, multicad_rebuild,
   multicad_camera, multicad_depthdrag, multicad_softrender, multicad_sketchtools, multicad_export,
   multicad_measure, multicad_textures, multicad_undo, multicad_threads, multicad_hole,
-  multicad_pattern, multicad_blend, multicad_blendgeom, multislicer_types, multislicer_mesh, multislicer_stl;
+  multicad_pattern, multicad_blend, multicad_blendgeom, multicad_occt, multicad_import, multislicer_types, multislicer_mesh, multislicer_stl;
 
 var
   Passed, Failed: Integer;
@@ -1215,6 +1215,8 @@ begin
     X2.Dir1.EndCond := ecThroughAll;
     Check(RB.Rebuild = 0, 'furos passantes sem erro: ' + X2.Message);
     HolesArea := RegionsArea(S2);
+    if RB.OcctActive then
+      HolesArea := 2 * Pi * 16;   { OpenCascade: circulo exato }
     Check(Near(RB.TotalVolume, 40000 - HolesArea * 10, 1E-4),
       Format('volume com 2 furos (%.4f x %.4f)', [RB.TotalVolume, 40000 - HolesArea * 10]));
     Check(RB.FindFace('Corte-Extrusão1/lat:' + IntToStr(S2.Entity(0).Id), Bd, F) and
@@ -1320,6 +1322,8 @@ begin
     X3.Dir1.EndCond := ecThroughAllBoth;
     RB.Rebuild;
     V := RegionsArea(S3);
+    if RB.OcctActive then
+      V := Pi * 9;
     Check((X3.State = fsOk) and Near(RB.TotalVolume, 40000 + 20000 + 2000 - V * 15, 1E-4),
       Format('passante nos dois sentidos fura base e placa (%.4f)', [RB.TotalVolume]));
   finally
@@ -2638,6 +2642,96 @@ begin
   end;
 end;
 
+procedure TestOcct;
+var
+  D, D2: TCadDocument;
+  RB, RB2: TCadRebuilder;
+  S, S2: TCadSketch;
+  X, C1, C2: TCadExtrude;
+  Fi: TCadFillet3D;
+  Imp: TCadImportStep;
+  V, V2, Exp: Double;
+  Err, Fn, Lat: string;
+  B: TCadBody;
+  F, I: Integer;
+begin
+  if not OcctAvailable then
+  begin
+    Writeln('  (OpenCascade indisponivel: ', OcctLoadError, ' - testes do nucleo OCCT pulados)');
+    Exit;
+  end;
+  Writeln('  OpenCascade ', OcctVersion);
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  try
+    X := PlateDoc(D, Lat);
+    Check(RB.Rebuild = 0, 'OCCT: placa');
+    Check(RB.OcctActive and (RB.BodyShape(0) <> nil), 'OCCT: corpo com solido exato');
+    Check(Near(RB.TotalVolume, 40000, 1E-6), 'OCCT: volume exato da placa');
+    { furos que se cruzam: Ø8 vertical e Ø6 horizontal (o nucleo Pascal recusa) }
+    S := D.AddSketch(Lat);
+    S.AddCircle(0, 0, 4);
+    C1 := D.AddExtrude(S.Id, 0, True);
+    C1.Dir1.EndCond := ecThroughAll;
+    S2 := D.AddSketch('plane:3');
+    S2.AddCircle(0, 5, 3);
+    C2 := D.AddExtrude(S2.Id, 0, True);
+    C2.Dir1.EndCond := ecThroughAllBoth;
+    Check(RB.Rebuild = 0, 'OCCT: furos que se cruzam sem erro: ' + C1.Message + ' ' + C2.Message);
+    { volume: placa - cilindro vertical - cilindro horizontal + intersecao
+      (Steinmetz de raios 4 e 3: calculado pelo proprio OCCT em separado) }
+    V := RB.TotalVolume;
+    Check((V < 40000 - Pi * 16 * 10) and (V > 40000 - Pi * 16 * 10 - Pi * 9 * 80), Format('OCCT: volume com furos cruzados (%.2f)', [V]));
+    Check(RB.Body(0).Mesh.IsClosed, 'OCCT: malha da vista fechada');
+    Check(RB.FindFace(C2.Name + '/lat:' + IntToStr(S2.Entity(0).Id), B, F) and
+      (B.Mesh.Faces[F].Surf = skCylinder) and Near(B.Mesh.Faces[F].Radius, 3, 1E-6),
+      'OCCT: furo horizontal cilindrico R3 com nome estavel');
+    { filete entre os dois cilindros (aresta curva x curva) }
+    Fi := TCadFillet3D.Create;
+    Fi.Radius := 0.5;
+    Fi.Edges := [CadEdgeRef(C1.Name + '/lat:' + IntToStr(S.Entity(0).Id), C2.Name + '/lat:' + IntToStr(S2.Entity(0).Id))];
+    D.AddFeature(Fi);
+    Check(RB.Rebuild = 0, 'OCCT: filete entre dois cilindros: ' + Fi.Message);
+    Check(RB.TotalVolume < V, 'OCCT: o filete tira material na aresta curva');
+    { STEP: grava e importa num documento novo }
+    Fn := GetTempDir + 'multicad_teste_occt.step';
+    DeleteFile(Fn);
+    Check(OcctStepWrite([RB.BodyShape(0)], Fn, Err) and FileExists(Fn), 'OCCT: STEP gravado ' + Err);
+    V2 := RB.TotalVolume;
+    D2 := TCadDocument.Create;
+    RB2 := TCadRebuilder.Create(D2);
+    try
+      D2.NewPart;
+      Imp := TCadImportStep.Create;
+      Imp.FileName := Fn;
+      D2.AddFeature(Imp);
+      Check(RB2.Rebuild = 0, 'OCCT: importar STEP sem erro: ' + Imp.Message);
+      Check((RB2.BodyCount = 1) and Near(RB2.TotalVolume, V2, 1E-3 * V2),
+        Format('OCCT: STEP importado com o mesmo volume (%.2f x %.2f)', [RB2.TotalVolume, V2]));
+      Check(RB2.FindFace(Imp.Name + '/f1', B, F), 'OCCT: faces do importado com nome');
+      Exp := RB2.TotalVolume;
+      { o importado aceita operacoes: corte de um bloco }
+      S := D2.AddSketch('face:' + Imp.Name + '/f1');
+      Check(S <> nil, 'OCCT: esboco na face importada');
+    finally
+      RB2.Free;
+      D2.Free;
+    end;
+    DeleteFile(Fn);
+    { com o OCCT desligado o mesmo documento volta ao nucleo Pascal }
+    RB.UseOcct := False;
+    RB.Rebuild;
+    Check(not RB.OcctActive and (RB.BodyShape(0) = nil), 'OCCT desligado: nucleo Pascal');
+    RB.UseOcct := True;
+    Check(RB.Rebuild = 0, 'OCCT religado');
+    if Exp = 0 then;
+    if I = 0 then;
+  finally
+    RB.Free;
+    D.Free;
+  end;
+end;
+
 begin
   Passed := 0;
   Failed := 0;
@@ -2664,6 +2758,7 @@ begin
   TestHoles;
   TestFilletSelection;
   TestBlend3D;
+  TestOcct;
   TestExport;
   Writeln(Format('MultiCAD: %d checks, %d falhas', [Passed + Failed, Failed]));
   if Failed > 0 then

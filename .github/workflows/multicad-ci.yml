@@ -10,10 +10,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y lazarus xvfb
+      - run: sudo apt-get update && sudo apt-get install -y lazarus xvfb libocct-modeling-algorithms-dev libocct-modeling-data-dev libocct-foundation-dev libocct-data-exchange-dev
+      - name: OpenCascade bridge (libmcad_occt.so)
+        run: sh multicad/occt/build_linux.sh "$PWD/multicad/tests/libmcad_occt.so"
       - name: Core tests (planos, unidades, materiais, .mcad, malha)
         run: |
           set -e
+          lazbuild --ws=nogui multicad/tests/test_multicad.lpi
+          (cd multicad/tests && MULTICAD_KERNEL=pascal ./test_multicad)
           lazbuild --ws=nogui multicad/tests/test_multicad.lpi
           lazbuild --ws=nogui multicad/tests/test_log.lpi
           lazbuild --ws=nogui multicad/tests/test_smart_dimension.lpi
@@ -62,6 +66,7 @@ jobs:
       - name: Test and build MultiCAD
         shell: cmd
         run: |
+          copy bin\mcad_occt.dll multicad\tests\mcad_occt.dll
           lazbuild multicad\tests\test_multicad.lpi
           if errorlevel 1 exit /b 1
           cd multicad\tests
