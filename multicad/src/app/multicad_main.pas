@@ -53,6 +53,7 @@ type
     FSnapshot: TJSONObject;     { parametros antes de editar (Cancelar) }
     FSnapName: string;
     FPendingSketch: Boolean;    { esperando escolher plano/face para o esboco }
+    FLastSketchId: Integer;     { ultimo esboco finalizado; prioridade para a proxima operacao }
     FNormalFlip: Boolean;
     FToolButtons: array[TCadSketchToolKind] of TSuiteButton;
     FRibX, FRibY: Integer;
@@ -1364,10 +1365,18 @@ begin
 end;
 
 procedure TMainForm.ExitSketch(Sender: TObject);
+var
+  S: TCadSketch;
 begin
   if FEditor = nil then
     Exit;
+  S := FEditor.Sketch;
+  if Assigned(S) then
+    FLastSketchId := S.Id;
   FreeAndNil(FEditor);
+  View.Selected.Clear;
+  if FLastSketchId > 0 then
+    View.Selected.Add('sketch:' + IntToStr(FLastSketchId));
   SetStatus(0, '');
   UpdateSketchPanel;
   RebuildModel;
@@ -1583,6 +1592,16 @@ begin
   F := SelectedFeature;
   if F is TCadSketch then
     Exit(TCadSketch(F));
+  { O esboco que o usuario acabou de finalizar e a escolha natural para
+    a proxima operacao. Isto evita escolher outro esboco nao consumido. }
+  if FLastSketchId > 0 then
+  begin
+    F := Doc.FindById(FLastSketchId);
+    if (F is TCadSketch) and (ConsumerIndex(Doc, FLastSketchId) < 0) and
+      (TCadSketch(F).EntityCount > 0) then
+      Exit(TCadSketch(F));
+    FLastSketchId := 0;
+  end;
   for I := 0 to View.Selected.Count - 1 do
     if Pos('sketch:', View.Selected[I]) = 1 then
     begin
