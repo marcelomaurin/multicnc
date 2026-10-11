@@ -1,78 +1,37 @@
-# Bugs de integração e operação do MultiCNC
+# MultiCNC — Registro de bugs
 
-Avaliação de 10/10/2026, baseada nos fontes da branch `fila`, commit
-`d1f1083c4d76116818d9e90e97e8e8ead7aa43cc`.
+> **Estado revisado em 11/10/2026 na branch `fila`.**
+>
+> Esta revisão confronta a auditoria anterior com os fontes atuais. Os itens
+> BUG-009/BUG-010 (fluxo/encerramento laser) e BUG-013 (prontidão/reconhecimento
+> GRBL) foram corrigidos no código atual e são mantidos abaixo apenas como
+> histórico. Permanecem confirmados e pendentes o BUG-014 (limites de
+> velocidade/vazão e perfil do filamento) e o BUG-016 (log persistente das
+> últimas 24 horas). O diâmetro de filamento fixo em 1,75 mm faz parte do
+> BUG-014.
 
-O foco desta avaliação é a passagem de arquivos, projetos, configurações e
-comandos entre os programas. A integração está parcialmente implementada:
-existem contratos compartilhados e testes de conversão, mas há bloqueios no
-lançador e funções do núcleo que ainda não são chamadas pelas aplicações.
+## Resumo do estado atual
 
-A avaliação inclui os três sintomas relatados pelo usuário: laser que não
-desliga ao terminar o objeto, router/CNC que não é reconhecida e impressão 3D
-rápida demais para o filamento. Os BUG-009 a BUG-015 registram falhas e lacunas
-localizadas nesses fluxos. A correspondência com a ocorrência específica do
-usuário ainda precisa do G-code, do log TX/RX e da identificação do equipamento
-ou simulador utilizado.
+| Item | Estado em 11/10/2026 | Verificação |
+|---|---|---|
+| BUG-009 — contagem da lista laser/framing | **CORRIGIDO** | `GetCount` usa `FLines.Count`, isto é, a lista efetivamente transmitida. |
+| BUG-010 — conclusão antes da confirmação do M5 | **CORRIGIDO** | `FFinishing` mantém a sessão em execução até a confirmação dos comandos finais; falha de envio leva a `ssError`. |
+| BUG-013 — conexão apresentada como controladora GRBL pronta | **CORRIGIDO** | `GetControllerReady` pode exigir `HasControllerReply` e bloqueia prontidão em `msConnecting`. |
+| BUG-014 — velocidade/vazão da impressão 3D | **ABERTO / CONFIRMADO** | Não há limite de vazão volumétrica; a UI permite até 500 mm/s e o perfil normal continua usando filamento 1,75 mm sem campo de diâmetro na tela. |
+| BUG-016 — log automático das últimas 24 horas | **ABERTO / CONFIRMADO** | Console segue limitado a 1.000 linhas em memória; salvamento é manual e não persiste 24 h. |
 
-O BUG-016 registra também o pedido de log automático em arquivo do funcionamento
-do MultiCNC no último dia, entendido aqui como as últimas 24 horas.
+### Prioridade atual
 
-Todos os itens abaixo estão **abertos**. Este documento registra a avaliação;
-não representa uma correção dos fontes.
+1. **BUG-014 — impressão 3D:** adicionar diâmetro configurável e limite de
+   vazão volumétrica/capacidade de extrusão ao perfil e ao fatiamento.
+2. **BUG-016 — diagnóstico:** implementar log persistente, rotação e exportação
+   das últimas 24 horas.
 
-## Como interpretar as evidências
+### Nota sobre os itens laser e GRBL
 
-- **Confirmado nos fontes:** o caminho descrito foi localizado no código do
-  commit acima. Os passos de reprodução indicam como verificar o comportamento
-  na aplicação compilada; não foram executados nesta avaliação.
-- **Confirmado no CI:** o resultado foi verificado na execução do GitHub Actions
-  correspondente ao mesmo commit.
-- **Impacto inferido:** a consequência decorre do caminho identificado, mas não
-  foi observada em equipamento físico.
-- **Relato do usuário:** sintoma comunicado nesta conversa, sem reprodução
-  independente. Encontrar uma falha relacionada não comprova, por si só, a
-  causa daquela ocorrência.
-
-Nos BUG-011, BUG-012, BUG-014 e BUG-015, a implementação do simulador/parser pertence à
-dependência `marcelomaurin/CHATGPT`. Foi consultado o commit
-`f2954d9c2c4785ed731fd8cfa07b6d985cf2c7af`, disponível em 10/10/2026. O fonte
-`aimarlinsimulator.pas` tem blob `14b090426d533bcfaccadaef648a422924162821`.
-Essa referência permite repetir a análise, mas não identifica a versão da
-dependência embutida no executável instalado pelo usuário.
-
-Não houve compilação ou execução local dos programas Pascal nesta avaliação:
-este ambiente não dispõe de `fpc` ou `lazbuild`. Não houve teste com máquinas
-físicas. Os resultados de execução citados abaixo pertencem ao CI.
-
-## Relação com os sintomas relatados
-
-| Relato | Itens relacionados | Limite da conclusão |
-| --- | --- | --- |
-| Laser não desliga ao terminar o objeto | BUG-009, BUG-010, BUG-011 e BUG-015 | Existem falhas concretas de envio/encerramento; o caso do SimuCNC depende da versão consultada. O feixe físico não foi testado. |
-| Router/CNC não é reconhecida | BUG-012 e BUG-013 | Confirmados bloqueio após reset no SimuCNC e prontidão sem validação. A causa da conexão inicial relatada precisa de log. |
-| Impressão 3D rápida demais para o filamento | BUG-014 | Confirmadas lacunas de vazão/perfil; os cálculos básicos de extrusão e conversão de velocidade existem. A causa física precisa do G-code e dos limites da impressora. |
-
-## Prioridades
-
-| ID | Prioridade | Integração afetada | Problema |
-| --- | --- | --- | --- |
-| BUG-001 | Alta | MakePCB → LaserPCB / RouterPCB | O lançador rejeita a pasta de fabricação. |
-| BUG-002 | Alta | MultiSuite → CAD / CAM / PCB / Assembly / Physics | O arquivo recebido não é carregado pelas cinco aplicações. |
-| BUG-003 | Alta | MakePCB → fabricação | Editar a placa não invalida a exportação anterior. |
-| BUG-004 | Alta | MultiSlicer / MultiCAM → MultiCNC | A identificação automática de máquina não cobre esses produtores. |
-| BUG-005 | Média | CAD → MultiSlicer por 3MF | O importador existe, mas a aplicação usa somente o importador STL. |
-| BUG-006 | Alta | CAD → Slicer; PCB / Assembly → Physics | Rotinas de conversão testadas não estão ligadas ao fluxo das aplicações. |
-| BUG-007 | Alta | MultiCNC → transporte TCP no Linux | A sessão usa uma implementação dependente de Winsock2. |
-| BUG-008 | Média | MultiSlicer Klipper → MultiCNC | O produtor oferece um dialeto que o executor não seleciona como protocolo. |
-| BUG-009 | Alta | Preparação laser / framing → sessão | O envio usa o tamanho do programa original para percorrer outra lista. |
-| BUG-010 | Crítica | Sessão laser → desligamento | A conclusão não espera a confirmação de M5; caminhos de erro não solicitam desligamento. |
-| BUG-011 | Alta | Programa laser → SimuCNC | Comentários gerados são enviados como linhas pendentes, mas o simulador não os confirma. |
-| BUG-012 | Alta | MultiCNC GRBL → reset do SimuCNC | A resposta `start` não libera a espera pelo reinício GRBL. |
-| BUG-013 | Alta | Conexão → reconhecimento da CNC | Porta aberta é tratada como controladora pronta, sem validar uma resposta do firmware. |
-| BUG-014 | Alta | Perfil / filamento → MultiSlicer → impressão 3D | Faltam limites de vazão e configuração do diâmetro do filamento na aplicação. |
-| BUG-015 | Média | Configuração de velocidade laser → G-code | O override acrescenta outro F em vez de substituir o existente. |
-| BUG-016 | Alta | Operação / comunicação → diagnóstico em arquivo | Não há histórico automático persistente das últimas 24 horas; salvar o console manualmente não preserva esse período. |
+A auditoria anterior descreve corretamente o código existente no commit então
+avaliado, mas esses achados não devem mais ser apresentados como bugs ativos.
+As seções históricas permanecem neste documento para rastreabilidade.
 
 ## BUG-001 — Pasta de fabricação bloqueada pelo lançador
 
