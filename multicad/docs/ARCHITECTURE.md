@@ -252,13 +252,24 @@ entidade) e, abaixo de 360°, `Revolve1/inicio` e `Revolve1/fim`.
   (fase 6); casca por offset de faces planas. Superfícies livres e STEP exato ficam com o
   OpenCascade.
 
-### Adaptador OpenCascade (opcional, fase 8)
+### Núcleo OpenCascade (fase 8)
 
-- OCCT (LGPL) num DLL/SO pequeno com API C (`mcad_occt.dll`: criar prisma, revolver,
-  booleana, filete, casca, tesselar, STEP ler/gravar), chamado pelo Lazarus por
-  `external`. A mesma interface `ICadKernel`.
-- Custo: compilar o OCCT para Win64 e Linux, distribuir dezenas de MB e manter a ponte. Vale
-  quando filete, casca robusta ou STEP forem prioridade.
+- OCCT 7.6.3 (LGPL) numa biblioteca com API C (`occt/mcad_occt.cpp`: `mcad_occt.dll` no
+  Windows, `libmcad_occt.so` no Linux), carregada em tempo de execução por
+  `multicad_occt.pas` (pasta do executável, `MULTICAD_OCCT_LIB`; `MULTICAD_KERNEL=pascal`
+  ou Ferramentas > Núcleo desligam). Sem a biblioteca tudo segue no núcleo Pascal.
+- Cada handle guarda o `TopoDS_Shape` e o **nome de cada face**; os nomes seguem pelo
+  histórico do OCCT (`Generated`/`Modified` de prisma, revolução, booleana, filete, casca),
+  então referências `face:` e `edge:A|B` valem nos dois núcleos.
+- Reconstrução: cada `TCadBody` tem `Mesh` (vista, seleção, STL) e `Shape` (exato). As
+  ferramentas são montadas em paralelo à malha: perfis do esboço viram laços com arcos
+  exatos (trechos da mesma entidade curva), extrusão sem inclinação → `MakePrism`, revolução
+  e furos → `MakeRevol`, padrões → transformação da ferramenta exata. O que só existe em
+  malha (inclinação, recorte por plano inclinado, tampas) entra como sólido poliédrico
+  (`mcad_from_mesh`). Booleanas, filete, chanfro e casca são do OCCT; a malha da vista sai
+  da tesselagem (`BRepMesh`, deflexão = tolerância de corda) e o volume é o exato.
+- STEP AP214: exportar os sólidos; importar como operação `import` (corpo novo, faces
+  `<nome>/f<i>`).
 
 ## 5. Reconstrução
 

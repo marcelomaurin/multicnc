@@ -62,6 +62,9 @@ foreach ($target in $targets) {
   if ($LASTEXITCODE -ne 0) { Get-Content -LiteralPath $log -Tail 35; throw "Falha ao compilar $($target[1])" }
   Copy-Item -LiteralPath ($target[0]+'.exe') -Destination (Join-Path $app ($target[1]+'.exe')) -Force
 }
+# nucleo OpenCascade do MultiCAD (ponte C pre-compilada: multicad/occt/build_win64.sh)
+$occt = Join-Path $root 'bin\mcad_occt.dll'
+if (Test-Path -LiteralPath $occt) { Copy-Item -LiteralPath $occt -Destination (Join-Path $app 'mcad_occt.dll') -Force }
 $strip = Join-Path (Split-Path $env:FPC) 'strip.exe'
 if (Test-Path -LiteralPath $strip) {
   foreach ($exe in Get-ChildItem -LiteralPath $app -Filter '*.exe') {

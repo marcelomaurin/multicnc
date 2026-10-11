@@ -73,6 +73,7 @@ Source: "..\..\dist\app\multicnc.exe"; DestDir: "{app}"; Components: tools\multi
 Source: "..\..\dist\app\multisuite_tray.exe"; DestDir: "{app}"; Components: tools\tray; Flags: ignoreversion
 Source: "..\..\dist\app\SimuCNC.exe"; DestDir: "{app}"; Components: tools\simucnc; Flags: ignoreversion
 Source: "..\..\dist\app\multicad.exe"; DestDir: "{app}"; Components: tools\multicad; Flags: ignoreversion
+Source: "..\..\dist\app\mcad_occt.dll"; DestDir: "{app}"; Components: tools\multicad; Flags: ignoreversion skipifsourcedoesntexist
 Source: "..\..\dist\app\multiassembly.exe"; DestDir: "{app}"; Components: tools\multiassembly; Flags: ignoreversion
 Source: "..\..\dist\app\multiphysics.exe"; DestDir: "{app}"; Components: tools\multiphysics; Flags: ignoreversion
 Source: "..\..\dist\app\multicam.exe"; DestDir: "{app}"; Components: tools\multicam; Flags: ignoreversion

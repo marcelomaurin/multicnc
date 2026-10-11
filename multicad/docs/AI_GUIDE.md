@@ -86,6 +86,10 @@ LCL e tem testes no test_multicad). Nao acople o documento CAD a uma maquina fis
 - Referencias por texto: plane:<id>, face:<nome>, axis:<id>, sketch:<id>/<entidade>[.<ponto>],
   body:<nome>, origin, edge:<faceA>|<faceB> (nomes em ordem, `CadEdgeRef`).
 - Booleanas de ferramentas tangentes ao solido (filete/chanfro): `CadBooleanBlend`.
+- Nucleo OpenCascade (fase 8): ponte C em `occt/` (compilar com `build_linux.sh` /
+  `build_win64.sh`); `TCadBody.Shape` e o solido exato. Toda operacao nova precisa do
+  caminho Pascal (malha) e do OCCT (`FOcct` no rebuild); teste nos dois
+  (`MULTICAD_KERNEL=pascal`).
 - Programas: `Application.CreateForm` no `.lpr` (regra 12 de `docs/AI_TOOLS_GUIDE.md`).
 
 ## Edicao de profundidade na vista
