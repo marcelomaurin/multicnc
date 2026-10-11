@@ -783,7 +783,16 @@ begin
   end;
   View.HighlightPrefix := '';
   case F.Kind of
-    cfPlane: View.Selected.Add('plane:' + IntToStr(F.Id));
+    cfPlane:
+      begin
+        View.Selected.Add('plane:' + IntToStr(F.Id));
+        { Plano selecionado deve ficar visivel na vista 3D, inclusive os
+          planos padrao que normalmente ficam ocultos. }
+        if (F is TCadPlane) and (TCadPlane(F).PlaneType = ptStandard) then
+          View.ShowStdPlane(F.Id, True)
+        else
+          View.SetHidden(F.Id, False);
+      end;
     cfAxis: View.Selected.Add('axis:' + IntToStr(F.Id));
     cfSketch: View.Selected.Add('sketch:' + IntToStr(F.Id));
     cfOrigin: View.Selected.Add('origin');
@@ -818,10 +827,21 @@ begin
   F := SelectedFeature;
   if F = nil then
     Exit;
-  if F is TCadSketch then
+  if F is TCadPlane then
+  begin
+    { Duplo clique em qualquer plano orienta a camera normal a ele. A edicao
+      de plano criado continua disponivel pelo menu "Editar operacao". }
+    View.Selected.Clear;
+    View.Selected.Add('plane:' + IntToStr(F.Id));
+    if TCadPlane(F).PlaneType = ptStandard then
+      View.ShowStdPlane(F.Id, True)
+    else
+      View.SetHidden(F.Id, False);
+    NormalToRef('plane:' + IntToStr(F.Id));
+  end
+  else if F is TCadSketch then
     EditSketch(TCadSketch(F))
-  else if (F is TCadExtrude) or (F is TCadRevolve) or
-    ((F is TCadPlane) and (TCadPlane(F).PlaneType <> ptStandard)) then
+  else if (F is TCadExtrude) or (F is TCadRevolve) then
     BeginEdit(F, False);
 end;
 
