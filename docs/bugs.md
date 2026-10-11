@@ -737,3 +737,15 @@ No fluxo de PCB,
 priorizar BUG-001 e BUG-003; no Linux, BUG-007. Ligar os carregadores e
 conversores às aplicações para que os testes de núcleo correspondam ao
 percurso disponível ao usuário.
+
+### BUG-017 — MultiCAD: filete/arredondamento no sketch não está disponível em fluxo normal pela interface
+
+**Status:** ABERTO / CONFIRMADO NA UI  
+**Componente:** MultiCAD / Sketch / Interface  
+**Prioridade:** Alta
+
+**Sintoma:** embora exista implementação interna de filete no sketch (incluindo uso de `FilletCorner` nos testes), o usuário não consegue executar de forma clara o fluxo normal de CAD pela interface.
+
+**Comportamento esperado:** permitir selecionar duas linhas ou um vértice/canto do sketch, acionar **Filete/Arredondamento**, informar o raio, visualizar a prévia e confirmar/cancelar a operação.
+
+**Correção necessária:** integrar seleção de entidades do sketch ao comando de filete, criar edição explícita do raio e prévia visual, com validação de geometria e teste de interface cobrindo o fluxo completo.
