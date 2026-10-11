@@ -582,7 +582,15 @@ begin
       end;
   if not ToLocal(X, Y, P) then
     Exit;
-  FSession.Click(P, ssCtrl in Shift);
+  if FSession.Click(P, ssCtrl in Shift) then
+  begin
+    { A linha confirmada encerra a trava; a próxima volta ao desenho livre. }
+    if FLineLengthLocked and (FSession.Tool in [tkLine, tkCenterline]) then
+    begin
+      FLineLengthLocked := False;
+      FLineLength := 0;
+    end;
+  end;
   Changed;
 end;
 
