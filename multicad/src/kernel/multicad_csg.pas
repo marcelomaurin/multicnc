@@ -1225,6 +1225,81 @@ end;
 
 { Muda a ordem dos poligonos (a arvore BSP usa outros planos de corte):
   0 = original, 1 = invertida, 2 = meia volta, 3 = salto primo. }
+{ Ordem da arvore: poligonos dos planos de maior area primeiro (faces planas
+  grandes perto da raiz quase nao sao picadas pelos planos das facetas das
+  faces curvas). Corta muito o numero de fragmentos e o tempo. }
+procedure SortByPlaneArea(var P: TPolyArr; N: Integer);
+var
+  Keys: array of string;
+  Area: array of Double;
+  Idx: array of Integer;
+  Sum: specialize TDictionary<string, Double>;
+  I, J, K, T: Integer;
+  A, V: Double;
+  Q: TPolyArr;
+
+  function PolyArea(const X: TPoly): Double;
+  var
+    C: TCadVec3;
+    M: Integer;
+  begin
+    C := V3(0, 0, 0);
+    for M := 1 to High(X.V) - 1 do
+      C := VAdd(C, VCross(VSub(X.V[M], X.V[0]), VSub(X.V[M + 1], X.V[0])));
+    Result := VLen(C) / 2;
+  end;
+
+begin
+  if N < 3 then
+    Exit;
+  SetLength(Keys, N);
+  SetLength(Area, N);
+  SetLength(Idx, N);
+  Sum := specialize TDictionary<string, Double>.Create;
+  try
+    for I := 0 to N - 1 do
+    begin
+      Keys[I] := Format('%d|%d|%d|%d|%d', [P[I].Face, Round(P[I].N.X * 1E4), Round(P[I].N.Y * 1E4),
+        Round(P[I].N.Z * 1E4), Round(P[I].W * 1E3)]);
+      A := PolyArea(P[I]);
+      if Sum.TryGetValue(Keys[I], V) then
+        Sum[Keys[I]] := V + A
+      else
+        Sum.Add(Keys[I], A);
+    end;
+    for I := 0 to N - 1 do
+    begin
+      Area[I] := Sum[Keys[I]];
+      Idx[I] := I;
+    end;
+  finally
+    Sum.Free;
+  end;
+  { ordena os indices (shell sort): area do plano decrescente, depois a chave }
+  K := N div 2;
+  while K > 0 do
+  begin
+    for I := K to N - 1 do
+    begin
+      T := Idx[I];
+      J := I;
+      while (J >= K) and ((Area[Idx[J - K]] < Area[T]) or
+        ((Area[Idx[J - K]] = Area[T]) and (Keys[Idx[J - K]] > Keys[T]))) do
+      begin
+        Idx[J] := Idx[J - K];
+        Dec(J, K);
+      end;
+      Idx[J] := T;
+    end;
+    K := K div 2;
+  end;
+  SetLength(Q, N);
+  for I := 0 to N - 1 do
+    Q[I] := P[Idx[I]];
+  for I := 0 to N - 1 do
+    P[I] := Q[I];
+end;
+
 procedure Permute(var P: TPolyArr; N, Attempt: Integer);
 var
   Q: TPolyArr;
@@ -1453,8 +1528,16 @@ begin
     MapB[I] := FaceId(B.Faces[I]);
   PA := MeshToPolys(A, MapA, NA);
   PB := MeshToPolys(B, MapB, NB);
-  Permute(PA, NA, Attempt);
-  Permute(PB, NB, Attempt);
+  if Attempt = 0 then
+  begin
+    SortByPlaneArea(PA, NA);
+    SortByPlaneArea(PB, NB);
+  end
+  else
+  begin
+    Permute(PA, NA, Attempt);
+    Permute(PB, NB, Attempt);
+  end;
   TA := TNode.Create;
   TB := TNode.Create;
   try

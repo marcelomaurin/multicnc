@@ -28,7 +28,7 @@ documento, *feature* e *sketch*.
 | 4 Exportação e suíte | concluída (10/10) | `multicad_export` (STL binário e texto com orientação Y→Z, face na mesa ou como no modelo, apoiado em Z = 0 e centrado; DXF R12 do esboço e do contorno de face plana), `multicad_measure` (área, diâmetro, distância entre planos e eixos, ângulos), aba Exportar com "Abrir no MultiSlicer", Medir na aba Avaliar, booleana tenta de novo com a árvore BSP em outra ordem quando a malha sai aberta, critério de pronto coberto por `TestExport`. Instalador e bandeja já incluem o MultiCAD; Central de Testes com o teste do núcleo e o de interface. |
 | 5A Esboço com medidas e mouse | concluída (10/10) | Pedido do usuário antes do furo: cotas desenhadas em mm (linhas de chamada, setas, arrastar o texto), digitar a medida durante o desenho, grade em mm com captura, linhas de inferência, ponto médio, construção, arco tangente e pelo centro, filete e chanfro de esboço com canto virtual, mouse e teclado como no SolidWorks (roda para frente afasta, giro em torno do centro da peça ou da entidade clicada com o botão do meio, rolar, duplo clique do meio enquadra, Z/Shift+Z, vista anterior). |
 | 5B Furo, padrões, espelho | concluída (11/10) | Desfazer/refazer (Ctrl+Z / Ctrl+Y), assistente de furo com tabelas ISO (`multicad_threads`, `multicad_hole`), padrão linear, padrão circular e espelhar (`multicad_pattern`), rosca cosmética na vista, filete/chanfro de esboço pela seleção com prévia (BUG-017). |
-| 6 Filete, chanfro, casca | pendente | |
+| 6 Filete, chanfro, casca | concluída (11/10) | `multicad_blend` (Filete, Chanfro com distância igual, distância-distância e ângulo-distância, Casca para dentro/fora), `multicad_blendgeom` (arestas da malha entre faces rotuladas, ferramenta de seção tangente varrida na aresta reta ou revolucionada na circular, malha deslocada da casca), seleção de arestas na vista (perto da borda da face, destaque azul/laranja), PropertyManager com lista de itens e prévia do material tirado/acrescentado com o modelo antes da operação. Booleana: ordem da árvore BSP pelos planos de maior área (10x mais rápida), tentativas sem picar polígonos longe da interseção e com faces curvas planificadas. |
 | 7 Desenho 2D | pendente | |
 | 8 OpenCascade (opcional) | pendente | |
 
@@ -322,9 +322,15 @@ Como ficou (fase 3):
       mouse.
 
 ### Fase 6: filete, chanfro e casca (≈ 6 h)
-- [ ] Filete e chanfro em arestas retas e circulares entre faces planas e cilíndricas.
-- [ ] Casca com espessura constante e faces removidas (faces planas).
-- [ ] Teste: volume do filete de um cubo dentro de 0,5% do valor analítico.
+- [x] Filete e chanfro em arestas retas e circulares entre faces planas e cilíndricas
+  (convexa corta, côncava acrescenta; "face:" = todas as arestas da face).
+- [x] Casca com espessura constante e faces removidas (para dentro ou para fora).
+- [x] Teste: volume do filete de um cubo dentro de 0,5% do valor analítico (`TestBlend3D`).
+- [x] Interface: botões Filete/Chanfro/Casca, arestas clicáveis, lista de itens, prévia.
+- Limites: arestas entre faces curvas (cilindro-cilindro, cone), arco circular parcial e
+  cantos com três filetes (sem concordância esférica: as ferramentas se cruzam como no
+  "canto em mitra"). A ferramenta encosta nas faces só nos anéis de tangência (a booleana
+  BSP não aguenta faces quase paralelas).
 
 ### Fase 7: desenho 2D e tolerâncias (≈ 10 h)
 - [ ] Folhas A4 a A0 (ISO 5457 / NBR 10068) com legenda: título, material, escala, autor,

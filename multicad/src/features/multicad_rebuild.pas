@@ -59,6 +59,13 @@ type
     Marks: TCadThreadMarks;
   end;
 
+  TCadBlendItem = record
+    Body: Integer;
+    Tool: TCadMesh;
+    IsCut: Boolean;
+  end;
+  TCadBlendItems = array of TCadBlendItem;
+
   TCadRebuilder = class
   private
     FTools: TStringList;      { Id -> TCadToolRec (ultima ferramenta) }
@@ -81,6 +88,8 @@ type
     procedure BuildHole(H: TCadHole);
     procedure BuildPattern(P: TCadPatternBase);
     procedure BuildBlend(F: TCadBlendBase);
+    function CollectBlend(F: TCadBlendBase; out Items: TCadBlendItems; out Skipped: Integer;
+      out FirstErr: string): Boolean;
     procedure BuildShell(S: TCadShell);
     procedure StoreTool(F: TCadFeature; Tool: TCadMesh; IsCut, Merge, FlipSide: Boolean);
     function ResolveDir(const ARef: string; out D: TCadVec3; out AError: string): Boolean;
@@ -112,6 +121,9 @@ type
     property ChordTol: Double read FChord write FChord;
     { Roscas cosmeticas dos furos roscados ativos. }
     function ThreadMarks: TCadThreadMarks;
+    { Previa do filete/chanfro: ferramentas juntas sobre os corpos atuais
+      (chamar com a operacao fora da reconstrucao). nil se nenhuma aresta. }
+    function BlendPreview(F: TCadBlendBase; out AnyCut: Boolean; out AError: string): TCadMesh;
   end;
 
 implementation
@@ -2015,23 +2027,21 @@ begin
   Result := -1;
 end;
 
-procedure TCadRebuilder.BuildBlend(F: TCadBlendBase);
+function TCadRebuilder.CollectBlend(F: TCadBlendBase; out Items: TCadBlendItems;
+  out Skipped: Integer; out FirstErr: string): Boolean;
 type
   TPair = record
     Body, FA, FB: Integer;
   end;
 var
   Pairs: array of TPair;
-  I, J, K, Bi, Bj, FA, FB, Done, Skipped: Integer;
-  A, B, Err, FirstErr: string;
+  I, J, K, Bi, Bj, FA, FB: Integer;
+  A, B, Err: string;
   Nb: TCadIdArray;
-  M, Cur, R, Tool: TCadMesh;
+  M, Tool: TCadMesh;
   Chains: TCadEdgeChains;
   P: TCadBlendParams;
-  IsCut, Dup: Boolean;
-  Tools: TFPObjectList;
-  Cuts: array of Boolean;
-  V0: Double;
+  IsCut: Boolean;
 
   procedure AddPair(ABody, X, Y: Integer);
   var
@@ -2048,11 +2058,10 @@ var
   end;
 
 begin
-  if FBodies.Count = 0 then
-  begin
-    F.SetState(fsError, CAD_FEATURE_NAMES[F.Kind] + ' sem corpo: crie um ressalto antes');
-    Exit;
-  end;
+  Items := nil;
+  Pairs := nil;
+  FirstErr := '';
+  Skipped := 0;
   P := Default(TCadBlendParams);
   P.ChordTol := FChord;
   if F is TCadFillet3D then
@@ -2065,9 +2074,6 @@ begin
     P.Kind := bkChamfer;
     TCadChamfer3D(F).Distances(P.D1, P.D2);
   end;
-  Pairs := nil;
-  FirstErr := '';
-  Skipped := 0;
   for I := 0 to High(F.Edges) do
     if CadParseEdgeRef(F.Edges[I], A, B) then
     begin
@@ -2098,76 +2104,105 @@ begin
           (VDot(M.Faces[FA].Axis, M.Faces[Nb[K]].Axis) > 0.99999)) then
           AddPair(Bi, FA, Nb[K]);
     end;
-  if Length(Pairs) = 0 then
+  for I := 0 to High(Pairs) do
+  begin
+    M := Body(Pairs[I].Body).Mesh;
+    Chains := CadEdgeChains(M, Pairs[I].FA, Pairs[I].FB);
+    for J := 0 to High(Chains) do
+    begin
+      Tool := CadBlendTool(M, Pairs[I].FA, Pairs[I].FB, Chains[J], P,
+        F.Name + '/' + IntToStr(Length(Items) + 1), IsCut, Err);
+      if Tool = nil then
+      begin
+        Inc(Skipped);
+        if FirstErr = '' then
+          FirstErr := M.Faces[Pairs[I].FA].Name + ' | ' + M.Faces[Pairs[I].FB].Name + ': ' + Err;
+        Continue;
+      end;
+      SetLength(Items, Length(Items) + 1);
+      Items[High(Items)].Body := Pairs[I].Body;
+      Items[High(Items)].Tool := Tool;
+      Items[High(Items)].IsCut := IsCut;
+    end;
+  end;
+  Result := Length(Items) > 0;
+end;
+
+function TCadRebuilder.BlendPreview(F: TCadBlendBase; out AnyCut: Boolean; out AError: string): TCadMesh;
+var
+  Items: TCadBlendItems;
+  Skipped, I: Integer;
+begin
+  Result := nil;
+  AnyCut := False;
+  if not CollectBlend(F, Items, Skipped, AError) then
+    Exit;
+  Result := TCadMesh.Create;
+  for I := 0 to High(Items) do
+  begin
+    Result.Append(Items[I].Tool);
+    AnyCut := AnyCut or Items[I].IsCut;
+    Items[I].Tool.Free;
+  end;
+end;
+
+procedure TCadRebuilder.BuildBlend(F: TCadBlendBase);
+var
+  Items: TCadBlendItems;
+  I, K, Bi, Done, Skipped: Integer;
+  Err, FirstErr: string;
+  Cur, R: TCadMesh;
+  Any: Boolean;
+begin
+  if FBodies.Count = 0 then
+  begin
+    F.SetState(fsError, CAD_FEATURE_NAMES[F.Kind] + ' sem corpo: crie um ressalto antes');
+    Exit;
+  end;
+  if not CollectBlend(F, Items, Skipped, FirstErr) then
   begin
     F.SetState(fsError, 'Nenhuma aresta válida (' + FirstErr + ')');
     Exit;
   end;
   Done := 0;
-  for Bi := 0 to FBodies.Count - 1 do
-  begin
-    Dup := False;
-    for I := 0 to High(Pairs) do
-      if Pairs[I].Body = Bi then
-        Dup := True;
-    if not Dup then
-      Continue;
-    M := Body(Bi).Mesh;
-    V0 := M.Volume;
-    Tools := TFPObjectList.Create(True);
-    Cuts := nil;
-    try
-      { ferramentas calculadas no solido original }
-      for I := 0 to High(Pairs) do
-      begin
-        if Pairs[I].Body <> Bi then
-          Continue;
-        Chains := CadEdgeChains(M, Pairs[I].FA, Pairs[I].FB);
-        for J := 0 to High(Chains) do
-        begin
-          Tool := CadBlendTool(M, Pairs[I].FA, Pairs[I].FB, Chains[J], P,
-            F.Name + '/' + IntToStr(Tools.Count + 1), IsCut, Err);
-          if Tool = nil then
-          begin
-            Inc(Skipped);
-            if FirstErr = '' then
-              FirstErr := M.Faces[Pairs[I].FA].Name + ' | ' + M.Faces[Pairs[I].FB].Name + ': ' + Err;
-            Continue;
-          end;
-          Tools.Add(Tool);
-          SetLength(Cuts, Length(Cuts) + 1);
-          Cuts[High(Cuts)] := IsCut;
-        end;
-      end;
-      Cur := M.Clone;
+  try
+    for Bi := 0 to FBodies.Count - 1 do
+    begin
+      Any := False;
+      for I := 0 to High(Items) do
+        if Items[I].Body = Bi then
+          Any := True;
+      if not Any then
+        Continue;
+      Cur := Body(Bi).Mesh.Clone;
       { cortes (arestas convexas) antes das unioes (concavas): a booleana
         fica mais estavel nessa ordem }
       for K := 0 to 1 do
-      for I := 0 to Tools.Count - 1 do
-      begin
-        if Cuts[I] <> (K = 0) then
-          Continue;
-        if Cuts[I] then
-          R := CadBooleanBlend(Cur, TCadMesh(Tools[I]), boDifference, Err)
-        else
-          R := CadBooleanBlend(Cur, TCadMesh(Tools[I]), boUnion, Err);
-        if R = nil then
+        for I := 0 to High(Items) do
         begin
+          if (Items[I].Body <> Bi) or (Items[I].IsCut <> (K = 0)) then
+            Continue;
+          if Items[I].IsCut then
+            R := CadBooleanBlend(Cur, Items[I].Tool, boDifference, Err)
+          else
+            R := CadBooleanBlend(Cur, Items[I].Tool, boUnion, Err);
+          if R = nil then
+          begin
+            Cur.Free;
+            F.SetState(fsError, 'Falha na booleana do ' + LowerCase(CAD_FEATURE_NAMES[F.Kind]) +
+              ': ' + Err + ' (tente um valor menor)');
+            Exit;
+          end;
           Cur.Free;
-          F.SetState(fsError, 'Falha na booleana do ' + LowerCase(CAD_FEATURE_NAMES[F.Kind]) +
-            ': ' + Err + ' (tente um valor menor)');
-          Exit;
+          Cur := R;
+          Inc(Done);
         end;
-        Cur.Free;
-        Cur := R;
-        Inc(Done);
-      end;
-      if Abs(Cur.Volume - V0) < 1E-9 * Max(1, V0) then;
       Body(Bi).Mesh.Free;
       Body(Bi).Mesh := Cur;
-    finally
-      Tools.Free;
     end;
+  finally
+    for I := 0 to High(Items) do
+      Items[I].Tool.Free;
   end;
   if Done = 0 then
     F.SetState(fsError, 'Nenhuma aresta aplicada (' + FirstErr + ')')

@@ -27,7 +27,7 @@ uses
   Classes, SysUtils, Math, Controls, Graphics, ExtCtrls, LCLType, LCLIntf, GraphType,
   IntfGraphics, LMessages, contnrs, multicad_types, multicad_mesh, multicad_document,
   multicad_feature, multicad_refgeom, multicad_sketch, multicad_rebuild,
-  multicad_camera, multicad_softrender;
+  multicad_camera, multicad_softrender, multicad_blendgeom, multicad_blend;
 
 const
   CAD_TAG_FEATURE = 2001;   { Id de planos, eixos, esbocos e origem: face = indice da operacao }
@@ -41,8 +41,21 @@ type
   TCadMoveEvent = procedure(Sender: TObject; Shift: TShiftState; X, Y: Integer;
     var Handled: Boolean) of object;
 
+  TCadVec3Array = array of TCadVec3;
+
+  { Aresta do solido (para desenhar a selecao e escolher com o mouse). }
+  TCadViewEdge = record
+    Body: Integer;
+    FA, FB: Integer;
+    Ref: string;
+    Pts: TCadVec3Array;
+    Closed: Boolean;
+  end;
+
   TCadView3D = class(TCustomControl)
   private
+    FEdges: array of TCadViewEdge;
+    FPickEdges: Boolean;
     FDoc: TCadDocument;
     FRB: TCadRebuilder;
     FCam: TCadCamera;
@@ -103,6 +116,8 @@ type
     procedure DrawSketches;
     procedure DrawOrigin;
     procedure DrawThreads;
+    procedure DrawEdges;
+    function EdgeAt(X, Y, ABody, AFace: Integer): Integer;
     procedure Blit;
     procedure PaintCube(C: TCanvas);
     procedure PaintTriad(C: TCanvas);
@@ -148,6 +163,10 @@ type
     procedure PreviousView;
     { Roda do mouse invertida (padrao SolidWorks: para frente afasta). }
     property ReverseWheel: Boolean read FReverseWheel write FReverseWheel;
+    { Escolher arestas com o mouse (perto da borda da face sob o cursor). }
+    property PickEdges: Boolean read FPickEdges write FPickEdges;
+    { Pontos de uma aresta ("edge:A|B"); False se nao existe no modelo. }
+    function EdgePoints(const ARef: string; out Pts: TCadVec3Array): Boolean;
     { Aparencia do material: cor ($RRGGBB) e textura (multicad_textures). }
     procedure SetAppearance(AColor: LongWord; ATexture: Integer);
     property PartColor: LongWord read FPartColor;
@@ -237,6 +256,7 @@ begin
   FModelBox := BoxEmpty;
   FPlaneHalf := 60;
   FShowOrigin := True;
+  FPickEdges := True;
   FDirty := True;
   FCam.StdView(svIso);
   FCam.Scale := 2;
@@ -267,16 +287,32 @@ end;
 
 procedure TCadView3D.ModelChanged;
 var
-  I: Integer;
+  I, K: Integer;
+  Infos: TCadEdgeInfos;
   B: TCadBox3;
   S: TCadVec3;
 begin
   FCaches.Clear;
   FModelBox := BoxEmpty;
+  FEdges := nil;
   if Assigned(FRB) then
     for I := 0 to FRB.BodyCount - 1 do
     begin
       FCaches.Add(TCadMeshCache.Create(FRB.Body(I).Mesh));
+      Infos := CadAllEdges(FRB.Body(I).Mesh);
+      for K := 0 to High(Infos) do
+      begin
+        SetLength(FEdges, Length(FEdges) + 1);
+        with FEdges[High(FEdges)] do
+        begin
+          Body := I;
+          FA := Infos[K].FaceA;
+          FB := Infos[K].FaceB;
+          Ref := CadEdgeRef(FRB.Body(I).Mesh.Faces[FA].Name, FRB.Body(I).Mesh.Faces[FB].Name);
+          Pts := Infos[K].Chain.Pts;
+          Closed := Infos[K].Chain.Closed;
+        end;
+      end;
       B := FRB.Body(I).Mesh.Bounds;
       if not B.Empty then
       begin
@@ -509,6 +545,104 @@ begin
     Code := FRaster.IdAt(X, Y);
   FHoverCode := Code;
   Result := CodeToRef(Code);
+  { perto da borda da face sob o cursor: a aresta }
+  if FPickEdges and (Pos('face:', Result) = 1) then
+  begin
+    CadPickDecode(Code, PTag, Face);
+    D := EdgeAt(X, Y, PTag - 1, Face);
+    if D >= 0 then
+      Result := FEdges[D].Ref;
+  end;
+end;
+
+function SegDist2(PX, PY, AX, AY, BX, BY: Double): Double;
+var
+  DX, DY, T: Double;
+begin
+  DX := BX - AX;
+  DY := BY - AY;
+  T := DX * DX + DY * DY;
+  if T > 1E-12 then
+    T := EnsureRange(((PX - AX) * DX + (PY - AY) * DY) / T, 0, 1)
+  else
+    T := 0;
+  Result := Sqr(AX + T * DX - PX) + Sqr(AY + T * DY - PY);
+end;
+
+function TCadView3D.EdgeAt(X, Y, ABody, AFace: Integer): Integer;
+const
+  TOL_PX = 6;
+var
+  I, K, N: Integer;
+  A, B: TCadScreenPt;
+  D, Best: Double;
+begin
+  Result := -1;
+  Best := Sqr(TOL_PX);
+  for I := 0 to High(FEdges) do
+  begin
+    if (FEdges[I].Body <> ABody) or ((FEdges[I].FA <> AFace) and (FEdges[I].FB <> AFace)) then
+      Continue;
+    N := Length(FEdges[I].Pts);
+    if N < 2 then
+      Continue;
+    A := FCam.Project(FEdges[I].Pts[0]);
+    for K := 1 to N do
+    begin
+      if (K = N) and not FEdges[I].Closed then
+        Break;
+      B := FCam.Project(FEdges[I].Pts[K mod N]);
+      D := SegDist2(X, Y, A.X, A.Y, B.X, B.Y);
+      if D <= Best then
+      begin
+        Best := D;
+        Result := I;
+      end;
+      A := B;
+    end;
+  end;
+end;
+
+function TCadView3D.EdgePoints(const ARef: string; out Pts: TCadVec3Array): Boolean;
+var
+  I, K, N: Integer;
+begin
+  Pts := nil;
+  for I := 0 to High(FEdges) do
+    if FEdges[I].Ref = ARef then
+    begin
+      N := Length(Pts);
+      SetLength(Pts, N + Length(FEdges[I].Pts));
+      for K := 0 to High(FEdges[I].Pts) do
+        Pts[N + K] := FEdges[I].Pts[K];
+    end;
+  Result := Length(Pts) > 0;
+end;
+
+procedure TCadView3D.DrawEdges;
+var
+  I, K, N: Integer;
+  C: LongWord;
+  Sel, Hov: Boolean;
+begin
+  for I := 0 to High(FEdges) do
+  begin
+    Sel := FSelected.IndexOf(FEdges[I].Ref) >= 0;
+    Hov := FHover = FEdges[I].Ref;
+    if not (Sel or Hov) then
+      Continue;
+    if Hov then
+      C := CAD_HOVER_COLOR
+    else
+      C := CAD_SELECT_COLOR;
+    N := Length(FEdges[I].Pts);
+    for K := 1 to N do
+    begin
+      if (K = N) and not FEdges[I].Closed then
+        Break;
+      FRaster.DrawLine3D(FEdges[I].Pts[K - 1], FEdges[I].Pts[K mod N], C, 3, True);
+    end;
+  end;
 end;
 
 function TCadView3D.ConsumedSketch(AId: Integer): Boolean;
@@ -752,11 +886,12 @@ begin
         Opt.HiFaces[N] := K;
         Inc(N);
       end;
-    if (PTag = I + 1) and (FHover <> '') then
+    if (PTag = I + 1) and (Pos('face:', FHover) = 1) then
       Opt.HoverFace := Face;
     FRaster.DrawMesh(TCadMeshCache(FCaches[I]), Opt);
   end;
   FRaster.SetSection(False, FSection.Origin, FSection.Normal);
+  DrawEdges;
   DrawPlanes;
   DrawSketches;
   DrawThreads;

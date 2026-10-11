@@ -10,7 +10,7 @@ program test_multicad_ui;
 uses
   {$IFDEF UNIX}cthreads,{$ENDIF}
   Interfaces, Forms, Graphics, SysUtils, ComCtrls, multicad_types, multicad_document, multicad_feature,
-  multicad_sketchtools, multicad_materialdlg, multicad_hole, multicad_pattern,
+  multicad_sketchtools, multicad_materialdlg, multicad_hole, multicad_pattern, multicad_blend,
   multicad_sketch, multicad_extrude, multicad_rebuild, multicad_camera,
   multicad_softrender, multicad_view3d, multicad_main;
 
@@ -102,6 +102,8 @@ var
   Hole: TCadHole;
   Circ: TCadCircularPattern;
   N0: Integer;
+  EdRef: string;
+  V0: Double;
   Fn: string;
   St: TCadDisplayStyle;
   I, Errs: Integer;
@@ -196,6 +198,34 @@ begin
     F.DoRedo;
     Pump;
     Check(F.Document.Count = N0, 'refazer devolve');
+    { filete 3D: aresta escolhida com o mouse, previa e OK }
+    F.View3D.SetView(svIso);
+    Pump;
+    EdRef := '';
+    for I := 0 to 400 do
+    begin
+      EdRef := F.View3D.RefAt(F.View3D.ClientWidth div 2 + (I mod 20) * 12 - 120,
+        F.View3D.ClientHeight div 2 + (I div 20) * 12 - 120);
+      if Pos('edge:', EdRef) = 1 then
+        Break;
+    end;
+    Check(Pos('edge:', EdRef) = 1, 'aresta escolhida perto da borda da face: ' + EdRef);
+    V0 := F.Rebuilder.TotalVolume;
+    F.View3D.Selected.Clear;
+    F.View3D.Selected.Add(EdRef);
+    F.StartBlend(0);
+    Pump;
+    Check(F.PropManager.Visible and (F.PropManager.Feature is TCadFillet3D), 'PropertyManager do filete');
+    Check(Length(F.PropManager.ItemRefs) = 1, 'aresta selecionada entrou na lista');
+    TCadFillet3D(F.PropManager.Feature).Radius := 2;
+    F.PreviewChanged;
+    Pump;
+    Shot(F, '11_filete_previa');
+    F.AcceptEdit;
+    Pump;
+    Check(not F.PropManager.Visible, 'filete aceito');
+    Check(F.Rebuilder.TotalVolume < V0 - 1, Format('filete tira material (%.1f -> %.1f)', [V0, F.Rebuilder.TotalVolume]));
+    Shot(F, '12_filete');
     F.View3D.SetView(svFront);
     Pump;
     Shot(F, '03_frontal');

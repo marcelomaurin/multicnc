@@ -444,3 +444,23 @@ MDF. Material editável e gravado no `.mcad`.
 | `src/ui` | `multicad_view3d` (OpenGL), `multicad_softrender`, `multicad_sketchview`, `multicad_tree`, `multicad_props` |
 | `src/app` | `multicad_main` (padrão da suíte) |
 | `tests` | solver, perfis, malha fechada (*manifold*), volumes analíticos, JSON, reconstrução, STL |
+
+
+## Filete, chanfro e casca (fase 6)
+
+- Referência de aresta estável: `edge:<faceA>|<faceB>` (nomes em ordem); `face:<nome>` vale
+  todas as arestas da face. As cadeias saem da malha (`CadEdgeChains`: segmentos com a face A
+  de um lado e a B do outro, no sentido do triângulo da A).
+- Ferramenta: seção 2D no canto (direções das faces a partir da aresta pela regra da mão
+  esquerda do triângulo, normais para fora), arco de tangente a tangente com os vértices
+  internos num raio que conserva a área, saída em diagonal. Aresta reta: varrida ao longo da
+  aresta; circular: anéis que são o offset paralelo exato do polígono do sólido (sem
+  cruzamentos rasantes). Convexa = corte, côncava = união; cortes antes das uniões.
+- Casca: cada vértice resolve d·n = t (mínimos quadrados) para as normais das faces vizinhas;
+  faces removidas andam +t para fora; resultado = externa − interna.
+- Booleana (`multicad_csg`): ordem da árvore BSP pelos planos de maior área; tentativas com
+  outra ordem, sem picar polígonos fora da caixa do outro sólido e, por fim (ou primeiro, nas
+  ferramentas de filete: `CadBooleanBlend`), com as faces curvas divididas em faces planas
+  por plano (refeitas pelo `MergePlanar`) e juntadas de volta pelo nome.
+- Edição: o modelo fica antes da operação (barra de retrocesso temporária) para as arestas
+  continuarem clicáveis, e a prévia mostra as ferramentas (vermelho = corte).

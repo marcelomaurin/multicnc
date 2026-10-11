@@ -10,8 +10,9 @@ materiais, malha rotulada, ICadKernel), 1 (esboco com solver, graus de liberdade
 arvore, PropertyManager, modo esboco) e 4 (STL/DXF, medir, Abrir no MultiSlicer) concluidas;
 e 5A (cotas em mm, digitar medidas, grade, inferencia, arcos, filete/chanfro de esboco,
 mouse do SolidWorks) concluidas; 459 checks no nucleo + teste de interface. 5B (furo,
-padroes, espelho, desfazer) concluida. Proxima: fase 6 (filete, chanfro e casca 3D);
-pendencias da vista na 3E. Limites em TAREFA.md.
+padroes, espelho, desfazer) e 6 (filete, chanfro e casca 3D: multicad_blend,
+multicad_blendgeom, arestas `edge:A|B` clicaveis) concluidas; 536 checks no nucleo + 23 na
+interface. Proxima: fase 7 (desenho 2D) ou pendencias da vista na 3E. Limites em TAREFA.md.
 O plano completo esta em `TAREFA.md` (fases 0 a 8) e o projeto tecnico em `ARCHITECTURE.md` (modelo `.mcad`, solver
 Newton/LM, nucleo em malha rotulada + CSG BSP atras de `ICadKernel`, OpenGL, exportacao).
 Referencia de fluxo: SolidWorks 2014 (sketch com restricoes e cotas, arvore de operacoes,
@@ -81,5 +82,6 @@ LCL e tem testes no test_multicad). Nao acople o documento CAD a uma maquina fis
 - Toda booleana deixa a malha fechada; teste com volume analitico.
 - Corte extrudado entra na peca por padrao (contra a normal do esboco), como no SolidWorks.
 - Referencias por texto: plane:<id>, face:<nome>, axis:<id>, sketch:<id>/<entidade>[.<ponto>],
-  body:<nome>, origin.
+  body:<nome>, origin, edge:<faceA>|<faceB> (nomes em ordem, `CadEdgeRef`).
+- Booleanas de ferramentas tangentes ao solido (filete/chanfro): `CadBooleanBlend`.
 - Programas: `Application.CreateForm` no `.lpr` (regra 12 de `docs/AI_TOOLS_GUIDE.md`).
