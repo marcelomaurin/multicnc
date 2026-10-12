@@ -25,12 +25,12 @@ uses
   Dialogs, Graphics, LCLType, multislicer_types, multislicer_mesh, multislicer_stl,
   multislicer_3mf, multislicer_profile, multislicer_pipeline, multislicer_view,
   multislicer_printers, multislicer_materials, multislicer_userdata,
-  multislicer_scene, multislicer_view3d, multicad_camera, multislicer_quality, multislicer_support,
+  multislicer_scene, multislicer_view3d, multislicer_toolpath3d, multicad_camera, multislicer_quality, multislicer_support,
   multisuite_controls, multisuite_icons, multislicer_machines, multicnc_types, multicnc_equipment;
 
 const
   { manter igual ao VersionInfo do multislicer.lpi (revisao = etapa do PLANO_TAREFAS) }
-  MS_VERSION = '0.0.6.1';
+  MS_VERSION = '0.0.6.2';
   MS_STEP_COUNT = 7;
   MS_STEPS: array[0..MS_STEP_COUNT - 1] of string = ('1  Impressora', '2  Modelo',
     '3  Material', '4  Qualidade', '5  Suportes', '6  Previa', '7  Saida');
@@ -76,6 +76,7 @@ type
     HeatedBedBox: TCheckBox;
     StartMemo, EndMemo: TMemo;
     PrinterNote: TLabel;
+    OnlyLayerBox, TravelsBox, Preview2DBox: TCheckBox;
     { equipamento do MultiCNC (combo no topo) }
     FHeader: TSuiteHeader;
     EquipmentBox: TComboBox;
@@ -149,6 +150,7 @@ type
     procedure DeleteMaterialClick(Sender: TObject);
     procedure ReloadPrinters(const SelectName: string);
     procedure ReloadEquipment;
+    procedure PreviewOptionChange(Sender: TObject);
     procedure EquipmentChange(Sender: TObject);
     procedure HeaderResize(Sender: TObject);
     procedure MachineChecks(Errors, Warnings: TStrings);
@@ -481,10 +483,10 @@ begin
   ViewButtons[1].Tag := Ord(svTop);
   ViewButtons[2] := Button(ViewBar, 'Iso', 628, 9, 66, sikCAD, @StdViewClick);
   ViewButtons[2].Tag := Ord(svIso);
-  LayerLabel := LabelAt(ViewBar, 'Camada', 456, 17, 64, 20);
+  LayerLabel := LabelAt(ViewBar, 'Camada', 14, 58, 64, 20);
   LayerTrack := TTrackBar.Create(Self);
   LayerTrack.Parent := ViewBar;
-  LayerTrack.SetBounds(522, 10, 300, 32);
+  LayerTrack.SetBounds(80, 52, 300, 32);
   LayerTrack.Min := 1; LayerTrack.Max := 1; LayerTrack.Position := 1;
   LayerTrack.TickStyle := tsNone;
   LayerTrack.OnChange := @TrackChanged;
@@ -870,7 +872,16 @@ begin
   Button(S, 'Fatiar e visualizar', 16, 52, 290, sikLayers, @SliceClick).SetLook(sbsSolid, clSuitePrimary, sikLayers);
   LayerChoice := IntField(S, 'Camada', 'LayerChoice', 1, 1, 1, 100);
   LayerChoice.OnChange := @LayerChanged;
-  PreviewSummary := LabelAt(S, 'Fatie para ver tempo, filamento e camadas.', 16, 164, 290, 300);
+  OnlyLayerBox := Check(S, 'So a camada escolhida', 160);
+  OnlyLayerBox.Name := 'OnlyLayer';
+  OnlyLayerBox.OnChange := @PreviewOptionChange;
+  TravelsBox := Check(S, 'Mostrar deslocamentos da camada', 186);
+  TravelsBox.Name := 'ShowTravels';
+  TravelsBox.OnChange := @PreviewOptionChange;
+  Preview2DBox := Check(S, 'Vista 2D (camada vista de cima)', 212);
+  Preview2DBox.Name := 'Preview2D';
+  Preview2DBox.OnChange := @PreviewOptionChange;
+  PreviewSummary := LabelAt(S, 'Fatie para ver tempo, filamento e camadas.', 16, 248, 290, 300);
 end;
 
 procedure TMultiSlicerForm.BuildOutputPage(S: TScrollBox);
@@ -1093,12 +1104,15 @@ begin
 end;
 
 procedure TMultiSlicerForm.ShowViewMode(AMode: TSlicerViewMode);
-var I: Integer;
+var I: Integer; Use2D: Boolean;
 begin
   View.Mode := svCamadas;
-  View3D.Visible := AMode = svMesa;
-  View.Visible := AMode = svCamadas;
-  for I := 0 to High(ViewButtons) do ViewButtons[I].Visible := AMode = svMesa;
+  { camadas: previa 3D (como no Cura); a 2D continua como opcao }
+  Use2D := (AMode = svCamadas) and (Preview2DBox <> nil) and Preview2DBox.Checked;
+  View3D.PreviewMode := AMode = svCamadas;
+  View3D.Visible := not Use2D;
+  View.Visible := Use2D;
+  for I := 0 to High(ViewButtons) do ViewButtons[I].Visible := not Use2D;
   if AMode = svMesa then
   begin
     BedButton.SetLook(sbsSolid, clSuitePrimary);
@@ -1113,6 +1127,15 @@ begin
   { mantem o modo para quem consulta View.Mode }
   if AMode = svMesa then View.Tag := 0 else View.Tag := 1;
   LayerLabel.Visible := LayerTrack.Visible;
+  { deslizante de camada numa segunda linha da barra }
+  if LayerTrack.Visible then ViewBar.Height := 90 else ViewBar.Height := 52;
+end;
+
+procedure TMultiSlicerForm.PreviewOptionChange(Sender: TObject);
+begin
+  View3D.OnlyLayer := OnlyLayerBox.Checked;
+  View3D.ShowTravels := TravelsBox.Checked;
+  if View.Tag = 1 then ShowViewMode(svCamadas);
 end;
 
 procedure TMultiSlicerForm.BedViewClick(Sender: TObject);
@@ -2192,6 +2215,7 @@ begin
   begin
     View.SetBed(BedX.Value, BedY.Value);
     View.SetSlice(nil, -1);
+    View3D.SetToolpaths(nil);
     if (FScene.BedX <> BedX.Value) or (FScene.BedY <> BedY.Value) or (FScene.BedZ <> BedZ.Value) then
     begin
       FScene.BedX := BedX.Value; FScene.BedY := BedY.Value; FScene.BedZ := BedZ.Value;
@@ -2433,16 +2457,20 @@ begin
     R := Candidate.Slice(FMerged, Settings, G);
     if (R.Layers = 0) or (G.Count = 0) then raise Exception.Create('O modelo nao gerou camadas imprimiveis.');
     View.SetSlice(nil, -1);
+    View3D.SetToolpaths(nil);
     Engine.Free; Engine := Candidate; Candidate := nil;
     Code.Assign(G); Report := R; Ready := True; FExportedFile := '';
     FUpdating := True;
     try
-      LayerChoice.MaxValue := R.Layers; LayerChoice.Value := 1;
-      LayerTrack.Max := R.Layers; LayerTrack.Position := 1;
+      { como no Cura: abre mostrando a peca inteira (ultima camada) }
+      LayerChoice.MaxValue := R.Layers; LayerChoice.Value := R.Layers;
+      LayerTrack.Max := R.Layers; LayerTrack.Position := R.Layers;
     finally
       FUpdating := False;
     end;
-    View.SetSlice(Engine, 0);
+    View.SetSlice(Engine, R.Layers - 1);
+    View3D.SetToolpaths(TToolpathPreview.Create(Engine.Layers, CurrentPrinter.Nozzle * LineWidthP.Value / 100));
+    View3D.ShowLayer := R.Layers - 1;
     PreviewSummary.Caption := Format('%d camadas'#10'Tempo estimado: %d h %.2d min'#10 +
       'Filamento: %.2f m  /  %.1f g'#10'Retracoes: %d', [R.Layers, Trunc(R.EstimatedSeconds / 3600),
       Trunc(R.EstimatedSeconds / 60) mod 60, R.FilamentMM / 1000, R.FilamentGrams, R.Retractions],
@@ -2497,7 +2525,8 @@ begin
     FUpdating := False;
   end;
   View.SetSlice(Engine, LayerChoice.Value - 1);
-  if View.Mode <> svCamadas then ShowViewMode(svCamadas);
+  View3D.ShowLayer := LayerChoice.Value - 1;
+  if View.Tag <> 1 then ShowViewMode(svCamadas);
 end;
 
 procedure TMultiSlicerForm.TrackChanged(Sender: TObject);
@@ -2510,6 +2539,7 @@ begin
     FUpdating := False;
   end;
   View.SetSlice(Engine, LayerTrack.Position - 1);
+  View3D.ShowLayer := LayerTrack.Position - 1;
 end;
 
 procedure TMultiSlicerForm.SliceClick(Sender: TObject);

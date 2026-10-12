@@ -8,7 +8,7 @@ var F: TMultiSlicerForm; Mesh: TMesh; G: TStringList; A, B: TVec3; Bx: TBox3; Pt
   FN2, FNBig: string; I, J: Integer; Tri: TTriangle; LFino, LNormal, LRasc: Integer; TFino, TNormal, TRasc: Double;
   QD: TQualityDef; PX, PY, PZ, PD, PX0: Double; NSup: Integer; Blk: TSceneBlocker;
   FN, Output, BadOutput, ProfileDir: string; Mat: TMaterialDef; Raised: Boolean; Before: string;
-  EqFile: string; EqStore: TEquipmentStore; Eq: TEquipmentProfile; EqBox: TComboBox;
+  EqFile: string; EqStore: TEquipmentStore; Eq: TEquipmentProfile; EqBox: TComboBox; IFS: TFormatSettings;
 procedure Check(OK: Boolean; const Msg: string);
 begin if not OK then raise Exception.Create(Msg); end;
 begin
@@ -266,6 +266,50 @@ begin
     F.ExportProgram(Output); G.LoadFromFile(Output);
     Check(Pos(';TYPE:Raft', G.Text) > 0, 'raft in the exported G-code');
     TComboBox(F.FindComponent('AdhesionType')).ItemIndex := 1;
+    { previa 3D das camadas: mesma camada do ;LAYER_CHANGE }
+    IFS := DefaultFormatSettings; IFS.DecimalSeparator := '.';
+    TComboBox(F.FindComponent('SupportMode')).ItemIndex := 1;
+    F.GenerateProgram; Check(F.SliceReport.SupportPaths > 0, 'support in the preview job');
+    F.ExportProgram(Output); G.LoadFromFile(Output);
+    F.ShowStep(5); Application.ProcessMessages;
+    Check(F.ViewControl3D.Visible and F.ViewControl3D.PreviewMode, '3D preview is the default layer view');
+    Check(F.ViewControl3D.Toolpaths <> nil, 'toolpaths handed to the 3D view');
+    J := 0;
+    for I := 0 to G.Count - 1 do
+      if G[I] = ';LAYER_CHANGE' then
+      begin
+        Check(SameValue(StrToFloat(Copy(G[I + 2], 4, 20), IFS), F.ViewControl3D.Toolpaths.LayerZ(J), 1e-3),
+          'preview layer Z matches the G-code layer ' + IntToStr(J + 1));
+        Inc(J);
+      end;
+    Check((J > 0) and (J = F.ViewControl3D.Toolpaths.LayerCount), 'one preview layer per ;LAYER_CHANGE');
+    Check(F.ViewControl3D.ShowLayer = J - 1, 'preview opens on the last layer (whole part)');
+    Check(F.ViewControl3D.Toolpaths.LayerTris(0) = 6 * F.ViewControl3D.Toolpaths.SegmentCount(0), 'six triangles per extrusion segment');
+    T0 := GetTickCount64; F.ViewControl3D.RenderNow;
+    Writeln('  previa 3D: ', J, ' camadas, quadro completo ', GetTickCount64 - T0, ' ms');
+    F.ViewControl3D.Interactive := True; T0 := GetTickCount64; F.ViewControl3D.RenderNow;
+    Writeln('  previa 3D girando: ', GetTickCount64 - T0, ' ms');
+    F.ViewControl3D.Interactive := False;
+    F.ViewControl3D.StdView(svIso); F.ViewControl3D.ZoomBy(5);
+    F.ViewControl3D.SaveSnapshot(IncludeTrailingPathDelimiter(GetTempDir) + 'ms_preview3d.png');
+    F.ViewControl3D.ShowLayer := F.ViewControl3D.Toolpaths.LayerCount div 2;
+    F.ViewControl3D.SaveSnapshot(IncludeTrailingPathDelimiter(GetTempDir) + 'ms_preview3d_half.png');
+    TCheckBox(F.FindComponent('ShowTravels')).Checked := True;
+    TCheckBox(F.FindComponent('OnlyLayer')).Checked := True;
+    F.ViewControl3D.ShowLayer := 3;
+    F.ViewControl3D.SaveSnapshot(IncludeTrailingPathDelimiter(GetTempDir) + 'ms_preview3d_layer.png');
+    TCheckBox(F.FindComponent('OnlyLayer')).Checked := False;
+    TCheckBox(F.FindComponent('ShowTravels')).Checked := False;
+    TCheckBox(F.FindComponent('Preview2D')).Checked := True;
+    Check(not F.ViewControl3D.Visible, '2D layer view still available');
+    TCheckBox(F.FindComponent('Preview2D')).Checked := False;
+    Check(F.ViewControl3D.Visible, 'back to the 3D preview');
+    TFloatSpinEdit(F.FindComponent('LayerHeight')).Value := 0.25;
+    Check(F.ViewControl3D.Toolpaths = nil, 'changed settings clear the 3D preview');
+    TFloatSpinEdit(F.FindComponent('LayerHeight')).Value := 0.2;
+    F.ShowStep(1);
+    Check(not F.ViewControl3D.PreviewMode, 'model step shows the parts again');
+    TComboBox(F.FindComponent('SupportMode')).ItemIndex := 0;
     { equipamento do MultiCNC no topo: marca/modelo completam o perfil }
     EqBox := F.Equipment;
     Check((EqBox.Items.Count = 3) and (EqBox.Items[0] = 'Ajuste manual') and (EqBox.Items.IndexOf('Router da oficina') < 0),

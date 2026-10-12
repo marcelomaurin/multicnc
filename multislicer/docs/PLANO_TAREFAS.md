@@ -254,11 +254,16 @@ Testes: `tests/test_support.lpr` (T, C, esfera, bloqueador, haste, aba, jangada,
 - [ ] 7.6 Desempenho do fatiamento em malhas grandes: medir onde vai o tempo (corte das camadas,
       encadeamento de segmentos, solido/preenchimento por amostragem de pontos) e otimizar
       (indice de triangulos por faixa de Z, teste de solido por poligonos em vez de pontos).
-- [ ] 7.2 Previa 3D das trajetorias por camada com deslizante de camada (e de movimento dentro da camada).
-- [ ] 7.3 Cores por papel (parede externa, interna, solido, preenchimento, suporte, interface, saia/aba)
-      com legenda; opcao de mostrar deslocamentos e retracoes.
+- [x] 7.2 Previa 3D das trajetorias por camada com deslizante de camada (e de movimento dentro da camada).
+      Entregue (2026-10-12): `src/ui/multislicer_toolpath3d.pas`, fitas com largura de linha e altura
+      de camada na mesma vista 3D da mesa (mesma camera); abre na ultima camada; opcao so a camada.
+      Falta o deslizante de movimento dentro da camada.
+- [x] 7.3 Cores por papel (parede externa, interna, solido, preenchimento, suporte, interface, saia/aba)
+      com legenda; opcao de mostrar deslocamentos e retracoes. Entregue: legenda e deslocamentos
+      da camada (retracoes ainda nao marcadas).
 - [ ] 7.4 Cartao de resumo (como no Cura): tempo estimado, filamento em m e g, custo, camadas, avisos.
-- [ ] 7.5 A previa usa exatamente o mesmo resultado que gera o G-code.
+- [x] 7.5 A previa usa exatamente o mesmo resultado que gera o G-code (teste: Z de cada camada = ;Z: do
+      ;LAYER_CHANGE correspondente).
 
 **Aceite:** a camada exibida corresponde ao bloco `;LAYER_CHANGE` correspondente no G-code.
 

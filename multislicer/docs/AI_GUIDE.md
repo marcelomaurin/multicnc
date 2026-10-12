@@ -11,6 +11,7 @@ MultiSlicer prepara modelos 3D para impressao 3D.
 - core/multislicer_profile.pas: perfil base do pipeline.
 - core/multislicer_printers.pas / multislicer_materials.pas: perfis de impressora e filamento (prontos + JSON do usuario).
 - core/multislicer_machines.pas: catalogo por marca/modelo (volume, extrusora, limites de temperatura, nivelamento, velocidades, retracao, G-code inicial/final). O combo 'SavedEquipment' no topo le as impressoras 3D do cadastro do MultiCNC (multicnc_equipment) e completa o perfil; teste: tests/test_machines.
+- ui/multislicer_toolpath3d.pas: previa 3D das trajetorias (fitas por camada/papel, montadas sob demanda); a TSlicerView3D mostra no modo PreviewMode, a 2D (multislicer_view) fica como opcao.
 - core/multislicer_support.pas: suportes (saliencia, coluna, hastes, bloqueadores, interface).
 - core/multislicer_clip.pas: booleanas e offset de regioes com a Clipper2 (src/shared/clipper2).
 - core/multislicer_quality.pas: perfis de qualidade (Fino/Normal/Rascunho + JSON do usuario).

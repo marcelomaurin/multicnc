@@ -28,7 +28,8 @@ interface
 uses
   Classes, SysUtils, Math, Controls, Graphics, LCLType, LCLIntf, GraphType, IntfGraphics,
   LMessages, multislicer_types, multislicer_mesh, multislicer_scene,
-  multicad_types, multicad_mesh, multicad_camera, multicad_softrender;
+  multicad_types, multicad_mesh, multicad_camera, multicad_softrender,
+  multislicer_pipeline, multislicer_toolpath3d;
 
 type
   TSlicerMouseMode = (smmNone, smmPending, smmOrbit, smmPan, smmMove);
@@ -72,6 +73,16 @@ type
     FShowOverhangs: Boolean;
     FOverhangAngle: Double;
     FOverhangKey: string;
+    { previa das camadas }
+    FToolpaths: TToolpathPreview;
+    FPreviewMode: Boolean;
+    FShowLayer: Integer;
+    FOnlyLayer, FShowTravels: Boolean;
+    procedure SetPreviewMode(AValue: Boolean);
+    procedure SetShowLayer(AValue: Integer);
+    procedure SetOnlyLayer(AValue: Boolean);
+    procedure SetShowTravels(AValue: Boolean);
+    procedure DrawLegend;
     procedure SetPickFace(AValue: Boolean);
     procedure SetShowOverhangs(AValue: Boolean);
     procedure SetOverhangAngle(AValue: Double);
@@ -120,6 +131,14 @@ type
     { avisa antes do primeiro movimento de um arraste (para desfazer) }
     property OnBeforeMove: TNotifyEvent read FOnBeforeMove write FOnBeforeMove;
     property Scene: TSliceScene read FScene write SetScene;
+    { previa 3D das trajetorias: a vista fica dona do objeto (nil = limpa) }
+    procedure SetToolpaths(AValue: TToolpathPreview);
+    property Toolpaths: TToolpathPreview read FToolpaths;
+    procedure SaveSnapshot(const FN: string);     { PNG do ultimo quadro }
+    property PreviewMode: Boolean read FPreviewMode write SetPreviewMode;
+    property ShowLayer: Integer read FShowLayer write SetShowLayer;   { 0 = primeira }
+    property OnlyLayer: Boolean read FOnlyLayer write SetOnlyLayer;
+    property ShowTravels: Boolean read FShowTravels write SetShowTravels;
     property Camera: TCadCamera read FCam;
     property LastRenderMS: Int64 read FLastRenderMS;
     { quadro rapido (meia resolucao, sem arestas) enquanto gira/desloca malhas pesadas }
@@ -132,6 +151,8 @@ type
 function SlicerToCad(X, Y, Z: Double): TCadVec3; inline;
 
 implementation
+
+uses multislicer_view;
 
 const
   BED_TAG = 2000;
@@ -244,6 +265,7 @@ end;
 destructor TSlicerView3D.Destroy;
 begin
   FreeCaches;
+  FToolpaths.Free;
   FBedCache.Free;
   FBedMesh.Free;
   FImg.Free;
@@ -431,6 +453,15 @@ begin
       FRaster.DrawLine3D(SlicerToCad(0, V, 0), SlicerToCad(BX, V, 0), Col, 1, True);
       Inc(G); V := G * 10;
     end;
+    { previa: as trajetorias no lugar das pecas }
+    if FPreviewMode and (FToolpaths <> nil) and (FToolpaths.LayerCount > 0) then
+    begin
+      if FOnlyLayer then FToolpaths.Draw(FRaster, FShowLayer, FShowLayer, FInteractive, BED_TAG + 2)
+      else FToolpaths.Draw(FRaster, 0, FShowLayer, FInteractive, BED_TAG + 2);
+      if FShowTravels then FToolpaths.DrawTravels(FRaster, FShowLayer, $002563EB);
+    end
+    else
+    begin
     { pecas }
     SyncCaches;
     for I := 0 to High(FCaches) do
@@ -462,6 +493,7 @@ begin
       end;
     end;
     DrawSupportsAids;
+    end;
     { volume de impressao (tracejado) }
     Edge(0, 0, BZ, BX, 0, BZ); Edge(BX, 0, BZ, BX, BY, BZ);
     Edge(BX, BY, BZ, 0, BY, BZ); Edge(0, BY, BZ, 0, 0, BZ);
@@ -484,6 +516,102 @@ begin
   FDirty := False;
   FLastRenderMS := GetTickCount64 - T0;
   if FFactor = 1 then FFullRenderMS := FLastRenderMS;
+end;
+
+procedure TSlicerView3D.SetToolpaths(AValue: TToolpathPreview);
+begin
+  if AValue = FToolpaths then Exit;
+  FToolpaths.Free;
+  FToolpaths := AValue;
+  if FToolpaths <> nil then FShowLayer := EnsureRange(FShowLayer, 0, Max(0, FToolpaths.LayerCount - 1));
+  if FPreviewMode then Redraw;
+end;
+
+procedure TSlicerView3D.SaveSnapshot(const FN: string);
+var P: TPortableNetworkGraphic;
+begin
+  Render;
+  P := TPortableNetworkGraphic.Create;
+  try
+    P.Assign(FBmp);
+    P.SaveToFile(FN);
+  finally
+    P.Free;
+  end;
+end;
+
+procedure TSlicerView3D.SetPreviewMode(AValue: Boolean);
+begin
+  if FPreviewMode = AValue then Exit;
+  FPreviewMode := AValue;
+  if FPreviewMode then PickFaceMode := False;
+  Redraw;
+end;
+
+procedure TSlicerView3D.SetShowLayer(AValue: Integer);
+begin
+  if FToolpaths <> nil then AValue := EnsureRange(AValue, 0, Max(0, FToolpaths.LayerCount - 1));
+  if AValue = FShowLayer then Exit;
+  FShowLayer := AValue;
+  if FPreviewMode then Redraw;
+end;
+
+procedure TSlicerView3D.SetOnlyLayer(AValue: Boolean);
+begin
+  if FOnlyLayer = AValue then Exit;
+  FOnlyLayer := AValue;
+  if FPreviewMode then Redraw;
+end;
+
+procedure TSlicerView3D.SetShowTravels(AValue: Boolean);
+begin
+  if FShowTravels = AValue then Exit;
+  FShowTravels := AValue;
+  if FPreviewMode then Redraw;
+end;
+
+procedure TSlicerView3D.DrawLegend;
+var R: TPathRole; X, Y, W, Rows: Integer; C: TColor; Txt: string;
+begin
+  Canvas.Font.Size := 8;
+  Canvas.Font.Style := [];
+  Rows := 1; X := 14;
+  for R := Low(TPathRole) to High(TPathRole) do
+  begin
+    W := 16 + Canvas.TextWidth(SlicerRoleName(R)) + 16;
+    if (X > 14) and (X + W > ClientWidth - 10) then begin Inc(Rows); X := 14; end;
+    X := X + W;
+  end;
+  X := 14; Y := 10;
+  for R := Low(TPathRole) to High(TPathRole) do
+  begin
+    W := 16 + Canvas.TextWidth(SlicerRoleName(R)) + 16;
+    if (X > 14) and (X + W > ClientWidth - 10) then begin X := 14; Inc(Y, 18); end;
+    C := SlicerRoleColor(R);
+    Canvas.Pen.Style := psClear;
+    Canvas.Brush.Style := bsSolid;
+    Canvas.Brush.Color := C;
+    Canvas.Rectangle(X, Y + 2, X + 12, Y + 14);
+    Canvas.Pen.Style := psSolid;
+    Canvas.Brush.Style := bsClear;
+    Canvas.Font.Color := $00553F2F;
+    Canvas.TextOut(X + 16, Y, SlicerRoleName(R));
+    X := X + W;
+  end;
+  if FShowTravels then
+  begin
+    Canvas.Pen.Color := $00EB6325;
+    Canvas.Line(X, Y + 8, X + 12, Y + 8);
+    Canvas.TextOut(X + 16, Y, 'Deslocamento');
+  end;
+  if (FToolpaths <> nil) and (FToolpaths.LayerCount > 0) then
+  begin
+    Txt := Format('Camada %d de %d  |  Z %.3f mm  |  altura %.3f mm',
+      [FShowLayer + 1, FToolpaths.LayerCount, FToolpaths.LayerZ(FShowLayer), FToolpaths.LayerHeight(FShowLayer)]);
+    Canvas.Font.Style := [fsBold];
+    Canvas.TextOut(14, 14 + Rows * 18, Txt);
+    Canvas.Font.Style := [];
+  end;
 end;
 
 procedure TSlicerView3D.Blit;
@@ -555,6 +683,14 @@ begin
   Canvas.Pen.Width := 1;
   Canvas.Font.Style := [];
   Canvas.Font.Color := $008B7464;
+  if FPreviewMode then
+  begin
+    if (FToolpaths = nil) or (FToolpaths.LayerCount = 0) then HelpText := 'Fatie para ver as camadas'
+    else HelpText := 'Arraste para girar  |  Shift: deslocar  |  roda: zoom  |  F: enquadrar  |  camada: deslizante acima';
+    Canvas.TextOut(90, ClientHeight - 22, HelpText);
+    DrawLegend;
+    Exit;
+  end;
   if (FScene = nil) or (FScene.Count = 0) then
     HelpText := 'Abra um modelo STL ou 3MF'
   else
@@ -732,7 +868,7 @@ begin
   FMoved := False;
   if (ssShift in Shift) or ((ssCtrl in Shift) and (Button <> mbLeft)) then
     FMode := smmPan
-  else if Button in [mbRight, mbMiddle] then
+  else if (Button in [mbRight, mbMiddle]) or FPreviewMode then
     FMode := smmOrbit
   else if Button = mbLeft then
   begin
@@ -832,7 +968,7 @@ begin
   case Key of
     VK_F: begin FitBed; Redraw; Key := 0; end;
     VK_ESCAPE: if FPickFace then begin PickFaceMode := False; FKeepPick := False; Redraw; Key := 0; end;
-    VK_DELETE:
+    VK_DELETE: if not FPreviewMode then
       begin
         if Assigned(FOnDelete) then FOnDelete(Self);
         Key := 0;
