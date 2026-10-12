@@ -1,16 +1,28 @@
 program test_slicer_app;
 {$mode objfpc}{$H+}
-uses Interfaces, Forms, Classes, SysUtils, Math, Spin, StdCtrls, multislicer_main,
+uses {$IFDEF UNIX}cthreads,{$ENDIF} Interfaces, Forms, Classes, SysUtils, Math, Spin, StdCtrls, multislicer_main,
   multislicer_mesh, multislicer_pipeline, multislicer_stl, multislicer_types,
   multislicer_userdata, multislicer_materials, multislicer_scene, multicad_camera, multislicer_quality,
-  multicnc_types, multicnc_equipment;
+  multicnc_types, multicnc_equipment, ExtCtrls, Controls;
 var F: TMultiSlicerForm; Mesh: TMesh; G: TStringList; A, B: TVec3; Bx: TBox3; Pt: TPoint; T0: QWord;
   FN2, FNBig: string; I, J: Integer; Tri: TTriangle; LFino, LNormal, LRasc: Integer; TFino, TNormal, TRasc: Double;
   QD: TQualityDef; PX, PY, PZ, PD, PX0: Double; NSup: Integer; Blk: TSceneBlocker;
   FN, Output, BadOutput, ProfileDir: string; Mat: TMaterialDef; Raised: Boolean; Before: string;
-  EqFile: string; EqStore: TEquipmentStore; Eq: TEquipmentProfile; EqBox: TComboBox; IFS: TFormatSettings;
+  EqFile: string; EqStore: TEquipmentStore; Eq: TEquipmentProfile; EqBox: TComboBox; IFS: TFormatSettings; Canc: TObject; Tm: TTimer;
 procedure Check(OK: Boolean; const Msg: string);
 begin if not OK then raise Exception.Create(Msg); end;
+type
+  { cancela o fatiamento pelo relogio, como o usuario clicando em Cancelar }
+  TCanceller = class
+    WasSlicing: Boolean;
+    procedure Fire(Sender: TObject);
+  end;
+procedure TCanceller.Fire(Sender: TObject);
+begin
+  TTimer(Sender).Enabled := False;
+  WasSlicing := F.Slicing;
+  F.CancelSlicing;
+end;
 begin
   try
   Application.Initialize;
@@ -158,6 +170,20 @@ begin
     Writeln(Format('  quadros seguintes ao girar: %d ms', [F.ViewControl3D.LastRenderMS]));
     Check(F.ViewControl3D.LastRenderMS < 150, 'orbiting a 200k-triangle part stays interactive');
     F.ViewControl3D.Interactive := False;
+    { fatiamento em thread: a tela segue viva e Cancelar para logo }
+    Canc := TCanceller.Create; Tm := TTimer.Create(nil);
+    try
+      Tm.Interval := 300; Tm.OnTimer := @TCanceller(Canc).Fire; Tm.Enabled := True;
+      T0 := GetTickCount64; Raised := False;
+      try F.GenerateProgram; except on E: EAbort do Raised := True; end;
+      Writeln(Format('  cancelar o fatiamento: %d ms', [GetTickCount64 - T0]));
+      Check(TCanceller(Canc).WasSlicing, 'UI events run while slicing (thread)');
+      Check(Raised and not F.Slicing and not F.ProgramReady, 'cancel stops slicing without a program');
+      Check(GetTickCount64 - T0 < 5000, 'cancel answers quickly');
+      Check(TControl(F.FindComponent('CancelSlice')).Visible = False, 'cancel button hidden after slicing');
+    finally
+      Tm.Free; Canc.Free;
+    end;
     { Etapa 4: ferramentas de posicionamento pela tela }
     F.Scene.Clear;
     F.OpenFile(FN2);                         { caixa 30 x 10 x 15 }

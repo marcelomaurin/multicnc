@@ -4,7 +4,7 @@ program multislicer;
     multislicer [--project <pasta>] [--file <modelo>] [modelo.stl ...]
   --file vem do contexto da suite; arquivos .stl/.3mf soltos entram todos na mesa
   (abrir varios pelo Explorer ou arrastar para o executavel). }
-uses Interfaces,Forms,SysUtils,Dialogs,multislicer_main,multisuite_context;
+uses {$IFDEF UNIX}cthreads,{$ENDIF} Interfaces,Forms,SysUtils,Dialogs,multislicer_main,multisuite_context;
 {$R *.res}   { icone e versao (VersionInfo do .lpi) }
 var F:TMultiSlicerForm;C:TSuiteContext;I:Integer;P,Ext:string;
 procedure TryOpen(const FN:string);

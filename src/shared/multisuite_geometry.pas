@@ -61,6 +61,8 @@ function ChainSegments(const Segs: TSegments2D; Tol: Double = 1e-4): TPolygons2D
 
 implementation
 
+uses Generics.Collections;
+
 function Pt(X, Y: Double): TPoint2D;
 begin
   Result.X := X;
@@ -401,60 +403,96 @@ begin
 end;
 
 function ChainSegments(const Segs: TSegments2D; Tol: Double): TPolygons2D;
+{ Encadeia por grade de hash das extremidades: O(n) em vez de procurar em
+  todos os segmentos a cada passo (camadas de malhas grandes tem milhares). }
 var
   Used: array of Boolean;
-  I, J, Remaining, N, Best: Integer;
+  NextE: array of Integer;
+  Head: specialize TDictionary<Int64, Integer>;
+  I, E, N, Count, First: Integer;
   Poly: TPolygon2D;
   Tail: TPoint2D;
-  Found, Reverse: Boolean;
-  Count: Integer;
+  Cell: Double;
 
   function Near(const P, Q: TPoint2D): Boolean;
   begin
     Result := (Abs(P.X - Q.X) <= Tol) and (Abs(P.Y - Q.Y) <= Tol);
   end;
 
+  function EndPt(AE: Integer): TPoint2D;
+  begin
+    if Odd(AE) then Result := Segs[AE shr 1].B else Result := Segs[AE shr 1].A;
+  end;
+
+  function Key(IX, IY: Int64): Int64;
+  begin
+    Result := (IX shl 32) xor (IY and $FFFFFFFF);
+  end;
+
+  { extremidade livre perto de P (-1 = nenhuma) }
+  function FindEnd(const P: TPoint2D): Integer;
+  var DX, DY: Integer; IX, IY: Int64; K: Integer;
+  begin
+    IX := Floor(P.X / Cell); IY := Floor(P.Y / Cell);
+    for DX := -1 to 1 do
+      for DY := -1 to 1 do
+        if Head.TryGetValue(Key(IX + DX, IY + DY), K) then
+          while K >= 0 do begin
+            if (not Used[K shr 1]) and Near(EndPt(K), P) then Exit(K);
+            K := NextE[K];
+          end;
+    Result := -1;
+  end;
+
+  procedure Push(const P: TPoint2D);
+  begin
+    if N >= Length(Poly) then SetLength(Poly, Max(16, N * 2));
+    Poly[N] := P;
+    Inc(N);
+  end;
+
 begin
   SetLength(Result, 0);
   Count := 0;
+  if Length(Segs) = 0 then Exit;
+  Cell := Max(Tol * 2, 1e-9);
   SetLength(Used, Length(Segs));
-  Remaining := Length(Segs);
-  for I := 0 to High(Segs) do
-    if Near(Segs[I].A, Segs[I].B) then begin Used[I] := True; Dec(Remaining); end;
-  while Remaining > 0 do begin
-    I := 0;
-    while Used[I] do Inc(I);
-    Used[I] := True;
-    Dec(Remaining);
-    SetLength(Poly, 2);
-    Poly[0] := Segs[I].A;
-    Poly[1] := Segs[I].B;
-    N := 2;
-    repeat
-      Tail := Poly[N - 1];
-      Found := False;
-      Best := -1;
-      Reverse := False;
-      for J := 0 to High(Segs) do begin
-        if Used[J] then Continue;
-        if Near(Segs[J].A, Tail) then begin Best := J; Reverse := False; Found := True; Break; end;
-        if Near(Segs[J].B, Tail) then begin Best := J; Reverse := True; Found := True; Break; end;
-      end;
-      if Found then begin
-        Used[Best] := True;
-        Dec(Remaining);
-        SetLength(Poly, N + 1);
-        if Reverse then Poly[N] := Segs[Best].A else Poly[N] := Segs[Best].B;
-        Inc(N);
-      end;
-    until (not Found) or Near(Poly[N - 1], Poly[0]);
-    if Near(Poly[N - 1], Poly[0]) then Dec(N); // fecha o laco
-    SetLength(Poly, N);
-    if N >= 3 then begin
-      SetLength(Result, Count + 1);
-      Result[Count] := Poly;
-      Inc(Count);
+  SetLength(NextE, Length(Segs) * 2);
+  Head := specialize TDictionary<Int64, Integer>.Create;
+  try
+    for E := 0 to Length(Segs) * 2 - 1 do begin
+      Tail := EndPt(E);
+      if not Head.TryGetValue(Key(Floor(Tail.X / Cell), Floor(Tail.Y / Cell)), I) then I := -1;
+      NextE[E] := I;
+      Head.AddOrSetValue(Key(Floor(Tail.X / Cell), Floor(Tail.Y / Cell)), E);
     end;
+    for I := 0 to High(Segs) do
+      if Near(Segs[I].A, Segs[I].B) then Used[I] := True;
+    First := 0;
+    while True do begin
+      while (First <= High(Segs)) and Used[First] do Inc(First);
+      if First > High(Segs) then Break;
+      Used[First] := True;
+      Poly := nil; N := 0;
+      Push(Segs[First].A);
+      Push(Segs[First].B);
+      repeat
+        E := FindEnd(Poly[N - 1]);
+        if E < 0 then Break;
+        Used[E shr 1] := True;
+        { entrou pela ponta E: o novo ponto e a outra ponta }
+        Push(EndPt(E xor 1));
+      until Near(Poly[N - 1], Poly[0]);
+      if Near(Poly[N - 1], Poly[0]) then Dec(N); // fecha o laco
+      SetLength(Poly, N);
+      if N >= 3 then begin
+        SetLength(Result, Count + 1);
+        Result[Count] := Poly;
+        Inc(Count);
+      end;
+    end;
+  finally
+    Head.Free;
   end;
 end;
 

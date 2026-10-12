@@ -109,10 +109,22 @@ type
   end;
   TLayerDataArray = array of TLayerData;
 
+  ESliceCanceled = class(Exception);
+
   TModernSlicer = class
   private
     FSettings: TSliceSettings;
     FLayers: TLayerDataArray;
+    FModel: array of TPolygons2D;   { regiao da peca por camada (para topo/fundo) }
+    { indice em Z: triangulos ordenados pelo Z minimo e a lista dos que cortam
+      a altura atual (as camadas sobem, entao e uma varredura) }
+    FTris: array of TTriangle;
+    FTriMinZ, FTriMaxZ: array of Double;
+    FActive: array of Integer;
+    FActiveN, FNextTri: Integer;
+    procedure PrepareZIndex(Mesh: TMesh);
+    function SliceSweep(Z: Double): TPolygons2D;
+    procedure Tick(Frac: Double; AStage: Integer);
     procedure BuildLayer(Index: Integer; Mesh: TMesh);
     procedure BuildInfill(Index: Integer);
     procedure BuildSupport;
@@ -125,7 +137,18 @@ type
     class function ExtrusionPerMM(Width, Height, FilamentDiameter: Double): Double;
     function Slice(Mesh: TMesh; const S: TSliceSettings; Output: TStrings): TSliceReport;
     property Layers: TLayerDataArray read FLayers;
+  public
+    { andamento para a tela (o fatiamento roda numa thread): 0..1 e a fase
+      0 camadas, 1 suportes, 2 preenchimento, 3 G-code. CancelRequested e
+      ligado por outra thread; o Slice para com ESliceCanceled. }
+    Progress: Double;
+    Stage: Integer;
+    CancelRequested: Boolean;
   end;
+
+const
+  SLICE_STAGE_NAMES: array[0..3] of string = ('Cortando camadas', 'Calculando suportes',
+    'Preenchimento', 'Gerando G-code');
 
 function DefaultSliceSettings: TSliceSettings;
 function ExpandGCodeTemplate(const Template: string; const S: TSliceSettings): string;
@@ -312,6 +335,91 @@ begin
   end;
 end;
 
+procedure CutTriangle(const T: TTriangle; Z: Double; var Segs: TSegments2D; var N: Integer); inline;
+var V: array[0..2] of TVec3; P: array[0..1] of TPoint2D; K, J: Integer; A, B: TVec3;
+begin
+  V[0] := T.A; V[1] := T.B; V[2] := T.C;
+  K := 0;
+  for J := 0 to 2 do
+    if (K < 2) and ((V[J].Z - Z) * (V[(J + 1) mod 3].Z - Z) < 0) then begin
+      A := V[J]; B := V[(J + 1) mod 3];
+      P[K] := Pt(A.X + (Z - A.Z) / (B.Z - A.Z) * (B.X - A.X), A.Y + (Z - A.Z) / (B.Z - A.Z) * (B.Y - A.Y));
+      Inc(K);
+    end;
+  if K = 2 then begin
+    if N >= Length(Segs) then SetLength(Segs, Max(256, N * 2));
+    Segs[N].A := P[0];
+    Segs[N].B := P[1];
+    Inc(N);
+  end;
+end;
+
+procedure TModernSlicer.PrepareZIndex(Mesh: TMesh);
+var I, N: Integer; T: TTriangle; Keys: array of Double; Idx: array of Integer;
+
+  procedure Sort(L, R: Integer);
+  var I, J, Tmp: Integer; P: Double;
+  begin
+    repeat
+      I := L; J := R; P := Keys[Idx[(L + R) shr 1]];
+      repeat
+        while Keys[Idx[I]] < P do Inc(I);
+        while Keys[Idx[J]] > P do Dec(J);
+        if I <= J then begin
+          Tmp := Idx[I]; Idx[I] := Idx[J]; Idx[J] := Tmp;
+          Inc(I); Dec(J);
+        end;
+      until I > J;
+      if L < J then Sort(L, J);
+      L := I;
+    until I >= R;
+  end;
+
+begin
+  N := Mesh.Count;
+  SetLength(Keys, N); SetLength(Idx, N);
+  for I := 0 to N - 1 do begin
+    T := Mesh.Triangle(I);
+    Keys[I] := Min(T.A.Z, Min(T.B.Z, T.C.Z));
+    Idx[I] := I;
+  end;
+  if N > 1 then Sort(0, N - 1);
+  SetLength(FTris, N); SetLength(FTriMinZ, N); SetLength(FTriMaxZ, N);
+  for I := 0 to N - 1 do begin
+    T := Mesh.Triangle(Idx[I]);
+    FTris[I] := T;
+    FTriMinZ[I] := Keys[Idx[I]];
+    FTriMaxZ[I] := Max(T.A.Z, Max(T.B.Z, T.C.Z));
+  end;
+  SetLength(FActive, 0);
+  FActiveN := 0;
+  FNextTri := 0;
+end;
+
+function TModernSlicer.SliceSweep(Z: Double): TPolygons2D;
+var I, K, N: Integer; Segs: TSegments2D;
+begin
+  Z := Z + 1e-7;   { igual ao SliceAt: evita vertices exatamente no plano }
+  { entram os que comecam abaixo de Z }
+  while (FNextTri <= High(FTris)) and (FTriMinZ[FNextTri] < Z) do begin
+    if FActiveN >= Length(FActive) then SetLength(FActive, Max(1024, FActiveN * 2));
+    FActive[FActiveN] := FNextTri;
+    Inc(FActiveN);
+    Inc(FNextTri);
+  end;
+  { saem os que terminam abaixo de Z; os outros sao cortados }
+  Segs := nil; N := 0; K := 0;
+  for I := 0 to FActiveN - 1 do
+    if FTriMaxZ[FActive[I]] > Z then begin
+      FActive[K] := FActive[I];
+      Inc(K);
+      CutTriangle(FTris[FActive[I]], Z, Segs, N);
+    end;
+  FActiveN := K;
+  SetLength(Segs, N);
+  Result := ChainSegments(Segs, 1e-4);
+end;
+
 class function TModernSlicer.SliceAt(Mesh: TMesh; Z: Double): TPolygons2D;
 var
   Segs: TSegments2D;
@@ -362,30 +470,6 @@ begin
   end;
 end;
 
-function IsHole(const P: TPolygon2D): Boolean; inline;
-begin
-  Result := not PolygonIsCCW(P);
-end;
-
-{ Desloca cada contorno para dentro do material (externos encolhem, furos
-  crescem). }
-function InsetLoops(const Loops: TPolygons2D; Delta: Double): TPolygons2D;
-var I, N: Integer; R: TPolygon2D;
-begin
-  SetLength(Result, 0);
-  N := 0;
-  for I := 0 to High(Loops) do begin
-    if IsHole(Loops[I]) then R := OffsetPolygon(Loops[I], Delta, jtMiter, 3)
-    else R := OffsetPolygon(Loops[I], -Delta, jtMiter, 3);
-    if Length(R) < 3 then Continue;
-    // OffsetPolygon devolve CCW; furos voltam a CW
-    if IsHole(Loops[I]) then R := ReversePolygon(R);
-    SetLength(Result, N + 1);
-    Result[N] := R;
-    Inc(N);
-  end;
-end;
-
 { Remove pontos intermediarios colineares de uma polilinha aberta. }
 function SimplifyOpen(const P: TPolygon2D; Eps: Double): TPolygon2D;
 var I, N: Integer; Cross, L: Double;
@@ -407,14 +491,15 @@ begin
   SetLength(Result, N + 1);
 end;
 
-procedure AddPath(var Paths: TExtrusionPaths; Role: TPathRole; const P: TPolygon2D; Closed: Boolean);
+procedure AddPath(var Paths: TExtrusionPaths; Role: TPathRole; const P: TPolygon2D; Closed: Boolean;
+  Tol: Double = 1e-4);
 var N: Integer;
 begin
   if Length(P) < 2 then Exit;
   N := Length(Paths);
   SetLength(Paths, N + 1);
   Paths[N].Role := Role;
-  if Closed then Paths[N].Points := P else Paths[N].Points := SimplifyOpen(P, 1e-4);
+  if Closed then Paths[N].Points := P else Paths[N].Points := SimplifyOpen(P, Tol);
   Paths[N].Closed := Closed;
 end;
 
@@ -425,122 +510,80 @@ var
   Ring: TPolygons2D;
 begin
   W := FSettings.LineWidth;
-  FLayers[Index].Loops := SliceAt(Mesh, FLayers[Index].Z - FLayers[Index].Height / 2);
+  FLayers[Index].Loops := SliceSweep(FLayers[Index].Z - FLayers[Index].Height / 2);
+  { regiao da peca (Clipper): contornos que se tocam viram um so e as paredes
+    nao se sobrepoem quando o recuo fecha um estreitamento }
+  FModel[Index] := RegionUnionAll(FLayers[Index].Loops);
   SetLength(FLayers[Index].Paths, 0);
   // a saia e feita depois do suporte (BuildSkirt), para envolver os dois
   // perimetros: internos primeiro (precisao dimensional), externo por ultimo
   for K := FSettings.Walls - 1 downto 0 do begin
     D := W / 2 + K * W;
-    Ring := InsetLoops(FLayers[Index].Loops, D);
+    Ring := RegionOffsetMiter(FModel[Index], -D);
     for I := 0 to High(Ring) do
       if K = 0 then AddPath(FLayers[Index].Paths, prOuterWall, Ring[I], True)
       else AddPath(FLayers[Index].Paths, prInnerWall, Ring[I], True);
   end;
 end;
 
-{ Divide uma polilinha em trechos que satisfazem (Keep=True) ou nao o teste,
-  amostrando a cada Step mm. }
-type TPointTest = function(const P: TPoint2D): Boolean of object;
-
-function SplitByTest(const Line: TPolygon2D; Step: Double; Test: TPointTest; Want: Boolean): TPolygons2D;
-var I, K, Sub, N, Cnt: Integer; A, B, P0, P1, M: TPoint2D; L: Double; Cur: TPolygon2D;
-  procedure Flush;
-  begin
-    if Cnt >= 2 then begin
-      SetLength(Cur, Cnt);
-      SetLength(Result, N + 1);
-      Result[N] := Cur;
-      Inc(N);
-    end;
-    Cur := nil;
-    Cnt := 0;
-  end;
-  procedure Add(const P: TPoint2D);
-  begin
-    if (Cnt > 0) and (Abs(Cur[Cnt - 1].X - P.X) < 1e-12) and (Abs(Cur[Cnt - 1].Y - P.Y) < 1e-12) then Exit;
-    if Cnt >= Length(Cur) then SetLength(Cur, Max(16, Cnt * 2));
-    Cur[Cnt] := P;
-    Inc(Cnt);
-  end;
-begin
-  SetLength(Result, 0);
-  N := 0; Cnt := 0; Cur := nil;
-  for I := 1 to High(Line) do begin
-    A := Line[I - 1]; B := Line[I];
-    L := Hypot(B.X - A.X, B.Y - A.Y);
-    Sub := Max(1, Ceil(L / Step));
-    for K := 0 to Sub - 1 do begin
-      P0 := Pt(A.X + (B.X - A.X) * K / Sub, A.Y + (B.Y - A.Y) * K / Sub);
-      P1 := Pt(A.X + (B.X - A.X) * (K + 1) / Sub, A.Y + (B.Y - A.Y) * (K + 1) / Sub);
-      M := Pt((P0.X + P1.X) / 2, (P0.Y + P1.Y) / 2);
-      if Test(M) = Want then begin Add(P0); Add(P1); end else Flush;
-    end;
-  end;
-  Flush;
-end;
-
-type
-  TSolidTester = class
-    Layers: ^TLayerDataArray;
-    Index, Top, Bottom: Integer;
-    function NeedsSolid(const P: TPoint2D): Boolean;
-  end;
-
-function TSolidTester.NeedsSolid(const P: TPoint2D): Boolean;
-var K: Integer;
-begin
-  // solido se nao houver material acima/abaixo dentro de Top/Bottom camadas
-  Result := True;
-  if (Index < Bottom) or (Index > High(Layers^) - Top) then Exit;
-  for K := Index - Bottom to Index - 1 do
-    if not PointInPolygons(P, Layers^[K].Loops) then Exit;
-  for K := Index + 1 to Index + Top do
-    if not PointInPolygons(P, Layers^[K].Loops) then Exit;
-  Result := False;
-end;
-
 procedure TModernSlicer.BuildInfill(Index: Integer);
 var
-  Region, Lines, Pieces: TPolygons2D;
+  Region, Interior, Solid, Sparse, Lines: TPolygons2D;
   W: Double;
-  I, K: Integer;
-  Tester: TSolidTester;
+  I, K, T, B: Integer;
 begin
   W := FSettings.LineWidth;
   // borda do preenchimento sobrepoe 25% da largura no perimetro interno
-  Region := InsetLoops(FLayers[Index].Loops, FSettings.Walls * W - 0.25 * W + W / 2);
+  Region := RegionOffsetMiter(FModel[Index], -(FSettings.Walls * W - 0.25 * W + W / 2));
   FLayers[Index].InfillRegion := Region;
   if Length(Region) = 0 then Exit;
-  Tester := TSolidTester.Create;
-  try
-    Tester.Layers := @FLayers;
-    Tester.Index := Index;
-    Tester.Top := FSettings.TopLayers;
-    Tester.Bottom := FSettings.BottomLayers;
-    // camadas solidas: retilineo 100% com angulo alternado +-45 graus
-    if Odd(Index) then Lines := RectilinearInfill(Region, 45, W)
-    else Lines := RectilinearInfill(Region, -45, W);
-    for I := 0 to High(Lines) do begin
-      Pieces := SplitByTest(Lines[I], Max(W * 2, 1), @Tester.NeedsSolid, True);
-      for K := 0 to High(Pieces) do AddPath(FLayers[Index].Paths, prSolidInfill, Pieces[K], False);
+  { solido onde nao ha peca em todas as Top camadas de cima e Bottom de baixo
+    (por regioes: interior = intersecao das camadas vizinhas) }
+  T := FSettings.TopLayers; B := FSettings.BottomLayers;
+  Interior := nil;
+  if (Index >= B) and (Index <= High(FLayers) - T) then
+  begin
+    Interior := Region;
+    for K := Index - B to Index + T do
+    begin
+      if K = Index then Continue;
+      Interior := RegionIntersect(Interior, FModel[K]);
+      if Length(Interior) = 0 then Break;
     end;
-    // preenchimento esparso onde nao for solido
-    if FSettings.InfillDensity > 0.001 then begin
-      if FSettings.InfillPattern = ipGyroid then
-        Lines := GyroidInfill(Region, FLayers[Index].Z, W / Min(FSettings.InfillDensity, 1), 0.3)
-      else if Odd(Index) then
-        Lines := RectilinearInfill(Region, 45, W / Min(FSettings.InfillDensity, 1))
-      else
-        Lines := RectilinearInfill(Region, -45, W / Min(FSettings.InfillDensity, 1));
-      for I := 0 to High(Lines) do begin
-        Pieces := SplitByTest(Lines[I], Max(W * 2, 1), @Tester.NeedsSolid, False);
-        for K := 0 to High(Pieces) do
-          if PolygonPerimeter(Pieces[K], False) >= W then
-            AddPath(FLayers[Index].Paths, prSparseInfill, Pieces[K], False);
-      end;
-    end;
-  finally
-    Tester.Free;
+  end;
+  if Length(Interior) = 0 then
+  begin
+    Solid := Region;
+    Sparse := nil;
+  end
+  else
+  begin
+    Solid := RegionDifference(Region, Interior);
+    Sparse := Interior;
+  end;
+  // camadas solidas: retilineo 100% com angulo alternado +-45 graus
+  if Length(Solid) > 0 then
+  begin
+    if Odd(Index) then Lines := RectilinearInfill(Solid, 45, W)
+    else Lines := RectilinearInfill(Solid, -45, W);
+    for I := 0 to High(Lines) do
+      if PolygonPerimeter(Lines[I], False) >= W * 0.5 then
+        AddPath(FLayers[Index].Paths, prSolidInfill, Lines[I], False);
+  end;
+  // preenchimento esparso no interior
+  if (Length(Sparse) > 0) and (FSettings.InfillDensity > 0.001) then
+  begin
+    if FSettings.InfillPattern = ipGyroid then
+      Lines := GyroidInfill(Sparse, FLayers[Index].Z, W / Min(FSettings.InfillDensity, 1), 0.3)
+    else if Odd(Index) then
+      Lines := RectilinearInfill(Sparse, 45, W / Min(FSettings.InfillDensity, 1))
+    else
+      Lines := RectilinearInfill(Sparse, -45, W / Min(FSettings.InfillDensity, 1));
+    for I := 0 to High(Lines) do
+      if PolygonPerimeter(Lines[I], False) >= W then
+        { o gyroid sai amostrado a cada 0,3 mm: desvio de 0,02 mm (como o
+          "maximum deviation" do Cura) corta muitas linhas do G-code }
+        AddPath(FLayers[Index].Paths, prSparseInfill, Lines[I], False, 0.02);
   end;
 end;
 
@@ -859,6 +902,13 @@ begin
   Z := TZ;
 end;
 
+procedure TModernSlicer.Tick(Frac: Double; AStage: Integer);
+begin
+  if CancelRequested then raise ESliceCanceled.Create('Fatiamento cancelado.');
+  Progress := EnsureRange(Frac, 0, 1);
+  Stage := AStage;
+end;
+
 function TModernSlicer.Slice(Mesh: TMesh; const S: TSliceSettings; Output: TStrings): TSliceReport;
 var
   Heights: TPolygon2D;
@@ -992,11 +1042,24 @@ begin
     FLayers[I].Height := Heights[I].Y;
   end;
   T0 := GetTickCount64;
-  for I := 0 to High(FLayers) do BuildLayer(I, Mesh);
+  PrepareZIndex(Mesh);
+  SetLength(FModel, Length(FLayers));
+  for I := 0 to High(FLayers) do
+  begin
+    Tick(0.35 * I / Length(FLayers), 0);
+    BuildLayer(I, Mesh);
+  end;
+  FTris := nil; FTriMinZ := nil; FTriMaxZ := nil; FActive := nil;
+  Tick(0.35, 1);
   Result.MSLayers := GetTickCount64 - T0; T0 := GetTickCount64;
   BuildSupport;
   Result.MSSupport := GetTickCount64 - T0; T0 := GetTickCount64;
-  for I := 0 to High(FLayers) do BuildInfill(I);
+  for I := 0 to High(FLayers) do
+  begin
+    Tick(0.45 + 0.35 * I / Length(FLayers), 2);
+    BuildInfill(I);
+  end;
+  Tick(0.8, 3);
   Result.MSInfill := GetTickCount64 - T0;
   BuildSkirt;
   BuildBrim;
@@ -1053,6 +1116,7 @@ begin
     SetLength(LayerTimes, Length(FLayers));
     Cur := Pt(0, 0);
     for I := 0 to High(FLayers) do begin
+      Tick(0.8 + 0.2 * I / Length(FLayers), 3);
       Body.Add(';LAYER_CHANGE');
       Body.Add(Format(';LAYER:%d', [I]));
       Body.Add(';Z:' + W.N(FLayers[I].Z));

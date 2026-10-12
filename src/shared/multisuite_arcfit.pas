@@ -109,7 +109,7 @@ end;
 
 function FitArcs(const Path: TPolygon2D; const Opt: TArcFitOptions): TFitMoves;
 var
-  S, E, BestE, N: Integer;
+  S, E, BestE, N, Lo, Hi, Md, Stp: Integer;
   CX, CY, R, BCX, BCY, BR: Double;
   CCW, BCCW: Boolean;
   MinPts: Integer;
@@ -134,11 +134,25 @@ begin
   while S < High(Path) do begin
     BestE := -1;
     E := S + MinPts - 1;
-    // cresce a janela enquanto o arco continuar valido
-    while (E <= High(Path)) and TryArc(Path, S, E, Opt, CX, CY, R, CCW) do begin
-      BestE := E;
-      BCX := CX; BCY := CY; BR := R; BCCW := CCW;
-      Inc(E);
+    { cresce a janela dobrando o passo e depois acha o fim por bissecao:
+      O(n log n) em vez de O(n^2) nos contornos longos (cada arco aceito
+      continua verificado ponto a ponto por TryArc) }
+    if (E <= High(Path)) and TryArc(Path, S, E, Opt, CX, CY, R, CCW) then begin
+      Lo := E; Stp := 1; Hi := E + Stp;
+      while (Hi <= High(Path)) and TryArc(Path, S, Hi, Opt, CX, CY, R, CCW) do begin
+        Lo := Hi;
+        Stp := Stp * 2;
+        Hi := Lo + Stp;
+      end;
+      Hi := Min(Hi, High(Path) + 1);
+      while Hi - Lo > 1 do begin
+        Md := (Lo + Hi) div 2;
+        if TryArc(Path, S, Md, Opt, CX, CY, R, CCW) then Lo := Md else Hi := Md;
+      end;
+      if TryArc(Path, S, Lo, Opt, CX, CY, R, CCW) then begin
+        BestE := Lo;
+        BCX := CX; BCY := CY; BR := R; BCCW := CCW;
+      end;
     end;
     if BestE > 0 then begin
       if BCCW then

@@ -237,7 +237,7 @@ translucidos; "Adicionar hastes" fica ativo ate Esc. Modo de suporte e tipo de a
 Testes: `tests/test_support.lpr` (T, C, esfera, bloqueador, haste, aba, jangada, saia) e o teste de GUI.
 
 **Observacao (desempenho):** o suporte quase nao custa tempo, mas o motor de fatiamento ja existente leva
-~100 s numa malha de 200 mil triangulos (esfera de 80 mm, 400 camadas) - ver tarefa 7.6.
+~100 s numa malha de 200 mil triangulos (esfera de 80 mm, 400 camadas) - resolvido na tarefa 7.6.
 
 ---
 
@@ -250,10 +250,27 @@ Testes: `tests/test_support.lpr` (T, C, esfera, bloqueador, haste, aba, jangada,
       `multislicer_machines` (17 modelos, dados do Cura e das fichas dos fabricantes); a porta e so
       informativa (usada pelo MultiCNC); temperatura acima do limite da maquina reprova a validacao.
       Entregue (2026-10-12), versao 0.0.6.1.
-- [ ] 7.1 Fatiamento em thread com barra de progresso e Cancelar (tela nao congela).
-- [ ] 7.6 Desempenho do fatiamento em malhas grandes: medir onde vai o tempo (corte das camadas,
+- [x] 7.1 Fatiamento em thread com barra de progresso e Cancelar (tela nao congela).
+      Entregue (2026-10-12): TSliceThread + barra no rodape com a fase (camadas, suportes,
+      preenchimento, G-code), Cancelar/Esc para em menos de 1 s e mantem a previa anterior;
+      fechar a janela no meio cancela e fecha.
+- [x] 7.6 Desempenho do fatiamento em malhas grandes: medir onde vai o tempo (corte das camadas,
       encadeamento de segmentos, solido/preenchimento por amostragem de pontos) e otimizar
       (indice de triangulos por faixa de Z, teste de solido por poligonos em vez de pontos).
+      Entregue (2026-10-12). Esfera de 80 mm, 400 camadas, gyroid 20%:
+      | malha | antes | depois |
+      | --- | --- | --- |
+      | 3.200 triangulos | 13,6 s | 4,1 s |
+      | 80.000 triangulos | 63,1 s | 5,5 s |
+      - topo/fundo por regioes (Clipper): interior = intersecao das camadas vizinhas (antes: teste de
+        ponto a cada 2 linhas) - tambem acha as faixas de topo finas das superficies curvas;
+      - linhas de preenchimento recortadas todas de uma vez pela Clipper (antes: cada linha contra
+        todas as arestas);
+      - arc fitting (multisuite_arcfit) com busca dobrando + bissecao: O(n log n) (6,2 s -> 0,3 s);
+      - paredes por offset da Clipper com cantos vivos sobre a regiao unida da camada;
+      - encadeamento de segmentos por grade de hash (multisuite_geometry) e varredura em Z dos
+        triangulos;
+      - gyroid simplificado com desvio de 0,02 mm.
 - [x] 7.2 Previa 3D das trajetorias por camada com deslizante de camada (e de movimento dentro da camada).
       Entregue (2026-10-12): `src/ui/multislicer_toolpath3d.pas`, fitas com largura de linha e altura
       de camada na mesma vista 3D da mesa (mesma camera); abre na ultima camada; opcao so a camada.
@@ -261,11 +278,14 @@ Testes: `tests/test_support.lpr` (T, C, esfera, bloqueador, haste, aba, jangada,
 - [x] 7.3 Cores por papel (parede externa, interna, solido, preenchimento, suporte, interface, saia/aba)
       com legenda; opcao de mostrar deslocamentos e retracoes. Entregue: legenda e deslocamentos
       da camada (retracoes ainda nao marcadas).
-- [ ] 7.4 Cartao de resumo (como no Cura): tempo estimado, filamento em m e g, custo, camadas, avisos.
+- [x] 7.4 Cartao de resumo (como no Cura): tempo estimado, filamento em m e g, custo, camadas, avisos.
 - [x] 7.5 A previa usa exatamente o mesmo resultado que gera o G-code (teste: Z de cada camada = ;Z: do
       ;LAYER_CHANGE correspondente).
 
 **Aceite:** a camada exibida corresponde ao bloco `;LAYER_CHANGE` correspondente no G-code.
+
+**Etapa 7 entregue (2026-10-12), versao 0.0.7.0.** Pendente para depois: deslizante de movimento dentro
+da camada e marcas de retracao na previa.
 
 ---
 

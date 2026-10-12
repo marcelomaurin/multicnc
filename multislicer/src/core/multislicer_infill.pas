@@ -18,7 +18,7 @@ unit multislicer_infill;
 
 interface
 
-uses Math, multisuite_geometry;
+uses Math, multisuite_geometry, multislicer_clip;
 
 { Spacing = distancia media entre linhas (mm) = largura / densidade. }
 function GyroidInfill(const Region: TPolygons2D; Z, Spacing: Double;
@@ -47,14 +47,12 @@ begin
   end;
 end;
 
+{ junta as linhas brutas; o recorte pela regiao e feito no fim, todas juntas }
 procedure AppendClipped(var Result: TPolygons2D; const Line: TPolygon2D; const Region: TPolygons2D);
-var Pieces: TPolygons2D; I, N: Integer;
 begin
   if Length(Line) < 2 then Exit;
-  Pieces := ClipPolylineToRegion(Line, Region);
-  N := Length(Result);
-  SetLength(Result, N + Length(Pieces));
-  for I := 0 to High(Pieces) do Result[N + I] := Pieces[I];
+  SetLength(Result, Length(Result) + 1);
+  Result[High(Result)] := Copy(Line);
 end;
 
 function GyroidInfill(const Region: TPolygons2D; Z, Spacing, Resolution: Double): TPolygons2D;
@@ -129,6 +127,7 @@ begin
       end;
       Flush;
     end;
+  Result := ClipLinesToRegion(Result, Region);
 end;
 
 function RectilinearInfill(const Region: TPolygons2D; AngleDeg, Spacing, Offset: Double): TPolygons2D;
@@ -158,6 +157,7 @@ begin
     end;
     AppendClipped(Result, Line, Region);
   end;
+  Result := ClipLinesToRegion(Result, Region);
 end;
 
 end.

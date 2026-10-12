@@ -12,7 +12,7 @@ unit multislicer_clip;
 
 interface
 
-uses Math, multisuite_geometry, Clipper;
+uses Math, multisuite_geometry, Clipper, Clipper.Core, Clipper.Engine;
 
 const
   MS_CLIP_DECIMALS = 4;     { 0,0001 mm }
@@ -26,9 +26,14 @@ function RegionDifference(const A, B: TPolygons2D): TPolygons2D;
 function RegionIntersect(const A, B: TPolygons2D): TPolygons2D;
 { Delta > 0 cresce, < 0 encolhe (cantos redondos) }
 function RegionOffset(const P: TPolygons2D; Delta: Double): TPolygons2D;
+{ offset com cantos vivos (paredes do fatiador, como o InsetLoops) }
+function RegionOffsetMiter(const P: TPolygons2D; Delta: Double; MiterLimit: Double = 3): TPolygons2D;
 { abertura morfologica: tira faixas mais finas que 2 * R }
 function RegionOpen(const P: TPolygons2D; R: Double): TPolygons2D;
 function RegionArea(const P: TPolygons2D): Double;
+{ recorta linhas abertas (preenchimento) pela regiao, de uma vez so (varredura
+  da Clipper: bem mais rapido que linha a linha contra todas as arestas) }
+function ClipLinesToRegion(const Lines, Region: TPolygons2D): TPolygons2D;
 { so os contornos externos (sem os furos), preenchidos }
 function RegionOuter(const P: TPolygons2D): TPolygons2D;
 function RectPolygon(X0, Y0, X1, Y1: Double): TPolygon2D;
@@ -102,6 +107,51 @@ begin
   if Length(P) = 0 then Exit(nil);
   if Abs(Delta) < 1e-9 then Exit(RegionUnionAll(P));
   Result := FromClip(InflatePaths(ToClip(P), Delta, jtRound, etPolygon, 2.0, MS_CLIP_DECIMALS, MS_ARC_TOL));
+end;
+
+function ClipLinesToRegion(const Lines, Region: TPolygons2D): TPolygons2D;
+var C: TClipperD; Closed, Open: TPathsD; I, J, K, N: Integer;
+begin
+  Result := nil;
+  if (Length(Lines) = 0) or (Length(Region) = 0) then Exit;
+  C := TClipperD.Create(MS_CLIP_DECIMALS);
+  try
+    for I := 0 to High(Lines) do
+      if Length(Lines[I]) >= 2 then
+      begin
+        SetLength(Open, 1);
+        SetLength(Open[0], Length(Lines[I]));
+        for J := 0 to High(Lines[I]) do
+        begin
+          Open[0][J].X := Lines[I][J].X;
+          Open[0][J].Y := Lines[I][J].Y;
+        end;
+        C.AddOpenSubject(Open[0]);
+      end;
+    C.AddClip(ToClip(Region));
+    Open := nil;
+    C.Execute(ctIntersection, frEvenOdd, Closed, Open);
+  finally
+    C.Free;
+  end;
+  SetLength(Result, Length(Open));
+  K := 0;
+  for I := 0 to High(Open) do
+  begin
+    N := Length(Open[I]);
+    if N < 2 then Continue;
+    SetLength(Result[K], N);
+    for J := 0 to N - 1 do Result[K][J] := Pt(Open[I][J].X, Open[I][J].Y);
+    Inc(K);
+  end;
+  SetLength(Result, K);
+end;
+
+function RegionOffsetMiter(const P: TPolygons2D; Delta, MiterLimit: Double): TPolygons2D;
+begin
+  if Length(P) = 0 then Exit(nil);
+  if Abs(Delta) < 1e-9 then Exit(RegionUnionAll(P));
+  Result := FromClip(InflatePaths(ToClip(P), Delta, jtMiter, etPolygon, MiterLimit, MS_CLIP_DECIMALS, MS_ARC_TOL));
 end;
 
 function RegionOpen(const P: TPolygons2D; R: Double): TPolygons2D;

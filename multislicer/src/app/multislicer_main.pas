@@ -30,12 +30,25 @@ uses
 
 const
   { manter igual ao VersionInfo do multislicer.lpi (revisao = etapa do PLANO_TAREFAS) }
-  MS_VERSION = '0.0.6.2';
+  MS_VERSION = '0.0.7.0';
   MS_STEP_COUNT = 7;
   MS_STEPS: array[0..MS_STEP_COUNT - 1] of string = ('1  Impressora', '2  Modelo',
     '3  Material', '4  Qualidade', '5  Suportes', '6  Previa', '7  Saida');
 
 type
+  { fatia fora da thread da tela; a malha e uma copia (a cena pode mudar) }
+  TSliceThread = class(TThread)
+  public
+    Engine: TModernSlicer;
+    Mesh: TMesh;
+    Settings: TSliceSettings;
+    Output: TStringList;
+    Report: TSliceReport;
+    ErrorText: string;
+    Canceled: Boolean;
+    procedure Execute; override;
+  end;
+
   TMultiSlicerForm = class(TForm)
   private
     FScene: TSliceScene;
@@ -77,6 +90,11 @@ type
     StartMemo, EndMemo: TMemo;
     PrinterNote: TLabel;
     OnlyLayerBox, TravelsBox, Preview2DBox: TCheckBox;
+    { fatiamento em andamento }
+    FSlicing, FCloseRequested: Boolean;
+    FRunning: TModernSlicer;
+    SliceProgress: TProgressBar;
+    CancelBtn: TSuiteButton;
     { equipamento do MultiCNC (combo no topo) }
     FHeader: TSuiteHeader;
     EquipmentBox: TComboBox;
@@ -151,6 +169,9 @@ type
     procedure ReloadPrinters(const SelectName: string);
     procedure ReloadEquipment;
     procedure PreviewOptionChange(Sender: TObject);
+    procedure CancelSliceClick(Sender: TObject);
+    procedure SetBusy(ABusy: Boolean);
+    procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure EquipmentChange(Sender: TObject);
     procedure HeaderResize(Sender: TObject);
     procedure MachineChecks(Errors, Warnings: TStrings);
@@ -252,6 +273,9 @@ type
     procedure SelectQuality(const AName: string);
     { equipamento do MultiCNC; '' = ajuste manual }
     procedure SelectEquipment(const AName: string);
+    { pede para parar o fatiamento em andamento }
+    procedure CancelSlicing;
+    property Slicing: Boolean read FSlicing;
     property Equipment: TComboBox read EquipmentBox;
     property Machine: TMachineSpec read FMachine;
     property HasMachine: Boolean read FHasMachine;
@@ -418,6 +442,17 @@ begin
   ExportBtn.SetLook(sbsSolid, clSuitePrimary, sikExport);
   SendButton := Button(FooterPanel, 'Abrir no MultiCNC', 0, 15, 200, sikSend, @SendClick);
   SliceBtn.Enabled := False; ExportBtn.Enabled := False; SendButton.Enabled := False;
+  SliceProgress := TProgressBar.Create(Self);
+  SliceProgress.Parent := FooterPanel;
+  SliceProgress.SetBounds(18, 38, 300, 18);
+  SliceProgress.Min := 0; SliceProgress.Max := 1000;
+  SliceProgress.Visible := False;
+  CancelBtn := Button(FooterPanel, 'Cancelar', 0, 15, 116, sikClose, @CancelSliceClick);
+  CancelBtn.Name := 'CancelSlice';
+  CancelBtn.SetLook(sbsSolid, clSuiteDanger, sikClose);
+  CancelBtn.Hint := 'Parar o fatiamento (Esc)';
+  CancelBtn.Visible := False;
+  OnCloseQuery := @FormCloseQuery;
 
   Sidebar := TPanel.Create(Self);
   Sidebar.Parent := Self; Sidebar.Align := alLeft; Sidebar.Width := 214;
@@ -912,6 +947,7 @@ end;
 
 procedure TMultiSlicerForm.ShowError(E: Exception);
 begin
+  if E is EAbort then Exit;   { cancelado: a mensagem ja foi dada }
   Status.Caption := E.Message;
   if Log <> nil then Log.Lines.Add('Erro: ' + E.Message);
   SetState('Verifique o trabalho', clSuiteDanger);
@@ -1080,7 +1116,9 @@ begin
   ExportBtn.Left := SendButton.Left - ExportBtn.Width - 10;
   SliceBtn.Left := ExportBtn.Left - SliceBtn.Width - 10;
   ValidateButton.Left := SliceBtn.Left - ValidateButton.Width - 10;
+  CancelBtn.Left := SliceBtn.Left;
   Status.Width := Max(120, ValidateButton.Left - 30);
+  SliceProgress.Width := Status.Width;
   Coords.Width := Status.Width;
   if ViewBar <> nil then
     LayerTrack.Width := Max(120, ViewBar.ClientWidth - LayerTrack.Left - 16);
@@ -1691,6 +1729,12 @@ end;
 
 procedure TMultiSlicerForm.FormKey(Sender: TObject; var Key: Word; Shift: TShiftState);
 begin
+  if FSlicing and (Key = VK_ESCAPE) then
+  begin
+    CancelSlicing;
+    Key := 0;
+    Exit;
+  end;
   { Ctrl+Z / Ctrl+Y so fora dos campos de texto (la eles desfazem o texto) }
   if (ssCtrl in Shift) and ((ActiveControl = View3D) or (ActiveControl = ObjectList) or (ActiveControl = nil) or
     (ActiveControl is TSuiteButton)) then
@@ -2446,15 +2490,60 @@ begin
 end;
 
 procedure TMultiSlicerForm.GenerateProgram;
-var Candidate: TModernSlicer; G: TStringList; R: TSliceReport;
+var Candidate: TModernSlicer; G: TStringList; R: TSliceReport; Th: TSliceThread; Err: string; WasCanceled: Boolean;
 begin
+  if FSlicing then Exit;
   if FScene.Count = 0 then raise Exception.Create('Abra um modelo STL ou 3MF primeiro.');
   FScene.MergedMesh(FMerged);
   Candidate := TModernSlicer.Create;
   G := TStringList.Create;
-  Screen.Cursor := crHourGlass;
   try
-    R := Candidate.Slice(FMerged, Settings, G);
+    { a tela continua viva: barra de andamento e Cancelar (Esc) }
+    Th := TSliceThread.Create(True);
+    try
+      Th.Engine := Candidate;
+      Th.Mesh := TMesh.Create;
+      FScene.MergedMesh(Th.Mesh);
+      Th.Settings := Settings;
+      Th.Output := G;
+      Th.FreeOnTerminate := False;
+      FRunning := Candidate;
+      SetBusy(True);
+      try
+        Th.Start;
+        while not Th.Finished do
+        begin
+          SliceProgress.Position := Round(Candidate.Progress * 1000);
+          Status.Caption := Format('%s... %d%%  (Esc cancela)',
+            [SLICE_STAGE_NAMES[EnsureRange(Candidate.Stage, 0, 3)], Round(Candidate.Progress * 100)]);
+          Application.ProcessMessages;
+          Sleep(15);
+        end;
+        Th.WaitFor;
+      finally
+        FRunning := nil;
+        SetBusy(False);
+      end;
+      if FCloseRequested then
+      begin
+        Close;
+        Abort;
+      end;
+      R := Th.Report;
+      Err := Th.ErrorText;
+      WasCanceled := Th.Canceled;
+    finally
+      Th.Mesh.Free;
+      Th.Free;
+    end;
+    if WasCanceled then
+    begin
+      Status.Caption := 'Fatiamento cancelado. A previa anterior foi mantida.';
+      Log.Lines.Add('Fatiamento cancelado.');
+      SetState('Cancelado', clSuiteWarning);
+      Abort;
+    end;
+    if Err <> '' then raise Exception.Create(Err);
     if (R.Layers = 0) or (G.Count = 0) then raise Exception.Create('O modelo nao gerou camadas imprimiveis.');
     View.SetSlice(nil, -1);
     View3D.SetToolpaths(nil);
@@ -2498,9 +2587,63 @@ begin
     SendButton.Enabled := False;
     ShowViewMode(svCamadas);
   finally
-    Screen.Cursor := crDefault;
     G.Free;
     Candidate.Free;
+  end;
+end;
+
+procedure TSliceThread.Execute;
+begin
+  try
+    Report := Engine.Slice(Mesh, Settings, Output);
+  except
+    on ESliceCanceled do Canceled := True;
+    on E: Exception do ErrorText := E.Message;
+  end;
+end;
+
+procedure TMultiSlicerForm.CancelSlicing;
+begin
+  if FRunning <> nil then FRunning.CancelRequested := True;
+end;
+
+procedure TMultiSlicerForm.CancelSliceClick(Sender: TObject);
+begin
+  CancelSlicing;
+end;
+
+procedure TMultiSlicerForm.SetBusy(ABusy: Boolean);
+var I: Integer;
+begin
+  FSlicing := ABusy;
+  Pages.Enabled := not ABusy;
+  for I := 0 to High(Nav) do Nav[I].Enabled := not ABusy;
+  ObjectList.Enabled := not ABusy;
+  EquipmentBox.Enabled := not ABusy;
+  ViewBar.Enabled := not ABusy;
+  ValidateButton.Visible := not ABusy;
+  SliceBtn.Visible := not ABusy;
+  ExportBtn.Enabled := not ABusy and (FScene.Count > 0);
+  SendButton.Enabled := not ABusy and (FExportedFile <> '');
+  CancelBtn.Visible := ABusy;
+  SliceProgress.Position := 0;
+  SliceProgress.Visible := ABusy;
+  Coords.Visible := not ABusy;
+  if ABusy then
+  begin
+    SetState('Fatiando...', clSuiteInfo);
+  end;
+end;
+
+procedure TMultiSlicerForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+begin
+  { fechando no meio do fatiamento: cancela e fecha quando a thread parar }
+  CanClose := not FSlicing;
+  if FSlicing then
+  begin
+    CancelSlicing;
+    FCloseRequested := True;
+    Status.Caption := 'Cancelando o fatiamento para fechar...';
   end;
 end;
 
