@@ -16,7 +16,8 @@ unit multicad_occt;
 interface
 
 uses
-  SysUtils, Classes, Math, dynlibs, multicad_types, multicad_mesh, multicad_sweep;
+  SysUtils, Classes, Math, dynlibs, multicad_types, multicad_mesh, multicad_sweep,
+  multicad_blendgeom;
 
 type
   TOcctShape = Pointer;
@@ -42,6 +43,11 @@ function OcctRevolve(const Frame: TCadFrame; const Region: TCadSweepRegion;
 { Perfil (r, z) revolucionado em torno de Z (furos): Pts em pares, nomes por trecho. }
 function OcctRevolveRZ(const C, X, Z: TCadVec3; const R0, Z0, R1, Z1: array of Double;
   const Names: array of string; out AError: string): TOcctShape;
+
+{ Ferramenta de filete/chanfro de aresta reta: secao exata varrida ao longo
+  da aresta (CadBlendSection). A face nova recebe FaceName. }
+function OcctBlendTool(const Frame: TCadFrame; const Segs: TCadSectionSegs; Len: Double;
+  const FaceName: string; out AError: string): TOcctShape;
 
 { 0 uniao, 1 diferenca, 2 intersecao. Os argumentos continuam do chamador. }
 function OcctBoolean(A, B: TOcctShape; Op: Integer; out AError: string): TOcctShape;
@@ -491,6 +497,47 @@ begin
     Pt[0] := C.X; Pt[1] := C.Y; Pt[2] := C.Z;
     D[0] := Fr.YDir.X; D[1] := Fr.YDir.Y; D[2] := Fr.YDir.Z;
     Result := f_revol(P, @Pt[0], @D[0], 0, 360, PChar(Names[0]));
+    if Result = nil then
+      AError := OcctLastError;
+  finally
+    f_prof_free(P);
+  end;
+end;
+
+function OcctBlendTool(const Frame: TCadFrame; const Segs: TCadSectionSegs; Len: Double;
+  const FaceName: string; out AError: string): TOcctShape;
+var
+  F: TDoubleArray12;
+  P: Pointer;
+  I: Integer;
+  D: array[0..2] of Double;
+  Nm: string;
+begin
+  Result := nil;
+  AError := '';
+  if not OcctAvailable then
+  begin
+    AError := GLoadErr;
+    Exit;
+  end;
+  F := FrameArr(Frame);
+  P := f_prof_new(@F[0]);
+  try
+    f_prof_loop(P);
+    for I := 0 to High(Segs) do
+    begin
+      if Segs[I].IsFace then
+        Nm := FaceName
+      else
+        Nm := FaceName + '/aux' + IntToStr(I);
+      with Segs[I] do
+        if Arc then
+          f_prof_arc(P, CX, CY, R, X1, Y1, X2, Y2, Ord(Ccw), PChar(Nm))
+        else
+          f_prof_line(P, X1, Y1, X2, Y2, PChar(Nm));
+    end;
+    D[0] := Frame.Normal.X; D[1] := Frame.Normal.Y; D[2] := Frame.Normal.Z;
+    Result := f_prism(P, @D[0], 0, Len, PChar(FaceName + '/aux'));
     if Result = nil then
       AError := OcctLastError;
   finally

@@ -103,6 +103,8 @@ type
     procedure BuildHole(H: TCadHole);
     procedure BuildPattern(P: TCadPatternBase);
     procedure BuildBlend(F: TCadBlendBase);
+    function BlendFallbackOcct(F: TCadBlendBase; B: TCadBody; const NA, NB: TCadStrArray;
+      out AError: string): TOcctShape;
     function CollectBlend(F: TCadBlendBase; out Items: TCadBlendItems; out Skipped: Integer;
       out FirstErr: string): Boolean;
     procedure BuildShell(S: TCadShell);
@@ -2570,6 +2572,110 @@ begin
     end;
 end;
 
+function TCadRebuilder.BlendFallbackOcct(F: TCadBlendBase; B: TCadBody; const NA, NB: TCadStrArray;
+  out AError: string): TOcctShape;
+var
+  K, J, FA, FB: Integer;
+  Cur, R, Tool: TOcctShape;
+  M: TCadMesh;
+  P: TCadBlendParams;
+  Chains: TCadEdgeChains;
+  Fr: TCadFrame;
+  Segs: TCadSectionSegs;
+  Len, D1, D2: Double;
+  IsCut: Boolean;
+  E: string;
+  Ident: TCadMat4;
+begin
+  AError := '';
+  P := Default(TCadBlendParams);
+  P.ChordTol := FChord;
+  if F is TCadFillet3D then
+  begin
+    P.Kind := bkFillet;
+    P.Radius := TCadFillet3D(F).Radius;
+  end
+  else
+  begin
+    P.Kind := bkChamfer;
+    TCadChamfer3D(F).Distances(D1, D2);
+    P.D1 := D1;
+    P.D2 := D2;
+  end;
+  Ident := MatIdentity;
+  Cur := OcctCopy(B.Shape);
+  for K := 0 to High(NA) do
+  begin
+    { 1) so esta aresta pelo OCCT }
+    if P.Kind = bkFillet then
+      R := OcctFillet(Cur, [NA[K]], [NB[K]], P.Radius, F.Name + '#', E)
+    else
+      R := OcctChamfer(Cur, [NA[K]], [NB[K]], P.D1, P.D2, F.Name + '#', E);
+    if R <> nil then
+    begin
+      Tool := OcctTransform(R, Ident, F.Name + '#/1', F.Name + '/' + IntToStr(K + 1));
+      OcctFree(R);
+      OcctFree(Cur);
+      Cur := Tool;
+      Continue;
+    end;
+    { 2) ferramenta de secao exata (aresta reta entre planos) }
+    M := ShapeMesh(Cur, E);
+    if M = nil then
+    begin
+      OcctFree(Cur);
+      AError := E;
+      Exit(nil);
+    end;
+    try
+      FA := M.FaceIndex(NA[K]);
+      FB := M.FaceIndex(NB[K]);
+      if (FA < 0) or (FB < 0) then
+        Continue;
+      if (M.Faces[FA].Surf <> skPlane) or (M.Faces[FB].Surf <> skPlane) then
+      begin
+        OcctFree(Cur);
+        AError := 'o OpenCascade não conseguiu fazer a aresta ' + NA[K] + ' | ' + NB[K] +
+          ' (entre faces curvas): tente outro raio ou inclua as arestas vizinhas na mesma operação';
+        Exit(nil);
+      end;
+      Chains := CadEdgeChains(M, FA, FB);
+      for J := 0 to High(Chains) do
+      begin
+        if not CadBlendSection(M, Chains[J], P, Fr, Segs, Len, IsCut, E) then
+        begin
+          OcctFree(Cur);
+          AError := NA[K] + ' | ' + NB[K] + ': ' + E;
+          Exit(nil);
+        end;
+        Tool := OcctBlendTool(Fr, Segs, Len, F.Name + '/' + IntToStr(K + 1), E);
+        if Tool = nil then
+        begin
+          OcctFree(Cur);
+          AError := E;
+          Exit(nil);
+        end;
+        if IsCut then
+          R := OcctBoolean(Cur, Tool, 1, E)
+        else
+          R := OcctBoolean(Cur, Tool, 0, E);
+        OcctFree(Tool);
+        if R = nil then
+        begin
+          OcctFree(Cur);
+          AError := E;
+          Exit(nil);
+        end;
+        OcctFree(Cur);
+        Cur := R;
+      end;
+    finally
+      M.Free;
+    end;
+  end;
+  Result := Cur;
+end;
+
 procedure TCadRebuilder.BuildBlend(F: TCadBlendBase);
 var
   NA, NB: TCadStrArray;
@@ -2608,8 +2714,15 @@ begin
       end;
       if RS = nil then
       begin
-        F.SetState(fsError, 'Falha no ' + LowerCase(CAD_FEATURE_NAMES[F.Kind]) + ': ' + Err);
-        Exit;
+        { o OCCT nao fez o conjunto (ex.: aresta que termina em filete anterior
+          do mesmo raio): aresta por aresta, e se ainda falhar, ferramenta de
+          secao exata varrida na aresta (corte/uniao) }
+        RS := BlendFallbackOcct(F, Body(Bi), NA, NB, Err);
+        if RS = nil then
+        begin
+          F.SetState(fsError, 'Falha no ' + LowerCase(CAD_FEATURE_NAMES[F.Kind]) + ': ' + Err);
+          Exit;
+        end;
       end;
       if Err <> '' then
         FirstErr := Err;

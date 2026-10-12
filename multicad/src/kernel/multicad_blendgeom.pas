@@ -58,6 +58,23 @@ function CadBlendTool(M: TCadMesh; FA, FB: Integer; const Chain: TCadEdgeChain;
 function CadOffsetMesh(M: TCadMesh; TKeep, TRemoved: Double;
   const Removed: array of Boolean; out AError: string): TCadMesh;
 
+type
+  { Trecho da secao exata do filete/chanfro (para o OpenCascade). }
+  TCadSectionSeg = record
+    Arc: Boolean;
+    X1, Y1, X2, Y2, CX, CY, R: Double;
+    Ccw: Boolean;
+    IsFace: Boolean;   { a face nova (arco ou chanfro) }
+  end;
+  TCadSectionSegs = array of TCadSectionSeg;
+
+{ Secao exata da ferramenta de uma aresta reta entre planos: referencial
+  (normal = direcao da aresta, origem antes do inicio), trechos 2D e
+  comprimento da varredura. }
+function CadBlendSection(M: TCadMesh; const Chain: TCadEdgeChain; const P: TCadBlendParams;
+  out Frame: TCadFrame; out Segs: TCadSectionSegs; out Len: Double; out IsCut: Boolean;
+  out AError: string): Boolean;
+
 implementation
 
 type
@@ -736,6 +753,107 @@ begin
     FreeAndNil(Result);
     AError := 'ferramenta inválida (' + AError + ')';
   end;
+end;
+
+
+function CadBlendSection(M: TCadMesh; const Chain: TCadEdgeChain; const P: TCadBlendParams;
+  out Frame: TCadFrame; out Segs: TCadSectionSegs; out Len: Double; out IsCut: Boolean;
+  out AError: string): Boolean;
+var
+  P0, Pn, D, NA3, NB3, TA3, TB3, X3, Y3: TCadVec3;
+  tA, tB, nA, nB, Cen, A, B, Q: TV2;
+  Poly: TV2Arr;
+  NFace, QIdx, I, J, First: Integer;
+  Ext: Double;
+
+  function To2(const V: TCadVec3): TV2;
+  begin
+    Result := V2(VDot(V, X3), VDot(V, Y3));
+  end;
+
+  procedure AddLine(const U, V: TV2; AFace: Boolean);
+  begin
+    if Sqrt(Sqr(U.X - V.X) + Sqr(U.Y - V.Y)) < 1E-9 then
+      Exit;
+    SetLength(Segs, Length(Segs) + 1);
+    with Segs[High(Segs)] do
+    begin
+      Arc := False;
+      X1 := U.X; Y1 := U.Y; X2 := V.X; Y2 := V.Y;
+      IsFace := AFace;
+    end;
+  end;
+
+begin
+  Result := False;
+  Segs := nil;
+  Len := 0;
+  IsCut := True;
+  AError := '';
+  Frame := Default(TCadFrame);
+  if Chain.Closed or (Length(Chain.Pts) < 2) then
+  begin
+    AError := 'aresta não é reta';
+    Exit;
+  end;
+  P0 := Chain.Pts[0];
+  Pn := Chain.Pts[High(Chain.Pts)];
+  D := VSub(Pn, P0);
+  if VLen(D) < 1E-6 then
+  begin
+    AError := 'aresta degenerada';
+    Exit;
+  end;
+  Len := VLen(D);
+  D := VNorm(D);
+  NA3 := FaceNormal(M, Chain.TriA);
+  NB3 := FaceNormal(M, Chain.TriB);
+  TA3 := VNorm(VCross(NA3, D));
+  TB3 := VNorm(VCross(NB3, VNeg(D)));
+  X3 := TA3;
+  Y3 := VNorm(VCross(D, X3));
+  tA := To2(TA3);
+  tB := To2(TB3);
+  nA := To2(NA3);
+  nB := To2(NB3);
+  if not Section2D(tA, tB, nA, nB, P, Poly, NFace, QIdx, IsCut, Cen, AError) then
+    Exit;
+  if P.Kind = bkFillet then
+    Ext := EnsureRange(0.05 * P.Radius, 0.02, 0.5)
+  else
+    Ext := EnsureRange(0.05 * Max(P.D1, P.D2), 0.02, 0.5);
+  Frame.Origin := VSub(P0, VScale(D, Ext));
+  Frame.XDir := X3;
+  Frame.YDir := Y3;
+  Frame.Normal := D;
+  Len := Len + 2 * Ext;
+  if P.Kind = bkFillet then
+  begin
+    A := Poly[0];
+    B := Poly[NFace - 1];
+    Q := Poly[1];
+    SetLength(Segs, 1);
+    with Segs[0] do
+    begin
+      Arc := True;
+      X1 := A.X; Y1 := A.Y; X2 := B.X; Y2 := B.Y;
+      CX := Cen.X; CY := Cen.Y; R := P.Radius;
+      Ccw := (A.X - Cen.X) * (Q.Y - Cen.Y) - (A.Y - Cen.Y) * (Q.X - Cen.X) > 0;
+      IsFace := True;
+    end;
+    First := NFace - 1;
+  end
+  else
+  begin
+    AddLine(Poly[0], Poly[1], True);
+    First := 1;
+  end;
+  for I := First to High(Poly) do
+  begin
+    J := (I + 1) mod Length(Poly);
+    AddLine(Poly[I], Poly[J], False);
+  end;
+  Result := True;
 end;
 
 function CadBlendTool(M: TCadMesh; FA, FB: Integer; const Chain: TCadEdgeChain;

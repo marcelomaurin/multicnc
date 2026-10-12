@@ -2718,6 +2718,34 @@ begin
       D2.Free;
     end;
     DeleteFile(Fn);
+    { filete vertical depois dos filetes de cima (mesmo raio): o OCCT sozinho
+      falha; a reconstrucao refaz com a ferramenta de secao exata }
+    D2 := TCadDocument.Create;
+    RB2 := TCadRebuilder.Create(D2);
+    try
+      D2.NewPart;
+      S := D2.AddSketch('plane:2');
+      S.AddLine(0, 0, 0, 50); S.AddLine(0, 50, 20, 50); S.AddLine(20, 50, 20, 0); S.AddLine(20, 0, 0, 0);
+      X := D2.AddExtrude(S.Id, 10);
+      Fi := TCadFillet3D.Create;
+      Fi.Radius := 2;
+      Fi.Edges := [CadEdgeRef(X.Name + '/fim', X.Name + '/lat:1'), CadEdgeRef(X.Name + '/fim', X.Name + '/lat:2'),
+        CadEdgeRef(X.Name + '/fim', X.Name + '/lat:3'), CadEdgeRef(X.Name + '/fim', X.Name + '/lat:4')];
+      D2.AddFeature(Fi);
+      Check(RB2.Rebuild = 0, 'OCCT: filetes de cima ' + Fi.Message);
+      V := RB2.TotalVolume;
+      Fi := TCadFillet3D.Create;
+      Fi.Radius := 2;
+      Fi.Edges := [CadEdgeRef(X.Name + '/lat:1', X.Name + '/lat:2')];
+      D2.AddFeature(Fi);
+      Check(RB2.Rebuild = 0, 'OCCT: filete vertical depois dos de cima (mesmo raio): ' + Fi.Message);
+      Check((RB2.TotalVolume < V) and (RB2.TotalVolume > V - 4 * (1 - Pi / 4) * 10) and
+        RB2.Body(0).Mesh.IsClosed and OcctValid(RB2.BodyShape(0)),
+        Format('OCCT: filete vertical valido (%.3f -> %.3f)', [V, RB2.TotalVolume]));
+    finally
+      RB2.Free;
+      D2.Free;
+    end;
     { com o OCCT desligado o mesmo documento volta ao nucleo Pascal }
     RB.UseOcct := False;
     RB.Rebuild;
