@@ -29,7 +29,8 @@ uses
   multicad_camera, multicad_softrender, multicad_view3d, multicad_sketchtools, multicad_extrudeedit,
   multicad_sketchedit, multicad_propman, multicad_undo, multicad_hole, multicad_pattern, multicad_blend, multicad_occt, multicad_import, multicad_materialdlg, multicad_textures, multicad_export, multicad_measure,
   multisuite_types, multisuite_registry, multisuite_launcher, multisuite_context,
-  multicad_sketchpattern, multicad_sketchpatterndlg;
+  multicad_sketchpattern, multicad_sketchpatterndlg, multicad_sketchtext,
+  multicad_sketchtextdlg;
 
 type
   TCadTab = (ctFeatures, ctSketch, ctEvaluate, ctView, ctExport, ctAbout);
@@ -80,6 +81,7 @@ type
     procedure LinearPatternClick(Sender: TObject);
     procedure CircularPatternClick(Sender: TObject);
     procedure SketchPatternClick(Sender: TObject);
+    procedure SketchTextClick(Sender: TObject);
     procedure MirrorClick(Sender: TObject);
     procedure BlendClick(Sender: TObject);
     procedure StopBlendEdit;
@@ -151,7 +153,6 @@ type
     procedure RelationClick(Sender: TObject);
     procedure RelationMenuClick(Sender: TObject);
     procedure DeleteSketchClick(Sender: TObject);
-    procedure ConstructionClick(Sender: TObject);
     procedure GridClick(Sender: TObject);
     procedure GridSnapClick(Sender: TObject);
     procedure PrevViewClick(Sender: TObject);
@@ -602,13 +603,13 @@ begin
         FToolButtons[tkArc3P] := RibbonButton('Arco 3 pontos', sikRedo, @ToolClick, Ord(tkArc3P));
         FToolButtons[tkCenterline] := RibbonButton('Linha de centro', sikMirrorV, @ToolClick, Ord(tkCenterline));
         FToolButtons[tkPoint] := RibbonButton('Ponto', sikTarget, @ToolClick, Ord(tkPoint));
+        RibbonButton('Texto', sikText, @SketchTextClick).Enabled := InSketch;
         RibbonSep;
-        FToolButtons[tkFillet] := RibbonButton('Filete', sikCircle, @ToolClick, Ord(tkFillet));
+        FToolButtons[tkTrim] := RibbonButton('Aparar (Trim)', sikTrim, @ToolClick, Ord(tkTrim));
         FToolButtons[tkChamfer] := RibbonButton('Chanfro', sikRect, @ToolClick, Ord(tkChamfer));
         RibbonSep;
         FToolButtons[tkDimension] := RibbonButton('Cota inteligente', sikGauge, @ToolClick, Ord(tkDimension));
         RibbonButton('Adicionar relação', sikLayers, @RelationMenuClick).Enabled := InSketch;
-        RibbonButton('Linha de apoio', sikMirrorH, @ConstructionClick).Enabled := InSketch;
         RibbonButton('Apagar', sikTrash, @DeleteSketchClick, 0, 90).Enabled := InSketch;
         RibbonButton('Padrão linear', sikCopy, @SketchPatternClick, Ord(skpLinear)).Enabled := InSketch;
         RibbonButton('Padrão circular', sikRedo, @SketchPatternClick, Ord(skpCircular)).Enabled := InSketch;
@@ -1716,40 +1717,28 @@ var
   T: TCadSketchToolKind;
   P: TCadVec2;
   Txt, Err: string;
-  R, D1, D2: Double;
+  D1, D2: Double;
   K: Integer;
 begin
   if FEditor = nil then
     Exit;
   T := TCadSketchToolKind(TComponent(Sender).Tag);
-  { filete/chanfro com duas linhas (ou o ponto do canto) ja selecionadas:
+  { chanfro com duas linhas (ou o ponto do canto) ja selecionadas:
     aplica direto, como no SolidWorks }
-  if (T in [tkFillet, tkChamfer]) and FEditor.Session.CornerFromSelection(P) then
+  if (T = tkChamfer) and FEditor.Session.CornerFromSelection(P) then
   begin
-    if T = tkFillet then
+    Txt := FormatFloat('0.###', FEditor.Session.ChamferD1);
+    if InputQuery('Chanfro', 'Distância ou "d1 x d2" (mm):', Txt) then
     begin
-      Txt := FormatFloat('0.###', FEditor.Session.FilletRadius);
-      if InputQuery('Filete', 'Raio do filete (mm):', Txt) and Doc.Eval(Txt, R, Err) then
+      Txt := StringReplace(LowerCase(Trim(Txt)), '×', 'x', [rfReplaceAll]);
+      K := Pos('x', Txt);
+      if K > 0 then
       begin
-        if FEditor.Session.FilletCorner(P, R) then
-          FEditor.Session.FilletRadius := R;
-      end;
-    end
-    else
-    begin
-      Txt := FormatFloat('0.###', FEditor.Session.ChamferD1);
-      if InputQuery('Chanfro', 'Distância ou "d1 x d2" (mm):', Txt) then
-      begin
-        Txt := StringReplace(LowerCase(Trim(Txt)), '×', 'x', [rfReplaceAll]);
-        K := Pos('x', Txt);
-        if K > 0 then
-        begin
-          if Doc.Eval(Copy(Txt, 1, K - 1), D1, Err) and Doc.Eval(Copy(Txt, K + 1, MaxInt), D2, Err) then
-            FEditor.Session.ChamferCorner(P, D1, D2);
-        end
-        else if Doc.Eval(Txt, D1, Err) then
-          FEditor.Session.ChamferCorner(P, D1, D1);
-      end;
+        if Doc.Eval(Copy(Txt, 1, K - 1), D1, Err) and Doc.Eval(Copy(Txt, K + 1, MaxInt), D2, Err) then
+          FEditor.Session.ChamferCorner(P, D1, D2);
+      end
+      else if Doc.Eval(Txt, D1, Err) then
+        FEditor.Session.ChamferCorner(P, D1, D1);
     end;
     FEditor.Session.ClearSelection;
     FEditor.View3DChanged;
@@ -1773,21 +1762,6 @@ begin
     Exit;
   P := TControl(Sender).ClientToScreen(Point(0, TControl(Sender).Height));
   RelMenu.PopUp(P.X, P.Y);
-end;
-
-procedure TMainForm.ConstructionClick(Sender: TObject);
-begin
-  if FEditor = nil then
-    Exit;
-  { com selecao: alterna normal/apoio; sem selecao: liga/desliga o modo }
-  if FEditor.Session.SelectionConstructionState <> 0 then
-    FEditor.ToggleConstruction
-  else
-  begin
-    FEditor.Session.ConstructionMode := not FEditor.Session.ConstructionMode;
-    FEditor.View3DChanged;
-  end;
-  UpdateSketchPanel;
 end;
 
 procedure TMainForm.GridClick(Sender: TObject);
@@ -1938,7 +1912,7 @@ begin
       SketchHint.Height := 110;
       case Tool of
         tkDimension: HintText := 'Selecione uma reta, círculo ou dois pontos. Mova o mouse para escolher X, Y ou comprimento real e clique para confirmar. Também aceita pontos de esboços anteriores visíveis.';
-        tkFillet: HintText := 'Clique perto do encontro de duas retas para aplicar o filete. Digite o raio durante a operação.';
+        tkTrim: HintText := 'Clique no trecho de reta que deseja remover, entre as interseções mais próximas. Sem interseções, remove a reta inteira. Esc termina; Ctrl+Z desfaz.';
         tkChamfer: HintText := 'Clique perto do encontro de duas retas para aplicar o chanfro. Digite as distâncias durante a operação.';
       else
         HintText := 'Clique na geometria para selecioná-la. Selecione uma linha ou curva para consultar suas propriedades e trocar o tipo.';
@@ -2208,6 +2182,26 @@ begin
       Result[0] := Doc.Feature(I).Id;
       Exit;
     end;
+end;
+
+procedure TMainForm.SketchTextClick(Sender: TObject);
+var D:TCadSketchTextDialog;Ids:TCadIdArray;Error:string;I:Integer;
+begin
+  if not Assigned(FEditor) or PM.Visible then Exit;
+  D:=TCadSketchTextDialog.CreateText(Self,Doc,FEditor.Session.Cursor.P);
+  try
+    if D.ShowModal<>mrOK then Exit;
+    if not CadInsertSketchText(FEditor.Sketch,D.Contours,Ids,Error) then begin
+      CadMessageDlg(Error,mtWarning,[mbOK],0);Exit;
+    end;
+    FEditor.SetTool(tkSelect);FEditor.Session.ClearSelection;
+    SetLength(FEditor.Session.Selection,Length(Ids));
+    for I:=0 to High(Ids) do FEditor.Session.Selection[I]:=PickItem(Ids[I],0);
+    FEditor.Session.Solve;
+    FEditor.View3DChanged;ShowTab(ctSketch);
+    SetStatus(1,'Texto convertido em contornos vetoriais. Saia do esboço para criar uma extrusão ou corte. Ctrl+Z desfaz a inserção.');
+    CadLog('SKETCH.TEXT',Format('font=%s height=%g segments=%d',[D.Settings.FontName,D.Settings.Height,Length(Ids)]));
+  finally D.Free;end;
 end;
 
 procedure TMainForm.SketchPatternClick(Sender: TObject);

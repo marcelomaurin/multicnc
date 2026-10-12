@@ -1,7 +1,27 @@
-# Pendencias da suite (atualizado 10/10/2026)
+# Pendências da suíte (atualizado 12/10/2026)
 
-Lista do que ficou aberto. Detalhes do LaserArt em
-`laserart/docs/LASERART_PLANO.md`.
+## Sincronização de 12/10/2026
+
+- Integrados os dez commits publicados em `origin/fila` até `0f67b3e`, incluindo
+  as melhorias OpenCascade do MultiCAD e as etapas 0 a 6 do MultiSlicer.
+- Recuperadas as alterações locais guardadas anteriormente: linha de apoio
+  restrita ao esboço ativo, Aparar (Trim), texto vetorial com fonte e tamanho,
+  testes, documentação, capturas e manuais.
+- MultiCAD **0.0.8.4** recompilado com as melhorias locais e remotas. LaserArt
+  **0.02.1** recompilado com a correção do preenchimento que causava exceção
+  numérica. Mantido o MultiSlicer publicado **0.0.6.0**.
+- Validação em Windows: **25 programas de teste aprovados**, sendo 18 do MultiCAD,
+  quatro do MultiSlicer e três do LaserArt. A suíte principal do MultiCAD passou
+  587 verificações com OpenCascade 7.6.3; os testes específicos cobrem Trim, texto,
+  visibilidade do esboço, filetes, suportes, perfis e saída do laser.
+- [Manuais ilustrados em português](Manuals/README.md), com a versão de referência
+  e links para as imagens: MultiCAD 0.0.8.4 e LaserArt 0.02.1.
+- Corrigido o guia do MultiSlicer que ainda dizia que suportes não eram gerados.
+
+Os registros abaixo preservam o histórico das entregas e das pendências na data
+indicada. O trabalho futuro de cada módulo continua nos respectivos planos;
+esta sincronização não conclui as etapas futuras desses planos. Detalhes do
+LaserArt em [LASERART_PLANO.md](../laserart/docs/LASERART_PLANO.md).
 
 ## Entrega de 10/10/2026 — setup 007
 

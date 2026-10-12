@@ -13,8 +13,8 @@
    <UseVersionInfo Value="True"/>
    <MinorVersionNr Value="0"/>
    <RevisionNr Value="8"/>
-   <BuildNr Value="3"/>
-   <StringTable CompanyName="Maurinsoft" FileDescription="MultiCAD" ProductName="MultiCAD / MultiSuite" ProductVersion="0.0.8.3"/>
+   <BuildNr Value="4"/>
+   <StringTable CompanyName="Maurinsoft" FileDescription="MultiCAD" ProductName="MultiCAD / MultiSuite" ProductVersion="0.0.8.4"/>
   </VersionInfo>
   <BuildModes Count="1">
    <Item1 Name="Default" Default="True" />
@@ -37,7 +37,7 @@
    <Filename Value="multicad" />
   </Target>
   <SearchPaths>
-   <OtherUnitFiles Value="../core;../sketch;../features;../kernel;../ui;../../../src/shared;../../../multisuite/src/core" />
+   <OtherUnitFiles Value="../../../src/shared/clipper2;../core;../sketch;../features;../kernel;../ui;../../../src/shared;../../../multisuite/src/core" />
    <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
   </SearchPaths>
   <Parsing>

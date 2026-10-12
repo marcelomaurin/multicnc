@@ -118,6 +118,7 @@ var
   J: TLAJob;
   G: TStringList;
   I, Cuts: Integer;
+  OldMask: TFPUExceptionMask;
 begin
   Writeln('Preenchimento e passadas');
   D := NewDoc;
@@ -127,9 +128,18 @@ begin
     begin
       Mode := lmFill; Speed := 3000; PowerMax := 30; Interval := 0.5; Passes := 2; AirAssist := True;
     end;
-    J := BuildJob(D);
+    OldMask := GetExceptionMask;
+    SetExceptionMask(OldMask - [exOverflow, exInvalidOp]);
+    try
+      J := BuildJob(D);
+    finally
+      SetExceptionMask(OldMask);
+    end;
     G := nil;
     try
+      Check(J.Ok, 'preenchimento gerado com overflow/invalid habilitados');
+      Check((J.Count > 0) and (J.Move(0).Kind = mkRapid) and (J.Move(0).S = 0),
+        'primeiro segmento aproxima com G0 e laser desligado');
       Cuts := 0;
       for I := 0 to J.Count - 1 do
         if J.Move(I).Kind = mkCut then Inc(Cuts);

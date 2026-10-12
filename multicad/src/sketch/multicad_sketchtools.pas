@@ -22,11 +22,11 @@ interface
 
 uses
   Classes, SysUtils, Math, multicad_types, multicad_sketch, multicad_solver,
-  multicad_document, multicad_sketchpattern;
+  multicad_document, multicad_sketchpattern, multicad_sketchtrim;
 
 type
   TCadSketchToolKind = (tkSelect, tkLine, tkRectangle, tkCircle, tkArc3P,
-    tkCenterline, tkPoint, tkDimension, tkArcCenter, tkArcTangent, tkFillet,
+    tkCenterline, tkPoint, tkDimension, tkArcCenter, tkArcTangent, tkTrim,
     tkChamfer);
 
   { Ponto capturado: Ent > 0 e Pt > 0 = ponto de entidade; Ent = origem;
@@ -160,6 +160,9 @@ type
     function ApplyTyped(const AText: string): Boolean;
     { Liga/desliga "construcao" nas entidades selecionadas. }
     function ToggleConstruction: Boolean;
+    { Previa e corte do trecho de reta sob o cursor, entre intersecoes. }
+    function TrimPreview(const P: TCadVec2; out Segment: TSketchEntity): Boolean;
+    function TrimAt(const P: TCadVec2): Boolean;
     { Filete / chanfro no canto entre duas linhas perto de P. }
     function FilletCorner(const P: TCadVec2; R: Double): Boolean;
     { Canto da selecao (duas linhas que se encontram, ou o ponto do canto). }
@@ -177,7 +180,7 @@ const
   CAD_TOOL_NAMES: array[TCadSketchToolKind] of string = ('Selecionar', 'Linha',
     'Retângulo de canto', 'Círculo', 'Arco de 3 pontos', 'Linha de centro',
     'Ponto', 'Cota inteligente', 'Arco pelo centro', 'Arco tangente',
-    'Filete de esboço', 'Chanfro de esboço');
+    'Aparar (Trim)', 'Chanfro de esboço');
 
 function PickItem(AEnt, APt: Integer): TCadPickItem;
 
@@ -334,7 +337,7 @@ begin
   Result := Default(TCadSnap);
   Result.P := P;
   Best := PickTol;
-  Drawing := AllowCurve and not (FTool in [tkSelect, tkDimension, tkFillet, tkChamfer]);
+  Drawing := AllowCurve and not (FTool in [tkSelect, tkDimension, tkTrim, tkChamfer]);
   SetLength(Pts, 0);
   { origem }
   AddPt(V2(0, 0));
@@ -519,6 +522,11 @@ var
   K: TConstraintKind;
   I: Integer;
 begin
+  if FTool = tkTrim then
+  begin
+    Cursor := Default(TCadSnap); Cursor.P := P; CursorInfer := 0;
+    Exit;
+  end;
   if FPlaceId <> 0 then
   begin
     I := FSketch.ConstraintIndex(FPlaceId);
@@ -787,24 +795,7 @@ begin
           LastMessage := 'O fim está na direção da tangente: use uma linha';
         SetLength(FClicks, 0);
       end;
-    tkFillet:
-      begin
-        R := FilletRadius;
-        if Assigned(FOnAskValue) then
-        begin
-          Txt := FormatFloat('0.###', R);
-          if not FOnAskValue(Self, 'Raio do filete (mm)', Txt) then
-            Exit;
-          if not FDoc.Eval(Txt, R, Txt) then
-          begin
-            LastMessage := 'Valor inválido: ' + Txt;
-            Exit;
-          end;
-        end;
-        Result := FilletCorner(P, R);
-        if Result then
-          FilletRadius := R;
-      end;
+    tkTrim: Exit(TrimAt(P));
     tkChamfer:
       begin
         D1 := ChamferD1;
@@ -2057,6 +2048,48 @@ begin
       P := A[K];
       Exit(True);
     end;
+end;
+
+function TCadSketchSession.TrimPreview(const P: TCadVec2; out Segment: TSketchEntity): Boolean;
+var Cut: TCadTrimSegment;
+begin
+  Segment := Default(TSketchEntity);
+  Result := CadSketchTrimPreview(FSketch, P, PickTol, Cut);
+  if Result then
+  begin
+    Segment := FSketch.Entity(FSketch.EntityIndex(Cut.EntityId));
+    Segment.P1 := Cut.A; Segment.P2 := Cut.B;
+  end;
+end;
+
+function TCadSketchSession.TrimAt(const P: TCadVec2): Boolean;
+var Cut: TCadTrimSegment; BeforeCount, RightId: Integer;
+begin
+  Result := False;
+  LastMessage := '';
+  if not CadSketchTrimPreview(FSketch, P, PickTol, Cut) then
+  begin
+    LastMessage := 'Clique dentro do trecho de reta que deseja aparar';
+    Exit;
+  end;
+  BeforeCount := FSketch.EntityCount;
+  Result := FSketch.TrimLine(Cut.EntityId, Cut.T0, Cut.T1);
+  if Result then
+  begin
+    { Os novos extremos continuam ligados as curvas que limitaram o corte. }
+    if (Cut.T0 > 0) and (Cut.Boundary0 > 0) then
+      FSketch.AddConstraint(ckCoincident, Cut.EntityId, 2, Cut.Boundary0, 0);
+    if (Cut.T1 < 1) and (Cut.Boundary1 > 0) then
+    begin
+      RightId := Cut.EntityId;
+      if FSketch.EntityCount > BeforeCount then RightId := FSketch.Entity(FSketch.EntityCount - 1).Id;
+      FSketch.AddConstraint(ckCoincident, RightId, 1, Cut.Boundary1, 0);
+    end;
+    ClearSelection;
+    Solve;
+    if LastSolve.Status = ssConflict then LastMessage := LastSolve.Message
+    else LastMessage := 'Trecho aparado. Clique em outro trecho ou pressione Esc para terminar';
+  end;
 end;
 
 function TCadSketchSession.FilletPreview(const P: TCadVec2; R: Double; out Arc: TSketchEntity): Boolean;

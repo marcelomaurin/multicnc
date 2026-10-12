@@ -94,6 +94,9 @@ type
     procedure DeleteConstraint(AId: Integer);
     { Apaga a entidade e as restricoes/cotas que a usam. }
     procedure DeleteEntity(AId: Integer);
+    { Remove o intervalo parametrico da reta, preservando Ids e referencias
+      das extremidades que continuam existindo. }
+    function TrimLine(AId: Integer; AFrom, ATo: Double): Boolean;
     function EntityCount: Integer;
     function ConstraintCount: Integer;
     function Entity(I: Integer): TSketchEntity;
@@ -492,6 +495,84 @@ begin
     if (FConstraints[J].EntityA = AId) or (FConstraints[J].EntityB = AId) or
       (FConstraints[J].EntityC = AId) then
       DeleteConstraint(FConstraints[J].Id);
+end;
+
+function TCadSketch.TrimLine(AId: Integer; AFrom, ATo: Double): Boolean;
+var
+  Index, I, LeftId, RightId, MainId: Integer;
+  E, Part: TSketchEntity;
+  C: TSketchConstraint;
+  Len, Eps: Double;
+  KeepLeft, KeepRight, FixedWhole, HasDirection, Valid: Boolean;
+
+  function At(T: Double): TCadVec2;
+  begin Result := V2(E.P1.X + (E.P2.X - E.P1.X) * T,
+    E.P1.Y + (E.P2.Y - E.P1.Y) * T); end;
+
+  function MapRef(var EntityId: Integer; Point: Integer; Direction: Boolean): Boolean;
+  begin
+    Result := True;
+    if EntityId <> AId then Exit;
+    case Point of
+      1: begin Result := KeepLeft; EntityId := LeftId; end;
+      2: begin Result := KeepRight; EntityId := RightId; end;
+      0: begin Result := Direction; EntityId := MainId; end;
+    else Result := False;
+    end;
+  end;
+
+begin
+  Result := False;
+  Index := EntityIndex(AId);
+  if (Index < 0) or IsNan(AFrom) or IsNan(ATo) or
+    IsInfinite(AFrom) or IsInfinite(ATo) then Exit;
+  E := FEntities[Index];
+  if (E.Kind <> seLine) or (E.SourceRef <> '') then Exit;
+  Len := Sqrt(Sqr(E.P2.X - E.P1.X) + Sqr(E.P2.Y - E.P1.Y));
+  if Len <= 1E-8 then Exit;
+  Eps := 1E-8 / Len;
+  if (AFrom < 0) or (ATo > 1) or (ATo - AFrom <= Eps) then Exit;
+  KeepLeft := AFrom > Eps;
+  KeepRight := ATo < 1 - Eps;
+  if not KeepLeft and not KeepRight then
+  begin DeleteEntity(AId); Exit(True); end;
+  LeftId := 0; RightId := 0; MainId := AId;
+  if KeepLeft then
+  begin
+    LeftId := AId; Part := E; Part.P2 := At(AFrom); SetEntity(Index, Part);
+  end;
+  if KeepRight then
+  begin
+    if KeepLeft then
+      RightId := AddLine(0, 0, 1, 0, E.Construction)
+    else RightId := AId;
+    Part := E; Part.P1 := At(ATo);
+    SetEntity(EntityIndex(RightId), Part);
+  end;
+  FixedWhole := False; HasDirection := False;
+  for I := High(FConstraints) downto 0 do
+  begin
+    C := FConstraints[I];
+    if (C.EntityA <> AId) and (C.EntityB <> AId) and (C.EntityC <> AId) then Continue;
+    if (C.Kind = ckFixed) and (C.EntityA = AId) and (C.PointA = 0) then
+    begin FixedWhole := True; DeleteConstraint(C.Id); Continue; end;
+    { Comprimentos, pontos medios e contatos perdidos nao podem restaurar
+      o trecho apagado. Relacoes de direcao e extremos conservados continuam. }
+    Valid := C.Kind in [ckHorizontal, ckVertical, ckParallel, ckPerpendicular, ckAngle];
+    if Valid then HasDirection := True;
+    Valid := MapRef(C.EntityA, C.PointA, Valid) and
+      MapRef(C.EntityB, C.PointB, Valid) and
+      MapRef(C.EntityC, C.PointC, C.Kind = ckSymmetric);
+    if Valid then FConstraints[I] := C else DeleteConstraint(C.Id);
+  end;
+  if FixedWhole then
+  begin
+    if KeepLeft then AddFixed(LeftId, 0);
+    if KeepRight then AddFixed(RightId, 0);
+  end
+  else if KeepLeft and KeepRight and HasDirection then
+    AddConstraint(ckParallel, LeftId, 0, RightId, 0);
+  Result := True;
 end;
 
 function TCadSketch.EntityCount: Integer;

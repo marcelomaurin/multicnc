@@ -1,11 +1,11 @@
 # MultiCAD
 
-> **Estado (10/10/2026):** fases 0 a 4 prontas (primeira entrega). Já dá para abrir o `bin/multicad.exe`,
+> **Estado (12/10/2026, versão 0.0.8.4):** já dá para abrir o `bin/multicad.exe`,
 > criar esboços com cotas e relações (no plano ou numa face), fazer ressalto e corte
 > extrudados ou revolucionados, planos de referência, editar pela árvore e pelo
 > PropertyManager, ver em 5 estilos e em seção, salvar em `.mcad`, medir, exportar STL
-> (em pé para o MultiSlicer) e DXF. Exemplo: `examples/suporte.mcad`. Próxima: furo,
-> padrões e espelho (fase 5).
+> (em pé para o MultiSlicer) e DXF. Inclui furo, padrões, espelho, Aparar (Trim)
+> e texto convertido em contornos vetoriais do esboço. Exemplo: `examples/suporte.mcad`.
 > Plano e pendências em [docs/TAREFA.md](docs/TAREFA.md).
 
 O **MultiCAD** é o CAD **paramétrico de peças mecânicas** da suíte. O fluxo de referência é o do
@@ -21,6 +21,41 @@ O **MultiCAD** é o CAD **paramétrico de peças mecânicas** da suíte. O fluxo
 
 O resultado é a geometria da peça, que as outras ferramentas usam para fabricar, montar e
 simular. O MultiCAD **nunca** gera G-code nem fala com a máquina.
+
+## Manual do usuário
+
+[Manual ilustrado em português - MultiCAD 0.0.8.4 (PDF)](../docs/Manuals/Manual_do_Usuario_MultiCAD_0.0.8.4_PT-BR.pdf)
+
+34 páginas com procedimentos de uso, parâmetros, exercício guiado e 16 figuras da interface atual. As [capturas de 0.0.8.4](../imgs/manual_multicad_0_0_8_4/README.md) incluem Texto vetorial, Trim, operações, materiais e painéis.
+
+![MultiCAD 0.0.8.4: texto convertido em objeto 3D](../imgs/manual_multicad_0_0_8_4/texto-solido.png)
+
+<a id="capturas-da-interface"></a>
+
+## Capturas históricas da interface
+
+As imagens abaixo registram o MultiCAD **0.0.8.0**, em 11/10/2026. A versão atual
+tem **Aparar (Trim)** no lugar de Filete do esboço, **Texto** e um único seletor de
+linha de apoio; esses comandos não aparecem nas oito capturas históricas abaixo. As capturas atuais estão no catálogo do manual indicado acima.
+
+| Peça e operações | Esboço e cotas (interface anterior) |
+|---|---|
+| ![MultiCAD: peça com ressalto e furos](../imgs/Multicad01.png) | ![MultiCAD 0.0.8.0: esboço cotado com linha de apoio, filete e chanfro](../imgs/Multicad03.png) |
+| Ajuste da profundidade do corte | Prévia do filete no sólido |
+| ![MultiCAD: corte extrudado e alça de profundidade](../imgs/Multicad04.png) | ![MultiCAD: seleção de aresta e prévia do filete 3D](../imgs/Multicad06.png) |
+
+| Imagem | Referência |
+|---|---|
+| [Multicad01](../imgs/Multicad01.png) | Peça 3D em aço, com ressalto e furos |
+| [Multicad02](../imgs/Multicad02.png) | Furo roscado e padrão circular em alumínio |
+| [Multicad03](../imgs/Multicad03.png) | Esboço cotado na interface 0.0.8.0 |
+| [Multicad04](../imgs/Multicad04.png) | Corte extrudado com ajuste de profundidade pelo mouse |
+| [Multicad05](../imgs/Multicad05.png) | Vista em seção |
+| [Multicad06](../imgs/Multicad06.png) | Filete 3D e seleção de aresta |
+| [Multicad07](../imgs/Multicad07.png) | Aparência e material PLA azul |
+| [Multicad08](../imgs/Multicad08.png) | Aparência e material madeira (pinus) |
+
+[Índice completo das imagens da suíte](../imgs/README.md)
 
 ## Onde entra na suíte
 
@@ -76,6 +111,8 @@ O núcleo CAD não envia comandos diretamente para máquinas.
 - **Sólidos** (`multicad_mesh`): perfis fechados (linhas encadeadas e círculos) com furos, triangulação por *ear clipping*, extrusão em malha fechada e exportação **STL** binário e **3MF**, que o MultiSlicer importa diretamente.
 
 ## Ajustar a profundidade com o mouse
+
+Referência visual: [corte e alça de profundidade — Multicad04](../imgs/Multicad04.png).
 
 Ao criar ou editar **Ressalto extrudado** ou **Corte extrudado**, arraste a alca da seta na vista 3D. A medida em mm, o campo Profundidade e a peca reconstruida acompanham o movimento. Soltar o mouse mantem a previa; confirme com **OK** ou descarte a edicao com **Cancelar**.
 
@@ -223,3 +260,65 @@ Regressao: `test_multicad` verifica projecao, eixo, volume e malha fechada; `tes
 - test_sketch_pattern e test_sketch_pattern_ui verificam coordenadas, tipos
   de entidades, limites, perfis extrudaveis, dialogos, cancelamento, historico,
   e persistencia, inclusive num plano lateral.
+
+## Linhas de apoio no esboco
+- A escolha normal/apoio fica no painel do componente Linha; o comando
+  duplicado na barra de ferramentas foi removido.
+- Geometria de apoio e linhas de centro aparecem somente ao editar seu
+  proprio esboco. Ao sair, nao sao desenhadas nem selecionaveis na vista 3D,
+  mesmo com o esboco selecionado ou na previa de extrusao/corte/revolucao.
+- Nao sao oferecidas como geometria de fundo ou referencias de captura em
+  outro esboco. Continuam salvas no .mcad e disponiveis ao reabrir o editor.
+- Os perfis e a exportacao DXF continuam ignorando a geometria de apoio.
+- test_sketch_visibility_ui cobre o seletor do componente, desenho no
+  esboco ativo, saida/reentrada, previa e referencias entre esbocos.
+
+## Texto vetorial no esboco (0.0.8.4)
+- Em um esboco aberto, clique em **Texto**, digite o conteudo e escolha uma
+  fonte instalada, altura em mm, negrito/italico, alinhamento e angulo.
+  X/Y indicam a base do texto no plano do esboco. A altura corresponde a
+  letra H; acentos e descendentes podem ultrapassar essa medida.
+- A previa mostra os contornos que serao criados. **Criar contornos** converte
+  o texto em segmentos ordinarios e editaveis do esboco. Depois de confirmar,
+  para trocar conteudo/fonte/tamanho, desfaça a insercao e crie novamente.
+  Ctrl+Z/Ctrl+Y removem/restauram a insercao inteira.
+- Usa as curvas da fonte (GDI unhinted no Windows, Cairo no Linux), sem
+  rasterizacao. Beziers sao discretizadas com tolerancia de corda de ate
+  min(0,01 mm, altura/2000), mais ate 0,0001 mm na limpeza dos contornos.
+  Clipper2 une sobreposicoes de fontes compostas, preservando vazados.
+- Saia do esboco e use Ressalto ou Corte extrudado. Letras como A/B/O
+  mantem seus vazados. Os vetores ficam no .mcad e nao precisam da fonte
+  instalada para reabrir ou reconstruir; tambem seguem a exportacao DXF.
+- Limite: 200 caracteres e 20000 pontos por insercao. Fontes sem contornos
+  ou com caracteres ausentes sao recusadas no Windows. Perfis invalidos
+  sao recusados antes de alterar o esboco. No Linux, a selecao de glifos
+  usa a substituicao de fontes do Cairo. Texto sobre curva e objeto de
+  texto parametrico nao fazem parte desta versao.
+- Referencia de fluxo: [Sketch Text - SolidWorks 2014](https://help.solidworks.com/2014/english/SolidWorks/sldworks/c_Sketch_Text.htm?id=24.11.17),
+  incluindo o uso de contornos para extrusao/corte e a conversao em entidades.
+- `test_sketch_text`: fontes, altura fisica, estilos, alinhamento, UTF-8,
+  cedilha/acentos, vazados, perfis, persistencia, ressalto e corte (Pascal/OCCT).
+  `test_sketch_text_ui`: comando real, previa, validacao/cancelamento atomico,
+  selecao, desfazer/refazer, reabertura e criacao de solido.
+
+## Aparar retas no esboco (0.0.8.3)
+- Aparar (Trim), com icone de tesoura, substitui Filete na aba Esboco.
+  O filete das operacoes sobre o solido continua disponivel na aba Operacoes.
+- Selecione Aparar e clique no trecho de reta a remover. O corte vai ate
+  as intersecoes mais proximas do proprio esboco, inclusive com circulos e
+  arcos. Um trecho interno deixa duas retas; uma ponta encurta a reta.
+  Sem intersecoes, o clique remove a reta inteira. Arcos e circulos servem
+  de limites, mas o alvo deste comando e sempre uma reta.
+- O trecho que sera removido aparece em vermelho sob o cursor, sem captura
+  na grade. Cliques consecutivos continuam aparando; Esc termina. Cada
+  clique pode ser desfeito/refeito com Ctrl+Z/Ctrl+Y.
+- Conserva os Ids e relacoes dos extremos que permanecem, remapeando o
+  extremo final quando a reta se divide. Cotas de comprimento e relacoes
+  a extremos removidos sao eliminadas para nao restaurarem o trecho pelo
+  solver. Os novos extremos recebem coincidencia com a geometria que
+  delimitou o corte. Geometria fixa continua fixa nas partes conservadas.
+- Linhas de apoio podem ser aparadas durante a edicao do proprio esboco;
+  suas partes conservam o tipo. Geometria de outros esbocos nao e cortada.
+- test_sketch_trim cobre intersecoes, restricoes, persistencia e extrusao;
+  test_sketch_trim_ui cobre previa, cliques reais, repeticao, desfazer/refazer,
+  Esc e reabertura. Ambos entram na CI Windows/Linux.

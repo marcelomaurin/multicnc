@@ -306,12 +306,16 @@ var
   Prev: TLAPoint;
   Gap: Double;
 begin
-  Prev := LAPoint(MaxDouble, MaxDouble);
+  Prev := LAPoint(0, 0);
   for I := 0 to High(Segs) do
   begin
+    { O primeiro segmento nao tem anterior: aproxime sempre com G0.
+      Nao use MaxDouble como ponto sentinela: Hypot pode transbordar. }
+    Gap := 0;
+    if I > 0 then
+      Gap := Hypot(Segs[I].A.X - Prev.X, Segs[I].A.Y - Prev.Y);
     { mesma linha e perto: desloca com G1 S0 (sem frear); senao G0 }
-    Gap := Hypot(Segs[I].A.X - Prev.X, Segs[I].A.Y - Prev.Y);
-    if (Abs(Segs[I].A.Y - Prev.Y) < 1e-6) and (Gap < 5) then
+    if (I > 0) and (Abs(Segs[I].A.Y - Prev.Y) < 1e-6) and (Gap < 5) then
       Job.Add(Segs[I].A.X, Segs[I].A.Y, mkBlank, 0, L.Speed, L.Index)
     else
       Job.Add(Segs[I].A.X, Segs[I].A.Y, mkRapid, 0, 0, L.Index);

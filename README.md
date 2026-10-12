@@ -8,6 +8,12 @@
 
 O pacote Windows x64 inclui 13 aplicativos, os perfis de laser do MultiCNC, a configuração de Mesa compartilhada entre LaserArt/LaserPCB e a biblioteca de componentes do MakePCB disponível no LaserPCB. A bandeja `multisuite_tray.exe` abre as ferramentas instaladas e pode iniciar com o Windows. O setup apresenta capturas dos projetos durante a instalação.
 
+## Manuais do usuário
+
+[MultiCAD 0.0.8.4 - manual ilustrado em português (PDF)](docs/Manuals/Manual_do_Usuario_MultiCAD_0.0.8.4_PT-BR.pdf) · [Capturas atuais do MultiCAD](imgs/manual_multicad_0_0_8_4/README.md)
+
+[LaserArt 0.02.1 - manual ilustrado em português (PDF)](docs/Manuals/Manual_do_Usuario_LaserArt_0.02.1_PT-BR.pdf) · [Capturas atuais do LaserArt](imgs/manual_laserart_0_02_1/README.md)
+
 ## Uma plataforma integrada para projetar, simular e fabricar
 
 O **MultiCNC** é uma suíte aberta de fabricação digital criada para aproximar, em um único ecossistema, as etapas de **projeto, preparação, simulação e operação de máquinas**.
@@ -288,6 +294,30 @@ As ferramentas mecânicas são destinadas à criação e preparação de **peça
 A proposta é aproximar o fluxo de trabalho de ferramentas CAD mecânicas: criar a geometria, definir dimensões e materiais, organizar peças e posteriormente utilizar essas informações na fabricação ou simulação.
 
 Use essas ferramentas quando o trabalho começar pela **peça mecânica ou pela montagem física**.
+
+### MultiCAD — peça, esboço e operações
+
+O [MultiCAD](multicad/README.md) cria esboços com cotas e relações e transforma os
+perfis em sólidos por extrusão, corte, revolução e outras operações. A versão
+0.0.8.4 também oferece Aparar (Trim) e texto convertido em contornos vetoriais.
+
+| Peça e operações | Esboço cotado |
+|---|---|
+| ![MultiCAD: peça com ressalto e furos](imgs/Multicad01.png) | ![MultiCAD 0.0.8.0: esboço cotado e geometria de apoio](imgs/Multicad03.png) |
+
+As capturas são da versão **0.0.8.0**, anterior ao Texto, ao Trim e à remoção do
+botão duplicado de linha de apoio. [Galeria do MultiCAD](multicad/README.md#capturas-da-interface).
+
+### MultiSlicer — preparar a impressão 3D
+
+O [MultiSlicer](multislicer/README.md) prepara modelos para impressão 3D. As imagens
+mostram as configurações de material e a prévia dos percursos por camada.
+
+| Material e temperaturas | Percursos por camada |
+|---|---|
+| ![MultiSlicer: material e modelo na mesa](imgs/multislicer_material.png) | ![MultiSlicer: prévia de um anel fatiado](imgs/multislicer_previa.png) |
+
+[Galeria do MultiSlicer](multislicer/README.md#capturas-da-interface) · [Índice completo das imagens](imgs/README.md)
 
 ---
 

@@ -83,7 +83,8 @@ begin
       Check((T.Tool=tkSelect) and not LineGroup.Visible and (Pos('Selecionar',Summary.Caption)=1),'Escape updates selection panel');
       Check((Button('Selecionar').Style=sbsSolid) and (Button('Cota inteligente').Style=sbsSoft),'Escape updates ribbon without rebuilding it');
       Click(-21,2);Check(LineGroup.Visible,'Selection still exposes geometry properties');
-      Choose('Filete');Check(not LineGroup.Visible and (Pos('Filete',Summary.Caption)=1),'Fillet hides line settings');
+      Choose('Aparar (Trim)');Check(not LineGroup.Visible and (T.Tool=tkTrim) and
+        (Pos('Aparar',Summary.Caption)=1),'Trim replaces fillet and hides line settings');
       Choose('Chanfro');Check(not LineGroup.Visible and (Pos('Chanfro',Summary.Caption)=1),'Chamfer hides line settings');
       Choose('Círculo');Check(LineGroup.Visible and (LineGroup.Caption='Tipo de geometria'),'Circle uses geometry settings');
       Choose('Linha');Check(LineGroup.Visible and (LineGroup.Caption='Tipo de linha'),'Return to line restores line settings');

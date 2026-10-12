@@ -34,7 +34,7 @@ potencia, saida, setas de ordem), com o visual da suite
 | `src/app/laserart_main.pas` | Tela principal (barra, propriedades, abas Cortes/Camadas, Objeto, Materiais, painel Saida, paleta, status, desfazer/refazer) |
 | `src/core/laserart_calibration.pas` | Matriz do teste de material e G-code proprio (cabecalho `; LaserArt`) |
 | `src/app/laserart_calibrationform.pas` | Teste de material com previa da matriz |
-| `tests/test_laserart_output.lpr/.lpi` | 27 verificacoes; registrado na Central de testes |
+| `tests/test_laserart_output.lpr/.lpi` | 29 verificacoes; registrado na Central de testes |
 | `tests/test_calibration_matrix.lpr/.lpi` | Matriz do teste de material e G-code |
 
 ## Integracao com o MultiCNC
@@ -59,6 +59,15 @@ potencia, saida, setas de ordem), com o visual da suite
   - `multicnc.exe --file x.nc` com G-code do LaserArt abre em CNC Laser,
     Pass count 1 e override desligado.
 - Testes: `test_laserart_output` OK (27) e `test_calibration_matrix` OK.
+
+## Atualização 0.02.1 - Windows, 12/10/2026
+
+- Preenchimento: primeiro segmento aproximado com G0 sem calcular distância para um ponto sentinela extremo; correção de overflow confirmada com exceções habilitadas.
+- `test_laserart_output`: 29 verificações aprovadas, incluindo regressão de preenchimento, aproximação com laser desligado, passadas e ar comprimido.
+- `test_calibration_matrix` e `test_bed_equipment`: aprovados.
+- Executável Windows: produto 0.02.1 / arquivo 0.2.0.1; compilação e abertura de projeto de demonstração verificadas.
+- [Manual de uso em português](../../docs/Manuals/Manual_do_Usuario_LaserArt_0.02.1_PT-BR.pdf): 30 páginas, 19 figuras e marcadores.
+- [16 capturas atuais](../../imgs/manual_laserart_0_02_1/README.md), incluindo a prévia conjunta de Linha, Preencher e Imagem.
 
 ## Falta / ideias
 

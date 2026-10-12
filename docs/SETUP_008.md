@@ -10,6 +10,18 @@ O pacote mantém os 13 aplicativos e a interface do instalador 007. Atualiza o M
 
 As demais aplicações foram compiladas a partir dos fontes registrados no mesmo commit. Alterações locais ainda não registradas no LaserPCB e MakePCB não fazem parte deste pacote.
 
+## Capturas do MultiCAD incluído nesta versão
+
+As capturas abaixo registram o **MultiCAD 0.0.8.0**, correspondente ao setup 008.
+As alterações posteriores de Texto e Aparar (Trim), descritas no guia atual,
+não fazem parte dessas imagens nem deste instalador.
+
+| Peça 3D | Esboço cotado |
+|---|---|
+| ![MultiCAD 0.0.8.0: peça com ressalto e furos](../imgs/Multicad01.png) | ![MultiCAD 0.0.8.0: esboço, cotas e linha de apoio](../imgs/Multicad03.png) |
+
+[Galeria do MultiCAD](../multicad/README.md#capturas-da-interface) · [Índice das imagens](../imgs/README.md)
+
 ## Verificação
 
 Os 13 executáveis compilaram. A bateria de console registrou **86 testes aprovados e zero falhas**; 1 teste de integração TCP foi omitido porque exige o SimuCNC em execução. Os sete testes do empacotamento passaram. As regressões do MultiCAD já foram verificadas antes da publicação da tag multicad-008, incluindo 568 verificações do núcleo e 23 verificações da interface, além dos testes específicos de cota, seleção, extrusão, corte e cancelamento de plano.

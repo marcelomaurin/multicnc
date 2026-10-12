@@ -32,6 +32,13 @@ Documento CAD, features, sketches, extrusoes, transformacoes geometricas, viewpo
 - src/sketch/multicad_sketch.pas: entidades com Id, restricoes e cotas, ranhura, poligono.
 - src/sketch/multicad_solver.pas: solver (CadSolveSketch), graus de liberdade, estados.
 - src/sketch/multicad_profile.pas: lacos fechados, regioes com ilhas (CadSketchProfiles).
+- src/sketch/multicad_sketchtext.pas: parametros de texto, uniao non-zero dos
+  contornos (Clipper2 compartilhada) e insercao atomica de segmentos normais;
+  nao usa LCL nem rasterizacao. A representacao persistida e a geometria.
+- src/ui/multicad_fontoutlines.pas: adaptadores GDI/Cairo para curvas da fonte,
+  discretizacao adaptativa, escala pela altura da letra H e posicionamento.
+- src/ui/multicad_sketchtextdlg.pas: Texto do esboco, fonte instalada, altura
+  em mm, estilos, base X/Y, angulo, alinhamento e previa dos contornos.
 - src/kernel/multicad_kernel.pas: interface ICadKernel e nucleo Pascal.
 - src/kernel/multicad_mesh.pas: malha com faces rotuladas, solda, malha fechada, volume.
 - src/kernel/multicad_triangulate.pas: poligono com furos -> triangulos.
@@ -51,6 +58,9 @@ Documento CAD, features, sketches, extrusoes, transformacoes geometricas, viewpo
 - src/sketch/multicad_sketchtools.pas: ferramentas do modo esboco sem LCL (cliques -> entidades,
   captura, inferencia, grade, H/V automaticas, cota inteligente e desenho das cotas, medida
   digitada, arcos, filete/chanfro com canto virtual, relacoes, construcao, apagar).
+- src/sketch/multicad_sketchtrim.pas: previa do trecho de reta entre intersecoes
+  reais com retas/circulos/arcos do proprio esboco. TCadSketch.TrimLine aplica
+  a edicao e remapeia/descarta as restricoes afetadas, conservando Ids.
 - src/ui/multicad_camera.pas: camera (vistas padrao, Normal a, orbitar, zoom no cursor, raio).
 - src/ui/multicad_softrender.pas: z-buffer por software, 5 estilos, arestas, Id por pixel, secao.
 - src/ui/multicad_view3d.pas: controle TCadView3D (mouse, teclado, cubo, triade, planos, esbocos).
@@ -201,3 +211,22 @@ A alca usa TCadRebuilder.ExtrudeHandle, resolvendo as referencias nos corpos ant
   TestBlend3D mantem a verificacao de 0,5% do volume removido, sem relaxar tolerancia.
 - test_smart_dimension_ui espera um quadro do timer antes do proximo clique
   e falha explicitamente em dialogos modais inesperados.
+
+## Aparar no esboco (0.0.8.3)
+- tkTrim substitui tkFillet no CommandManager do esboco: Aparar (Trim).
+  A ferramenta remove o intervalo clicado ate as intersecoes mais proximas;
+  sem intersecoes, apaga a reta. Somente retas sao alvos; circulos/arcos
+  tambem delimitam o corte. Nao implementa estender nem os outros modos
+  do Trim do SolidWorks. A API antiga de filete permanece por compatibilidade.
+- A previa destaca o intervalo em vermelho. O ponto do mouse nao sofre
+  snap/grade; cliques em cruzamentos exatos sao ambiguos e nao alteram nada.
+- O Id original pertence a primeira parte conservada; uma segunda parte
+  recebe Id novo. Restricoes aos extremos conservados sao remapeadas;
+  comprimentos da reta antiga e referencias a extremos removidos saem.
+  Novos extremos recebem ckCoincident com a curva que limitou o corte,
+  para acompanhar alteracoes parametricas dessa geometria.
+  Relacoes de direcao continuam; fixacao integral e recapturada nas partes.
+- Cada clique usa o historico existente (Changed/Modified); Esc volta a
+  Selecionar. Nao alterar filete 3D, kernels ou formatos de persistencia.
+- tests/test_sketch_trim.lpi e test_sketch_trim_ui.lpi cobrem geometria,
+  solver, perfis extrudaveis, cliques, previa, historico e arquivo .mcad.

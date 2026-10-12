@@ -244,7 +244,9 @@ begin
     S:=TCadSketch(FDoc[I]);if not FRB.SketchFrame(S,Fr,Err) then Continue;
     Parallel:=Abs(VDot(Fr.Normal,FFrame.Normal))>1-1E-8;
     for J:=0 to S.EntityCount-1 do begin
-      E:=S.Entity(J);if E.SourceRef<>'' then Continue;
+      E:=S.Entity(J);
+      { Apoio de outro esboco nao e geometria visivel nem referencia de captura. }
+      if E.Construction or E.Centerline or (E.SourceRef<>'') then Continue;
       for K:=1 to 4 do if SketchReferencePoint(S,E.Id,K,P) then begin
         N:=Length(FReferences);SetLength(FReferences,N+1);
         FReferences[N].Ref:=SketchPointRef(S.Id,E.Id,K);
@@ -1000,11 +1002,13 @@ begin
   if S.GuideY then
     C.Line(ToScreen(S.GY), ToScreen(S.P));
   C.Pen.Style := psSolid;
-  { filete: previa do arco no canto sob o mouse }
-  if (FSession.Tool = tkFillet) and FSession.FilletPreview(S.P, FSession.FilletRadius, Tmp) then
+  { aparar: destaca somente o trecho que o proximo clique remove }
+  if (FSession.Tool = tkTrim) and FSession.TrimPreview(S.P, Tmp) then
   begin
-    DrawEntity(C, Tmp, Col, True);
-    Txt := 'Filete R ' + Fmm(FSession.FilletRadius) + ' mm (clique para aplicar)';
+    C.Pen.Width := 4;
+    DrawEntity(C, Tmp, RGBToColor(220, 50, 40), False);
+    C.Pen.Width := 1;
+    Txt := 'Aparar trecho (clique). Esc para terminar';
   end;
   if FSession.ClickCount > 0 then
   begin

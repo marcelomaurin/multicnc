@@ -790,9 +790,11 @@ begin
     for K := 0 to S.EntityCount - 1 do
     begin
       E := S.Entity(K);
-      Dash := 0;
+      { Geometria de apoio pertence apenas ao editor do esboco ativo.
+        Nao desenhar nem registrar para selecao na vista ou na previa. }
       if E.Construction or E.Centerline then
-        Dash := 6;
+        Continue;
+      Dash := 0;
       case E.Kind of
         seLine:
           FRaster.DrawLine3D(FrameToWorld(Fr, E.P1), FrameToWorld(Fr, E.P2), Col, LineWidth,

@@ -17,7 +17,8 @@
   <VersionInfo>
    <UseVersionInfo Value="True" />
    <MinorVersionNr Value="2" />
-   <StringTable CompanyName="Maurinsoft" FileDescription="LaserArt - arte para laser" ProductName="MultiSuite" ProductVersion="0.02" />
+   <BuildNr Value="1" />
+   <StringTable CompanyName="Maurinsoft" FileDescription="LaserArt - arte para laser" ProductName="MultiSuite" ProductVersion="0.02.1" />
   </VersionInfo>
   <BuildModes Count="1">
    <Item1 Name="Default" Default="True" />

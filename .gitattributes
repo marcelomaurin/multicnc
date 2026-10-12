@@ -1,3 +1,6 @@
 *.bat text eol=crlf
 *.cmd text eol=crlf
 *.iss text eol=crlf
+
+# Manuais PDF devem preservar seus bytes ao sincronizar.
+*.pdf binary

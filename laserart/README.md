@@ -4,6 +4,20 @@ Editor de arte para laser da suite MultiCNC: logos, textos, vetores e imagens
 para gravacao e corte. O fluxo segue o LightBurn (area de trabalho,
 ferramentas, paleta de camadas, Cuts/Layers) e a tabela de camadas do RDWorks.
 
+## Manual do usuário - versão 0.02.1
+
+[Manual ilustrado em português (PDF)](../docs/Manuals/Manual_do_Usuario_LaserArt_0.02.1_PT-BR.pdf) · [Catálogo das 16 capturas atuais](../imgs/manual_laserart_0_02_1/README.md)
+
+30 páginas, 28 capítulos de uso e 19 figuras, com procedimentos, parâmetros, exercício guiado e atalhos. Referência: LaserArt **0.02.1**, versão do arquivo Windows **0.2.0.1**, edição de 12/10/2026.
+
+![Prévia com Linha, Preencher e Imagem no LaserArt 0.02.1](../imgs/manual_laserart_0_02_1/12_previa.png)
+
+### Atualização 0.02.1
+
+A geração de preenchimento trata a aproximação ao primeiro segmento sem usar coordenadas sentinela extremas. O teste de regressão mantém as exceções de overflow habilitadas e verifica a aproximação com G0 e potência zero. Validação Windows: 29 verificações de saída, matriz de material e configuração de mesa aprovadas.
+
+As três capturas abaixo são registros de 10/10/2026. As telas atuais e os recortes usados no manual estão no catálogo acima.
+
 ## Capturas da interface
 
 ![Composição vetorial de exemplo na mesa de 130 × 130 mm](../imgs/Laserart01.png)

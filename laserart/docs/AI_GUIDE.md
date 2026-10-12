@@ -25,3 +25,11 @@ Fabricacao de PCB e no LaserPCB (`laserpcb/`). Arte geral e no LaserArt.
 
 ## Integracao
 LaserArt prepara o job -> MultiCNC executa (abre o arquivo via `--file`).
+
+## Documentação e regressão de saída
+
+- Referência atual: LaserArt 0.02.1; versão do arquivo Windows 0.2.0.1.
+- [Manual ilustrado do usuário em português](../../docs/Manuals/Manual_do_Usuario_LaserArt_0.02.1_PT-BR.pdf).
+- [Catálogo das capturas atuais](../../imgs/manual_laserart_0_02_1/README.md); os recortes do PDF vêm destas telas completas.
+- `test_laserart_output`: 29 verificações. O preenchimento deve funcionar com overflow/invalid desmascarados; a primeira aproximação é G0 com S zero. Não reintroduzir MaxDouble como ponto anterior do preenchimento.
+- Testes de matriz e de Mesa também aprovados no Windows em 12/10/2026.

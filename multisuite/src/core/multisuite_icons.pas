@@ -32,7 +32,7 @@ type
     sikUndo, sikRedo, sikCopy, sikMirrorH, sikMirrorV, sikImport, sikEye,
     sikWand, sikFit, sikLayers, sikExport, sikNew, sikZoomIn, sikZoomOut,
     { ferramentas novas (no fim: os ordinais aparecem em caches) }
-    sikMakePCB, sikRouterPCB, sikMakeRouter
+    sikMakePCB, sikRouterPCB, sikMakeRouter, sikTrim
   );
 
   { sifNone    - apenas o glifo, ocupando toda a area
@@ -340,6 +340,14 @@ var
   Pts: array of Double;
 begin
   case AKind of
+    sikTrim:
+      begin
+        Pn.Circle(5.5, 6, 3);
+        Pn.Circle(5.5, 18, 3);
+        Pn.Line(8, 7.5, 21, 20.5);
+        Pn.Line(8, 16.5, 21, 3.5);
+        Pn.Dot(12, 12, 1);
+      end;
     sikSuite:
       begin
         Pn.Dot(6, 6, 2); Pn.Dot(12, 6, 2); Pn.Dot(18, 6, 2);
