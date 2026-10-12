@@ -30,6 +30,8 @@ def verify_architecture(app, target_os, arch):
     if target_os == "windows":
         names = tuple(name for name in names if name not in ("multisuite", "multisuite_test_center")) + ("multisuite_tray", "SimuCNC")
     required = {app / (name + (".exe" if target_os == "windows" else "")) for name in names}
+    if target_os == "windows":
+        required.add(app / "mcad_occt.dll")
     valid = set()
     for path in app.rglob("*"):
         if not path.is_file():

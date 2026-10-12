@@ -3,7 +3,7 @@
 #endif
 #include "..\..\dist\version.iss"
 #ifndef SetupSeq
-  #define SetupSeq "007"
+  #define SetupSeq "009"
 #endif
 #ifndef MyAppPublisher
   #define MyAppPublisher "Maurinsoft"
@@ -61,8 +61,8 @@ Name: "tools\makerouter"; Description: "MakeRouter - Projeto e usinagem de madei
 Name: "tools\routerpcb"; Description: "RouterPCB - Fresagem de PCB na CNC Router (isolacao, furacao, recorte, nivelamento)"; Types: full custom
 Name: "tools\laserpcb"; Description: "LaserPCB - Preparacao e Gravacao de PCB a Laser"; Types: full custom
 Name: "tools\laserart"; Description: "LaserArt - Vetorizacao e Gravacao de Imagens a Laser"; Types: full custom
-Name: "extra"; Description: "Recursos Complementares"; Types: full custom
-Name: "extra\docs"; Description: "Documentacao e Manuais do Sistema"; Types: full custom
+Name: "extra"; Description: "Recursos Complementares"; Types: full compact custom
+Name: "extra\docs"; Description: "Documentacao e Manuais do Sistema (atalhos na Area de Trabalho)"; Types: full compact custom
 
 [Dirs]
 Name: "{userdocs}\MultiSuite Projects"
@@ -73,7 +73,7 @@ Source: "..\..\dist\app\multicnc.exe"; DestDir: "{app}"; Components: tools\multi
 Source: "..\..\dist\app\multisuite_tray.exe"; DestDir: "{app}"; Components: tools\tray; Flags: ignoreversion
 Source: "..\..\dist\app\SimuCNC.exe"; DestDir: "{app}"; Components: tools\simucnc; Flags: ignoreversion
 Source: "..\..\dist\app\multicad.exe"; DestDir: "{app}"; Components: tools\multicad; Flags: ignoreversion
-Source: "..\..\dist\app\mcad_occt.dll"; DestDir: "{app}"; Components: tools\multicad; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\..\dist\app\mcad_occt.dll"; DestDir: "{app}"; Components: tools\multicad; Flags: ignoreversion
 Source: "..\..\dist\app\multiassembly.exe"; DestDir: "{app}"; Components: tools\multiassembly; Flags: ignoreversion
 Source: "..\..\dist\app\multiphysics.exe"; DestDir: "{app}"; Components: tools\multiphysics; Flags: ignoreversion
 Source: "..\..\dist\app\multicam.exe"; DestDir: "{app}"; Components: tools\multicam; Flags: ignoreversion
@@ -83,7 +83,7 @@ Source: "..\..\dist\app\makerouter.exe"; DestDir: "{app}"; Components: tools\mak
 Source: "..\..\dist\app\routerpcb.exe"; DestDir: "{app}"; Components: tools\routerpcb; Flags: ignoreversion
 Source: "..\..\dist\app\laserpcb.exe"; DestDir: "{app}"; Components: tools\laserpcb; Flags: ignoreversion
 Source: "..\..\dist\app\laserart.exe"; DestDir: "{app}"; Components: tools\laserart; Flags: ignoreversion
-Source: "..\..\docs\*"; DestDir: "{app}\docs"; Components: extra\docs; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\..\dist\app\documentation\*"; DestDir: "{app}\documentation"; Components: extra\docs; Flags: ignoreversion recursesubdirs createallsubdirs
 
 Source: "..\..\dist\app\build-manifest.json"; DestDir: "{app}"; Flags: ignoreversion
 
@@ -121,6 +121,12 @@ Name: "{autoprograms}\MultiSuite\RouterPCB"; Filename: "{app}\routerpcb.exe"; Co
 Name: "{autoprograms}\MultiSuite\LaserPCB"; Filename: "{app}\laserpcb.exe"; Components: tools\laserpcb
 Name: "{autoprograms}\MultiSuite\LaserArt"; Filename: "{app}\laserart.exe"; Components: tools\laserart
 
+; Documentacao disponivel na Area de Trabalho quando o componente e instalado.
+Name: "{autodesktop}\Documentacao MultiSuite\Abrir documentacao"; Filename: "{app}\documentation\docs\index.html"; Components: extra\docs
+Name: "{autodesktop}\Documentacao MultiSuite\Manual MultiCAD 0.0.8.4"; Filename: "{app}\documentation\docs\Manuals\Manual_do_Usuario_MultiCAD_0.0.8.4_PT-BR.pdf"; Components: extra\docs
+Name: "{autodesktop}\Documentacao MultiSuite\Manual MultiCNC 0.1.0.3"; Filename: "{app}\documentation\docs\Manuals\Manual_do_Usuario_MultiCNC_0.1.0.3_PT-BR.pdf"; Components: extra\docs
+Name: "{autodesktop}\Documentacao MultiSuite\Manual LaserArt 0.02.1"; Filename: "{app}\documentation\docs\Manuals\Manual_do_Usuario_LaserArt_0.02.1_PT-BR.pdf"; Components: extra\docs
+
 [Registry]
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "MultiSuiteTray"; ValueData: """{app}\multisuite_tray.exe"" --tray"; Flags: uninsdeletevalue; Tasks: trayautostart; Components: tools\tray
 
@@ -150,6 +156,7 @@ begin
     3: Caption := 'SimuCNC - Simulacao da maquina antes da fabricacao';
     4: Caption := 'LaserPCB - Placas, componentes compartilhados e preparacao a laser';
     5: Caption := 'LaserArt - Desenhos, vetores e gravacao a laser';
+    6: Caption := 'MultiSlicer 0.0.7.0 - Previa 3D e fatiamento para impressao';
   end;
   ProjectCaption.Caption := Caption;
 end;
@@ -158,7 +165,7 @@ procedure InitializeWizard;
 var
   I, ImageTop: Integer;
 begin
-  for I := 0 to 5 do
+  for I := 0 to 6 do
     ExtractTemporaryFile('slide' + IntToStr(I) + '.bmp');
   CurrentSlide := -1;
   ImageTop := WizardForm.ProgressGauge.Top + WizardForm.ProgressGauge.Height + ScaleY(18);
@@ -179,7 +186,7 @@ var
   Slide: Integer;
 begin
   if MaxProgress <= 0 then Exit;
-  Slide := Trunc((CurProgress * 1.0 / MaxProgress) * 6);
-  if Slide > 5 then Slide := 5;
+  Slide := Trunc((CurProgress * 1.0 / MaxProgress) * 7);
+  if Slide > 6 then Slide := 6;
   ShowProjectSlide(Slide);
 end;

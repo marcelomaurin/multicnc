@@ -44,6 +44,8 @@ class ReleaseChecks(unittest.TestCase):
     def fill(self, suffix, data):
         for name in (NAMES + (("multisuite_tray", "SimuCNC") if suffix == ".exe" else ())):
             (self.app / (name + suffix)).write_bytes(data)
+        if suffix == ".exe":
+            (self.app / "mcad_occt.dll").write_bytes(data)
 
     def test_linux_mixed_architecture_rejected(self):
         self.fill("", elf())
@@ -62,6 +64,18 @@ class ReleaseChecks(unittest.TestCase):
         self.fill(".exe", pe())
         release.verify_architecture(self.app, "windows", "amd64")
         (self.app / "multicnc.exe").write_bytes(pe(0x14c))
+        with self.assertRaises(SystemExit):
+            release.verify_architecture(self.app, "windows", "amd64")
+
+    def test_windows_requires_cad_dll(self):
+        self.fill(".exe", pe())
+        (self.app / "mcad_occt.dll").unlink()
+        with self.assertRaises(SystemExit):
+            release.verify_architecture(self.app, "windows", "amd64")
+
+    def test_windows_rejects_32bit_cad_dll(self):
+        self.fill(".exe", pe())
+        (self.app / "mcad_occt.dll").write_bytes(pe(0x14c))
         with self.assertRaises(SystemExit):
             release.verify_architecture(self.app, "windows", "amd64")
 

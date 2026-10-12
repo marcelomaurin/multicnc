@@ -1,10 +1,11 @@
 param(
   [string]$Version = $env:VERSION,
-  [ValidatePattern('^\d{3}$')][string]$SetupSeq = '007',
-  [switch]$AllowDirty
+  [ValidatePattern('^\d{3}$')][string]$SetupSeq = '009',
+  [switch]$AllowDirty,
+  [switch]$SkipBinUpdate
 )
 $ErrorActionPreference = 'Stop'
-if (-not $Version) { $Version = '0.07' }
+if (-not $Version) { $Version = '0.09' }
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 Set-Location -LiteralPath $root
 $dist = Join-Path $root 'dist'
@@ -64,7 +65,8 @@ foreach ($target in $targets) {
 }
 # nucleo OpenCascade do MultiCAD (ponte C pre-compilada: multicad/occt/build_win64.sh)
 $occt = Join-Path $root 'bin\mcad_occt.dll'
-if (Test-Path -LiteralPath $occt) { Copy-Item -LiteralPath $occt -Destination (Join-Path $app 'mcad_occt.dll') -Force }
+if (-not (Test-Path -LiteralPath $occt)) { throw 'DLL obrigatoria ausente: bin\mcad_occt.dll. O setup nao pode ser gerado sem o nucleo do MultiCAD.' }
+Copy-Item -LiteralPath $occt -Destination (Join-Path $app 'mcad_occt.dll') -Force
 $strip = Join-Path (Split-Path $env:FPC) 'strip.exe'
 if (Test-Path -LiteralPath $strip) {
   foreach ($exe in Get-ChildItem -LiteralPath $app -Filter '*.exe') {
@@ -74,7 +76,8 @@ if (Test-Path -LiteralPath $strip) {
 }
 & $python '-u' 'tools\verify_suite.py' console --stage $app
 if ($LASTEXITCODE -ne 0) { throw 'Testes de console falharam.' }
-Copy-Item -LiteralPath (Join-Path $root 'docs') -Destination $app -Recurse -Force
+& $python 'tools\stage_documentation.py' '--app-dir' $app '--version' $Version
+if ($LASTEXITCODE -ne 0) { throw 'Falha ao preparar documentacao offline.' }
 $manifestArgs = @('tools\release_manifest.py','--app-dir',$app,'--version',$Version,'--os','windows','--arch','amd64','--version-include',(Join-Path $dist 'version.iss'))
 if (-not $AllowDirty) { $manifestArgs += '--require-clean' }
 & $python @manifestArgs
@@ -89,11 +92,14 @@ New-Item -ItemType Directory -Force -Path $setup | Out-Null
 Copy-Item -LiteralPath (Join-Path $dist "$name.exe") -Destination $setup -Force
 $blocked = @()
 foreach ($target in $targets) {
+  if ($SkipBinUpdate) { continue }
   try { Copy-Item -LiteralPath (Join-Path $app ($target[1]+'.exe')) -Destination $bin -Force }
   catch { $blocked += $target[1]; Write-Warning "Feche $($target[1]) para atualizar seu executavel em bin." }
 }
 $hash = (Get-FileHash -LiteralPath (Join-Path $dist "$name.exe") -Algorithm SHA256).Hash.ToLower()
 [IO.File]::WriteAllText((Join-Path $dist 'SHA256SUMS'), "$hash  $name.exe" + [Environment]::NewLine)
 Copy-Item -LiteralPath (Join-Path $dist 'SHA256SUMS') -Destination $setup -Force
+Copy-Item -LiteralPath (Join-Path $app 'build-manifest.json') -Destination (Join-Path $setup ('build-manifest-' + $SetupSeq + '.json')) -Force
+Copy-Item -LiteralPath (Join-Path $app 'qa-tests.json') -Destination (Join-Path $setup ('qa-tests-' + $SetupSeq + '.json')) -Force
 if ($blocked.Count) { throw "Setup gerado; executaveis de bin bloqueados: $($blocked -join ', ')" }
 Write-Host "Setup gerado: bin\$name.exe"
