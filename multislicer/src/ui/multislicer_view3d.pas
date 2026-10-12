@@ -32,7 +32,7 @@ uses
 
 type
   TSlicerMouseMode = (smmNone, smmPending, smmOrbit, smmPan, smmMove);
-  TSlicerFacePickEvent = procedure(Sender: TObject; ObjIndex, TriIndex: Integer) of object;
+  TSlicerFacePickEvent = procedure(Sender: TObject; ObjIndex, TriIndex: Integer; const Hit: TVec3) of object;
 
   TSlicerObjCache = record
     Obj: TSliceObject;
@@ -68,8 +68,14 @@ type
     FFactor: Integer;          { 1 = resolucao total; 2 = meia }
     FOnSelect, FOnMoved, FOnDelete, FOnBeforeMove: TNotifyEvent;
     FOnFacePicked: TSlicerFacePickEvent;
-    FPickFace: Boolean;
+    FPickFace, FKeepPick: Boolean;
+    FShowOverhangs: Boolean;
+    FOverhangAngle: Double;
+    FOverhangKey: string;
     procedure SetPickFace(AValue: Boolean);
+    procedure SetShowOverhangs(AValue: Boolean);
+    procedure SetOverhangAngle(AValue: Double);
+    procedure DrawSupportsAids;
     procedure SetScene(AValue: TSliceScene);
     procedure SyncCaches;
     procedure FreeCaches;
@@ -102,9 +108,14 @@ type
     function ObjectPixels(Index: Integer): Integer;
     function ScreenOf(const P: TVec3): TPoint;      { ponto da mesa -> pixel }
     { triangulo da malha na mesa atingido pelo raio do pixel (-1 = nenhum) }
-    function PickTriangle(X, Y: Integer; out ObjIndex: Integer): Integer;
+    function PickTriangle(X, Y: Integer; out ObjIndex: Integer; out Hit: TVec3): Integer;
     { proximo clique escolhe a face a deitar na mesa (OnFacePicked) }
     property PickFaceMode: Boolean read FPickFace write SetPickFace;
+    { True: o modo de escolha continua ativo depois do clique (varias hastes) }
+    property KeepPickMode: Boolean read FKeepPick write FKeepPick;
+    { saliencias (faces que pedem suporte) em vermelho }
+    property ShowOverhangs: Boolean read FShowOverhangs write SetShowOverhangs;
+    property OverhangAngle: Double read FOverhangAngle write SetOverhangAngle;
     property OnFacePicked: TSlicerFacePickEvent read FOnFacePicked write FOnFacePicked;
     { avisa antes do primeiro movimento de um arraste (para desfazer) }
     property OnBeforeMove: TNotifyEvent read FOnBeforeMove write FOnBeforeMove;
@@ -145,8 +156,15 @@ end;
 const
   LOD_MIN_TRIS = 40000;   { acima disso, gira com a malha reduzida }
 
-function BuildCadMesh(M: TMesh; Tol: Double = 0): TCadMesh;
-var I, A, B, C, Face: Integer; T: TTriangle; Info: TCadFaceInfo;
+const
+  OVERHANG_COLOR = $00EF4444;
+  PILLAR_COLOR = $00F59E0B;
+  BLOCKER_COLOR = $0064748B;
+
+{ OverSin < 1: triangulos voltados para baixo alem do angulo (e fora da mesa)
+  vao para a face 1 ("saliencia"), desenhada em vermelho }
+function BuildCadMesh(M: TMesh; Tol: Double = 0; OverSin: Double = 2): TCadMesh;
+var I, A, B, C, Face, FaceO: Integer; T: TTriangle; Info: TCadFaceInfo; NZ, L, UX, UY, UZ, VX, VY, VZ: Double;
 begin
   { Tol > 0: vertices a menos de Tol viram um so e triangulos degenerados somem
     (agrupamento de vertices) - versao reduzida para navegar }
@@ -156,13 +174,49 @@ begin
   Info.Origin := V3(0, 0, 0); Info.Axis := V3(0, 0, 1);
   Info.Radius := 0; Info.Radius2 := 0;
   Face := Result.AddFace(Info);
+  FaceO := Face;
+  if OverSin < 1 then
+  begin
+    Info.Name := 'saliencia';
+    FaceO := Result.AddFace(Info);
+  end;
   for I := 0 to M.Count - 1 do
   begin
     T := M.Triangle(I);
     A := Result.AddVertex(SlicerToCad(T.A.X, T.A.Y, T.A.Z));
     B := Result.AddVertex(SlicerToCad(T.B.X, T.B.Y, T.B.Z));
     C := Result.AddVertex(SlicerToCad(T.C.X, T.C.Y, T.C.Z));
+    if OverSin < 1 then
+    begin
+      UX := T.B.X - T.A.X; UY := T.B.Y - T.A.Y; UZ := T.B.Z - T.A.Z;
+      VX := T.C.X - T.A.X; VY := T.C.Y - T.A.Y; VZ := T.C.Z - T.A.Z;
+      NZ := UX * VY - UY * VX;
+      L := Sqrt(Sqr(UY * VZ - UZ * VY) + Sqr(UZ * VX - UX * VZ) + Sqr(NZ));
+      if (L > 1e-12) and (-NZ / L > OverSin) and (Min(T.A.Z, Min(T.B.Z, T.C.Z)) > 0.05) then
+      begin
+        Result.AddTri(A, B, C, FaceO);
+        Continue;
+      end;
+    end;
     Result.AddTri(A, B, C, Face);
+  end;
+end;
+
+function CylinderMesh(X, Y, Z0, Z1, R: Double): TCadMesh;
+const SIDES = 16;
+var I, F: Integer; Info: TCadFaceInfo; A0, A1: Double;
+begin
+  Result := TCadMesh.Create;
+  Info.Name := 'haste'; Info.Surf := skOther;
+  Info.Origin := V3(0, 0, 0); Info.Axis := V3(0, 1, 0); Info.Radius := 0; Info.Radius2 := 0;
+  F := Result.AddFace(Info);
+  for I := 0 to SIDES - 1 do
+  begin
+    A0 := 2 * Pi * I / SIDES; A1 := 2 * Pi * (I + 1) / SIDES;
+    Result.AddQuadP(SlicerToCad(X + R * Cos(A0), Y + R * Sin(A0), Z0), SlicerToCad(X + R * Cos(A1), Y + R * Sin(A1), Z0),
+      SlicerToCad(X + R * Cos(A1), Y + R * Sin(A1), Z1), SlicerToCad(X + R * Cos(A0), Y + R * Sin(A0), Z1), F);
+    Result.AddTriP(SlicerToCad(X, Y, Z1), SlicerToCad(X + R * Cos(A0), Y + R * Sin(A0), Z1),
+      SlicerToCad(X + R * Cos(A1), Y + R * Sin(A1), Z1), F);
   end;
 end;
 
@@ -183,6 +237,7 @@ begin
   FDirty := True;
   FDownObj := -1;
   FFactor := 1;
+  FOverhangAngle := 50;
   DefaultView;
 end;
 
@@ -234,12 +289,18 @@ end;
 procedure TSlicerView3D.SyncCaches;
 var
   I, K, V: Integer; Old: array of TSlicerObjCache; O: TSliceObject; Found: Boolean;
-  B: TBox3; D: TCadVec3;
+  B: TBox3; D: TCadVec3; Key: string; OS: Double;
 begin
   if FScene = nil then
   begin
     FreeCaches;
     Exit;
+  end;
+  if FShowOverhangs then Key := FloatToStr(FOverhangAngle) else Key := '';
+  if Key <> FOverhangKey then
+  begin
+    FreeCaches;
+    FOverhangKey := Key;
   end;
   Old := FCaches;
   FCaches := nil;
@@ -284,7 +345,8 @@ begin
     FCaches[I].Obj := O;
     FCaches[I].Shape := O.ShapeVersion;
     FCaches[I].BoxMin := B.Min;
-    FCaches[I].Mesh := BuildCadMesh(O.WorldMesh);
+    if FShowOverhangs then OS := Sin(DegToRad(FOverhangAngle)) else OS := 2;
+    FCaches[I].Mesh := BuildCadMesh(O.WorldMesh, 0, OS);
     FCaches[I].Cache := TCadMeshCache.Create(FCaches[I].Mesh);
   end;
   { pecas removidas }
@@ -389,8 +451,17 @@ begin
         FRaster.DrawMesh(FCaches[I].LodCache, Opt);
       end
       else
+      begin
+        if FShowOverhangs and (FCaches[I].Mesh.FaceCount > 1) then
+        begin
+          SetLength(Opt.HiFaces, 1);
+          Opt.HiFaces[0] := 1;
+          Opt.HiColor := OVERHANG_COLOR;
+        end;
         FRaster.DrawMesh(FCaches[I].Cache, Opt);
+      end;
     end;
+    DrawSupportsAids;
     { volume de impressao (tracejado) }
     Edge(0, 0, BZ, BX, 0, BZ); Edge(BX, 0, BZ, BX, BY, BZ);
     Edge(BX, BY, BZ, 0, BY, BZ); Edge(0, BY, BZ, 0, 0, BZ);
@@ -487,7 +558,9 @@ begin
   if (FScene = nil) or (FScene.Count = 0) then
     HelpText := 'Abra um modelo STL ou 3MF'
   else
-    if FPickFace then
+    if FPickFace and FKeepPick then
+      HelpText := 'Clique sob a parte saliente da peca para colocar uma haste  (Esc termina)'
+    else if FPickFace then
       HelpText := 'Clique na face da peca que deve ficar apoiada na mesa  (Esc cancela)'
     else
     HelpText := 'Clique na peca para selecionar e arraste para mover  |  direito: girar  |  Shift: deslocar  |  roda: zoom  |  F: enquadrar';
@@ -552,11 +625,12 @@ begin
   if AValue then Cursor := crCross else Cursor := crDefault;
 end;
 
-function TSlicerView3D.PickTriangle(X, Y: Integer; out ObjIndex: Integer): Integer;
+function TSlicerView3D.PickTriangle(X, Y: Integer; out ObjIndex: Integer; out Hit: TVec3): Integer;
 var O, D: TCadVec3; OS, DS: TVec3; M: TMesh; I: Integer; T: TTriangle; Dist, Best: Double;
   A, B, C: TCadVec3;
 begin
   Result := -1;
+  Hit.X := 0; Hit.Y := 0; Hit.Z := 0;
   ObjIndex := PickObject(X, Y);
   if ObjIndex < 0 then Exit;
   FCam.SetViewport(Max(1, ClientWidth), Max(1, ClientHeight));
@@ -574,6 +648,70 @@ begin
       Result := I;
     end;
   end;
+  if Result >= 0 then
+  begin
+    Hit.X := OS.X + DS.X * Best; Hit.Y := OS.Y + DS.Y * Best; Hit.Z := OS.Z + DS.Z * Best;
+  end;
+end;
+
+procedure TSlicerView3D.SetShowOverhangs(AValue: Boolean);
+begin
+  if FShowOverhangs = AValue then Exit;
+  FShowOverhangs := AValue;
+  Redraw;
+end;
+
+procedure TSlicerView3D.SetOverhangAngle(AValue: Double);
+begin
+  if SameValue(FOverhangAngle, AValue) then Exit;
+  FOverhangAngle := AValue;
+  if FShowOverhangs then Redraw;
+end;
+
+procedure TSlicerView3D.DrawSupportsAids;
+var I: Integer; X, Y, Z, D: Double; M: TCadMesh; C: TCadMeshCache; Opt: TCadDrawOptions; B: TSceneBlocker;
+  X0, Y0, X1, Y1, H: Double; Saved: TCadDisplayStyle;
+  procedure Q(const P0, P1, P2, P3: TCadVec3);
+  begin
+    FRaster.DrawQuad3D(P0, P1, P2, P3, BLOCKER_COLOR, 0.18);
+  end;
+  procedure L(AX, AY, AZ, BX, BY, BZ: Double);
+  begin
+    FRaster.DrawLine3D(SlicerToCad(AX, AY, AZ), SlicerToCad(BX, BY, BZ), BLOCKER_COLOR, 1, True, 3);
+  end;
+begin
+  if FScene = nil then Exit;
+  { hastes manuais (laranja) }
+  Saved := FRaster.Style;
+  FRaster.Style := dsShaded;
+  for I := 0 to FScene.PillarCount - 1 do
+    if FScene.PillarAbs(I, X, Y, Z, D) then
+    begin
+      M := CylinderMesh(X, Y, 0, Z, Max(0.4, D / 2));
+      C := TCadMeshCache.Create(M);
+      try
+        Opt := CadDrawOptions(PILLAR_COLOR, BED_TAG + 1);
+        FRaster.DrawMesh(C, Opt);
+      finally
+        C.Free;
+        M.Free;
+      end;
+    end;
+  FRaster.Style := Saved;
+  { bloqueadores (caixa cinza translucida) }
+  for I := 0 to FScene.BlockerCount - 1 do
+  begin
+    B := FScene.Blocker(I);
+    X0 := B.CX - B.W / 2; X1 := B.CX + B.W / 2; Y0 := B.CY - B.D / 2; Y1 := B.CY + B.D / 2; H := B.H;
+    Q(SlicerToCad(X0, Y0, H), SlicerToCad(X1, Y0, H), SlicerToCad(X1, Y1, H), SlicerToCad(X0, Y1, H));
+    Q(SlicerToCad(X0, Y0, 0), SlicerToCad(X1, Y0, 0), SlicerToCad(X1, Y0, H), SlicerToCad(X0, Y0, H));
+    Q(SlicerToCad(X1, Y0, 0), SlicerToCad(X1, Y1, 0), SlicerToCad(X1, Y1, H), SlicerToCad(X1, Y0, H));
+    Q(SlicerToCad(X1, Y1, 0), SlicerToCad(X0, Y1, 0), SlicerToCad(X0, Y1, H), SlicerToCad(X1, Y1, H));
+    Q(SlicerToCad(X0, Y1, 0), SlicerToCad(X0, Y0, 0), SlicerToCad(X0, Y0, H), SlicerToCad(X0, Y1, H));
+    L(X0, Y0, 0, X1, Y0, 0); L(X1, Y0, 0, X1, Y1, 0); L(X1, Y1, 0, X0, Y1, 0); L(X0, Y1, 0, X0, Y0, 0);
+    L(X0, Y0, H, X1, Y0, H); L(X1, Y0, H, X1, Y1, H); L(X1, Y1, H, X0, Y1, H); L(X0, Y1, H, X0, Y0, H);
+    L(X0, Y0, 0, X0, Y0, H); L(X1, Y0, 0, X1, Y0, H); L(X1, Y1, 0, X1, Y1, H); L(X0, Y1, 0, X0, Y1, H);
+  end;
 end;
 
 function TSlicerView3D.ScreenOf(const P: TVec3): TPoint;
@@ -585,7 +723,7 @@ begin
 end;
 
 procedure TSlicerView3D.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
-var Tri, Obj: Integer;
+var Tri, Obj: Integer; Hit: TVec3;
 begin
   inherited MouseDown(Button, Shift, X, Y);
   if CanFocus then SetFocus;
@@ -601,11 +739,11 @@ begin
     if FPickFace then
     begin
       FMode := smmNone;
-      Tri := PickTriangle(X, Y, Obj);
+      Tri := PickTriangle(X, Y, Obj, Hit);
       if Tri >= 0 then
       begin
-        PickFaceMode := False;
-        if Assigned(FOnFacePicked) then FOnFacePicked(Self, Obj, Tri);
+        if not FKeepPick then PickFaceMode := False;
+        if Assigned(FOnFacePicked) then FOnFacePicked(Self, Obj, Tri, Hit);
       end;
       Exit;
     end;
@@ -693,7 +831,7 @@ procedure TSlicerView3D.KeyDown(var Key: Word; Shift: TShiftState);
 begin
   case Key of
     VK_F: begin FitBed; Redraw; Key := 0; end;
-    VK_ESCAPE: if FPickFace then begin PickFaceMode := False; Key := 0; end;
+    VK_ESCAPE: if FPickFace then begin PickFaceMode := False; FKeepPick := False; Redraw; Key := 0; end;
     VK_DELETE:
       begin
         if Assigned(FOnDelete) then FOnDelete(Self);

@@ -28,12 +28,16 @@ unit multislicer_pipeline;
 interface
 
 uses Classes, SysUtils, Math, multislicer_types, multislicer_mesh, multislicer_infill,
+  multislicer_support, multislicer_clip,
   multisuite_geometry, multisuite_arcfit;
 
 type
   TSlicerFlavor = (sfMarlin, sfKlipper);
   TInfillPattern = (ipGyroid, ipRectilinear);
-  TPathRole = (prSkirt, prOuterWall, prInnerWall, prSolidInfill, prSparseInfill);
+  TPathRole = (prSkirt, prOuterWall, prInnerWall, prSolidInfill, prSparseInfill,
+    prSupport, prSupportInterface, prBrim, prRaft);
+  { aderencia a mesa (como no Cura): nenhuma, saia, aba (brim) ou jangada (raft) }
+  TAdhesionType = (adNone, adSkirt, adBrim, adRaft);
 
   { peca da cena, para rotular as trajetorias no G-code (cancelar uma peca) }
   TSliceObjectLabel = record
@@ -70,6 +74,11 @@ type
     MaterialName: string;
     // Etapa 4: varias pecas. Vazio ou 1 = um rotulo so (ObjectName)
     Objects: TSliceObjectLabels;
+    // Etapa 6: suportes e aderencia
+    Support: TSupportParams;
+    Adhesion: TAdhesionType;
+    BrimWidth: Double;               // mm
+    RaftMargin, RaftAirGap: Double;  // mm
   end;
 
   TExtrusionPath = record
@@ -86,12 +95,14 @@ type
     Retractions: Integer;
     MinZ, MaxZ: Double;
     Warnings: string;
+    SupportPaths, BrimPaths, RaftLayers: Integer;
   end;
 
   TLayerData = record
     Z, Height: Double;
     Loops: TPolygons2D;   // contornos (externos CCW, furos CW)
     InfillRegion: TPolygons2D;
+    SupportRegion: TPolygons2D;
     Paths: TExtrusionPaths;
   end;
   TLayerDataArray = array of TLayerData;
@@ -102,6 +113,10 @@ type
     FLayers: TLayerDataArray;
     procedure BuildLayer(Index: Integer; Mesh: TMesh);
     procedure BuildInfill(Index: Integer);
+    procedure BuildSupport;
+    procedure BuildBrim;
+    procedure BuildSkirt;
+    function BuildRaft: Integer;
   public
     class function ComputeLayerHeights(Mesh: TMesh; const S: TSliceSettings): TPolygon2D; // X=Z topo, Y=altura
     class function SliceAt(Mesh: TMesh; Z: Double): TPolygons2D;
@@ -159,6 +174,11 @@ begin
   Result.EndGCode := '';
   Result.MaterialName := '';
   SetLength(Result.Objects, 0);
+  Result.Support := DefaultSupportParams;
+  Result.Adhesion := adSkirt;
+  Result.BrimWidth := 8;
+  Result.RaftMargin := 3;
+  Result.RaftAirGap := 0.2;
 end;
 
 function FirstHotend(const S: TSliceSettings): Integer;
@@ -401,19 +421,11 @@ var
   W, D: Double;
   K, I: Integer;
   Ring: TPolygons2D;
-  Skirt: TPolygon2D;
 begin
   W := FSettings.LineWidth;
   FLayers[Index].Loops := SliceAt(Mesh, FLayers[Index].Z - FLayers[Index].Height / 2);
   SetLength(FLayers[Index].Paths, 0);
-  // saia na primeira camada
-  if (Index = 0) and (FSettings.SkirtLoops > 0) then
-    for K := 0 to FSettings.SkirtLoops - 1 do
-      for I := 0 to High(FLayers[Index].Loops) do
-        if not IsHole(FLayers[Index].Loops[I]) then begin
-          Skirt := OffsetPolygon(FLayers[Index].Loops[I], FSettings.SkirtDistance + K * W, jtRound, 2, 0.05);
-          AddPath(FLayers[Index].Paths, prSkirt, Skirt, True);
-        end;
+  // a saia e feita depois do suporte (BuildSkirt), para envolver os dois
   // perimetros: internos primeiro (precisao dimensional), externo por ultimo
   for K := FSettings.Walls - 1 downto 0 do begin
     D := W / 2 + K * W;
@@ -530,6 +542,133 @@ begin
   end;
 end;
 
+{ Linhas de preenchimento de uma regiao, descartando pedacos muito curtos. }
+procedure AddLines(var Paths: TExtrusionPaths; Role: TPathRole; const Region: TPolygons2D;
+  AngleDeg, Spacing, MinLen: Double);
+var Lines: TPolygons2D; I: Integer;
+begin
+  if Length(Region) = 0 then Exit;
+  Lines := RectilinearInfill(Region, AngleDeg, Spacing);
+  for I := 0 to High(Lines) do
+    if PolygonPerimeter(Lines[I], False) >= MinLen then AddPath(Paths, Role, Lines[I], False);
+end;
+
+procedure TModernSlicer.BuildSupport;
+var
+  Loops: array of TPolygons2D; Zs, Hs: array of Double; Reg, Ifc: TLayerRegions;
+  I, N: Integer; W, Dens, IDens, Ang: Double; Base: TPolygons2D;
+begin
+  N := Length(FLayers);
+  if (N = 0) or (FSettings.Support.Mode = spOff) then Exit;
+  W := FSettings.LineWidth;
+  SetLength(Loops, N); SetLength(Zs, N); SetLength(Hs, N);
+  for I := 0 to N - 1 do
+  begin
+    Loops[I] := FLayers[I].Loops;
+    Zs[I] := FLayers[I].Z;
+    Hs[I] := FLayers[I].Height;
+  end;
+  ComputeSupport(Loops, Zs, Hs, FSettings.Support, W, FSettings.LayerHeight, Reg, Ifc);
+  Dens := EnsureRange(FSettings.Support.Density, 0.03, 1);
+  IDens := EnsureRange(FSettings.Support.InterfaceDensity, 0.05, 1);
+  for I := 0 to N - 1 do
+  begin
+    if Length(Reg[I]) = 0 then Continue;
+    FLayers[I].SupportRegion := Reg[I];
+    { linhas cruzadas camada a camada (0 / 90 graus) deixam a coluna firme }
+    if Odd(I) then Ang := 90 else Ang := 0;
+    Base := RegionDifference(Reg[I], Ifc[I]);
+    AddLines(FLayers[I].Paths, prSupport, Base, Ang, W / Dens, W * 2);
+    if Length(Ifc[I]) > 0 then
+      AddLines(FLayers[I].Paths, prSupportInterface, Ifc[I], Ang + 45, W / IDens, W);
+  end;
+end;
+
+procedure TModernSlicer.BuildSkirt;
+var Base, Ring: TPolygons2D; K, J: Integer; W: Double;
+begin
+  if (Length(FLayers) = 0) or (FSettings.Adhesion <> adSkirt) or (FSettings.SkirtLoops <= 0) then Exit;
+  W := FSettings.LineWidth;
+  { contorno da 1a camada da peca e do suporte: a saia nao cruza o suporte }
+  Base := RegionUnion(RegionOuter(RegionUnionAll(FLayers[0].Loops)), FLayers[0].SupportRegion);
+  for K := 0 to FSettings.SkirtLoops - 1 do
+  begin
+    Ring := RegionOuter(RegionOffset(Base, FSettings.SkirtDistance + K * W));
+    for J := 0 to High(Ring) do AddPath(FLayers[0].Paths, prSkirt, Ring[J], True);
+  end;
+end;
+
+procedure TModernSlicer.BuildBrim;
+var Base, Ring: TPolygons2D; K, J, Loops: Integer; W: Double;
+begin
+  if (Length(FLayers) = 0) or (FSettings.Adhesion <> adBrim) or (FSettings.BrimWidth <= 0) then Exit;
+  W := FSettings.LineWidth;
+  { aba so por fora: contornos externos da 1a camada e o suporte dela }
+  Base := RegionUnion(RegionOuter(RegionUnionAll(FLayers[0].Loops)), FLayers[0].SupportRegion);
+  Loops := Max(1, Ceil(FSettings.BrimWidth / W));
+  for K := 0 to Loops - 1 do
+  begin
+    Ring := RegionOuter(RegionOffset(Base, W / 2 + K * W));
+    for J := 0 to High(Ring) do AddPath(FLayers[0].Paths, prBrim, Ring[J], True);
+  end;
+end;
+
+function TModernSlicer.BuildRaft: Integer;
+const
+  BASE_H = 0.3; MID_H = 0.25;
+var
+  Region, Edge: TPolygons2D; Raft: TLayerDataArray; I, J, NR: Integer; W, TopH, Total, Zc: Double;
+begin
+  Result := 0;
+  if (Length(FLayers) = 0) or (FSettings.Adhesion <> adRaft) then Exit;
+  W := FSettings.LineWidth;
+  Region := RegionOffset(RegionUnion(RegionUnionAll(FLayers[0].Loops), FLayers[0].SupportRegion),
+    Max(1, FSettings.RaftMargin));
+  if Length(Region) = 0 then Exit;
+  TopH := FSettings.LayerHeight;
+  NR := 4;   { base grossa, meio, dois de topo solidos }
+  SetLength(Raft, NR);
+  Zc := 0;
+  for I := 0 to NR - 1 do
+  begin
+    case I of
+      0: Raft[I].Height := BASE_H;
+      1: Raft[I].Height := MID_H;
+    else
+      Raft[I].Height := TopH;
+    end;
+    Zc := Zc + Raft[I].Height;
+    Raft[I].Z := Zc;
+    Raft[I].Loops := Region;
+    Raft[I].InfillRegion := Region;
+    SetLength(Raft[I].Paths, 0);
+    case I of
+      0: begin
+           { base: contorno + linhas espacadas, gruda bem na mesa }
+           for J := 0 to High(Region) do
+             if PolygonArea(Region[J]) > 0 then
+             begin
+               Edge := RegionOffset(Region, -W / 2);
+               Break;
+             end;
+           for J := 0 to High(Edge) do AddPath(Raft[I].Paths, prRaft, Edge[J], True);
+           AddLines(Raft[I].Paths, prRaft, RegionOffset(Region, -W), 0, W * 3, W);
+         end;
+      1: AddLines(Raft[I].Paths, prRaft, RegionOffset(Region, -W / 2), 90, W * 1.6, W);
+    else
+      if Odd(I) then AddLines(Raft[I].Paths, prRaft, RegionOffset(Region, -W / 2), 45, W, W)
+      else AddLines(Raft[I].Paths, prRaft, RegionOffset(Region, -W / 2), -45, W, W);
+    end;
+  end;
+  { a peca sobe a altura da jangada + a folga de ar (descola facil) }
+  Total := Zc + Max(0, FSettings.RaftAirGap);
+  for I := 0 to High(FLayers) do FLayers[I].Z := FLayers[I].Z + Total;
+  SetLength(Raft, NR + Length(FLayers));
+  for I := 0 to High(FLayers) do Raft[NR + I] := FLayers[I];
+  FLayers := Raft;
+  Result := NR;
+end;
+
 { Ordena caminhos por vizinho mais proximo; laços escolhem a costura. }
 procedure OrderPaths(var Paths: TExtrusionPaths; var Cur: TPoint2D; RearSeam: Boolean);
 var
@@ -542,7 +681,8 @@ var
   Role: TPathRole;
   R: Integer;
 const
-  RoleOrder: array[0..4] of TPathRole = (prSkirt, prInnerWall, prOuterWall, prSolidInfill, prSparseInfill);
+  RoleOrder: array[0..8] of TPathRole = (prRaft, prSkirt, prBrim, prSupport, prSupportInterface,
+    prInnerWall, prOuterWall, prSolidInfill, prSparseInfill);
 begin
   SetLength(Done, Length(Paths));
   SetLength(Res, 0);
@@ -742,7 +882,7 @@ var
   var J: Integer; X, Y, D, BestD: Double;
   begin
     Result := -1;
-    if (Pa.Role = prSkirt) or (Length(Pa.Points) = 0) then Exit;
+    if (Pa.Role in [prSkirt, prBrim, prRaft, prSupport, prSupportInterface]) or (Length(Pa.Points) = 0) then Exit;
     X := Pa.Points[0].X; Y := Pa.Points[0].Y;
     for J := 0 to NObj - 1 do
       with S.Objects[J] do
@@ -779,18 +919,25 @@ var
       if I = 0 then Speed := S.FirstLayerSpeed
       else case Path.Role of
         prOuterWall: Speed := S.OuterWallSpeed;
-        prInnerWall, prSkirt: Speed := S.WallSpeed;
+        prInnerWall, prSkirt, prBrim: Speed := S.WallSpeed;
+        prSupport, prSupportInterface:
+          if S.Support.Speed > 0 then Speed := S.Support.Speed else Speed := S.InfillSpeed;
       else
         Speed := S.InfillSpeed;
       end;
       case Path.Role of
-        prSkirt: Body.Add(';TYPE:Skirt');
+        prSkirt, prBrim: Body.Add(';TYPE:Skirt/Brim');
         prOuterWall: Body.Add(';TYPE:External perimeter');
         prInnerWall: Body.Add(';TYPE:Perimeter');
         prSolidInfill: Body.Add(';TYPE:Solid infill');
         prSparseInfill: Body.Add(';TYPE:Internal infill');
+        prSupport: Body.Add(';TYPE:Support material');
+        prSupportInterface: Body.Add(';TYPE:Support material interface');
+        prRaft: Body.Add(';TYPE:Raft');
       end;
-      if Path.Role in [prSolidInfill, prSparseInfill] then W.Region := FLayers[I].InfillRegion
+      { deslocamento dentro da propria regiao nao precisa retrair }
+      if Path.Role in [prSolidInfill, prSparseInfill, prRaft] then W.Region := FLayers[I].InfillRegion
+      else if Path.Role in [prSupport, prSupportInterface] then W.Region := FLayers[I].SupportRegion
       else SetLength(W.Region, 0);
       W.Travel(Path.Points[0].X, Path.Points[0].Y);
       // fecha os lacos voltando ao primeiro ponto
@@ -842,8 +989,18 @@ begin
     FLayers[I].Height := Heights[I].Y;
   end;
   for I := 0 to High(FLayers) do BuildLayer(I, Mesh);
+  BuildSupport;
   for I := 0 to High(FLayers) do BuildInfill(I);
+  BuildSkirt;
+  BuildBrim;
+  Result.RaftLayers := BuildRaft;
   Result.Layers := Length(FLayers);
+  for I := 0 to High(FLayers) do
+    for K := 0 to High(FLayers[I].Paths) do
+      case FLayers[I].Paths[K].Role of
+        prSupport, prSupportInterface: Inc(Result.SupportPaths);
+        prBrim: Inc(Result.BrimPaths);
+      end;
   Result.MinZ := Mesh.MinZ;
   Result.MaxZ := Mesh.MaxZ;
   // envelope da mesa

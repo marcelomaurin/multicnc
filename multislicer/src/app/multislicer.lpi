@@ -29,7 +29,7 @@
    <Filename Value="multislicer" />
   </Target>
   <SearchPaths>
-   <OtherUnitFiles Value="../core;../import;../export;../layout;../ui;../../../src/shared;../../../multisuite/src/core;../../../multicad/src/core;../../../multicad/src/kernel;../../../multicad/src/ui" />
+   <OtherUnitFiles Value="../core;../import;../export;../layout;../ui;../../../src/shared;../../../src/shared/clipper2;../../../multisuite/src/core;../../../multicad/src/core;../../../multicad/src/kernel;../../../multicad/src/ui" />
    <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
   </SearchPaths>
   <Parsing>

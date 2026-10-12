@@ -197,33 +197,47 @@ largura de linha 80 a 150% e maior que a camada, velocidades > 0, 1a camada lent
 
 ## Etapa 6 - Suportes (hastes de apoio) e aderencia
 
-**Arq.:** `src/core/multislicer_support.pas`, `src/core/multislicer_pipeline.pas`,
-`src/ui/multislicer_view3d.pas`, pagina "Suportes".
+**Arq.:** `src/core/multislicer_support.pas`, `src/core/multislicer_clip.pas` (Clipper2),
+`src/core/multislicer_pipeline.pas`, `src/core/multislicer_scene.pas`, `src/ui/multislicer_view3d.pas`,
+pagina "Suportes".
 
 ### 6A Deteccao e posicionamento
-- [ ] 6.1 Detectar faces em saliencia pelo angulo (padrao 50 graus, configuravel) na malha da cena.
-- [ ] 6.2 Destacar as saliencias em vermelho na vista 3D.
-- [ ] 6.3 **Suporte manual:** clicar na peca adiciona uma haste (cilindro/quadrado com diametro configuravel)
+- [x] 6.1 Detectar faces em saliencia pelo angulo (padrao 50 graus, configuravel) na malha da cena.
+- [x] 6.2 Destacar as saliencias em vermelho na vista 3D.
+- [x] 6.3 **Suporte manual:** clicar na peca adiciona uma haste (cilindro/quadrado com diametro configuravel)
       do ponto ate a mesa ou ate a peca abaixo; lista de hastes; remover; mover.
-- [ ] 6.4 **Bloqueador de suporte:** caixa onde o suporte automatico nao e gerado.
-- [ ] 6.5 Opcoes: automatico / somente manual / desligado; "tocando a mesa" x "em toda parte".
+- [x] 6.4 **Bloqueador de suporte:** caixa onde o suporte automatico nao e gerado.
+- [x] 6.5 Opcoes: automatico / somente manual / desligado; "tocando a mesa" x "em toda parte".
 
 ### 6B Geracao por camada
-- [ ] 6.6 Regiao de suporte por camada = projecao das saliencias (e hastes) - contorno da peca expandido
+- [x] 6.6 Regiao de suporte por camada = projecao das saliencias (e hastes) - contorno da peca expandido
       pela folga XY; respeitar distancia Z de topo e de fundo.
-- [ ] 6.7 Preenchimento do suporte: linhas ou grade, densidade %, largura de linha.
-- [ ] 6.8 Camadas de interface (topo do suporte) mais densas.
-- [ ] 6.9 Novos papeis `prSupport` e `prSupportInterface`; `;TYPE:Support material` /
+- [x] 6.7 Preenchimento do suporte: linhas ou grade, densidade %, largura de linha.
+- [x] 6.8 Camadas de interface (topo do suporte) mais densas.
+- [x] 6.9 Novos papeis `prSupport` e `prSupportInterface`; `;TYPE:Support material` /
       `;TYPE:Support material interface` no G-code; velocidade propria.
 - [ ] 6.10 Fase posterior: suporte em arvore.
 
 ### 6C Aderencia
-- [ ] 6.11 Aba (brim): largura/numero de voltas, so na 1a camada.
-- [ ] 6.12 Jangada (raft): camadas base/meio/topo, folga ate a peca.
-- [ ] 6.13 Saia (ja existe) passa para esta pagina.
+- [x] 6.11 Aba (brim): largura/numero de voltas, so na 1a camada.
+- [x] 6.12 Jangada (raft): camadas base/meio/topo, folga ate a peca.
+- [x] 6.13 Saia (ja existe) passa para esta pagina.
 
 **Aceite:** modelo em "T" ou Benchy gera suporte sob as saliencias e nao na peca; haste manual aparece
 na previa e no G-code; aba visivel na 1a camada.
+
+**Entregue (2026-10-12):** suporte por camadas: saliencia = o que a camada de baixo, alargada por
+h*tan(angulo), nao sustenta; a coluna desce com fechamento de frestas ("join distance" 2 mm, necessario em
+superficies curvas), desconta a peca com folga XY e para a folga Z abaixo dela; "tocando a mesa" para se
+encontrar a peca; bloqueadores (caixas) e hastes manuais (cilindros ate o ponto clicado, presos a peca:
+acompanham ao arrastar e caem se a peca girar/escalar); interface densa nas camadas logo abaixo; linhas
+cruzadas 0/90 graus. Aderencia: nenhuma / saia (envolve peca e suporte) / aba (brim) / jangada (raft:
+base, meio e 2 de topo, folga de ar). Vista 3D: saliencias em vermelho, hastes laranja, bloqueadores
+translucidos; "Adicionar hastes" fica ativo ate Esc. Modo de suporte e tipo de aderencia lembrados.
+Testes: `tests/test_support.lpr` (T, C, esfera, bloqueador, haste, aba, jangada, saia) e o teste de GUI.
+
+**Observacao (desempenho):** o suporte quase nao custa tempo, mas o motor de fatiamento ja existente leva
+~100 s numa malha de 200 mil triangulos (esfera de 80 mm, 400 camadas) - ver tarefa 7.6.
 
 ---
 
@@ -232,6 +246,9 @@ na previa e no G-code; aba visivel na 1a camada.
 **Arq.:** `src/ui/multislicer_preview3d.pas`, `src/app/multislicer_layerpreview.pas` (manter 2D como opcao).
 
 - [ ] 7.1 Fatiamento em thread com barra de progresso e Cancelar (tela nao congela).
+- [ ] 7.6 Desempenho do fatiamento em malhas grandes: medir onde vai o tempo (corte das camadas,
+      encadeamento de segmentos, solido/preenchimento por amostragem de pontos) e otimizar
+      (indice de triangulos por faixa de Z, teste de solido por poligonos em vez de pontos).
 - [ ] 7.2 Previa 3D das trajetorias por camada com deslizante de camada (e de movimento dentro da camada).
 - [ ] 7.3 Cores por papel (parede externa, interna, solido, preenchimento, suporte, interface, saia/aba)
       com legenda; opcao de mostrar deslocamentos e retracoes.

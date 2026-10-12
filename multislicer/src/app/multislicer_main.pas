@@ -25,7 +25,7 @@ uses
   Dialogs, Graphics, LCLType, multislicer_types, multislicer_mesh, multislicer_stl,
   multislicer_3mf, multislicer_profile, multislicer_pipeline, multislicer_view,
   multislicer_printers, multislicer_materials, multislicer_userdata,
-  multislicer_scene, multislicer_view3d, multicad_camera, multislicer_quality,
+  multislicer_scene, multislicer_view3d, multicad_camera, multislicer_quality, multislicer_support,
   multisuite_controls, multisuite_icons;
 
 const
@@ -100,6 +100,13 @@ type
     { suportes e aderencia }
     SkirtLoops: TSpinEdit;
     SkirtDist: TFloatSpinEdit;
+    SupportModeBox, SupportWhereBox, AdhesionTypeBox, BlockerBox: TComboBox;
+    SupportAngle, SupportXY, SupportZ, SupportSpd, PillarDia, BrimWidthEd, RaftMarginEd, RaftGapEd: TFloatSpinEdit;
+    BlkX, BlkY, BlkW, BlkD, BlkH: TFloatSpinEdit;
+    SupportDens, SupportIfc: TSpinEdit;
+    ShowOverhangsBox: TCheckBox;
+    PillarInfo: TLabel;
+    FPickPillar: Boolean;
     { previa }
     LayerChoice: TSpinEdit;
     function Button(AParent: TWinControl; const AText: string; X, Y, W: Integer;
@@ -178,7 +185,16 @@ type
     procedure MirrorClick(Sender: TObject);
     procedure LayFlatClick(Sender: TObject);
     procedure PickFaceClick(Sender: TObject);
-    procedure FacePicked(Sender: TObject; ObjIndex, TriIndex: Integer);
+    procedure FacePicked(Sender: TObject; ObjIndex, TriIndex: Integer; const Hit: TVec3);
+    procedure SupportSettingsChanged(Sender: TObject);
+    procedure AddPillarClick(Sender: TObject);
+    procedure ClearPillarsClick(Sender: TObject);
+    procedure AddBlockerClick(Sender: TObject);
+    procedure RemoveBlockerClick(Sender: TObject);
+    procedure BlockerSelect(Sender: TObject);
+    procedure BlockerFieldChange(Sender: TObject);
+    procedure SupportBoxClick(Sender: TObject);
+    procedure RefreshSupportAids;
     procedure ArrangeClick(Sender: TObject);
     procedure LockClick(Sender: TObject);
     procedure UndoClick(Sender: TObject);
@@ -463,6 +479,15 @@ begin
   if QualityBox.ItemIndex < 0 then QualityBox.ItemIndex := FindQuality(FQualities, 'Normal');
   QualityChange(nil);
   ShowQualityMode(ReadLastChoice('quality_mode') = 'custom');
+  FUpdating := True;
+  try
+    SupportModeBox.ItemIndex := EnsureRange(StrToIntDef(ReadLastChoice('support_mode'), 0), 0, 2);
+    AdhesionTypeBox.ItemIndex := EnsureRange(StrToIntDef(ReadLastChoice('adhesion_type'), 1), 0, 3);
+  finally
+    FUpdating := False;
+  end;
+  SyncRecommended;
+  RefreshSupportAids;
   ShowViewMode(svMesa);
   ShowStep(1);
   SetState('Aguardando modelo', clSuiteWarning);
@@ -676,13 +701,14 @@ begin
   SupportBox.Parent := RecPanel;
   SupportBox.SetBounds(16, 206, 290, 24);
   SupportBox.Caption := 'Gerar suporte (hastes de apoio)';
-  SupportBox.Enabled := False;
-  SupportBox.Hint := 'Suportes entram na etapa 6 do plano';
+  SupportBox.Name := 'SupportAuto';
+  SupportBox.Hint := 'Suporte automatico sob as saliencias; detalhes na pagina Suportes';
   SupportBox.ShowHint := True;
+  SupportBox.OnChange := @SupportBoxClick;
   AdhesionBox := TCheckBox.Create(Self);
   AdhesionBox.Parent := RecPanel; AdhesionBox.Name := 'Adhesion';
   AdhesionBox.SetBounds(16, 234, 290, 24);
-  AdhesionBox.Caption := 'Aderencia a mesa (saia em volta da peca)';
+  AdhesionBox.Caption := 'Aderencia a mesa (saia, aba ou jangada)';
   AdhesionBox.Checked := True;
   AdhesionBox.OnChange := @AdhesionClick;
   LabelAt(RecPanel, 'Escolha a qualidade e o preenchimento; o resto vem do perfil. Para ajustar cada valor use Personalizado.',
@@ -725,14 +751,78 @@ begin
 end;
 
 procedure TMultiSlicerForm.BuildSupportPage(S: TScrollBox);
+
+  function BlkField(const AText, AName: string; X, Y: Integer; MinV: Double): TFloatSpinEdit;
+  begin
+    LabelAt(S, AText, X, Y, 92, 18);
+    Result := TFloatSpinEdit.Create(Self);
+    Result.Parent := S; Result.Name := AName;
+    Result.SetBounds(X, Y + 20, 92, 28);
+    Result.DecimalPlaces := 1; Result.MinValue := MinV; Result.MaxValue := 2000; Result.Increment := 1;
+    Result.OnChange := @BlockerFieldChange;
+  end;
+
 begin
   Section(S, 'SUPORTES (HASTES DE APOIO)', 52);
-  LabelAt(S, 'Deteccao de saliencias, hastes manuais por clique e bloqueadores entram na etapa 6 do plano. Ate la a peca e fatiada sem suporte.',
-    16, 74, 290, 60);
-  Section(S, 'ADERENCIA', 146);
-  SkirtLoops := IntField(S, 'Voltas de saia (0 = sem)', 'SkirtLoops', 1, 0, 20, 168);
-  SkirtDist := FloatField(S, 'Distancia da saia (mm)', 'SkirtDistance', 3, 0.5, 50, 0.5, 1, 224);
-  LabelAt(S, 'Aba (brim) e jangada (raft) entram na etapa 6.', 16, 286, 290, 40);
+  SupportModeBox := Combo(S, 'Suporte', 74);
+  SupportModeBox.Name := 'SupportMode';
+  SupportModeBox.Items.Add('Desligado');
+  SupportModeBox.Items.Add('Automatico (saliencias + hastes)');
+  SupportModeBox.Items.Add('Somente hastes manuais');
+  SupportModeBox.ItemIndex := 0;
+  SupportModeBox.OnChange := @SupportSettingsChanged;
+  SupportWhereBox := Combo(S, 'Onde apoiar', 132);
+  SupportWhereBox.Name := 'SupportWhere';
+  SupportWhereBox.Items.Add('Somente tocando a mesa');
+  SupportWhereBox.Items.Add('Em toda parte (tambem sobre a peca)');
+  SupportWhereBox.ItemIndex := 0;
+  SupportWhereBox.OnChange := @SupportSettingsChanged;
+  SupportAngle := FloatField(S, 'Angulo de saliencia (graus da vertical)', 'SupportAngle', 50, 0, 89, 5, 0, 190);
+  SupportAngle.OnChange := @SupportSettingsChanged;
+  ShowOverhangsBox := Check(S, 'Mostrar saliencias em vermelho na vista', 248);
+  ShowOverhangsBox.Name := 'ShowOverhangs';
+  ShowOverhangsBox.Checked := True;
+  ShowOverhangsBox.OnChange := @SupportSettingsChanged;
+  SupportDens := IntField(S, 'Densidade do suporte (%)', 'SupportDensity', 15, 3, 100, 280);
+  SupportXY := FloatField(S, 'Distancia XY da peca (mm)', 'SupportXYGap', 0.7, 0, 5, 0.1, 2, 336);
+  SupportZ := FloatField(S, 'Distancia Z da peca (mm)', 'SupportZGap', 0.2, 0, 2, 0.05, 2, 392);
+  SupportIfc := IntField(S, 'Camadas de interface (densas)', 'SupportInterface', 2, 0, 10, 448);
+  SupportSpd := FloatField(S, 'Velocidade do suporte (mm/s)', 'SupportSpeed', 50, 5, 300, 5, 0, 504);
+
+  Section(S, 'HASTES MANUAIS', 570);
+  PillarDia := FloatField(S, 'Diametro da haste (mm)', 'PillarDiameter', 3, 1, 20, 0.5, 1, 592);
+  Button(S, 'Adicionar hastes', 16, 652, 140, sikPointer, @AddPillarClick).Hint :=
+    'Clique na vista sob as partes salientes da peca; Esc termina';
+  Button(S, 'Limpar hastes', 166, 652, 140, sikTrash, @ClearPillarsClick);
+  PillarInfo := LabelAt(S, 'Nenhuma haste.', 16, 692, 290, 36);
+
+  Section(S, 'BLOQUEADORES DE SUPORTE', 736);
+  BlockerBox := Combo(S, 'Caixas onde o suporte automatico nao e gerado', 758);
+  BlockerBox.OnChange := @BlockerSelect;
+  Button(S, 'Adicionar', 16, 816, 140, sikRect, @AddBlockerClick).Hint := 'Na peca selecionada (ou no centro da mesa)';
+  Button(S, 'Remover', 166, 816, 140, sikTrash, @RemoveBlockerClick);
+  BlkX := BlkField('Centro X', 'BlockerX', 16, 858, -2000);
+  BlkY := BlkField('Centro Y', 'BlockerY', 115, 858, -2000);
+  BlkH := BlkField('Altura', 'BlockerH', 214, 858, 0.1);
+  BlkW := BlkField('Largura X', 'BlockerW', 16, 914, 0.1);
+  BlkD := BlkField('Profund. Y', 'BlockerD', 115, 914, 0.1);
+
+  Section(S, 'ADERENCIA A MESA', 984);
+  AdhesionTypeBox := Combo(S, 'Tipo', 1006);
+  AdhesionTypeBox.Name := 'AdhesionType';
+  AdhesionTypeBox.Items.Add('Nenhuma');
+  AdhesionTypeBox.Items.Add('Saia (contorno afastado)');
+  AdhesionTypeBox.Items.Add('Aba / brim (abas grudadas na peca)');
+  AdhesionTypeBox.Items.Add('Jangada / raft (base embaixo da peca)');
+  AdhesionTypeBox.ItemIndex := 1;
+  AdhesionTypeBox.OnChange := @SupportSettingsChanged;
+  SkirtLoops := IntField(S, 'Voltas de saia', 'SkirtLoops', 1, 0, 20, 1064);
+  SkirtDist := FloatField(S, 'Distancia da saia (mm)', 'SkirtDistance', 3, 0.5, 50, 0.5, 1, 1120);
+  BrimWidthEd := FloatField(S, 'Largura da aba (mm)', 'BrimWidth', 8, 1, 50, 1, 1, 1176);
+  RaftMarginEd := FloatField(S, 'Margem da jangada (mm)', 'RaftMargin', 3, 1, 30, 0.5, 1, 1232);
+  RaftGapEd := FloatField(S, 'Folga entre jangada e peca (mm)', 'RaftAirGap', 0.2, 0, 1, 0.05, 2, 1288);
+  LabelAt(S, 'Ender-3 com mesa limpa: saia basta. Pecas altas e finas ou com cantos que levantam: aba. Mesa irregular: jangada.',
+    16, 1348, 290, 56);
 end;
 
 procedure TMultiSlicerForm.BuildPreviewPage(S: TScrollBox);
@@ -740,7 +830,7 @@ begin
   Button(S, 'Fatiar e visualizar', 16, 52, 290, sikLayers, @SliceClick).SetLook(sbsSolid, clSuitePrimary, sikLayers);
   LayerChoice := IntField(S, 'Camada', 'LayerChoice', 1, 1, 1, 100);
   LayerChoice.OnChange := @LayerChanged;
-  PreviewSummary := LabelAt(S, 'Fatie para ver tempo, filamento e camadas.', 16, 164, 290, 160);
+  PreviewSummary := LabelAt(S, 'Fatie para ver tempo, filamento e camadas.', 16, 164, 290, 300);
 end;
 
 procedure TMultiSlicerForm.BuildOutputPage(S: TScrollBox);
@@ -906,6 +996,7 @@ end;
 procedure TMultiSlicerForm.SceneChanged(const Msg: string);
 begin
   RefreshObjectList;
+  if (PillarInfo <> nil) and not FUpdating then RefreshSupportAids;
   if not FUpdating then LoadTransformEditor;
   SettingsChanged(nil);
   View3D.Redraw;
@@ -1162,19 +1253,164 @@ end;
 procedure TMultiSlicerForm.PickFaceClick(Sender: TObject);
 begin
   if FScene.Count = 0 then Exit;
+  FPickPillar := False;
+  View3D.KeepPickMode := False;
   ShowViewMode(svMesa);
   View3D.PickFaceMode := True;
   View3D.Redraw;
   Status.Caption := 'Clique na face da peca que deve ficar apoiada na mesa (Esc cancela).';
 end;
 
-procedure TMultiSlicerForm.FacePicked(Sender: TObject; ObjIndex, TriIndex: Integer);
+procedure TMultiSlicerForm.FacePicked(Sender: TObject; ObjIndex, TriIndex: Integer; const Hit: TVec3);
 begin
+  if FPickPillar then
+  begin
+    { haste da mesa ate o ponto clicado (a folga Z e descontada no fatiamento) }
+    if SupportModeBox.ItemIndex = 0 then SupportModeBox.ItemIndex := 2;
+    FScene.AddPillar(FScene[ObjIndex], Hit.X, Hit.Y, Hit.Z, PillarDia.Value);
+    RefreshSupportAids;
+    SceneChanged(Format('Haste em X %.1f Y %.1f ate Z %.1f mm. Clique em outro ponto ou Esc para terminar.',
+      [Hit.X, Hit.Y, Hit.Z], InvariantFS));
+    Exit;
+  end;
   FScene.PushUndo; FUndoKey := '';
   FScene[ObjIndex].LayFlatTriangle(TriIndex);
   FScene.SelectOnly(ObjIndex);
   LoadTransformEditor;
   SceneChanged('Face escolhida apoiada na mesa.');
+end;
+
+procedure TMultiSlicerForm.RefreshSupportAids;
+var I, N: Integer; X, Y, Z, D: Double; B: TSceneBlocker; Keep: Integer;
+begin
+  if PillarInfo = nil then Exit;
+  N := FScene.RemoveInvalidPillars;
+  if N > 0 then
+    Status.Caption := Format('%d haste(s) removida(s): a peca foi girada, escalada ou removida.', [N]);
+  N := 0;
+  for I := 0 to FScene.PillarCount - 1 do
+    if FScene.PillarAbs(I, X, Y, Z, D) then Inc(N);
+  if N = 0 then PillarInfo.Caption := 'Nenhuma haste.'
+  else PillarInfo.Caption := Format('%d haste(s). Elas acompanham a peca ao arrastar.', [N]);
+  Keep := BlockerBox.ItemIndex;
+  FUpdating := True;
+  try
+    BlockerBox.Items.Clear;
+    for I := 0 to FScene.BlockerCount - 1 do
+    begin
+      B := FScene.Blocker(I);
+      BlockerBox.Items.Add(Format('Bloqueador %d  (%.0f x %.0f x %.0f mm)', [I + 1, B.W, B.D, B.H], InvariantFS));
+    end;
+    if Keep >= BlockerBox.Items.Count then Keep := BlockerBox.Items.Count - 1;
+    BlockerBox.ItemIndex := Keep;
+  finally
+    FUpdating := False;
+  end;
+  BlockerSelect(nil);
+  View3D.ShowOverhangs := ShowOverhangsBox.Checked and (SupportModeBox.ItemIndex = 1);
+  View3D.OverhangAngle := SupportAngle.Value;
+  View3D.Redraw;
+end;
+
+procedure TMultiSlicerForm.SupportSettingsChanged(Sender: TObject);
+begin
+  if FUpdating then Exit;
+  { o modo de suporte e o tipo de aderencia ficam lembrados (como o perfil no Cura) }
+  if Sender = SupportModeBox then WriteLastChoice('support_mode', IntToStr(SupportModeBox.ItemIndex));
+  if Sender = AdhesionTypeBox then WriteLastChoice('adhesion_type', IntToStr(AdhesionTypeBox.ItemIndex));
+  RefreshSupportAids;
+  SettingsChanged(Sender);
+end;
+
+procedure TMultiSlicerForm.AddPillarClick(Sender: TObject);
+begin
+  if FScene.Count = 0 then Exit;
+  ShowViewMode(svMesa);
+  FPickPillar := True;
+  View3D.KeepPickMode := True;
+  View3D.PickFaceMode := True;
+  View3D.Redraw;
+  Status.Caption := 'Clique sob as partes salientes da peca para colocar hastes (Esc termina).';
+end;
+
+procedure TMultiSlicerForm.ClearPillarsClick(Sender: TObject);
+begin
+  if FScene.PillarCount = 0 then Exit;
+  FScene.ClearPillars;
+  RefreshSupportAids;
+  SceneChanged('Hastes removidas.');
+end;
+
+procedure TMultiSlicerForm.AddBlockerClick(Sender: TObject);
+var B: TSceneBlocker; O: TSliceObject; Bx: TBox3;
+begin
+  O := TargetObject;
+  if O <> nil then
+  begin
+    Bx := O.WorldBox;
+    B.CX := (Bx.Min.X + Bx.Max.X) / 2; B.CY := (Bx.Min.Y + Bx.Max.Y) / 2;
+    B.W := Max(5, (Bx.Max.X - Bx.Min.X) / 2); B.D := Max(5, (Bx.Max.Y - Bx.Min.Y) / 2);
+    B.H := Bx.Max.Z + 1;
+  end
+  else
+  begin
+    B.CX := BedX.Value / 2; B.CY := BedY.Value / 2; B.W := 30; B.D := 30; B.H := 30;
+  end;
+  FScene.AddBlocker(B);
+  RefreshSupportAids;
+  BlockerBox.ItemIndex := FScene.BlockerCount - 1;
+  BlockerSelect(nil);
+  SceneChanged('Bloqueador adicionado: ajuste o centro e o tamanho nos campos.');
+end;
+
+procedure TMultiSlicerForm.RemoveBlockerClick(Sender: TObject);
+begin
+  if BlockerBox.ItemIndex < 0 then Exit;
+  FScene.DeleteBlocker(BlockerBox.ItemIndex);
+  RefreshSupportAids;
+  SceneChanged('Bloqueador removido.');
+end;
+
+procedure TMultiSlicerForm.BlockerSelect(Sender: TObject);
+var B: TSceneBlocker; On: Boolean;
+begin
+  if BlkX = nil then Exit;
+  On := (BlockerBox.ItemIndex >= 0) and (BlockerBox.ItemIndex < FScene.BlockerCount);
+  BlkX.Enabled := On; BlkY.Enabled := On; BlkW.Enabled := On; BlkD.Enabled := On; BlkH.Enabled := On;
+  if not On then Exit;
+  B := FScene.Blocker(BlockerBox.ItemIndex);
+  FUpdating := True;
+  try
+    BlkX.Value := B.CX; BlkY.Value := B.CY; BlkW.Value := B.W; BlkD.Value := B.D; BlkH.Value := B.H;
+  finally
+    FUpdating := False;
+  end;
+end;
+
+procedure TMultiSlicerForm.BlockerFieldChange(Sender: TObject);
+var B: TSceneBlocker; K: Integer;
+begin
+  if FUpdating then Exit;
+  K := BlockerBox.ItemIndex;
+  if (K < 0) or (K >= FScene.BlockerCount) then Exit;
+  B.CX := BlkX.Value; B.CY := BlkY.Value; B.W := BlkW.Value; B.D := BlkD.Value; B.H := BlkH.Value;
+  FScene.SetBlocker(K, B);
+  FUpdating := True;
+  try
+    BlockerBox.Items[K] := Format('Bloqueador %d  (%.0f x %.0f x %.0f mm)', [K + 1, B.W, B.D, B.H], InvariantFS);
+    BlockerBox.ItemIndex := K;
+  finally
+    FUpdating := False;
+  end;
+  View3D.Redraw;
+  SettingsChanged(nil);
+end;
+
+procedure TMultiSlicerForm.SupportBoxClick(Sender: TObject);
+begin
+  if FUpdating then Exit;
+  if SupportBox.Checked then SupportModeBox.ItemIndex := 1 else SupportModeBox.ItemIndex := 0;
+  SupportSettingsChanged(SupportModeBox);
 end;
 
 procedure TMultiSlicerForm.ArrangeClick(Sender: TObject);
@@ -1351,7 +1587,9 @@ begin
   try
     InfillTrack.Position := InfillDensity.Value;
     InfillLabel.Caption := IntToStr(InfillDensity.Value) + '%';
-    if SkirtLoops <> nil then AdhesionBox.Checked := SkirtLoops.Value > 0;
+    if AdhesionTypeBox <> nil then
+      AdhesionBox.Checked := (AdhesionTypeBox.ItemIndex > 1) or ((AdhesionTypeBox.ItemIndex = 1) and (SkirtLoops.Value > 0));
+    if SupportModeBox <> nil then SupportBox.Checked := SupportModeBox.ItemIndex = 1;
   finally
     FUpdating := False;
   end;
@@ -1367,8 +1605,14 @@ end;
 procedure TMultiSlicerForm.AdhesionClick(Sender: TObject);
 begin
   if FUpdating then Exit;
-  if AdhesionBox.Checked then SkirtLoops.Value := Max(1, SkirtLoops.Value)
-  else SkirtLoops.Value := 0;
+  if AdhesionBox.Checked then
+  begin
+    if AdhesionTypeBox.ItemIndex = 0 then AdhesionTypeBox.ItemIndex := 1;
+    if (AdhesionTypeBox.ItemIndex = 1) and (SkirtLoops.Value = 0) then SkirtLoops.Value := 1;
+  end
+  else AdhesionTypeBox.ItemIndex := 0;
+  WriteLastChoice('adhesion_type', IntToStr(AdhesionTypeBox.ItemIndex));
+  SettingsChanged(AdhesionTypeBox);
 end;
 
 procedure TMultiSlicerForm.ShowQualityMode(Custom: Boolean);
@@ -1723,7 +1967,8 @@ end;
 procedure TMultiSlicerForm.SettingsChanged(Sender: TObject);
 begin
   if FUpdating then Exit;
-  if (InfillTrack <> nil) and ((Sender = InfillDensity) or (Sender = SkirtLoops) or (Sender = nil)) then
+  if (InfillTrack <> nil) and ((Sender = InfillDensity) or (Sender = SkirtLoops) or (Sender = nil) or
+    (Sender = AdhesionTypeBox) or (Sender = SupportModeBox)) then
     SyncRecommended;
   if Sender = HeatedBedBox then
   begin
@@ -1835,7 +2080,7 @@ end;
 { ---------------- fatiamento ---------------- }
 
 function TMultiSlicerForm.Settings: TSliceSettings;
-var I: Integer; B: TBox3; Err: string;
+var I: Integer; B: TBox3; Err: string; PX, PY, PZ, PD: Double;
 begin
   Result := DefaultSliceSettings;
   Result.Printer := DefaultPrinterProfile;
@@ -1884,6 +2129,39 @@ begin
   Result.Adaptive := Adaptive.Checked;
   Result.AdaptiveMin := Min(0.08, Result.LayerHeight);
   Result.AdaptiveMax := Min(Result.LayerHeight, Result.Printer.Nozzle * 0.8);
+  { suportes }
+  Result.Support := DefaultSupportParams;
+  Result.Support.Mode := TSupportMode(Max(0, SupportModeBox.ItemIndex));
+  Result.Support.Everywhere := SupportWhereBox.ItemIndex = 1;
+  Result.Support.AngleDeg := SupportAngle.Value;
+  Result.Support.Density := SupportDens.Value / 100;
+  Result.Support.XYGap := SupportXY.Value;
+  Result.Support.ZGap := SupportZ.Value;
+  Result.Support.InterfaceLayers := SupportIfc.Value;
+  Result.Support.Speed := SupportSpd.Value;
+  SetLength(Result.Support.Pillars, 0);
+  for I := 0 to FScene.PillarCount - 1 do
+    if FScene.PillarAbs(I, PX, PY, PZ, PD) then
+    begin
+      SetLength(Result.Support.Pillars, Length(Result.Support.Pillars) + 1);
+      with Result.Support.Pillars[High(Result.Support.Pillars)] do
+      begin
+        X := PX; Y := PY; ZTop := PZ; Diameter := PD;
+      end;
+    end;
+  SetLength(Result.Support.Blockers, FScene.BlockerCount);
+  for I := 0 to FScene.BlockerCount - 1 do
+    with FScene.Blocker(I) do
+    begin
+      Result.Support.Blockers[I].MinX := CX - W / 2; Result.Support.Blockers[I].MaxX := CX + W / 2;
+      Result.Support.Blockers[I].MinY := CY - D / 2; Result.Support.Blockers[I].MaxY := CY + D / 2;
+      Result.Support.Blockers[I].MinZ := 0; Result.Support.Blockers[I].MaxZ := H;
+    end;
+  { aderencia }
+  Result.Adhesion := TAdhesionType(Max(0, AdhesionTypeBox.ItemIndex));
+  Result.BrimWidth := BrimWidthEd.Value;
+  Result.RaftMargin := RaftMarginEd.Value;
+  Result.RaftAirGap := RaftGapEd.Value;
   if FScene.Count = 1 then Result.ObjectName := FScene[0].Name
   else Result.ObjectName := 'pecas';
   { cada peca com rotulo proprio no G-code (cancelar uma peca na impressora) }
@@ -1963,6 +2241,10 @@ begin
       Format(' (camada %s mm, preenchimento %d%%)', [FormatFloat('0.0#', LayerHeight.Value, InvariantFS), InfillDensity.Value]);
     PreviewSummary.Caption := PreviewSummary.Caption + #10'Impressora: ' + CurrentPrinter.Name +
       #10'Material: ' + CurrentMaterial.Name + Format(' (bico %d C, mesa %d C)', [Hotend.Value, BedTemp.Value]);
+    if R.SupportPaths > 0 then
+      PreviewSummary.Caption := PreviewSummary.Caption + Format(#10'Suporte: %d trajetorias', [R.SupportPaths]);
+    if R.RaftLayers > 0 then
+      PreviewSummary.Caption := PreviewSummary.Caption + Format(#10'Jangada: %d camadas', [R.RaftLayers]);
     if R.Warnings <> '' then PreviewSummary.Caption := PreviewSummary.Caption + #10'Avisos: ' + R.Warnings;
     OutSummary.Caption := Format('%d linhas de G-code (%s). Gere o arquivo para salvar e enviar ao MultiCNC.',
       [Code.Count, FlavorChoice.Text]);

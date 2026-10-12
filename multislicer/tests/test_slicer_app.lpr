@@ -1,11 +1,11 @@
 program test_slicer_app;
 {$mode objfpc}{$H+}
-uses Interfaces, Forms, Classes, SysUtils, Math, Spin, multislicer_main,
+uses Interfaces, Forms, Classes, SysUtils, Math, Spin, StdCtrls, multislicer_main,
   multislicer_mesh, multislicer_pipeline, multislicer_stl, multislicer_types,
   multislicer_userdata, multislicer_materials, multislicer_scene, multicad_camera, multislicer_quality;
 var F: TMultiSlicerForm; Mesh: TMesh; G: TStringList; A, B: TVec3; Bx: TBox3; Pt: TPoint; T0: QWord;
   FN2, FNBig: string; I, J: Integer; Tri: TTriangle; LFino, LNormal, LRasc: Integer; TFino, TNormal, TRasc: Double;
-  QD: TQualityDef;
+  QD: TQualityDef; PX, PY, PZ, PD, PX0: Double; NSup: Integer; Blk: TSceneBlocker;
   FN, Output, BadOutput, ProfileDir: string; Mat: TMaterialDef; Raised: Boolean; Before: string;
 procedure Check(OK: Boolean; const Msg: string);
 begin if not OK then raise Exception.Create(Msg); end;
@@ -200,8 +200,54 @@ begin
     QD := F.CurrentQuality; QD.Name := 'Meu rapido'; SaveQuality(QD);
     Check(FindQuality(LoadQualities, 'Meu rapido') >= 0, 'user quality saved to JSON');
     Check(DeleteQuality('Meu rapido'), 'user quality deleted');
+    { Etapa 6: suportes e aderencia pela tela - T com bracos salientes }
+    F.Scene.Clear;
+    Mesh.Clear;
+    AddBox(Mesh, 15, 0, 0, 25, 10, 20);       { coluna }
+    AddBox(Mesh, 0, 0, 20, 40, 10, 25);       { braco de 40 mm em cima }
+    TSTLImporter.SaveBinary(Mesh, FN2);
+    F.OpenFile(FN2);
+    F.GenerateProgram;
+    Check(F.SliceReport.SupportPaths = 0, 'support off by default');
+    TCheckBox(F.FindComponent('SupportAuto')).Checked := True;     { modo recomendado }
+    Check(TComboBox(F.FindComponent('SupportMode')).ItemIndex = 1, 'recommended checkbox turns automatic support on');
+    Check(F.ViewControl3D.ShowOverhangs, 'overhangs highlighted in the 3D view');
+    F.GenerateProgram;
+    NSup := F.SliceReport.SupportPaths;
+    Check(NSup > 50, Format('automatic support under the arms (%d paths)', [NSup]));
+    F.ExportProgram(Output); G.LoadFromFile(Output);
+    Check(Pos(';TYPE:Support material', G.Text) > 0, 'support in the exported G-code');
+    { bloqueador sobre a peca inteira: sem suporte automatico }
+    Bx := F.Scene[0].WorldBox;
+    Blk.CX := (Bx.Min.X + Bx.Max.X) / 2; Blk.CY := (Bx.Min.Y + Bx.Max.Y) / 2; Blk.W := 60; Blk.D := 30; Blk.H := 40;
+    F.Scene.AddBlocker(Blk);
+    F.GenerateProgram;
+    Check(F.SliceReport.SupportPaths = 0, 'blocker over the part removes the automatic support');
+    F.Scene.DeleteBlocker(0);
+    { haste manual presa a peca }
+    TComboBox(F.FindComponent('SupportMode')).ItemIndex := 2;
+    F.Scene.AddPillar(F.Scene[0], Bx.Min.X + 4, (Bx.Min.Y + Bx.Max.Y) / 2, 20, 3);
+    F.GenerateProgram;
+    Check((F.SliceReport.SupportPaths > 0) and (F.SliceReport.SupportPaths < NSup), 'manual pillar only');
+    F.Scene.PillarAbs(0, PX0, PY, PZ, PD);
+    F.Scene[0].MoveBy(10, 0);
+    Check(F.Scene.PillarAbs(0, PX, PY, PZ, PD) and (Abs(PX - PX0 - 10) < 1e-6), 'pillar follows the part when dragged');
+    TFloatSpinEdit(F.FindComponent('RotZ')).Value := 90;
+    Check(F.Scene.PillarCount = 0, 'pillar dropped when the part is rotated');
+    TFloatSpinEdit(F.FindComponent('RotZ')).Value := 0;
+    TComboBox(F.FindComponent('SupportMode')).ItemIndex := 0;
+    { aderencia: aba e jangada }
+    TComboBox(F.FindComponent('AdhesionType')).ItemIndex := 2;
+    F.GenerateProgram;
+    Check(F.SliceReport.BrimPaths > 5, 'brim from the adhesion type');
+    TComboBox(F.FindComponent('AdhesionType')).ItemIndex := 3;
+    F.GenerateProgram;
+    Check(F.SliceReport.RaftLayers = 4, 'raft from the adhesion type');
+    F.ExportProgram(Output); G.LoadFromFile(Output);
+    Check(Pos(';TYPE:Raft', G.Text) > 0, 'raft in the exported G-code');
+    TComboBox(F.FindComponent('AdhesionType')).ItemIndex := 1;
     DeleteFile(FN2); DeleteFile(FNBig);
-    Writeln('MultiSlicer GUI: OK (suite UI, centering, validation, profiles, start/end G-code, persistence, 3D scene, picking, transform panel, undo, labels, quality profiles, layers, export)');
+    Writeln('MultiSlicer GUI: OK (suite UI, centering, validation, profiles, start/end G-code, persistence, 3D scene, picking, transform panel, undo, labels, quality profiles, supports, pillars, blockers, brim, raft, layers, export)');
   finally F.Free; Mesh.Free; DeleteFile(ProfileDir + PathDelim + 'multislicer.json'); RemoveDir(ProfileDir + PathDelim + 'materials'); RemoveDir(ProfileDir + PathDelim + 'quality'); RemoveDir(ProfileDir); G.Free; DeleteFile(FN); DeleteFile(Output); DeleteFile(BadOutput); end;
   except on E: Exception do begin Writeln('FAIL: ', E.Message); Halt(1); end; end;
 end.

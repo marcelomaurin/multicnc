@@ -43,6 +43,18 @@ type
   end;
   TSceneState = array of TTransformState;
 
+  { haste de apoio manual, presa a uma peca: posicao relativa ao centro da peca.
+    Se a peca muda de forma (gira, escala, espelha) a haste deixa de valer. }
+  TScenePillar = record
+    ObjId, Shape: Integer;
+    DX, DY, ZTop, Diameter: Double;
+  end;
+
+  { bloqueador de suporte: caixa na mesa, do Z = 0 ate a altura H }
+  TSceneBlocker = record
+    CX, CY, W, D, H: Double;
+  end;
+
   TSliceObject = class
   private
     FSource: TMesh;           { malha original (posse) }
@@ -122,6 +134,8 @@ type
     FItems: TObjectList;
     FVersion: Integer;
     FUndo, FRedo: array of TSceneState;
+    FPillars: array of TScenePillar;
+    FBlockers: array of TSceneBlocker;
     function GetItem(I: Integer): TSliceObject;
     function FindSpotAmong(SX, SY: Double; const Obstacles: array of TBox3; out PX, PY: Double): Boolean;
     function Capture: TSceneState;
@@ -166,6 +180,20 @@ type
     function CanUndo: Boolean;
     function CanRedo: Boolean;
     procedure ClearHistory;
+    { hastes manuais }
+    procedure AddPillar(O: TSliceObject; X, Y, ZTop, Diameter: Double);
+    procedure ClearPillars;
+    function PillarCount: Integer;
+    function Pillar(I: Integer): TScenePillar;
+    { posicao absoluta; False se a peca sumiu ou mudou de forma }
+    function PillarAbs(I: Integer; out X, Y, ZTop, Diameter: Double): Boolean;
+    function RemoveInvalidPillars: Integer;
+    { bloqueadores }
+    function AddBlocker(const B: TSceneBlocker): Integer;
+    procedure SetBlocker(I: Integer; const B: TSceneBlocker);
+    procedure DeleteBlocker(I: Integer);
+    function BlockerCount: Integer;
+    function Blocker(I: Integer): TSceneBlocker;
     property Items[I: Integer]: TSliceObject read GetItem; default;
     property Version: Integer read FVersion;
   end;
@@ -712,6 +740,8 @@ end;
 procedure TSliceScene.Clear;
 begin
   FItems.Clear;
+  SetLength(FPillars, 0);
+  SetLength(FBlockers, 0);
   Touch;
 end;
 
@@ -911,6 +941,96 @@ procedure TSliceScene.ClearHistory;
 begin
   SetLength(FUndo, 0);
   SetLength(FRedo, 0);
+end;
+
+procedure TSliceScene.AddPillar(O: TSliceObject; X, Y, ZTop, Diameter: Double);
+var N: Integer;
+begin
+  if O = nil then Exit;
+  N := Length(FPillars);
+  SetLength(FPillars, N + 1);
+  FPillars[N].ObjId := O.Id;
+  FPillars[N].Shape := O.ShapeVersion;
+  FPillars[N].DX := X - O.X;
+  FPillars[N].DY := Y - O.Y;
+  FPillars[N].ZTop := ZTop;
+  FPillars[N].Diameter := Diameter;
+  Touch;
+end;
+
+procedure TSliceScene.ClearPillars;
+begin
+  SetLength(FPillars, 0);
+  Touch;
+end;
+
+function TSliceScene.PillarCount: Integer;
+begin
+  Result := Length(FPillars);
+end;
+
+function TSliceScene.Pillar(I: Integer): TScenePillar;
+begin
+  Result := FPillars[I];
+end;
+
+function TSliceScene.PillarAbs(I: Integer; out X, Y, ZTop, Diameter: Double): Boolean;
+var O: TSliceObject;
+begin
+  X := 0; Y := 0; ZTop := 0; Diameter := 0;
+  O := FindById(FPillars[I].ObjId);
+  Result := (O <> nil) and (O.ShapeVersion = FPillars[I].Shape);
+  if not Result then Exit;
+  X := O.X + FPillars[I].DX;
+  Y := O.Y + FPillars[I].DY;
+  ZTop := FPillars[I].ZTop;
+  Diameter := FPillars[I].Diameter;
+end;
+
+function TSliceScene.RemoveInvalidPillars: Integer;
+var I, K: Integer; X, Y, Z, D: Double;
+begin
+  Result := 0;
+  K := 0;
+  for I := 0 to High(FPillars) do
+    if PillarAbs(I, X, Y, Z, D) then
+    begin
+      FPillars[K] := FPillars[I];
+      Inc(K);
+    end
+    else Inc(Result);
+  SetLength(FPillars, K);
+  if Result > 0 then Touch;
+end;
+
+function TSliceScene.AddBlocker(const B: TSceneBlocker): Integer;
+begin
+  Result := Length(FBlockers);
+  SetLength(FBlockers, Result + 1);
+  FBlockers[Result] := B;
+  Touch;
+end;
+
+procedure TSliceScene.SetBlocker(I: Integer; const B: TSceneBlocker);
+begin
+  FBlockers[I] := B;
+  Touch;
+end;
+
+procedure TSliceScene.DeleteBlocker(I: Integer);
+begin
+  System.Delete(FBlockers, I, 1);
+  Touch;
+end;
+
+function TSliceScene.BlockerCount: Integer;
+begin
+  Result := Length(FBlockers);
+end;
+
+function TSliceScene.Blocker(I: Integer): TSceneBlocker;
+begin
+  Result := FBlockers[I];
 end;
 
 function TSliceScene.AddObject(O: TSliceObject; FindPlace: Boolean): TSliceObject;

@@ -83,6 +83,10 @@ begin
     prInnerWall: Result := SuiteRGB(22, 163, 74);
     prSolidInfill: Result := SuiteRGB(217, 119, 6);
     prSparseInfill: Result := SuiteRGB(124, 58, 237);
+    prSupport: Result := SuiteRGB(13, 148, 136);
+    prSupportInterface: Result := SuiteRGB(8, 145, 178);
+    prBrim: Result := SuiteRGB(71, 85, 105);
+    prRaft: Result := SuiteRGB(146, 64, 14);
   else
     Result := clGray;
   end;
@@ -96,6 +100,10 @@ begin
     prInnerWall: Result := 'Parede interna';
     prSolidInfill: Result := 'Topo/fundo';
     prSparseInfill: Result := 'Preenchimento';
+    prSupport: Result := 'Suporte';
+    prSupportInterface: Result := 'Interface';
+    prBrim: Result := 'Aba';
+    prRaft: Result := 'Jangada';
   else
     Result := '';
   end;
@@ -358,21 +366,39 @@ begin
 end;
 
 procedure TSlicerView.DrawLegend(C: TCanvas);
-var R: TPathRole; X: Integer;
+var R: TPathRole; X, Y, W, Rows: Integer;
 begin
-  X := 14;
   C.Font.Size := 8;
+  { faixa de fundo: a legenda nao fica por cima das trajetorias ampliadas }
+  Rows := 1; X := 14;
   for R := Low(TPathRole) to High(TPathRole) do
   begin
+    W := 16 + C.TextWidth(SlicerRoleName(R)) + 16;
+    if (X > 14) and (X + W > ClientWidth - 10) then begin Inc(Rows); X := 14; end;
+    X := X + W;
+  end;
+  C.Pen.Style := psClear;
+  C.Brush.Style := bsSolid;
+  C.Brush.Color := clSuiteSurface;
+  C.Rectangle(0, 0, ClientWidth + 1, 14 + Rows * 18);
+  X := 14; Y := 10;
+  for R := Low(TPathRole) to High(TPathRole) do
+  begin
+    W := 16 + C.TextWidth(SlicerRoleName(R)) + 16;
+    if (X > 14) and (X + W > ClientWidth - 10) then
+    begin
+      X := 14;
+      Inc(Y, 18);   { quebra a legenda em outra linha }
+    end;
     C.Pen.Style := psClear;
     C.Brush.Style := bsSolid;
     C.Brush.Color := SlicerRoleColor(R);
-    C.Rectangle(X, 12, X + 12, 24);
+    C.Rectangle(X, Y + 2, X + 12, Y + 14);
     C.Pen.Style := psSolid;
     C.Brush.Style := bsClear;
     C.Font.Color := clSuiteMuted;
-    C.TextOut(X + 16, 10, SlicerRoleName(R));
-    X := X + 16 + C.TextWidth(SlicerRoleName(R)) + 16;
+    C.TextOut(X + 16, Y, SlicerRoleName(R));
+    X := X + W;
   end;
 end;
 
