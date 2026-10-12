@@ -76,3 +76,6 @@ __pycache__/
 multicad/tests/libmcad_occt.so
 multicad/tests/mcad_occt.dll
 bin/libmcad_occt.so
+/multislicer/src/app/multislicer
+/multislicer/tests/test_slicer_app
+/multislicer/tests/test_modern_slicer

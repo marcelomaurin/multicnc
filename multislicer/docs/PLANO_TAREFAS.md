@@ -18,14 +18,14 @@ Legenda: **Arq.** = arquivos a criar/alterar. **Aceite** = como verificar.
 
 ## Etapa 0 - Preparacao
 
-- [ ] 0.1 Incluir `../../../multisuite/src/core` em `OtherUnitFiles` de `multislicer.lpi`
+- [x] 0.1 Incluir `../../../multisuite/src/core` em `OtherUnitFiles` de `multislicer.lpi`
       (necessario para `multisuite_controls`, `multisuite_icons`, `multisuite_registry`,
       `multisuite_launcher`).
-- [ ] 0.2 Garantir que `multislicer.lpi` e `tests/test_modern_slicer.lpr` compilam com `lazbuild`.
-- [ ] 0.3 Criar `src/core/multislicer_settings.pas` concentrando os tipos de configuracao
+- [x] 0.2 Garantir que `multislicer.lpi` e `tests/test_modern_slicer.lpr` compilam com `lazbuild`.
+- [ ] 0.3 (adiada para a Etapa 2, junto com os perfis em JSON) Criar `src/core/multislicer_settings.pas` concentrando os tipos de configuracao
       (impressora, material, qualidade, suporte, aderencia) hoje espalhados entre
       `multislicer_types`, `multislicer_profile` e `multislicer_pipeline`.
-- [ ] 0.4 Marcar como legado (sem uso pela tela) `multislicer_engine.pas` e
+- [x] 0.4 Marcar como legado (sem uso pela tela) `multislicer_engine.pas` e
       `multislicer_gcode.pas`; nao apagar ainda (Etapa 9).
 
 **Aceite:** projeto e testes compilam sem alterar o comportamento atual.
@@ -36,25 +36,34 @@ Legenda: **Arq.** = arquivos a criar/alterar. **Aceite** = como verificar.
 
 **Arq.:** `src/app/multislicer_main.pas` (reescrita), `src/app/multislicer.lpr`.
 
-- [ ] 1.1 Formulario `inherited CreateNew(AOwner, 1)`, `Font.Name := SUITE_FONT`, `Color := clSuiteSurface`,
+- [x] 1.1 Formulario `inherited CreateNew(AOwner, 1)`, `Font.Name := SUITE_FONT`, `Color := clSuiteSurface`,
       1280x860, minimo 1060x680, caption `MultiSlicer • MultiSuite`.
-- [ ] 1.2 `TSuiteHeader.Setup('MultiSlicer', 'Preparacao para impressao 3D  /  MultiSuite', sikSlicer)`.
-- [ ] 1.3 Barra lateral (`clSuiteCard`, 214 px) com as etapas em `TSuiteButton`:
+- [x] 1.2 `TSuiteHeader.Setup('MultiSlicer', 'Preparacao para impressao 3D  /  MultiSuite', sikSlicer)`.
+- [x] 1.3 Barra lateral (`clSuiteCard`, 214 px) com as etapas em `TSuiteButton`:
       1 Impressora, 2 Modelo, 3 Material, 4 Qualidade, 5 Suportes, 6 Previa, 7 Saida.
       Botoes Novo / Abrir / Salvar / Importar abaixo; lista de objetos (`TListBox`).
-- [ ] 1.4 Painel de parametros a direita: `TPageControl` sem abas (336 px), um `TScrollBox`
+- [x] 1.4 Painel de parametros a direita: `TPageControl` sem abas (336 px), um `TScrollBox`
       por etapa, com os helpers `LabelAt`, `Field`, `Combo`, `Button` no mesmo estilo do MakeRouter.
-- [ ] 1.5 Barra superior da vista: Ajustar, Ampliar, Reduzir, vistas padrao (frente, topo, lado, iso).
-- [ ] 1.6 Rodape (`clSuiteCard`, 66 px): status, coordenadas, indicador de estado
+- [x] 1.5 Barra superior da vista: Mesa / Camadas, Ajustar, Ampliar, Reduzir, deslizante de camada;
+      roda do mouse amplia no cursor, arrastar desloca. Vistas padrao (frente, lado, iso) ficam para a Etapa 3.
+- [x] 1.6 Rodape (`clSuiteCard`, 66 px): status, coordenadas, indicador de estado
       (`clSuiteWarning` aguardando / `clSuiteInfo` fatiado / `clSuiteSuccess` G-code gerado /
       `clSuiteDanger` erro) e botoes **Validar**, **Fatiar** (solido, `clSuitePrimary`) e
       **Abrir no MultiCNC** (`sikSend`, desabilitado ate exportar).
-- [ ] 1.7 Ligar o pipeline atual (`TModernSlicer`) aos novos campos, mantendo a regra:
+- [x] 1.7 Ligar o pipeline atual (`TModernSlicer`) aos novos campos, mantendo a regra:
       qualquer alteracao invalida o G-code anterior.
-- [ ] 1.8 Abrir pelo contexto da suite (`ReadSuiteContext`) como hoje.
+- [x] 1.8 Abrir pelo contexto da suite (`ReadSuiteContext`) como hoje.
 
 **Aceite:** a tela fica visualmente igual as demais ferramentas; abrir um STL, fatiar e exportar
 continua funcionando; `test_slicer_app` atualizado passa.
+
+**Entregue (2026-10-12):** `multislicer_main.pas` reescrito; nova vista `src/ui/multislicer_view.pas`
+(mesa vista de cima com grade de 10 mm e projecao da peca, parte fora da mesa em vermelho; previa de
+camadas colorida por papel em coordenadas da mesa). Extras ja adiantados: abre STL e 3MF; ao abrir, a
+peca e centralizada na mesa e assentada em Z = 0 (antes era fatiada nas coordenadas cruas do arquivo);
+perfis fixos Creality Ender-3 (Bowden, retracao 5 mm) e Generic Marlin; Validar confere mesa X/Y/Z;
+botao Abrir no MultiCNC ja chama o MultiCNC (a troca automatica para Impressora 3D depende da tarefa 8.7).
+`multislicer_layerpreview.pas` deixou de ser usado pela tela.
 
 ---
 

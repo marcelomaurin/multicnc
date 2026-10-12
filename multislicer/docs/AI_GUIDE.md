@@ -11,7 +11,8 @@ MultiSlicer prepara modelos 3D para impressao 3D.
 - import/multislicer_stl.pas: importacao STL.
 - layout/: posicionamento, transformacao e arranjo 3D.
 - export/multislicer_gcode.pas: G-code.
-- ui/multislicer_bedcanvas.pas: mesa.
+- ui/multislicer_view.pas: vista central da tela (mesa vista de cima e previa de camadas).
+- ui/multislicer_bedcanvas.pas: mesa 2D do executavel de posicionamento antigo (legado).
 - app/: aplicacao e posicionamento.
 - tests/test_layout3d.lpr.
 
@@ -27,5 +28,9 @@ Controle serial, firmware/protocolo, usinagem CNC Router, desenho PCB ou montage
 ## Regra
 Mantenha perfil de impressao separado da conexao com a impressora. O slicer prepara; MultiCNC executa.
 
+## Tela
+multislicer_main segue o padrao da suite (TSuiteHeader, etapas TSuiteButton, TPageControl sem abas,
+rodape Validar/Fatiar/Gerar G-code/Abrir no MultiCNC), igual ao MakeRouter. Plano em docs/PLANO_TAREFAS.md.
+
 ## Previa e exportacao
-multislicer_main usa TModernSlicer para ambos os fluxos. multislicer_layerpreview desenha TLayerData.Paths do mesmo resultado que gera o G-code. Qualquer alteracao de configuracao ou STL invalida o programa anterior; ExportProgram deve regenerar quando necessario. Importacao invalida preserva o modelo anterior. Nao use TSlicer antigo para contar camadas da previa enquanto exporta pelo pipeline moderno.
+multislicer_main usa TModernSlicer para ambos os fluxos. multislicer_view desenha TLayerData.Paths do mesmo resultado que gera o G-code. Qualquer alteracao de configuracao ou STL invalida o programa anterior; ExportProgram deve regenerar quando necessario. Importacao invalida preserva o modelo anterior. Nao use TSlicer antigo para contar camadas da previa enquanto exporta pelo pipeline moderno.

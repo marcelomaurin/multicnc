@@ -1,5 +1,7 @@
 unit multislicer_gcode;
 {$mode objfpc}{$H+}
+{ LEGADO: o G-code e gerado por multislicer_pipeline (TModernSlicer). A tela nao usa esta unidade;
+  sera removida na Etapa 9 do docs/PLANO_TAREFAS.md. }
 interface
 uses multisuite_numfmt, Classes,SysUtils,Math,multislicer_types,multislicer_engine;
 type TSlicerGCode=class public class procedure ExportLayers(Layers:TList;const P:TPrinterProfile;const FN:string);end;

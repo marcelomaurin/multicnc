@@ -1,5 +1,7 @@
 unit multislicer_engine;
 {$mode objfpc}{$H+}
+{ LEGADO: substituido por multislicer_pipeline (TModernSlicer). A tela nao usa esta unidade;
+  sera removida na Etapa 9 do docs/PLANO_TAREFAS.md. }
 interface
 uses Classes,SysUtils,Math,multislicer_types,multislicer_mesh;
 type
