@@ -10,6 +10,6 @@
  <CompilerOptions>
   <Version Value="11"/>
   <Target><Filename Value="test_slicer_app"/></Target>
-  <SearchPaths><OtherUnitFiles Value="../src/app;../src/core;../src/import;../src/ui;../../src/shared;../../src/shared/clipper2;../../multisuite/src/core;../../multicad/src/core;../../multicad/src/kernel;../../multicad/src/ui"/><UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/></SearchPaths>
+  <SearchPaths><OtherUnitFiles Value="../src/app;../src/core;../src/import;../src/ui;../../src/core;../../src/shared;../../src/shared/clipper2;../../multisuite/src/core;../../multicad/src/core;../../multicad/src/kernel;../../multicad/src/ui"/><UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/></SearchPaths>
  </CompilerOptions>
 </CONFIG>

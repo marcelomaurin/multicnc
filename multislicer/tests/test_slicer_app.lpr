@@ -2,11 +2,13 @@ program test_slicer_app;
 {$mode objfpc}{$H+}
 uses Interfaces, Forms, Classes, SysUtils, Math, Spin, StdCtrls, multislicer_main,
   multislicer_mesh, multislicer_pipeline, multislicer_stl, multislicer_types,
-  multislicer_userdata, multislicer_materials, multislicer_scene, multicad_camera, multislicer_quality;
+  multislicer_userdata, multislicer_materials, multislicer_scene, multicad_camera, multislicer_quality,
+  multicnc_types, multicnc_equipment;
 var F: TMultiSlicerForm; Mesh: TMesh; G: TStringList; A, B: TVec3; Bx: TBox3; Pt: TPoint; T0: QWord;
   FN2, FNBig: string; I, J: Integer; Tri: TTriangle; LFino, LNormal, LRasc: Integer; TFino, TNormal, TRasc: Double;
   QD: TQualityDef; PX, PY, PZ, PD, PX0: Double; NSup: Integer; Blk: TSceneBlocker;
   FN, Output, BadOutput, ProfileDir: string; Mat: TMaterialDef; Raised: Boolean; Before: string;
+  EqFile: string; EqStore: TEquipmentStore; Eq: TEquipmentProfile; EqBox: TComboBox;
 procedure Check(OK: Boolean; const Msg: string);
 begin if not OK then raise Exception.Create(Msg); end;
 begin
@@ -15,6 +17,24 @@ begin
   { perfis do usuario numa pasta temporaria, para nao tocar na configuracao real }
   ProfileDir := IncludeTrailingPathDelimiter(GetTempDir) + 'ms_profiles_' + IntToStr(GetProcessID);
   SlicerDataDirOverride := ProfileDir;
+  { cadastro de equipamentos do MultiCNC de mentira: 2 impressoras e 1 router }
+  EqFile := IncludeTrailingPathDelimiter(GetTempDir) + 'ms_equip_' + IntToStr(GetProcessID) + '.json';
+  EquipmentFileOverride := EqFile;
+  EqStore := TEquipmentStore.Create(EqFile);
+  try
+    Eq := DefaultEquipmentProfile;
+    Eq.Name := 'Router da oficina'; Eq.SerialPort := 'COM3'; Eq.WorkX := 300; Eq.WorkY := 180; Eq.WorkZ := 45;
+    EqStore.Put(Eq);
+    Eq := DefaultEquipmentProfile;
+    Eq.Name := 'Minha S1'; Eq.MachineType := mtPrinter3D; Eq.SerialPort := 'COM7';
+    Eq.Brand := 'Creality'; Eq.Model := 'Ender 3 S1';
+    EqStore.Put(Eq);
+    Eq.Name := 'Caseira'; Eq.Brand := 'Maurinsoft'; Eq.Model := 'Prototipo';
+    Eq.SerialPort := 'COM9'; Eq.WorkX := 200; Eq.WorkY := 190; Eq.WorkZ := 180;
+    EqStore.Put(Eq);
+  finally
+    EqStore.Free;
+  end;
   F := TMultiSlicerForm.Create(nil);
   Mesh := TMesh.Create; G := TStringList.Create;
   FN := GetTempFileName(GetTempDir, 'stl'); Output := FN + '.gcode'; BadOutput := FN + '.bad';
@@ -246,8 +266,33 @@ begin
     F.ExportProgram(Output); G.LoadFromFile(Output);
     Check(Pos(';TYPE:Raft', G.Text) > 0, 'raft in the exported G-code');
     TComboBox(F.FindComponent('AdhesionType')).ItemIndex := 1;
+    { equipamento do MultiCNC no topo: marca/modelo completam o perfil }
+    EqBox := F.Equipment;
+    Check((EqBox.Items.Count = 3) and (EqBox.Items[0] = 'Ajuste manual') and (EqBox.Items.IndexOf('Router da oficina') < 0),
+      'equipment combo lists only the 3D printers plus manual');
+    Check(EqBox.Parent.ClassName = 'TSuiteHeader', 'equipment combo sits on the header like the other programs');
+    EqBox.ItemIndex := EqBox.Items.IndexOf('Minha S1'); EqBox.OnChange(EqBox);
+    Check(F.HasMachine and (F.Machine.Model = 'Ender-3 S1'), 'brand/model found in the catalog');
+    Check(SameValue(TFloatSpinEdit(F.FindComponent('BedZ')).Value, 270, 1e-6) and
+      SameValue(TFloatSpinEdit(F.FindComponent('BedX')).Value, 220, 1e-6), 'S1 volume from the catalog');
+    Check(TComboBox(F.FindComponent('Extruder')).ItemIndex = 1, 'S1 has a direct extruder');
+    Check(SameValue(TFloatSpinEdit(F.FindComponent('RetractLength')).Value, 0.8, 1e-6), 'S1 retraction from Cura');
+    Check(Pos('M420 S1', TMemo(F.FindComponent('StartGCode')).Text) > 0, 'S1 start G-code restores the bed mesh');
+    Check(Pos('COM7', TLabel(F.FindComponent('EquipmentNote')).Caption) > 0, 'port shown as used by MultiCNC');
+    F.ExportProgram(Output); G.LoadFromFile(Output);
+    Check(Pos('M420 S1', G.Text) > 0, 'machine start G-code in the export');
+    TSpinEdit(F.FindComponent('HotendTemperature')).Value := 280;
+    Check(not F.ValidateJob, 'hotend above the machine limit fails validation');
+    F.SelectMaterial('PLA');
+    Check(F.ValidateJob, 'PLA within the S1 limits');
+    EqBox.ItemIndex := EqBox.Items.IndexOf('Caseira'); EqBox.OnChange(EqBox);
+    Check(not F.HasMachine and SameValue(TFloatSpinEdit(F.FindComponent('BedX')).Value, 200, 1e-6) and
+      SameValue(TFloatSpinEdit(F.FindComponent('BedY')).Value, 190, 1e-6), 'unknown model keeps the MultiCNC work area');
+    EqBox.ItemIndex := 0; EqBox.OnChange(EqBox);
+    Check(not F.HasMachine and (F.CurrentPrinter.Name = ReadLastChoice('printer')) and
+      (ReadLastChoice('printer') <> 'Minha S1'), 'manual returns to the last printer profile chosen by hand');
     DeleteFile(FN2); DeleteFile(FNBig);
     Writeln('MultiSlicer GUI: OK (suite UI, centering, validation, profiles, start/end G-code, persistence, 3D scene, picking, transform panel, undo, labels, quality profiles, supports, pillars, blockers, brim, raft, layers, export)');
-  finally F.Free; Mesh.Free; DeleteFile(ProfileDir + PathDelim + 'multislicer.json'); RemoveDir(ProfileDir + PathDelim + 'materials'); RemoveDir(ProfileDir + PathDelim + 'quality'); RemoveDir(ProfileDir); G.Free; DeleteFile(FN); DeleteFile(Output); DeleteFile(BadOutput); end;
+  finally F.Free; Mesh.Free; DeleteFile(ProfileDir + PathDelim + 'multislicer.json'); RemoveDir(ProfileDir + PathDelim + 'materials'); RemoveDir(ProfileDir + PathDelim + 'quality'); RemoveDir(ProfileDir); G.Free; DeleteFile(FN); DeleteFile(Output); DeleteFile(BadOutput); DeleteFile(EqFile); DeleteFile(EqFile + '.bak'); end;
   except on E: Exception do begin Writeln('FAIL: ', E.Message); Halt(1); end; end;
 end.

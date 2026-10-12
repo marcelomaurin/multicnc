@@ -96,6 +96,8 @@ type
     MinZ, MaxZ: Double;
     Warnings: string;
     SupportPaths, BrimPaths, RaftLayers: Integer;
+    { tempo de cada fase (ms), para medir desempenho }
+    MSLayers, MSSupport, MSInfill, MSGCode: Int64;
   end;
 
   TLayerData = record
@@ -872,6 +874,7 @@ var
   LayerTimes: array of Double;
   ObjName, Poly: string;
   NObj, G: Integer;
+  T0: QWord;
   ObjNames: array of string;
   Groups: array of TExtrusionPaths;   { [0] = sem peca (saia); [k+1] = peca k }
   Joined: TExtrusionPaths;
@@ -988,9 +991,13 @@ begin
     FLayers[I].Z := Heights[I].X;
     FLayers[I].Height := Heights[I].Y;
   end;
+  T0 := GetTickCount64;
   for I := 0 to High(FLayers) do BuildLayer(I, Mesh);
+  Result.MSLayers := GetTickCount64 - T0; T0 := GetTickCount64;
   BuildSupport;
+  Result.MSSupport := GetTickCount64 - T0; T0 := GetTickCount64;
   for I := 0 to High(FLayers) do BuildInfill(I);
+  Result.MSInfill := GetTickCount64 - T0;
   BuildSkirt;
   BuildBrim;
   Result.RaftLayers := BuildRaft;
@@ -1034,6 +1041,7 @@ begin
       ObjNames[K] := ObjNames[K] + '_' + IntToStr(K + 1);
     end;
   end;
+  T0 := GetTickCount64;
   W := TGCodeWriter.Create;
   Body := TStringList.Create;
   try
@@ -1190,6 +1198,7 @@ begin
     Body.Free;
     W.Free;
   end;
+  Result.MSGCode := GetTickCount64 - T0;
 end;
 
 end.

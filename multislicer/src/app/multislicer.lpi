@@ -12,8 +12,8 @@
    <UseVersionInfo Value="True"/>
    <MinorVersionNr Value="0"/>
    <RevisionNr Value="6"/>
-   <BuildNr Value="0"/>
-   <StringTable CompanyName="Maurinsoft" FileDescription="MultiSlicer" ProductName="MultiSlicer / MultiSuite" ProductVersion="0.0.6.0"/>
+   <BuildNr Value="1"/>
+   <StringTable CompanyName="Maurinsoft" FileDescription="MultiSlicer" ProductName="MultiSlicer / MultiSuite" ProductVersion="0.0.6.1"/>
   </VersionInfo>
   <BuildModes Count="1">
    <Item1 Name="Default" Default="True" />
@@ -36,7 +36,7 @@
    <Filename Value="multislicer" />
   </Target>
   <SearchPaths>
-   <OtherUnitFiles Value="../core;../import;../export;../layout;../ui;../../../src/shared;../../../src/shared/clipper2;../../../multisuite/src/core;../../../multicad/src/core;../../../multicad/src/kernel;../../../multicad/src/ui" />
+   <OtherUnitFiles Value="../core;../import;../export;../layout;../ui;../../../src/shared;../../../src/shared/clipper2;../../../multisuite/src/core;../../../src/core;../../../multicad/src/core;../../../multicad/src/kernel;../../../multicad/src/ui" />
    <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
   </SearchPaths>
   <Parsing>

@@ -245,6 +245,11 @@ Testes: `tests/test_support.lpr` (T, C, esfera, bloqueador, haste, aba, jangada,
 
 **Arq.:** `src/ui/multislicer_preview3d.pas`, `src/app/multislicer_layerpreview.pas` (manter 2D como opcao).
 
+- [x] 7.0 Combo de equipamento no topo (como no MultiCNC/LaserArt): lista as impressoras 3D do
+      cadastro do MultiCNC + "Ajuste manual"; marca/modelo completam o perfil pelo catalogo
+      `multislicer_machines` (17 modelos, dados do Cura e das fichas dos fabricantes); a porta e so
+      informativa (usada pelo MultiCNC); temperatura acima do limite da maquina reprova a validacao.
+      Entregue (2026-10-12), versao 0.0.6.1.
 - [ ] 7.1 Fatiamento em thread com barra de progresso e Cancelar (tela nao congela).
 - [ ] 7.6 Desempenho do fatiamento em malhas grandes: medir onde vai o tempo (corte das camadas,
       encadeamento de segmentos, solido/preenchimento por amostragem de pontos) e otimizar

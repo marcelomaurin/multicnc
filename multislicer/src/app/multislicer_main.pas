@@ -26,11 +26,11 @@ uses
   multislicer_3mf, multislicer_profile, multislicer_pipeline, multislicer_view,
   multislicer_printers, multislicer_materials, multislicer_userdata,
   multislicer_scene, multislicer_view3d, multicad_camera, multislicer_quality, multislicer_support,
-  multisuite_controls, multisuite_icons;
+  multisuite_controls, multisuite_icons, multislicer_machines, multicnc_types, multicnc_equipment;
 
 const
   { manter igual ao VersionInfo do multislicer.lpi (revisao = etapa do PLANO_TAREFAS) }
-  MS_VERSION = '0.0.6.0';
+  MS_VERSION = '0.0.6.1';
   MS_STEP_COUNT = 7;
   MS_STEPS: array[0..MS_STEP_COUNT - 1] of string = ('1  Impressora', '2  Modelo',
     '3  Material', '4  Qualidade', '5  Suportes', '6  Previa', '7  Saida');
@@ -76,6 +76,15 @@ type
     HeatedBedBox: TCheckBox;
     StartMemo, EndMemo: TMemo;
     PrinterNote: TLabel;
+    { equipamento do MultiCNC (combo no topo) }
+    FHeader: TSuiteHeader;
+    EquipmentBox: TComboBox;
+    EquipmentNote: TLabel;
+    FEquipment: TEquipmentProfiles;
+    FEquipPrinter: TPrinterDef;     { perfil montado do equipamento escolhido }
+    FHasEquipPrinter: Boolean;
+    FMachine: TMachineSpec;         { catalogo de marca/modelo }
+    FHasMachine: Boolean;
     PrinterDeleteBtn: TSuiteButton;
     { material }
     FMaterials: TMaterialDefs;
@@ -139,6 +148,10 @@ type
     procedure SaveMaterialClick(Sender: TObject);
     procedure DeleteMaterialClick(Sender: TObject);
     procedure ReloadPrinters(const SelectName: string);
+    procedure ReloadEquipment;
+    procedure EquipmentChange(Sender: TObject);
+    procedure HeaderResize(Sender: TObject);
+    procedure MachineChecks(Errors, Warnings: TStrings);
     procedure ReloadMaterials(const SelectName: string);
     procedure ApplyPrinter(const P: TPrinterDef);
     procedure ApplyMaterial(const AMat: TMaterialDef);
@@ -235,9 +248,18 @@ type
     procedure SelectMaterial(const AName: string);
     function CurrentQuality: TQualityDef;
     procedure SelectQuality(const AName: string);
+    { equipamento do MultiCNC; '' = ajuste manual }
+    procedure SelectEquipment(const AName: string);
+    property Equipment: TComboBox read EquipmentBox;
+    property Machine: TMachineSpec read FMachine;
+    property HasMachine: Boolean read FHasMachine;
   end;
 
 procedure MeshBounds(AMesh: TMesh; out AMin, AMax: TVec3);
+
+var
+  { testes: outro cadastro de equipamentos ('' = o do MultiCNC) }
+  EquipmentFileOverride: string = '';
 
 implementation
 
@@ -369,6 +391,17 @@ begin
   Header := TSuiteHeader.Create(Self);
   Header.Parent := Self; Header.Align := alTop; Header.Height := 72;
   Header.Setup('MultiSlicer', 'Preparacao para impressao 3D  /  MultiSuite  /  versao ' + MS_VERSION, sikSlicer);
+  FHeader := Header;
+  { mesmo combo dos outros programas: os equipamentos cadastrados no MultiCNC }
+  EquipmentBox := TComboBox.Create(Self);
+  EquipmentBox.Name := 'SavedEquipment';
+  EquipmentBox.Parent := Header;
+  EquipmentBox.SetBounds(0, 22, 280, 28);
+  EquipmentBox.Style := csDropDownList;
+  EquipmentBox.Hint := 'Impressoras 3D cadastradas no MultiCNC. Marca e modelo completam a configuracao.';
+  EquipmentBox.ShowHint := True;
+  EquipmentBox.OnChange := @EquipmentChange;
+  Header.OnResize := @HeaderResize;
 
   FooterPanel := TPanel.Create(Self);
   FooterPanel.Parent := Self; FooterPanel.Align := alBottom; FooterPanel.Height := 66;
@@ -477,6 +510,8 @@ begin
   ReloadMaterials(ReadLastChoice('material'));
   if MaterialBox.ItemIndex < 0 then MaterialBox.ItemIndex := 0;
   MaterialChange(nil);
+  ReloadEquipment;
+  SelectEquipment(ReadLastChoice('equipment'));
   ReloadQualities(ReadLastChoice('quality'));
   if QualityBox.ItemIndex < 0 then QualityBox.ItemIndex := FindQuality(FQualities, 'Normal');
   QualityChange(nil);
@@ -510,8 +545,10 @@ end;
 procedure TMultiSlicerForm.BuildPrinterPage(S: TScrollBox);
 var K: TExtruderKind;
 begin
-  LabelAt(S, 'O volume da impressora define a mesa da vista e a validacao.',
+  EquipmentNote := LabelAt(S, 'O volume da impressora define a mesa da vista e a validacao.',
     16, 48, 290, 40);
+  EquipmentNote.ShowHint := True;
+  EquipmentNote.Name := 'EquipmentNote';
   PrinterBox := Combo(S, 'Perfil de impressora', 92);
   PrinterBox.OnChange := @PrinterChange;
   PrinterNote := LabelAt(S, '', 16, 146, 290, 20);
@@ -524,6 +561,7 @@ begin
   ExtruderChoice := Combo(S, 'Extrusora', 272);
   for K := Low(TExtruderKind) to High(TExtruderKind) do ExtruderChoice.Items.Add(EXTRUDER_NAMES[K]);
   ExtruderChoice.ItemIndex := 0;
+  ExtruderChoice.Name := 'Extruder';
   ExtruderChoice.OnChange := @ExtruderChange;
   BedX := FloatField(S, 'Mesa X (mm)', 'BedX', 220, 10, 2000, 1, 1, 330);
   BedY := FloatField(S, 'Mesa Y (mm)', 'BedY', 220, 10, 2000, 1, 1, 386);
@@ -866,6 +904,162 @@ begin
   Status.Caption := E.Message;
   if Log <> nil then Log.Lines.Add('Erro: ' + E.Message);
   SetState('Verifique o trabalho', clSuiteDanger);
+end;
+
+procedure TMultiSlicerForm.HeaderResize(Sender: TObject);
+begin
+  if (EquipmentBox <> nil) and (FHeader <> nil) then
+    EquipmentBox.Left := FHeader.ClientWidth - EquipmentBox.Width - 18;
+end;
+
+procedure TMultiSlicerForm.ReloadEquipment;
+var
+  Store: TEquipmentStore;
+  I: Integer;
+  E: TEquipmentProfile;
+begin
+  FEquipment := nil;
+  if EquipmentFileOverride <> '' then Store := TEquipmentStore.Create(EquipmentFileOverride)
+  else Store := TEquipmentStore.Create(EquipmentFileName);
+  try
+    try
+      Store.Load;
+      for I := 0 to Store.Count - 1 do
+      begin
+        E := Store.Item(I);
+        if E.MachineType <> mtPrinter3D then Continue;
+        SetLength(FEquipment, Length(FEquipment) + 1);
+        FEquipment[High(FEquipment)] := E;
+      end;
+    except
+      { cadastro ausente ou ilegivel: so o ajuste manual }
+      FEquipment := nil;
+    end;
+  finally
+    Store.Free;
+  end;
+  FUpdating := True;
+  try
+    EquipmentBox.Items.Clear;
+    EquipmentBox.Items.Add('Ajuste manual');
+    for I := 0 to High(FEquipment) do EquipmentBox.Items.Add(FEquipment[I].Name);
+    EquipmentBox.ItemIndex := 0;
+  finally
+    FUpdating := False;
+  end;
+end;
+
+procedure TMultiSlicerForm.SelectEquipment(const AName: string);
+var I: Integer;
+begin
+  I := 0;
+  if AName <> '' then
+    I := EquipmentBox.Items.IndexOf(AName);
+  if I < 0 then I := 0;
+  EquipmentBox.ItemIndex := I;
+  EquipmentChange(nil);
+end;
+
+procedure TMultiSlicerForm.EquipmentChange(Sender: TObject);
+var
+  K, M: Integer;
+  E: TEquipmentProfile;
+  P: TPrinterDef;
+  Port, Info: string;
+begin
+  if FUpdating then Exit;
+  K := EquipmentBox.ItemIndex - 1;
+  if (K < 0) or (K > High(FEquipment)) then
+  begin
+    { ajuste manual: volta ao ultimo perfil escolhido a mao }
+    FHasMachine := False;
+    FHasEquipPrinter := False;
+    ReloadPrinters(ReadLastChoice('printer'));
+    if PrinterBox.ItemIndex < 0 then PrinterBox.ItemIndex := 0;
+    PrinterChange(nil);
+    EquipmentNote.Caption := 'O volume da impressora define a mesa da vista e a validacao.';
+    EquipmentNote.Hint := '';
+    EquipmentNote.Font.Color := clSuiteMuted;
+    if Sender <> nil then WriteLastChoice('equipment', '');
+    Exit;
+  end;
+  E := FEquipment[K];
+  M := FindMachine(E.Brand, E.Model);
+  FHasMachine := M >= 0;
+  if FHasMachine then
+  begin
+    FMachine := MachineCatalog[M];
+    P := MachinePrinterDef(FMachine, E.Name, E.WorkX, E.WorkY, E.WorkZ);
+  end
+  else
+  begin
+    { modelo fora do catalogo: usa o perfil atual e so troca nome e mesa }
+    P := CurrentPrinter;
+    P.Name := E.Name;
+    if E.WorkX > 0 then P.BedX := E.WorkX;
+    if E.WorkY > 0 then P.BedY := E.WorkY;
+    if E.WorkZ > 0 then P.BedZ := E.WorkZ;
+    P.BuiltIn := True;
+  end;
+  FEquipPrinter := P;
+  FHasEquipPrinter := True;
+  ReloadPrinters(P.Name);
+  PrinterChange(nil);
+  { retracao propria do modelo (Cura), quando ele define }
+  if FHasMachine and (FMachine.RetractLen > 0) then
+  begin
+    FUpdating := True;
+    try
+      RetractLen.Value := FMachine.RetractLen;
+      RetractSpd.Value := FMachine.RetractSpeed;
+    finally
+      FUpdating := False;
+    end;
+  end;
+  { a porta e do MultiCNC: aqui so se gera o arquivo }
+  if E.SerialPort <> '' then Port := 'porta ' + E.SerialPort
+  else if E.Host <> '' then Port := E.Host + ':' + IntToStr(E.TCPPort)
+  else Port := 'sem porta';
+  Info := Trim(E.Brand + ' ' + E.Model);
+  if Info = '' then Info := 'Marca/modelo nao informados';
+  EquipmentNote.Caption := Info + LineEnding + Port + ' (usada pelo MultiCNC)';
+  if FHasMachine then
+  begin
+    EquipmentNote.Font.Color := clSuiteSuccess;
+    EquipmentNote.Hint := Format('%s %s%s' +
+      'Area %.0f x %.0f x %.0f mm, bico %.2f, filamento %.2f, extrusora %s%s' +
+      'Bico ate %.0f C, mesa ate %.0f C, nivelamento: %s%s' +
+      'Velocidade recomendada %.0f mm/s, maxima %.0f mm/s%s' +
+      'Fonte: %s',
+      [FMachine.Brand, FMachine.Model, LineEnding,
+       P.BedX, P.BedY, P.BedZ, P.Nozzle, P.FilamentDiameter, EXTRUDER_NAMES[P.Extruder], LineEnding,
+       FMachine.MaxHotend, FMachine.MaxBed, FMachine.LevelingName, LineEnding,
+       FMachine.PrintSpeed, FMachine.MaxSpeed, LineEnding, FMachine.Source]);
+    Log.Lines.Add('Equipamento: ' + E.Name + ' = ' + FMachine.Brand + ' ' + FMachine.Model +
+      ' (' + FMachine.Source + ')');
+  end
+  else
+  begin
+    EquipmentNote.Font.Color := clSuiteWarning;
+    EquipmentNote.Hint := 'Modelo fora do catalogo: confira bico, extrusora e G-code.';
+    EquipmentNote.Caption := EquipmentNote.Caption + ' - fora do catalogo';
+  end;
+  if Sender <> nil then WriteLastChoice('equipment', E.Name);
+  SettingsChanged(nil);
+end;
+
+procedure TMultiSlicerForm.MachineChecks(Errors, Warnings: TStrings);
+var Fastest: Double;
+begin
+  if not FHasMachine then Exit;
+  if Max(HotendFirst.Value, Hotend.Value) > FMachine.MaxHotend then
+    Errors.Add(Format('Temperatura do bico acima do limite da %s (%.0f C).', [FMachine.Model, FMachine.MaxHotend]));
+  if HeatedBedBox.Checked and (Max(BedFirst.Value, BedTemp.Value) > FMachine.MaxBed) then
+    Errors.Add(Format('Temperatura da mesa acima do limite da %s (%.0f C).', [FMachine.Model, FMachine.MaxBed]));
+  Fastest := Max(Max(WallSpd.Value, OuterSpd.Value), InfillSpd.Value);
+  if (FMachine.MaxSpeed > 0) and (Fastest > FMachine.MaxSpeed) then
+    Warnings.Add(Format('Velocidade de %.0f mm/s acima da maxima da %s (%.0f mm/s).',
+      [Fastest, FMachine.Model, FMachine.MaxSpeed]));
 end;
 
 procedure TMultiSlicerForm.ResizeUI(Sender: TObject);
@@ -1722,11 +1916,23 @@ procedure TMultiSlicerForm.ReloadPrinters(const SelectName: string);
 var I, K: Integer;
 begin
   FPrinters := LoadPrinters;
+  if FHasEquipPrinter then
+  begin
+    K := FindPrinter(FPrinters, FEquipPrinter.Name);
+    if K < 0 then
+    begin
+      SetLength(FPrinters, Length(FPrinters) + 1);
+      K := High(FPrinters);
+    end;
+    FPrinters[K] := FEquipPrinter;
+  end;
   FUpdating := True;
   try
     PrinterBox.Items.Clear;
     for I := 0 to High(FPrinters) do
-      if FPrinters[I].BuiltIn then PrinterBox.Items.Add(FPrinters[I].Name)
+      if FHasEquipPrinter and (I = FindPrinter(FPrinters, FEquipPrinter.Name)) then
+        PrinterBox.Items.Add(FPrinters[I].Name + '  (equipamento)')
+      else if FPrinters[I].BuiltIn then PrinterBox.Items.Add(FPrinters[I].Name)
       else PrinterBox.Items.Add(FPrinters[I].Name + '  (meu)');
     K := FindPrinter(FPrinters, SelectName);
     PrinterBox.ItemIndex := K;
@@ -1863,7 +2069,8 @@ begin
   { a retracao depende da extrusora: reaplica a do material atual }
   if (MaterialBox <> nil) and (MaterialBox.ItemIndex >= 0) and (MaterialBox.ItemIndex <= High(FMaterials)) then
     ExtruderChange(nil);
-  if Sender <> nil then WriteLastChoice('printer', FPrinters[K].Name);
+  if (Sender <> nil) and not (FHasEquipPrinter and SameText(FPrinters[K].Name, FEquipPrinter.Name)) then
+    WriteLastChoice('printer', FPrinters[K].Name);
   SettingsChanged(nil);
 end;
 
@@ -2179,10 +2386,12 @@ begin
 end;
 
 function TMultiSlicerForm.ValidateJob: Boolean;
-var Errors: TStringList; S: TSliceSettings; I: Integer;
+var Errors, Warnings: TStringList; S: TSliceSettings; I: Integer;
 begin
   Errors := TStringList.Create;
+  Warnings := TStringList.Create;
   try
+    MachineChecks(Errors, Warnings);
     FScene.BedX := BedX.Value; FScene.BedY := BedY.Value; FScene.BedZ := BedZ.Value;
     FScene.Validate(Errors);
     try
@@ -2193,6 +2402,7 @@ begin
     end;
     Result := Errors.Count = 0;
     Log.Lines.Add('--- Validacao ---');
+    for I := 0 to Warnings.Count - 1 do Log.Lines.Add('Aviso: ' + Warnings[I]);
     if Result then
     begin
       Log.Lines.Add('Trabalho valido.');
@@ -2206,6 +2416,7 @@ begin
       SetState('Corrigir o trabalho', clSuiteDanger);
     end;
   finally
+    Warnings.Free;
     Errors.Free;
   end;
 end;
