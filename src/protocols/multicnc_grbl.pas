@@ -198,9 +198,7 @@ begin
   else if Copy(L, 1, 6) = 'error:' then
   begin
     { No GRBL, "error:" substitui o "ok" da linha: libera o buffer e e erro. }
-    Inc(FAcks);
-    Inc(FErrors);
-    SetMessage(ALine);
+    RegisterError(ALine);
   end
   else if Copy(L, 1, 6) = 'alarm:' then
   begin

@@ -24,9 +24,11 @@ type
     FPosition: TMachinePosition;
     FTemperatures: TPrinterTemperatures;
     FLastMessage: string;
+    FFirstBatchError: string;
     procedure HandleLine(const ALine: string); virtual; abstract;
     procedure SetState(AState: TMachineState);
     procedure SetMessage(const AText: string);
+    procedure RegisterError(const AText: string);
   public
     function GetName: string; virtual; abstract;
     procedure Reset; virtual;
@@ -120,6 +122,13 @@ begin
   FPosition := EmptyPosition;
   FTemperatures := EmptyTemperatures;
   FLastMessage := '';
+  FFirstBatchError := '';
+end;
+
+procedure TMultiCNCProtocolBase.RegisterError(const AText: string);
+begin
+  if FErrors=0 then FFirstBatchError:=AText;
+  Inc(FErrors);SetMessage(AText);
 end;
 
 procedure TMultiCNCProtocolBase.ProcessIncoming(const AData: string);
@@ -140,6 +149,8 @@ function TMultiCNCProtocolBase.TakeResponses(out Acks, Errors: Integer): Boolean
 begin
   Acks := FAcks;
   Errors := FErrors;
+  if Errors>0 then FLastMessage:=FFirstBatchError;
+  FFirstBatchError:='';
   FAcks := 0;
   FErrors := 0;
   Result := (Acks > 0) or (Errors > 0);

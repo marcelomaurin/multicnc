@@ -37,8 +37,8 @@ type
     function GetName: string;
     procedure Reset;
     procedure ProcessIncoming(const AData: string);
-    { Confirmacoes recebidas desde a ultima chamada. Cada "ok" ou "error:" do
-      GRBL libera uma linha enviada; Errors conta as respostas de erro. }
+    { Respostas desde a ultima chamada: Acks conta somente "ok" e Errors
+      somente erros. Cada resposta libera exatamente uma linha enviada. }
     function TakeResponses(out Acks, Errors: Integer): Boolean;
     { Estado/posicao informados desde a ultima consulta (True uma vez por
       relatorio recebido). }

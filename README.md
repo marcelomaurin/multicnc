@@ -104,6 +104,11 @@ MultiCNC analisa G-code e simula o envio; MultiPhysics simula o comportamento f�
 
 O MultiCNC concentra a conexão e a execução física. LaserArt e LaserPCB preparam os trabalhos e os enviam ao MultiCNC; o botão Mesa dos dois programas utiliza os equipamentos laser salvos em `multicnc.json`. Veja [perfis e fontes](docs/LASER_PROFILES.md), [Frame](docs/OUTLINE.md), [LaserPCB](laserpcb/README.md) e [LaserArt](laserart/README.md).
 
+Em Windows, a aba **Acessórios**, ao lado de **Trajetoria e analise**, oferece
+controle automatico por joystick Xbox 360/XInput e modelos genericos WinMM:
+analogico para X/Y, botao superior para Z+ e inferior para Z-, com mapeamento
+configuravel. Veja [configuracao e funcionamento](docs/JOYSTICK.md).
+
 ## Motores da modernização de 2026
 
 O núcleo recebeu os recursos abaixo em Object Pascal (FPC/Lazarus). Disponibilidade de um motor não significa que todos os seus parâmetros já possuem uma tela; a tabela anterior delimita os fluxos atuais de interface. Builds e verificações usam também Python 3.9 ou superior.

@@ -10,6 +10,6 @@
  <CompilerOptions>
   <Version Value="11"/>
   <Target><Filename Value="test_app"/></Target>
-  <SearchPaths><OtherUnitFiles Value="../src/app;../src/core;../src/protocols;../src/transports;../src/shared;../multisuite/src/core"/><UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/></SearchPaths>
+  <SearchPaths><OtherUnitFiles Value="../third_party/chatgpt/AIJoystick;../src/app;../src/core;../src/protocols;../src/transports;../src/shared;../multisuite/src/core"/><UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/></SearchPaths>
  </CompilerOptions>
 </CONFIG>

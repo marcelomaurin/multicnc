@@ -16,7 +16,8 @@ unit multicnc_machine;
 interface
 
 uses
-  Classes, SysUtils, multicnc_types, multicnc_interfaces, multicnc_safety, multicnc_printer_profiles;
+  Classes, SysUtils, multicnc_types, multicnc_interfaces, multicnc_safety, multicnc_printer_profiles,
+  multicnc_gcode_compat;
 
 const
   MaxQueuedLines = 10000;
@@ -44,6 +45,7 @@ type
     FErrorCount: Integer;
     FAlarmCount: Integer;
     FLastError: string;
+    FFirstControllerError: string;
     FOnData: TTransportDataEvent;
     procedure TransportData(const AData: string);
     procedure TransportState(AConnected: Boolean);
@@ -82,6 +84,8 @@ type
     function Stop: Boolean;
     function SetFeedRate(AFeed: Double): Boolean;
     function Jog(AAxis: TAxis; ADistance, AFeed: Double): Boolean;
+    function JogVector(X,Y,Z,Feed: Double; AMarlin: Boolean): Boolean;
+    function CancelJoystickJog: Boolean;
     { Valida e coloca a linha na fila; o envio acontece conforme o firmware
       confirma as anteriores. }
     function SendGCode(const ALine: string): Boolean;
@@ -90,6 +94,7 @@ type
     { Descarta o que ainda nao foi enviado (o que ja esta na controladora
       continua sendo executado). }
     procedure ClearQueue;
+    procedure ResetControllerError;
     function QueuedLines: Integer;
     function InFlightLines: Integer;
     function PendingLines: Integer;
@@ -99,10 +104,13 @@ type
     property HomePosition: TMachinePosition read FHomePosition;
     property HomePositionSet: Boolean read FHomePositionSet;
     property LastError: string read FLastError;
+    property FirstControllerError: string read FFirstControllerError;
     property OnData: TTransportDataEvent read FOnData write FOnData;
   end;
 
 implementation
+
+uses Math, multisuite_numfmt;
 
 constructor TMultiCNCMachine.Create(AType: TMachineType;
   const ATransport: IMultiCNCTransport; const AProtocol: IMultiCNCProtocol);
@@ -185,6 +193,7 @@ begin
       begin
         Inc(FErrorCount, Errors);
         FLastError := FProtocol.LastMessage;
+        if FFirstControllerError='' then FFirstControllerError:=FLastError;
         { Nao continua um programa depois de um erro do firmware. }
         FQueue.Clear;
       end;
@@ -282,6 +291,7 @@ begin
       end;
       if AValidate then
       begin
+        if not CheckGCodeCompatibility(L,FProtocol.GetName,Reason) then Exit(Reject(Reason));
         if not TSafetyValidator.CheckCommand(GetState, L, Reason) then Exit(Reject(Reason));
       end
       else if Length(L) > MaxCommandLength then
@@ -321,6 +331,7 @@ begin
   FErrorCount := 0;
   FAlarmCount := 0;
   FLastError := '';
+  ResetControllerError;
   FFeedPaused := False;
   FWaitingReset := False;
   FHomePosition := EmptyPosition;
@@ -331,6 +342,9 @@ begin
   Result := FTransport.Connect;
   if Result then FState := msIdle else FState := msError;
 end;
+
+procedure TMultiCNCMachine.ResetControllerError;
+begin FFirstControllerError:='';end;
 
 procedure TMultiCNCMachine.Disconnect;
 begin
@@ -479,6 +493,43 @@ begin
   if not TSafetyValidator.CheckJog(GetState, AAxis, ADistance, AFeed, FCapabilities,
     FEnvelope, Reason) then Exit(Reject(Reason));
   Result := SendProtocolCommand(FProtocol.BuildJogCommand(AAxis, ADistance, AFeed), True);
+end;
+
+function TMultiCNCMachine.JogVector(X,Y,Z,Feed: Double; AMarlin: Boolean): Boolean;
+var Reason, AxesText, Command: string;
+  function AddAxis(Axis: TAxis; const Name: string; Value: Double): Boolean;
+  begin
+    Result:=True;
+    if Abs(Value)<0.0005 then Exit;
+    Result:=TSafetyValidator.CheckJog(GetState,Axis,Value,Feed,FCapabilities,FEnvelope,Reason);
+    if Result then AxesText:=AxesText+Format(' %s%.3f',[Name,Value],InvariantFS);
+  end;
+begin
+  if not Assigned(FProtocol) then Exit(Reject('Sem protocolo'));
+  if IsNan(X) or IsNan(Y) or IsNan(Z) or IsNan(Feed) or
+     IsInfinite(X) or IsInfinite(Y) or IsInfinite(Z) or IsInfinite(Feed) then
+    Exit(Reject('Vetor invalido'));
+  if (GetState<>msIdle) or (PendingLines<>0) then Exit(Reject('Aguarde a controladora ociosa'));
+  if (Feed<1) or (Feed>3000) or (Sqrt(Sqr(X)+Sqr(Y)+Sqr(Z))>2.001) then
+    Exit(Reject('Passo ou velocidade do joystick fora dos limites'));
+  AxesText:='';
+  if not AddAxis(axX,'X',X) or not AddAxis(axY,'Y',Y) or not AddAxis(axZ,'Z',Z) then
+    Exit(Reject(Reason));
+  if AxesText='' then Exit(Reject('Vetor sem deslocamento'));
+  if AMarlin then
+    { M400's acknowledgement means physical completion, unlike G1's ok. }
+    Command:='G21'+LineEnding+'G91'+LineEnding+Format('G1%s F%.0f',[AxesText,Feed],InvariantFS)+
+      LineEnding+'G90'+LineEnding+'M400'+LineEnding+'M114'
+  else Command:='$J=G91 G21'+AxesText+Format(' F%.0f',[Feed],InvariantFS);
+  Result:=EnqueueLines(Command,True);
+end;
+
+function TMultiCNCMachine.CancelJoystickJog: Boolean;
+begin
+  { Caller owns this jog; preserve accounting for lines already transmitted. }
+  FQueue.Clear;
+  Result:=SendRealtime(#$85);
+  if Result then Result:=EnqueueLines('G4 P0',True);
 end;
 
 function TMultiCNCMachine.MoveTo(AX, AY, AZ, AFeed: Double): Boolean;

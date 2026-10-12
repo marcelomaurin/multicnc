@@ -85,12 +85,19 @@ begin
     StopButton.Click;
     F.OnDropFiles(F, [FN]);
     Check(Pos('X999', ProgramView.Text) > 0, 'Drop allowed after stop');
+    { A renamed printer file must not start under the selected GRBL profile. }
+    Lines.Text:='; disguised printer program'+LineEnding+'G21'+LineEnding+'M82'+LineEnding+'G1 X10 F500';
+    Lines.SaveToFile(FN);F.OnDropFiles(F,[FN]);
+    TSuiteButton(F.FindComponent('ClearConsole')).Click;
+    StartButton.Click;
+    Check((Pos('M82',Console.Text)>0) and (Pos('Linha 3:',Console.Text)>0),'Start explains incompatible command and original source line');
+    Check(Pos('TX  G21',Console.Text)=0,'Rejected program sends no initial commands');
     Check(Console.Lines.Count > 0, 'Console records operations');
     TSuiteButton(F.FindComponent('ClearConsole')).Click;
     Check(Console.Text = '', 'Clear console');
     ConnectButton.Click;
     Check(not JogZ.Enabled, 'Disconnected again');
-    WriteLn('MultiCNC GUI: OK (connection, search, UTF-8, shortcuts, file drop guards, console)');
+    WriteLn('MultiCNC GUI: OK (connection, search, UTF-8, shortcuts, file drop guards, console and GRBL compatibility warning)');
   finally
     F.Free;
     Lines.Free;

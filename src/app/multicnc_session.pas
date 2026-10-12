@@ -54,6 +54,12 @@ type
     FMarlinReadyAt: QWord;
     FMarlinHandshakeSent: Boolean;
     FEnvelopeX, FEnvelopeY, FEnvelopeZ: Double;
+    FJoystickMotion: Boolean;
+    FJoystickCancelSent: Boolean;
+    FRouterSpindleMaxRPM: Integer;
+    FJoystickSentAt: QWord;
+    FJoystickFault: Boolean;
+    FJoystickErrorBase, FJoystickAlarmBase: Integer;
     procedure SerialTX(Sender: TObject; const AData: string);
     procedure CheckControllerSilence(ANow: QWord);
     procedure Diag(const AText: string);
@@ -85,6 +91,7 @@ type
       RequireGrblReply: Boolean = False): Boolean;
     procedure Disconnect;
     procedure LoadFile(const FileName: string);
+    function ValidateProgram(out Reason: string): Boolean;
     function Start: Boolean;
     function RunFraming(const AFramingLines: TStrings): Boolean;
     function RunOutline: Boolean;
@@ -101,6 +108,14 @@ type
     function Status: Boolean;
     function Unlock: Boolean;
     function Jog(Axis: TAxis; Distance, Feed: Double): Boolean;
+    function JoystickAvailable: Boolean;
+    function JoystickReady: Boolean;
+    function JoystickJog(X,Y,Z,Feed: Double): Boolean;
+    procedure CancelJoystick;
+    function RouterSpindleReady(Enable: Boolean): Boolean;
+    function RouterSpindleOn(RPM: Integer): Boolean;
+    function RouterSpindleOff: Boolean;
+    property RouterSpindleMaxRPM: Integer read FRouterSpindleMaxRPM write FRouterSpindleMaxRPM;
     { Movimento absoluto ate X/Y/Z (mm), validado contra o curso da maquina. }
     function MoveTo(X, Y, Z, Feed: Double): Boolean;
     function Send(const Line: string): Boolean;
@@ -139,7 +154,7 @@ type
 
 implementation
 
-uses multicnc_streamer, multicnc_outline, multisuite_numfmt;
+uses multicnc_streamer, multicnc_outline, multisuite_numfmt, multicnc_gcode_compat;
 
 constructor TSimulationSession.Create;
 begin
@@ -257,6 +272,18 @@ begin
     Diag('Resposta GRBL reconhecida. Comunicacao com a controladora confirmada.');
   end;
   FLastRxAt := GetTickCount64;
+  if FJoystickMotion and ((FMachine.ErrorCount>FJoystickErrorBase) or
+    (FMachine.AlarmCount>FJoystickAlarmBase) or (Pos('Grbl ',Data)>0) or
+    (Trim(LowerCase(Data))='start')) then
+  begin
+    FJoystickFault:=True;
+    Diag('Joystick suspenso apos erro ou reinicio da controladora; reconecte o equipamento.');
+  end;
+  { A fresh Idle report after the bounded jog prevents planner accumulation.
+    Ignore an immediate status response that could precede parsing the jog. }
+  if FJoystickMotion and (FProtocolKind=pkGRBL) and
+     (GetTickCount64-FJoystickSentAt>=100) and
+     (Pos('<Idle',Data)>0) and (FMachine.PendingLines=0) then FJoystickMotion:=False;
   if (FProtocolKind=pkGRBL) and (GetFirmwareDescription<>FGrblDescription) then
   begin
     FGrblDescription:=GetFirmwareDescription;
@@ -284,6 +311,9 @@ end;
 
 procedure TSimulationSession.ReleaseConnection;
 begin
+  FJoystickMotion:=False;
+  FJoystickFault:=False;
+  FJoystickCancelSent:=False;
   if Assigned(FMachine) then
   begin
     FMachine.OnData := nil;
@@ -542,11 +572,15 @@ begin
 end;
 
 function TSimulationSession.RunFraming(const AFramingLines: TStrings): Boolean;
+var Reason: string;
 begin
+  if FJoystickMotion then Exit(Fail('Solte o joystick e aguarde o movimento terminar'));
   if FRequireGrblReply and not ControllerReady then
     Exit(Fail('Aguarde a resposta GRBL antes de enviar comandos.'));
   if not Connected then Exit(Fail('Machine disconnected'));
   if (AFramingLines = nil) or (AFramingLines.Count = 0) then Exit(Fail('No framing path available'));
+  if (FProtocolKind=pkGRBL) and not CheckProgramCompatibility(AFramingLines,'GRBL',Reason) then
+    Exit(Fail(Reason));
   if FState in [ssRunning, ssPaused] then Exit(Fail('Machine is busy with another program'));
   if FMachine.GetState in [msAlarm, msError] then
     Exit(Fail('Machine in alarm: unlock or home before starting'));
@@ -554,6 +588,7 @@ begin
     Exit(Fail('Aguarde a controladora concluir os comandos pendentes'));
 
   FFramingActive := True;
+  FMachine.ResetControllerError;
   FFinishing := False;
   FLines.Assign(AFramingLines);
   FIndex := 0;
@@ -566,13 +601,25 @@ begin
   Result := FState in [ssRunning, ssIdle, ssDone];
 end;
 
-function TSimulationSession.Start: Boolean;
-var Transformed: TStringList; I: Integer;
+function TSimulationSession.ValidateProgram(out Reason: string): Boolean;
 begin
+  Reason:='';Result:=True;
+  if FProtocolKind=pkGRBL then Result:=CheckProgramCompatibility(FOriginalLines,'GRBL',Reason);
+end;
+
+function TSimulationSession.Start: Boolean;
+var Transformed: TStringList; I: Integer; Reason: string;
+begin
+  if FJoystickMotion then Exit(Fail('Solte o joystick e aguarde o movimento terminar'));
   if not Connected then Exit(Fail('Machine disconnected'));
   if not ControllerReady then Exit(Fail('Aguarde a resposta e inicializacao da controladora'));
   if FLoadedLines.Count = 0 then Exit(Fail('No program loaded'));
   if FState in [ssRunning, ssPaused] then Exit(Fail('Program is already running'));
+  { Inspect the entire source before ANY motion, air assist or other output.
+    Keep original file line numbers and recheck after each reconnection. }
+  if not ValidateProgram(Reason) then begin
+    Diag('Programa bloqueado: '+Reason);Exit(Fail(Reason));
+  end;
   { O perfil sem sensores tambem vale para arquivos, nao so para o console.
     Valida antes de transmitir qualquer linha, inclusive M3 e movimentos. }
   if (FProtocolKind = pkGRBL) and not FPhysicalHomingAllowed then
@@ -587,6 +634,7 @@ begin
 
   FFramingActive := False;
   FFinishing := False;
+  FMachine.ResetControllerError;
   if FMachineKind = mtLaser then
   begin
     Transformed := TransformGCodeForLaser(FLoadedLines, FLaserSettings);
@@ -624,6 +672,8 @@ begin
     FMachine.ClearQueue;
     FState := ssError;
     FLastError := 'Erro da controladora: ' + FMachine.LastError;
+    if FMachine.FirstControllerError<>'' then
+      FLastError:='Erro da controladora: '+FMachine.FirstControllerError;
   end;
 end;
 
@@ -634,6 +684,8 @@ begin
   if FState <> ssRunning then Exit;
   while (FIndex < FLines.Count) and (FMachine.QueuedLines < JobLookahead) do
   begin
+    CheckFirmwareFaults;
+    if FState<>ssRunning then Exit;
     if not FMachine.SendGCode(FLines[FIndex]) then
     begin
       FMachine.ClearQueue;
@@ -642,6 +694,8 @@ begin
       Exit;
     end;
     Inc(FIndex);
+    CheckFirmwareFaults;
+    if FState<>ssRunning then Exit;
   end;
   CheckFirmwareFaults;
   if (FState = ssRunning) and (FIndex >= FLines.Count) and (FMachine.PendingLines = 0) then
@@ -788,6 +842,7 @@ end;
 function TSimulationSession.Stop: Boolean;
 begin
   if not Connected then Exit(Fail('Machine disconnected'));
+  FJoystickMotion:=False;
   Result := FMachine.Stop;
   if FFramingActive then
   begin
@@ -821,6 +876,7 @@ end;
 
 function TSimulationSession.SetHome(out AHomePos: TMachinePosition): Boolean;
 begin
+  if FJoystickMotion then Exit(Fail('Solte o joystick e aguarde o movimento terminar'));
   AHomePos := EmptyPosition;
   if FRequireGrblReply and not ControllerReady then
     Exit(Fail('Aguarde a resposta GRBL antes de enviar comandos.'));
@@ -831,6 +887,7 @@ end;
 
 function TSimulationSession.PhysicalHoming: Boolean;
 begin
+  if FJoystickMotion then Exit(Fail('Solte o joystick e aguarde o movimento terminar'));
   if not FPhysicalHomingAllowed then
     Exit(Fail('Este perfil nao possui homing fisico. Defina a origem manualmente.'));
   if FRequireGrblReply and not ControllerReady then
@@ -843,6 +900,7 @@ end;
 
 function TSimulationSession.Home(AFeed: Double = 0): Boolean;
 begin
+  if FJoystickMotion then Exit(Fail('Solte o joystick e aguarde o movimento terminar'));
   if not FPhysicalHomingAllowed and not HomePositionSet then
     Exit(Fail('Defina uma referencia manual antes de retornar a ela.'));
   if FRequireGrblReply and not ControllerReady then
@@ -855,6 +913,7 @@ end;
 
 function TSimulationSession.SetFeedRate(AFeed: Double): Boolean;
 begin
+  if FJoystickMotion then Exit(Fail('Solte o joystick e aguarde o movimento terminar'));
   if FRequireGrblReply and not ControllerReady then
     Exit(Fail('Aguarde a resposta GRBL antes de enviar comandos.'));
   if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Unavailable while program is running'));
@@ -864,6 +923,7 @@ end;
 
 function TSimulationSession.Zero: Boolean;
 begin
+  if FJoystickMotion then Exit(Fail('Solte o joystick e aguarde o movimento terminar'));
   if FRequireGrblReply and not ControllerReady then
     Exit(Fail('Aguarde a resposta GRBL antes de enviar comandos.'));
   if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Unavailable while program is running'));
@@ -900,6 +960,7 @@ end;
 
 function TSimulationSession.Jog(Axis: TAxis; Distance, Feed: Double): Boolean;
 begin
+  if FJoystickMotion then Exit(Fail('Solte o joystick e aguarde o movimento terminar'));
   if not ControllerReady then Exit(Fail('Aguarde a resposta e inicializacao da controladora'));
   if not SupportsAxis(Axis) then Exit(Fail('Eixo indisponivel'));
   if FState in [ssRunning, ssPaused] then Exit(Fail('Unavailable while program is running'));
@@ -913,8 +974,94 @@ begin
   else FLastError := FMachine.LastError;
 end;
 
+function TSimulationSession.JoystickAvailable: Boolean;
+begin
+  Result:=ControllerReady and not FJoystickFault and not (FState in [ssRunning,ssPaused,ssError]);
+  if Result then Result:=not (FMachine.GetState in [msAlarm,msError,msPaused,msConnecting,msDisconnected]);
+  if Result and (FProtocol is TGRBLProtocol) then
+    Result:=TGRBLProtocol(FProtocol).Parser.Compatibility<>gcLegacy;
+  { A busy machine can only continue a jog that this input path owns. }
+  if Result and not FJoystickMotion then Result:=(FMachine.GetState=msIdle) and (FMachine.PendingLines=0);
+end;
+
+function TSimulationSession.JoystickReady: Boolean;
+begin
+  if FJoystickMotion and (FProtocolKind=pkMarlin) and
+     (FMachine.PendingLines=0) then FJoystickMotion:=False;
+  Result:=JoystickAvailable and not FJoystickMotion;
+end;
+
+function TSimulationSession.JoystickJog(X,Y,Z,Feed: Double): Boolean;
+begin
+  if not JoystickReady then Exit(Fail('Joystick: aguarde a controladora ociosa'));
+  FJoystickSentAt:=GetTickCount64;
+  FJoystickErrorBase:=FMachine.ErrorCount; FJoystickAlarmBase:=FMachine.AlarmCount;
+  FJoystickCancelSent:=False;
+  FJoystickMotion:=True;
+  Result:=FMachine.JogVector(X,Y,Z,Feed,FProtocolKind=pkMarlin);
+  if not Result then begin FJoystickMotion:=False; FLastError:=FMachine.LastError; end;
+end;
+
+procedure TSimulationSession.CancelJoystick;
+begin
+  if not FJoystickMotion or not Connected or (FState in [ssRunning,ssPaused]) then Exit;
+  { Marlin finishes its one bounded pulse (M400); do not send M410, which can
+    lose position, or discard the G90 restore still waiting for its ack. }
+  if (FProtocolKind=pkGRBL) and not FJoystickCancelSent then
+  begin
+    FJoystickSentAt:=GetTickCount64;
+    FJoystickCancelSent:=FMachine.CancelJoystickJog;
+    if not FJoystickCancelSent then
+    begin
+      FJoystickFault:=True;
+      Diag('Falha ao cancelar jog: '+FMachine.LastError);
+    end;
+  end;
+end;
+
+function TSimulationSession.RouterSpindleReady(Enable: Boolean): Boolean;
+begin
+  Result:=Connected and (FMachineKind=mtRouter) and (FProtocolKind=pkGRBL) and
+    ControllerReady and not (FState in [ssRunning,ssPaused]);
+  if not Result then Exit;
+  if Enable then
+    Result:=not FJoystickMotion and not FJoystickFault and (FState<>ssError) and
+      (FMachine.GetState=msIdle) and (FMachine.PendingLines=0)
+  else
+    Result:=FJoystickMotion or ((FMachine.PendingLines=0) and
+      (FMachine.GetState in [msIdle,msAlarm,msError]));
+end;
+
+function TSimulationSession.RouterSpindleOn(RPM: Integer): Boolean;
+begin
+  if not RouterSpindleReady(True) then
+    Exit(Fail('Ligar spindle requer router GRBL conectada, pronta e parada, sem programa em execucao'));
+  if (RPM<1) or (RPM>100000) then Exit(Fail('Rotacao do spindle fora do intervalo 1..100000'));
+  if (FRouterSpindleMaxRPM>0) and (RPM>FRouterSpindleMaxRPM) then
+    Exit(Fail(Format('Rotacao excede o maximo do perfil da router (%d RPM)',[FRouterSpindleMaxRPM])));
+  Result:=FMachine.SendGCode(Format('M3 S%d',[RPM]));
+  if not Result then FLastError:=FMachine.LastError;
+end;
+
+function TSimulationSession.RouterSpindleOff: Boolean;
+begin
+  if not RouterSpindleReady(False) then
+    Exit(Fail('Desligar spindle requer router GRBL conectada, em operacao manual; aguarde comandos pendentes'));
+  { Cancel this input's jog before queuing M5; keep firmware acknowledgements
+    and the cancellation barrier in order. Never alter a running program. }
+  if FJoystickMotion then
+  begin
+    CancelJoystick;
+    if not FJoystickCancelSent then
+      Exit(Fail('Nao foi possivel sincronizar o cancelamento do jog; comando de spindle nao enviado'));
+  end;
+  Result:=FMachine.SendGCode('M5');
+  if not Result then FLastError:=FMachine.LastError;
+end;
+
 function TSimulationSession.MoveTo(X, Y, Z, Feed: Double): Boolean;
 begin
+  if FJoystickMotion then Exit(Fail('Solte o joystick e aguarde o movimento terminar'));
   if not Connected then Exit(Fail('Maquina desconectada'));
   if not ControllerReady then Exit(Fail('Aguarde a resposta e inicializacao da controladora'));
   if FState in [ssRunning, ssPaused] then Exit(Fail('Unavailable while program is running'));
@@ -927,6 +1074,7 @@ end;
 
 function TSimulationSession.Send(const Line: string): Boolean;
 begin
+  if FJoystickMotion then Exit(Fail('Solte o joystick e aguarde o movimento terminar'));
   if not FPhysicalHomingAllowed and SameText(Trim(Line), '$H') then
     Exit(Fail('Este perfil nao possui homing fisico.'));
   if not Connected or (FState in [ssRunning, ssPaused]) then Exit(Fail('Unavailable while program is running'));

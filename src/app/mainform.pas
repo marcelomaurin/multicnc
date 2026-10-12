@@ -8,7 +8,7 @@ uses Classes, SysUtils, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls,
   Dialogs, Graphics, Spin, Math, StrUtils, LazUTF8, LCLType, multisuite_numfmt,
   multicnc_types, multicnc_session, multicnc_simulator, multicnc_gcode_analyzer, multicnc_laser_config,
   multicnc_printer_profiles, multicnc_router_profiles, multicnc_laser_profiles, multicnc_equipment, ailistserialdevices, multisuite_icons,
-  multisuite_controls, multisuite_gcode_writer, multicnc_preview;
+  multisuite_controls, multisuite_gcode_writer, multicnc_preview, multicnc_accessories;
 
 type
   TMainForm = class(TForm)
@@ -19,6 +19,8 @@ type
     Report: TGCodeReport;
     Preview: TGCodePreview;
     PreviewTab: TTabSheet;
+    AccessoriesTab: TTabSheet;
+    Accessories: TAccessoriesFrame;
     AnalysisLabel: TLabel;
     AnalysisWarnings: TMemo;
     PlaneChoice: TComboBox;
@@ -1290,6 +1292,11 @@ begin
   AnalysisLabel := TLabel.Create(Self); AnalysisLabel.Parent := PreviewTab; AnalysisLabel.Align := alTop; AnalysisLabel.AutoSize := False; AnalysisLabel.Height := 120;
   AnalysisWarnings := TMemo.Create(Self); AnalysisWarnings.Parent := PreviewTab; AnalysisWarnings.Align := alBottom; AnalysisWarnings.Height := 110; AnalysisWarnings.ReadOnly := True;
   Preview := TGCodePreview.Create(Self); Preview.Name := 'TrajectoryPreview'; Preview.Parent := PreviewTab; Preview.Align := alClient; Preview.SetProgram(Trace, Envelope);
+  AccessoriesTab:=TTabSheet.Create(Self); AccessoriesTab.Name:='AccessoriesTab';
+  AccessoriesTab.PageControl:=Pages; AccessoriesTab.Caption:='Acessórios';
+  Accessories:=TAccessoriesFrame.CreateForSession(Self,Session,
+    IncludeTrailingPathDelimiter(GetAppConfigDir(False))+'joystick.ini');
+  Accessories.Name:='Accessories'; Accessories.Parent:=AccessoriesTab; Accessories.Align:=alClient;
   Timer := TTimer.Create(Self);
   Timer.Enabled := False;
   Timer.Interval := 100;
@@ -1311,6 +1318,7 @@ end;
 destructor TMainForm.Destroy;
 begin
   if Assigned(Timer) then Timer.Enabled := False;
+  FreeAndNil(Accessories);
   EquipmentStore.Free;
   Session.Free;
   Trace.Free;
@@ -1522,6 +1530,7 @@ end;
 
 procedure TMainForm.EquipmentSelected(Sender: TObject);
 begin
+  if Assigned(Accessories) then Accessories.Suspend;
   if EquipmentCombo.ItemIndex < 0 then Exit;
   try
     ApplyEquipment(EquipmentStore.Item(EquipmentCombo.ItemIndex));
@@ -1737,6 +1746,7 @@ procedure TMainForm.RouterModelChanged(Sender: TObject);
 var
   Prof: TRouterProfile;
 begin
+  Session.RouterSpindleMaxRPM:=0;
   if not FindRouterProfile(RouterBrandCombo.Text, RouterModelCombo.Text, Prof) then
   begin
     RouterSpecsLabel.Caption := 'Profile not found.';
@@ -1745,6 +1755,7 @@ begin
   BaudCombo.Text := IntToStr(Prof.BaudRate);
   if not Session.Connected then ProtocolType.ItemIndex := 0;
   Session.PhysicalHomingAllowed := not Prof.DisablePhysicalHoming;
+  Session.RouterSpindleMaxRPM:=Prof.SpindleMaxRPM;
   { Preenche o curso sem disparar tres atualizacoes parciais do envelope. }
   SpRouterX.OnChange := nil; SpRouterY.OnChange := nil; SpRouterZ.OnChange := nil;
   try
@@ -2359,6 +2370,7 @@ procedure TMainForm.SelectionChanged(Sender: TObject);
 var
   SavedBaud: string;
 begin
+  if Assigned(Accessories) then Accessories.Suspend;
   SavedBaud := Trim(BaudCombo.Text);
   BaudCombo.Items.BeginUpdate;
   try
@@ -2432,6 +2444,7 @@ end;
 procedure TMainForm.ConnectClick(Sender: TObject);
 var Endpoint: string; Baud, PortNumber: Integer; Simulator: TSimulatorTransport;
 begin
+  if Assigned(Accessories) then Accessories.Suspend;
   if not Session.Connected and (CommunicationMode.ItemIndex = 2) then begin
     Simulator := TSimulatorTransport.Create;
     Simulator.DeferredReplies := True;
@@ -2863,8 +2876,9 @@ begin
 end;
 
 procedure TMainForm.CommandClick(Sender: TObject);
-var OK: Boolean; PosHome, Target: TMachinePosition;
+var OK: Boolean; PosHome, Target: TMachinePosition; CompatibilityError: string;
 begin
+  if Assigned(Accessories) then Accessories.Suspend;
   OK := False;
   if Sender = BtnStart then
   begin
@@ -2877,6 +2891,9 @@ begin
     begin
       Log('No program loaded.');
       Exit;
+    end;
+    if not Session.ValidateProgram(CompatibilityError) then begin
+      Log('Programa bloqueado: '+CompatibilityError);Exit;
     end;
     if Session.MachineState in [msAlarm, msError] then
     begin
@@ -2965,6 +2982,8 @@ begin
   end;
   if OK and (Sender = BtnSend) then
     Log('Comando aceito para envio. A confirmacao da controladora aparece como ok/error no log.')
+  else if OK and (Sender=BtnStart) then
+    Log('Start: envio iniciado; aguardando confirmações ok/error da controladora.')
   else if OK then Log(TSuiteButton(Sender).Caption + ': OK')
   else Log('Action rejected: ' + Session.LastError);
   UpdateControls;
@@ -2973,6 +2992,7 @@ end;
 procedure TMainForm.JogClick(Sender: TObject);
 var Index: Integer; Distance: Double;
 begin
+  if Assigned(Accessories) then Accessories.Suspend;
   Index := TControl(Sender).Tag;
   Distance := StepSize.Value;
   if Index mod 2 = 0 then Distance := -Distance;
@@ -3008,6 +3028,7 @@ end;
 
 procedure TMainForm.Closing(Sender: TObject; var CanClose: Boolean);
 begin
+  if Assigned(Accessories) then Accessories.Suspend;
   CanClose := True;
   if Session.State in [ssRunning, ssPaused] then begin
     CanClose := MessageDlg('Program in Progress',

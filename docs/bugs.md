@@ -754,3 +754,63 @@ sob o mouse e o clique aplica. Teste `TestFilletSelection` no `test_multicad`.
 **Comportamento esperado:** permitir selecionar duas linhas ou um vértice/canto do sketch, acionar **Filete/Arredondamento**, informar o raio, visualizar a prévia e confirmar/cancelar a operação.
 
 **Correção necessária:** integrar seleção de entidades do sketch ao comando de filete, criar edição explícita do raio e prévia visual, com validação de geometria e teste de interface cobrindo o fluxo completo.
+
+### BUG-018 — Programa de impressora Marlin enviado a uma router GRBL
+
+**Status:** corrigido em 11/10/2026; validado com transporte falso, sem operar hardware.
+
+O caso `models/printer3d/cantoneira_30mm_marlin.gcode` era aceito no Start com
+perfil TTC3018/GRBL, enviando M82, aquecimento e palavras E. A controladora
+respondia error:20/26/36, mas o aviso final conservava somente a última falha.
+
+- Start valida o conteúdo completo do arquivo contra GRBL antes de enviar
+  qualquer linha, movimento ou assistência de ar. O aviso indica a linha
+  original e o comando incompatível. Extensão/nome do arquivo não são usados
+  para decidir compatibilidade; a validação é repetida após reconexão.
+- Comandos de impressora/extrusão também são bloqueados no console e na API
+  de framing; comentários são ignorados e palavras compactas são reconhecidas.
+  G-code comum de router/laser e programas Marlin em conexão Marlin continuam
+  disponíveis. Este filtro não pretende implementar toda a gramática do firmware.
+- Respostas error: contam uma única linha no controle de fluxo. Preservada a
+  primeira falha de cada programa, inclusive com vários erros no mesmo pacote
+  ou em pacotes sucessivos. Erro síncrono interrompe imediatamente a alimentação.
+- Start informa que o envio começou e aguarda confirmações; não declara que
+  a controladora já aceitou o programa inteiro. Mantido o visual da interface.
+- Testes: `test_gcode_compat.lpr`, testes existentes de sessão/streaming e
+  `test_app.lpr` (aviso com linha física e nenhum TX do programa rejeitado).
+
+### BUG-019 — Controle por joystick para router, laser e impressora 3D
+
+**Status:** implementado em 11/10/2026, MultiCNC 0.1.0.2; validado sem hardware.
+
+- Nova aba Acessórios imediatamente ao lado de Trajetoria e analise, usando
+  os controles e as cores existentes. Deteccao automatica Xbox 360/XInput,
+  fallback WinMM generico e selecao manual; configuracao persistida em AppData.
+- Componente reutilizavel TAIJoystick acrescentado a biblioteca CHATGPT;
+  snapshot incluido para manter compilacao com a dependencia fixada no CI.
+- Analogico esquerdo X/Y; RB superior = Z+, RT inferior = Z-. Mapeamento,
+  inversao, zona morta, velocidade e passo configuraveis; sem Z no perfil laser XY.
+- Exige neutralidade apos conexao, troca de controle/configuracao e retorno
+  de foco. Suspende durante programas, dialogos, edicao, alarmes e desconexao.
+- Um pulso curto por vez; GRBL usa jog cancel e sincronizacao, Marlin espera
+  M400 e conserva a restauracao G90. Nao cancela movimentos de um programa.
+- Testes: 72 verificacoes de driver/mapeamento/seguranca/integracao e 13 de
+  interface; regressao dos protocolos existentes. Validacao fisica pendente.
+
+Detalhes em [JOYSTICK.md](JOYSTICK.md).
+
+### BUG-020 — Acionamento manual do spindle da router por joystick
+
+**Status:** implementado em 11/10/2026, MultiCNC 0.1.0.3; validado sem hardware.
+
+- Comandos separados Ligar spindle e Desligar spindle na aba Acessórios,
+  com valor S/RPM, dois seletores de botao e persistencia em AppData.
+- Atalhos inicialmente sem atribuicao, um comando por pressao, desligamento
+  prioritario quando ambos pressionados e validacao de conflitos com Z.
+- APIs exclusivas da router GRBL manual. Bloqueio durante programa/pausa,
+  boot e conexao ausente; energizacao exige controladora ociosa e rotacao
+  dentro do maximo conhecido do perfil. Laser e impressora nao recebem M3/M5.
+- Desligar durante jog cancela apenas o movimento pertencente ao joystick,
+  preserva respostas pendentes e sincroniza antes de M5; sem cancel repetido.
+- Testes: test_router_spindle (57 verificacoes), test_accessories_ui (27),
+  regressao de joystick/movimento e dos demais comandos existentes.

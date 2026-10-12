@@ -29,7 +29,11 @@ def execute(command, cwd=ROOT, timeout=120):
 def dependency_flags():
     extra = []
     chatgpt = Path(os.environ.get("MULTICNC_CHATGPT_DIR", ROOT.parent / "CHATGPT"))
-    for folder in ("pacote/AI", "pacote/AI Input/AISerial", "pacote/AI Simulation/Marlin", "pacote/AI Input/AISockets", "pacote/AI Input/AIVirtualSerial"):
+    # Snapshot from CHATGPT keeps older pinned library revisions buildable.
+    joystick = chatgpt / "pacote/AI Input/AIJoystick"
+    if not joystick.is_dir():
+        extra.append("-Fu" + str(ROOT / "third_party/chatgpt/AIJoystick"))
+    for folder in ("pacote/AI Input/AIJoystick", "pacote/AI", "pacote/AI Input/AISerial", "pacote/AI Simulation/Marlin", "pacote/AI Input/AISockets", "pacote/AI Input/AIVirtualSerial"):
         path = chatgpt / folder
         if path.is_dir(): extra.append("-Fu" + str(path))
     lazarus = Path(os.environ.get("LAZARUS_DIR", "C:/lazarus"))

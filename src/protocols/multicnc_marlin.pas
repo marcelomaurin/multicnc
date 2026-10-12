@@ -138,16 +138,14 @@ begin
   end
   else if (Copy(L, 1, 6) = 'error:') or (L = '!!') then
   begin
-    Inc(FErrors);
-    SetMessage(ALine);
+    RegisterError(ALine);
     if (Pos('halted', L) > 0) or (Pos('kill', L) > 0) or (Pos('stopped', L) > 0) or
       (Pos('thermal', L) > 0) or (L = '!!') then
       SetState(msAlarm);
   end
   else if Copy(L, 1, 7) = 'resend:' then
   begin
-    Inc(FErrors);
-    SetMessage(ALine);
+    RegisterError(ALine);
   end
   else if (Copy(L, 1, 2) = 'x:') and (Pos('y:', L) > 0) and (Pos('z:', L) > 0) then
     ParsePosition(ALine)
