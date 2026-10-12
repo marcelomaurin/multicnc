@@ -174,16 +174,24 @@ Testes: `test_scene` (deitar, Euler, desfazer, organizar, copias, travar, rotulo
 
 ## Etapa 5 - Qualidade e preenchimento (modo recomendado + personalizado)
 
-**Arq.:** `src/app/multislicer_main.pas` (pagina "Qualidade"), `src/core/multislicer_settings.pas`.
+**Arq.:** `src/app/multislicer_main.pas` (pagina "Qualidade"), `src/core/multislicer_quality.pas`.
 
-- [ ] 5.1 Modo recomendado: perfis Fino 0,1 / Normal 0,2 / Rascunho 0,3; barra de preenchimento %;
+- [x] 5.1 ("Gerar suporte" fica desabilitado ate a Etapa 6; "Aderencia" liga/desliga a saia) Modo recomendado: perfis Fino 0,1 / Normal 0,2 / Rascunho 0,3; barra de preenchimento %;
       caixas "Gerar suporte" e "Aderencia" (atalho para a etapa 5/6).
-- [ ] 5.2 Modo personalizado: paredes, topo/fundo, padrao (gyroid/retilineo), velocidades,
+- [x] 5.2 Modo personalizado: paredes, topo/fundo, padrao (gyroid/retilineo), velocidades,
       altura adaptativa, arcos, z-hop, pressure advance, saia.
-- [ ] 5.3 Validacoes: altura de camada <= 80% do bico; largura de linha coerente; velocidades > 0.
-- [ ] 5.4 Salvar/carregar perfil de qualidade.
+- [x] 5.3 Validacoes: altura de camada <= 80% do bico; largura de linha coerente; velocidades > 0.
+- [x] 5.4 Salvar/carregar perfil de qualidade.
 
 **Aceite:** trocar Fino/Normal/Rascunho muda o numero de camadas e o tempo estimado.
+
+**Entregue (2026-10-12):** `multislicer_quality.pas` com Fino 0,1 / Normal 0,2 / Rascunho 0,3 (1a camada,
+largura de linha %, paredes, topo/fundo, preenchimento, padrao, velocidades separadas, adaptativa, arcos,
+z-hop, pressure advance) e perfis do usuario em JSON (pasta `quality`). Pagina Qualidade com modo
+Recomendado (cartoes, barra de preenchimento, aderencia) e Personalizado (todos os campos, salvar/excluir,
+aviso de perfil alterado); modo e perfil lembrados. Validacoes: camada e 1a camada ate 80% do bico,
+largura de linha 80 a 150% e maior que a camada, velocidades > 0, 1a camada lenta. Medido na caixa
+30 x 10 x 15: Fino 149 camadas / ~24 min, Normal 75 / ~10 min, Rascunho 50 / ~5 min.
 
 ---
 

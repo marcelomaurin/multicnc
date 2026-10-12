@@ -10,6 +10,7 @@ MultiSlicer prepara modelos 3D para impressao 3D.
 - core/multislicer_engine.pas: motor de slicing.
 - core/multislicer_profile.pas: perfil base do pipeline.
 - core/multislicer_printers.pas / multislicer_materials.pas: perfis de impressora e filamento (prontos + JSON do usuario).
+- core/multislicer_quality.pas: perfis de qualidade (Fino/Normal/Rascunho + JSON do usuario).
 - core/multislicer_userdata.pas: pasta de configuracao e leitura/gravacao JSON.
 - import/multislicer_stl.pas: importacao STL.
 - layout/: posicionamento, transformacao e arranjo 3D.

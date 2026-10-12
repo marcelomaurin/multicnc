@@ -25,7 +25,7 @@ uses
   Dialogs, Graphics, LCLType, multislicer_types, multislicer_mesh, multislicer_stl,
   multislicer_3mf, multislicer_profile, multislicer_pipeline, multislicer_view,
   multislicer_printers, multislicer_materials, multislicer_userdata,
-  multislicer_scene, multislicer_view3d, multicad_camera,
+  multislicer_scene, multislicer_view3d, multicad_camera, multislicer_quality,
   multisuite_controls, multisuite_icons;
 
 const
@@ -83,7 +83,17 @@ type
     MaterialNote, MaterialNotes: TLabel;
     MaterialDeleteBtn: TSuiteButton;
     { qualidade }
-    LayerHeight, Speed: TFloatSpinEdit;
+    FQualities: TQualityDefs;
+    QualityBox: TComboBox;
+    QualityNote, QualityHint, InfillLabel: TLabel;
+    QualityDeleteBtn: TSuiteButton;
+    ModeBtn: array[0..1] of TSuiteButton;
+    QualityBtn: array[0..2] of TSuiteButton;
+    RecPanel, CustomPanel: TPanel;
+    InfillTrack: TTrackBar;
+    SupportBox, AdhesionBox: TCheckBox;
+    LayerHeight, FirstLayerH, LineWidthP: TFloatSpinEdit;
+    WallSpd, OuterSpd, InfillSpd, FirstSpd, TravelSpd, ZHopEd, PAEd: TFloatSpinEdit;
     Walls, TopLayers, BottomLayers, InfillDensity: TSpinEdit;
     PatternChoice: TComboBox;
     Adaptive, ArcFit: TCheckBox;
@@ -152,6 +162,17 @@ type
     procedure View3DDelete(Sender: TObject);
     procedure StdViewClick(Sender: TObject);
     procedure LoadTransformEditor;
+    procedure ModeClick(Sender: TObject);
+    procedure QualityCardClick(Sender: TObject);
+    procedure QualityChange(Sender: TObject);
+    procedure SaveQualityClick(Sender: TObject);
+    procedure DeleteQualityClick(Sender: TObject);
+    procedure InfillTrackChange(Sender: TObject);
+    procedure AdhesionClick(Sender: TObject);
+    procedure ReloadQualities(const SelectName: string);
+    procedure ApplyQuality(const Q: TQualityDef);
+    procedure ShowQualityMode(Custom: Boolean);
+    procedure SyncRecommended;
     procedure TransformChange(Sender: TObject);
     procedure Rotate90Click(Sender: TObject);
     procedure MirrorClick(Sender: TObject);
@@ -194,6 +215,8 @@ type
     function CurrentMaterial: TMaterialDef;
     procedure SelectPrinter(const AName: string);
     procedure SelectMaterial(const AName: string);
+    function CurrentQuality: TQualityDef;
+    procedure SelectQuality(const AName: string);
   end;
 
 procedure MeshBounds(AMesh: TMesh; out AMin, AMax: TVec3);
@@ -436,6 +459,10 @@ begin
   ReloadMaterials(ReadLastChoice('material'));
   if MaterialBox.ItemIndex < 0 then MaterialBox.ItemIndex := 0;
   MaterialChange(nil);
+  ReloadQualities(ReadLastChoice('quality'));
+  if QualityBox.ItemIndex < 0 then QualityBox.ItemIndex := FindQuality(FQualities, 'Normal');
+  QualityChange(nil);
+  ShowQualityMode(ReadLastChoice('quality_mode') = 'custom');
   ShowViewMode(svMesa);
   ShowStep(1);
   SetState('Aguardando modelo', clSuiteWarning);
@@ -606,21 +633,95 @@ begin
 end;
 
 procedure TMultiSlicerForm.BuildQualityPage(S: TScrollBox);
+var Q: TQualityDefs; I: Integer;
+
+  function Panel(H: Integer): TPanel;
+  begin
+    Result := TPanel.Create(Self);
+    Result.Parent := S;
+    Result.SetBounds(0, 96, 320, H);
+    Result.BevelOuter := bvNone;
+    Result.Color := clSuiteCard;
+    Result.ParentColor := False;
+  end;
+
 begin
-  LayerHeight := FloatField(S, 'Altura de camada (mm)', 'LayerHeight', 0.2, 0.04, 1, 0.02, 2, 52);
-  Walls := IntField(S, 'Numero de paredes', 'Walls', 2, 1, 20, 108);
-  TopLayers := IntField(S, 'Camadas de topo', 'TopLayers', 4, 0, 50, 164);
-  BottomLayers := IntField(S, 'Camadas de fundo', 'BottomLayers', 3, 0, 50, 220);
-  InfillDensity := IntField(S, 'Preenchimento (%)', 'InfillDensity', 20, 0, 100, 276);
-  PatternChoice := Combo(S, 'Padrao de preenchimento', 332);
+  ModeBtn[0] := Button(S, 'Recomendado', 16, 52, 140, sikWand, @ModeClick);
+  ModeBtn[0].Tag := 0;
+  ModeBtn[1] := Button(S, 'Personalizado', 166, 52, 140, sikGear, @ModeClick);
+  ModeBtn[1].Tag := 1;
+
+  { ---- modo recomendado (como no Cura) ---- }
+  RecPanel := Panel(330);
+  Section(RecPanel, 'QUALIDADE', 4);
+  Q := BuiltinQualities;
+  for I := 0 to 2 do
+  begin
+    QualityBtn[I] := Button(RecPanel, Q[I].Name, 16 + I * 99, 26, 92, sikLayers, @QualityCardClick);
+    QualityBtn[I].Tag := I;
+    QualityBtn[I].ClearIcon;   { sem icone o nome cabe no cartao }
+    LabelAt(RecPanel, FormatFloat('0.0#', Q[I].LayerHeight, InvariantFS) + ' mm', 16 + I * 99, 64, 92, 18).Alignment := taCenter;
+  end;
+  QualityHint := LabelAt(RecPanel, '', 16, 88, 290, 40);
+  Section(RecPanel, 'PREENCHIMENTO', 138);
+  InfillTrack := TTrackBar.Create(Self);
+  InfillTrack.Parent := RecPanel;
+  InfillTrack.SetBounds(12, 160, 236, 36);
+  InfillTrack.Min := 0; InfillTrack.Max := 100; InfillTrack.Frequency := 10;
+  InfillTrack.Position := 20;
+  InfillTrack.OnChange := @InfillTrackChange;
+  InfillLabel := LabelAt(RecPanel, '20%', 254, 168, 52, 20);
+  InfillLabel.Font.Style := [fsBold];
+  SupportBox := TCheckBox.Create(Self);
+  SupportBox.Parent := RecPanel;
+  SupportBox.SetBounds(16, 206, 290, 24);
+  SupportBox.Caption := 'Gerar suporte (hastes de apoio)';
+  SupportBox.Enabled := False;
+  SupportBox.Hint := 'Suportes entram na etapa 6 do plano';
+  SupportBox.ShowHint := True;
+  AdhesionBox := TCheckBox.Create(Self);
+  AdhesionBox.Parent := RecPanel; AdhesionBox.Name := 'Adhesion';
+  AdhesionBox.SetBounds(16, 234, 290, 24);
+  AdhesionBox.Caption := 'Aderencia a mesa (saia em volta da peca)';
+  AdhesionBox.Checked := True;
+  AdhesionBox.OnChange := @AdhesionClick;
+  LabelAt(RecPanel, 'Escolha a qualidade e o preenchimento; o resto vem do perfil. Para ajustar cada valor use Personalizado.',
+    16, 268, 290, 56);
+
+  { ---- modo personalizado ---- }
+  CustomPanel := Panel(1180);
+  QualityBox := Combo(CustomPanel, 'Perfil de qualidade', 4);
+  QualityBox.OnChange := @QualityChange;
+  QualityNote := LabelAt(CustomPanel, '', 16, 58, 290, 20);
+  Button(CustomPanel, 'Salvar...', 16, 80, 140, sikSave, @SaveQualityClick);
+  QualityDeleteBtn := Button(CustomPanel, 'Excluir', 166, 80, 140, sikTrash, @DeleteQualityClick);
+  Section(CustomPanel, 'CAMADAS', 128);
+  LayerHeight := FloatField(CustomPanel, 'Altura de camada (mm)', 'LayerHeight', 0.2, 0.02, 1, 0.02, 2, 150);
+  FirstLayerH := FloatField(CustomPanel, 'Altura da 1a camada (mm)', 'FirstLayerHeight', 0.2, 0.02, 1, 0.02, 2, 206);
+  LineWidthP := FloatField(CustomPanel, 'Largura de linha (% do bico)', 'LineWidthPercent', 112.5, 60, 200, 2.5, 1, 262);
+  Adaptive := Check(CustomPanel, 'Altura de camada adaptativa', 322);
+  Section(CustomPanel, 'PAREDES E PREENCHIMENTO', 356);
+  Walls := IntField(CustomPanel, 'Numero de paredes', 'Walls', 3, 1, 20, 378);
+  TopLayers := IntField(CustomPanel, 'Camadas de topo', 'TopLayers', 4, 0, 50, 434);
+  BottomLayers := IntField(CustomPanel, 'Camadas de fundo', 'BottomLayers', 3, 0, 50, 490);
+  InfillDensity := IntField(CustomPanel, 'Preenchimento (%)', 'InfillDensity', 20, 0, 100, 546);
+  PatternChoice := Combo(CustomPanel, 'Padrao de preenchimento', 602);
   PatternChoice.Items.Add('Gyroid'); PatternChoice.Items.Add('Retilineo');
   PatternChoice.ItemIndex := 0;
   PatternChoice.OnChange := @SettingsChanged;
-  Speed := FloatField(S, 'Velocidade de impressao (mm/s)', 'PrintSpeed', 50, 5, 500, 5, 0, 390);
-  Adaptive := Check(S, 'Altura de camada adaptativa', 452);
-  ArcFit := Check(S, 'Arcos G2/G3 nos perimetros', 480);
+  Section(CustomPanel, 'VELOCIDADES (MM/S)', 666);
+  WallSpd := FloatField(CustomPanel, 'Paredes internas', 'WallSpeed', 50, 1, 1000, 5, 0, 688);
+  OuterSpd := FloatField(CustomPanel, 'Parede externa', 'OuterWallSpeed', 30, 1, 1000, 5, 0, 744);
+  InfillSpd := FloatField(CustomPanel, 'Preenchimento e topo/fundo', 'InfillSpeed', 70, 1, 1000, 5, 0, 800);
+  FirstSpd := FloatField(CustomPanel, '1a camada', 'FirstLayerSpeed', 20, 1, 1000, 1, 0, 856);
+  TravelSpd := FloatField(CustomPanel, 'Deslocamento', 'TravelSpeed', 150, 1, 1000, 10, 0, 912);
+  Section(CustomPanel, 'AVANCADO', 976);
+  ArcFit := Check(CustomPanel, 'Arcos G2/G3 nos perimetros', 998);
   ArcFit.Checked := True;
-  LabelAt(S, 'Altura de camada ate 80% do bico. Parede externa sai a 60% da velocidade.', 16, 514, 290, 40);
+  ZHopEd := FloatField(CustomPanel, 'Z-hop na retracao (mm, 0 = sem)', 'ZHop', 0, 0, 10, 0.1, 2, 1026);
+  PAEd := FloatField(CustomPanel, 'Pressure/linear advance (0 = sem)', 'PressureAdvance', 0, 0, 2, 0.01, 3, 1082);
+  LabelAt(CustomPanel, 'A Ender-3 original (Marlin) costuma vir sem linear advance; deixe 0 se nao calibrou.',
+    16, 1140, 290, 40);
 end;
 
 procedure TMultiSlicerForm.BuildSupportPage(S: TScrollBox);
@@ -1144,6 +1245,194 @@ begin
   end;
 end;
 
+{ ---------------- qualidade ---------------- }
+
+function TMultiSlicerForm.CurrentQuality: TQualityDef;
+var K: Integer;
+begin
+  K := QualityBox.ItemIndex;
+  if (K >= 0) and (K <= High(FQualities)) then Result := FQualities[K]
+  else Result := BuiltinQualities[1];
+  Result.BuiltIn := False;
+  Result.LayerHeight := LayerHeight.Value; Result.FirstLayerHeight := FirstLayerH.Value;
+  Result.LineWidthPct := LineWidthP.Value;
+  Result.Walls := Walls.Value; Result.TopLayers := TopLayers.Value; Result.BottomLayers := BottomLayers.Value;
+  Result.InfillPercent := InfillDensity.Value;
+  Result.Pattern := TInfillPattern(Max(0, PatternChoice.ItemIndex));
+  Result.WallSpeed := WallSpd.Value; Result.OuterWallSpeed := OuterSpd.Value;
+  Result.InfillSpeed := InfillSpd.Value; Result.FirstLayerSpeed := FirstSpd.Value;
+  Result.TravelSpeed := TravelSpd.Value;
+  Result.Adaptive := Adaptive.Checked; Result.ArcFitting := ArcFit.Checked;
+  Result.ZHop := ZHopEd.Value; Result.PressureAdvance := PAEd.Value;
+end;
+
+procedure TMultiSlicerForm.ReloadQualities(const SelectName: string);
+var I: Integer;
+begin
+  FQualities := LoadQualities;
+  FUpdating := True;
+  try
+    QualityBox.Items.Clear;
+    for I := 0 to High(FQualities) do
+      if FQualities[I].BuiltIn then QualityBox.Items.Add(FQualities[I].Name)
+      else QualityBox.Items.Add(FQualities[I].Name + '  (meu)');
+    QualityBox.ItemIndex := FindQuality(FQualities, SelectName);
+  finally
+    FUpdating := False;
+  end;
+end;
+
+procedure TMultiSlicerForm.ApplyQuality(const Q: TQualityDef);
+begin
+  FUpdating := True;
+  try
+    LayerHeight.Value := Q.LayerHeight; FirstLayerH.Value := Q.FirstLayerHeight;
+    LineWidthP.Value := Q.LineWidthPct;
+    Walls.Value := Q.Walls; TopLayers.Value := Q.TopLayers; BottomLayers.Value := Q.BottomLayers;
+    InfillDensity.Value := Q.InfillPercent;
+    PatternChoice.ItemIndex := Ord(Q.Pattern);
+    WallSpd.Value := Q.WallSpeed; OuterSpd.Value := Q.OuterWallSpeed; InfillSpd.Value := Q.InfillSpeed;
+    FirstSpd.Value := Q.FirstLayerSpeed; TravelSpd.Value := Q.TravelSpeed;
+    Adaptive.Checked := Q.Adaptive; ArcFit.Checked := Q.ArcFitting;
+    ZHopEd.Value := Q.ZHop; PAEd.Value := Q.PressureAdvance;
+  finally
+    FUpdating := False;
+  end;
+end;
+
+procedure TMultiSlicerForm.SelectQuality(const AName: string);
+var K: Integer;
+begin
+  K := FindQuality(FQualities, AName);
+  if K < 0 then raise Exception.Create('Perfil de qualidade nao encontrado: ' + AName);
+  QualityBox.ItemIndex := K;
+  QualityChange(QualityBox);
+end;
+
+procedure TMultiSlicerForm.QualityChange(Sender: TObject);
+var K: Integer;
+begin
+  if FUpdating then Exit;
+  K := QualityBox.ItemIndex;
+  if (K < 0) or (K > High(FQualities)) then Exit;
+  ApplyQuality(FQualities[K]);
+  if Sender <> nil then WriteLastChoice('quality', FQualities[K].Name);
+  SettingsChanged(nil);
+end;
+
+procedure TMultiSlicerForm.QualityCardClick(Sender: TObject);
+var Keep: Integer;
+begin
+  { no modo recomendado o preenchimento escolhido na barra continua valendo }
+  Keep := InfillTrack.Position;
+  SelectQuality(BuiltinQualities[TSuiteButton(Sender).Tag].Name);
+  InfillDensity.Value := Keep;
+  SyncRecommended;
+end;
+
+procedure TMultiSlicerForm.SyncRecommended;
+var I, K: Integer; Q: TQualityDefs;
+begin
+  if InfillTrack = nil then Exit;
+  Q := BuiltinQualities;
+  K := -1;
+  if (QualityBox.ItemIndex >= 0) and (QualityBox.ItemIndex <= High(FQualities)) then
+    for I := 0 to 2 do
+      if SameText(FQualities[QualityBox.ItemIndex].Name, Q[I].Name) then K := I;
+  for I := 0 to 2 do
+    if I = K then QualityBtn[I].SetLook(sbsSolid, clSuitePrimary)
+    else QualityBtn[I].SetLook(sbsSoft, clSuitePrimary);
+  if (QualityBox.ItemIndex >= 0) and (QualityBox.ItemIndex <= High(FQualities)) then
+    QualityHint.Caption := FQualities[QualityBox.ItemIndex].Notes
+  else
+    QualityHint.Caption := '';
+  if K < 0 then QualityHint.Caption := 'Perfil personalizado em uso: ' + CurrentQuality.Name + '.';
+  FUpdating := True;
+  try
+    InfillTrack.Position := InfillDensity.Value;
+    InfillLabel.Caption := IntToStr(InfillDensity.Value) + '%';
+    if SkirtLoops <> nil then AdhesionBox.Checked := SkirtLoops.Value > 0;
+  finally
+    FUpdating := False;
+  end;
+end;
+
+procedure TMultiSlicerForm.InfillTrackChange(Sender: TObject);
+begin
+  if FUpdating then Exit;
+  InfillLabel.Caption := IntToStr(InfillTrack.Position) + '%';
+  InfillDensity.Value := InfillTrack.Position;
+end;
+
+procedure TMultiSlicerForm.AdhesionClick(Sender: TObject);
+begin
+  if FUpdating then Exit;
+  if AdhesionBox.Checked then SkirtLoops.Value := Max(1, SkirtLoops.Value)
+  else SkirtLoops.Value := 0;
+end;
+
+procedure TMultiSlicerForm.ShowQualityMode(Custom: Boolean);
+begin
+  RecPanel.Visible := not Custom;
+  CustomPanel.Visible := Custom;
+  if Custom then
+  begin
+    ModeBtn[0].SetLook(sbsSoft, clSuitePrimary);
+    ModeBtn[1].SetLook(sbsSolid, clSuitePrimary);
+  end
+  else
+  begin
+    ModeBtn[0].SetLook(sbsSolid, clSuitePrimary);
+    ModeBtn[1].SetLook(sbsSoft, clSuitePrimary);
+  end;
+  SyncRecommended;
+end;
+
+procedure TMultiSlicerForm.ModeClick(Sender: TObject);
+begin
+  ShowQualityMode(TSuiteButton(Sender).Tag = 1);
+  if TSuiteButton(Sender).Tag = 1 then WriteLastChoice('quality_mode', 'custom')
+  else WriteLastChoice('quality_mode', 'recommended');
+end;
+
+procedure TMultiSlicerForm.SaveQualityClick(Sender: TObject);
+var QD: TQualityDef; AName, Err: string;
+begin
+  QD := CurrentQuality;
+  Err := CheckQuality(QD, Nozzle.Value);
+  if Err <> '' then begin ShowError(Exception.Create(Err)); Exit; end;
+  AName := QD.Name;
+  if not InputQuery('Salvar perfil de qualidade', 'Nome do perfil:', AName) then Exit;
+  AName := Trim(AName);
+  if AName = '' then Exit;
+  QD.Name := AName;
+  try
+    SaveQuality(QD);
+    ReloadQualities(AName);
+    WriteLastChoice('quality', AName);
+    RefreshProfileNotes;
+    SyncRecommended;
+    Status.Caption := 'Perfil de qualidade salvo: ' + AName;
+  except
+    on E: Exception do ShowError(E);
+  end;
+end;
+
+procedure TMultiSlicerForm.DeleteQualityClick(Sender: TObject);
+var K: Integer; AName: string;
+begin
+  K := QualityBox.ItemIndex;
+  if (K < 0) or (K > High(FQualities)) or FQualities[K].BuiltIn then Exit;
+  AName := FQualities[K].Name;
+  if MessageDlg('Excluir perfil', 'Excluir o perfil de qualidade "' + AName + '"?',
+    mtConfirmation, [mbYes, mbNo], 0) <> mrYes then Exit;
+  DeleteQuality(AName);
+  ReloadQualities(AName);
+  if QualityBox.ItemIndex < 0 then QualityBox.ItemIndex := FindQuality(FQualities, 'Normal');
+  QualityChange(QualityBox);
+  Status.Caption := 'Perfil excluido: ' + AName;
+end;
+
 procedure TMultiSlicerForm.StdViewClick(Sender: TObject);
 begin
   View3D.StdView(TCadStdView(TSuiteButton(Sender).Tag));
@@ -1274,6 +1563,17 @@ procedure TMultiSlicerForm.RefreshProfileNotes;
 var K: Integer; C: TMaterialDef; MatChanged: Boolean;
 begin
   if PrinterNote = nil then Exit;
+  if QualityNote <> nil then
+  begin
+    K := QualityBox.ItemIndex;
+    if (K >= 0) and (K <= High(FQualities)) and not SameQuality(CurrentQuality, FQualities[K]) then
+    begin
+      QualityNote.Caption := 'Perfil alterado: salve para manter.';
+      QualityNote.Font.Color := clSuiteWarning;
+    end
+    else QualityNote.Caption := '';
+    QualityDeleteBtn.Enabled := (K >= 0) and (K <= High(FQualities)) and not FQualities[K].BuiltIn;
+  end;
   K := PrinterBox.ItemIndex;
   if (K >= 0) and (K <= High(FPrinters)) and not SamePrinter(CurrentPrinter, FPrinters[K]) then
   begin
@@ -1423,6 +1723,8 @@ end;
 procedure TMultiSlicerForm.SettingsChanged(Sender: TObject);
 begin
   if FUpdating then Exit;
+  if (InfillTrack <> nil) and ((Sender = InfillDensity) or (Sender = SkirtLoops) or (Sender = nil)) then
+    SyncRecommended;
   if Sender = HeatedBedBox then
   begin
     BedFirst.Enabled := HeatedBedBox.Checked;
@@ -1533,7 +1835,7 @@ end;
 { ---------------- fatiamento ---------------- }
 
 function TMultiSlicerForm.Settings: TSliceSettings;
-var I: Integer; B: TBox3;
+var I: Integer; B: TBox3; Err: string;
 begin
   Result := DefaultSliceSettings;
   Result.Printer := DefaultPrinterProfile;
@@ -1562,16 +1864,18 @@ begin
   if (MaterialBox.ItemIndex >= 0) and (MaterialBox.ItemIndex <= High(FMaterials)) then
     Result.MaterialName := FMaterials[MaterialBox.ItemIndex].Name;
   Result.Flavor := TSlicerFlavor(FlavorChoice.ItemIndex);
+  Err := CheckQuality(CurrentQuality, Result.Printer.Nozzle);
+  if Err <> '' then raise Exception.Create(Err);
   Result.LayerHeight := LayerHeight.Value; Result.Printer.LayerHeight := Result.LayerHeight;
-  Result.FirstLayerHeight := Result.LayerHeight;
-  if Result.LayerHeight > Result.Printer.Nozzle * 0.8 + 1e-9 then
-    raise Exception.Create('A altura de camada deve ser no maximo 80% do diametro do bico.');
-  Result.LineWidth := Result.Printer.Nozzle * 1.125;
+  Result.FirstLayerHeight := FirstLayerH.Value;
+  Result.LineWidth := Result.Printer.Nozzle * LineWidthP.Value / 100;
   Result.Walls := Walls.Value;
   Result.TopLayers := TopLayers.Value; Result.BottomLayers := BottomLayers.Value;
   Result.InfillDensity := InfillDensity.Value / 100;
   Result.InfillPattern := TInfillPattern(PatternChoice.ItemIndex);
-  Result.WallSpeed := Speed.Value; Result.OuterWallSpeed := Speed.Value * 0.6; Result.InfillSpeed := Speed.Value;
+  Result.WallSpeed := WallSpd.Value; Result.OuterWallSpeed := OuterSpd.Value; Result.InfillSpeed := InfillSpd.Value;
+  Result.FirstLayerSpeed := FirstSpd.Value; Result.TravelSpeed := TravelSpd.Value;
+  Result.ZHop := ZHopEd.Value; Result.PressureAdvance := PAEd.Value;
   Result.RetractLength := RetractLen.Value;
   Result.ArcFitting := ArcFit.Checked;
   Result.SkirtLoops := SkirtLoops.Value; Result.SkirtDistance := SkirtDist.Value;
@@ -1655,6 +1959,8 @@ begin
     if Cost.Value > 0 then
       PreviewSummary.Caption := PreviewSummary.Caption + Format(#10'Custo do filamento: R$ %.2f',
         [R.FilamentGrams / 1000 * Cost.Value], InvariantFS);
+    PreviewSummary.Caption := PreviewSummary.Caption + #10'Qualidade: ' + CurrentQuality.Name +
+      Format(' (camada %s mm, preenchimento %d%%)', [FormatFloat('0.0#', LayerHeight.Value, InvariantFS), InfillDensity.Value]);
     PreviewSummary.Caption := PreviewSummary.Caption + #10'Impressora: ' + CurrentPrinter.Name +
       #10'Material: ' + CurrentMaterial.Name + Format(' (bico %d C, mesa %d C)', [Hotend.Value, BedTemp.Value]);
     if R.Warnings <> '' then PreviewSummary.Caption := PreviewSummary.Caption + #10'Avisos: ' + R.Warnings;

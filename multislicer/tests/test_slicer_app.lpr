@@ -2,9 +2,10 @@ program test_slicer_app;
 {$mode objfpc}{$H+}
 uses Interfaces, Forms, Classes, SysUtils, Math, Spin, multislicer_main,
   multislicer_mesh, multislicer_pipeline, multislicer_stl, multislicer_types,
-  multislicer_userdata, multislicer_materials, multislicer_scene, multicad_camera;
+  multislicer_userdata, multislicer_materials, multislicer_scene, multicad_camera, multislicer_quality;
 var F: TMultiSlicerForm; Mesh: TMesh; G: TStringList; A, B: TVec3; Bx: TBox3; Pt: TPoint; T0: QWord;
-  FN2, FNBig: string; I, J: Integer; Tri: TTriangle;
+  FN2, FNBig: string; I, J: Integer; Tri: TTriangle; LFino, LNormal, LRasc: Integer; TFino, TNormal, TRasc: Double;
+  QD: TQualityDef;
   FN, Output, BadOutput, ProfileDir: string; Mat: TMaterialDef; Raised: Boolean; Before: string;
 procedure Check(OK: Boolean; const Msg: string);
 begin if not OK then raise Exception.Create(Msg); end;
@@ -40,7 +41,8 @@ begin
     Check(not F.ProgramReady, 'changed settings invalidate the previous preview and program');
     TSpinEdit(F.FindComponent('HotendTemperature')).Value := 207;
     F.ExportProgram(Output); G.LoadFromFile(Output);
-    Check((F.SliceReport.Layers = 20) and (G.Text <> Before) and (Pos('M104 S207', G.Text) > 0),
+    { 1a camada continua 0,2 mm (perfil Normal): 0,2 + 18 x 0,1 = 2 mm }
+    Check((F.SliceReport.Layers = 19) and (G.Text <> Before) and (Pos('M104 S207', G.Text) > 0),
       'export regenerates from the current layer and temperature settings');
     G.Text := 'invalid STL'; G.SaveToFile(FN); Raised := False;
     try F.OpenFile(FN); except on E: Exception do Raised := True; end;
@@ -169,8 +171,37 @@ begin
     Check(F.ValidateJob, 'second part placed without overlap');
     F.ExportProgram(Output); G.LoadFromFile(Output);
     Check((Pos('M486 T2', G.Text) > 0) and (Pos('M486 S1', G.Text) > 0), 'each part gets its own cancel label');
+    { Etapa 5: qualidade - Fino/Normal/Rascunho mudam camadas e tempo }
+    F.Scene.Clear;
+    F.OpenFile(FN2);                         { caixa 30 x 10 x 15 }
+    F.SelectQuality('Fino'); F.GenerateProgram;
+    LFino := F.SliceReport.Layers; TFino := F.SliceReport.EstimatedSeconds;
+    F.SelectQuality('Normal'); F.GenerateProgram;
+    LNormal := F.SliceReport.Layers; TNormal := F.SliceReport.EstimatedSeconds;
+    F.SelectQuality('Rascunho'); F.GenerateProgram;
+    LRasc := F.SliceReport.Layers; TRasc := F.SliceReport.EstimatedSeconds;
+    Writeln(Format('  Fino %d camadas %.0f s | Normal %d camadas %.0f s | Rascunho %d camadas %.0f s',
+      [LFino, TFino, LNormal, TNormal, LRasc, TRasc]));
+    Check((LFino = 149) and (LNormal = 75) and (LRasc = 50), 'layer counts follow Fino/Normal/Rascunho');
+    Check((TFino > TNormal) and (TNormal > TRasc), 'estimated time follows the quality');
+    { modo personalizado: velocidade e largura de linha chegam ao G-code }
+    TFloatSpinEdit(F.FindComponent('OuterWallSpeed')).Value := 22;
+    F.ExportProgram(Output); G.LoadFromFile(Output);
+    Check(Pos('F1320', G.Text) > 0, 'outer wall speed 22 mm/s reaches the G-code (F1320)');
+    { validacoes }
+    TFloatSpinEdit(F.FindComponent('FirstLayerHeight')).Value := 0.5;
+    Check(not F.ValidateJob, 'first layer above 80% of the nozzle is rejected');
+    TFloatSpinEdit(F.FindComponent('FirstLayerHeight')).Value := 0.3;
+    TFloatSpinEdit(F.FindComponent('LineWidthPercent')).Value := 70;
+    Check(not F.ValidateJob, 'line width below 80% of the nozzle is rejected');
+    TFloatSpinEdit(F.FindComponent('LineWidthPercent')).Value := 112.5;
+    Check(F.ValidateJob, 'valid quality passes again');
+    { perfil de qualidade do usuario }
+    QD := F.CurrentQuality; QD.Name := 'Meu rapido'; SaveQuality(QD);
+    Check(FindQuality(LoadQualities, 'Meu rapido') >= 0, 'user quality saved to JSON');
+    Check(DeleteQuality('Meu rapido'), 'user quality deleted');
     DeleteFile(FN2); DeleteFile(FNBig);
-    Writeln('MultiSlicer GUI: OK (suite UI, centering, validation, profiles, start/end G-code, persistence, 3D scene, picking, transform panel, undo, labels, layers, export)');
-  finally F.Free; Mesh.Free; DeleteFile(ProfileDir + PathDelim + 'multislicer.json'); RemoveDir(ProfileDir + PathDelim + 'materials'); RemoveDir(ProfileDir); G.Free; DeleteFile(FN); DeleteFile(Output); DeleteFile(BadOutput); end;
+    Writeln('MultiSlicer GUI: OK (suite UI, centering, validation, profiles, start/end G-code, persistence, 3D scene, picking, transform panel, undo, labels, quality profiles, layers, export)');
+  finally F.Free; Mesh.Free; DeleteFile(ProfileDir + PathDelim + 'multislicer.json'); RemoveDir(ProfileDir + PathDelim + 'materials'); RemoveDir(ProfileDir + PathDelim + 'quality'); RemoveDir(ProfileDir); G.Free; DeleteFile(FN); DeleteFile(Output); DeleteFile(BadOutput); end;
   except on E: Exception do begin Writeln('FAIL: ', E.Message); Halt(1); end; end;
 end.
