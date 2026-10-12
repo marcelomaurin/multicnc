@@ -12,13 +12,13 @@ A demonstração cria uma pasta `cnc-demo`, um projeto e um G-code de quadrado p
 
 ## Preparar G-code
 
-No MultiCNC, abertura por launcher, diálogo e drag/drop compartilham o mesmo fluxo. A análise e a prévia usam o mesmo interpretador. Confira as projeções, configure limites e exporte o relatório. Erros bloqueiam o início da simulação; análise parcial fica explícita.
+No MultiCNC, abertura por launcher, diálogo e drag/drop compartilham o mesmo fluxo. A análise e a prévia usam o mesmo interpretador. Confira as projeções, configure limites e exporte o relatório. Erros bloqueiam o início no simulador local; análise parcial fica explícita. A conexão real também verifica compatibilidade de protocolo e condições da sessão, mas a análise não substitui a conferência física.
 
-A GUI ainda não conecta hardware. O próximo desenvolvimento de operação física deve integrar o streamer existente, os drivers e TCP/TAISerialModem, confirmando comandos e estado real do controlador. A prévia não é verificação de colisões ou de remoção de material.
+A interface MultiCNC 0.1.0.3 conecta Serial ou TCP e também oferece Simulador local. Identifica GRBL, consulta estado/posição, trata inicialização Marlin, acompanha confirmações e oferece equipamentos salvos, Frame/Outline, controle térmico e joystick. A prévia não verifica colisões nem remoção de material. Consulte o [manual ilustrado](Manuals/Manual_do_Usuario_MultiCNC_0.1.0.3_PT-BR.pdf) e o [guia do painel](../src/app/README.md).
 
 ## STL para impressão
 
-Abra um STL no MultiSlicer, configure o perfil e fatie. Selecione a camada para ver paredes/preenchimento. A exportação usa exatamente o resultado do pipeline da prévia. Alterar altura, temperatura, mesa ou qualquer configuração invalida o programa; exportar regenera o resultado.
+No MultiSlicer 0.0.7.0, selecione a impressora cadastrada no MultiCNC ou use Ajuste manual. Abra um STL/3MF, configure o perfil e clique em Fatiar. Acompanhe o progresso no rodapé; Cancelar interrompe o cálculo em segundo plano. Selecione a camada na prévia 3D para ver paredes, preenchimento e suportes. A exportação usa exatamente o resultado do pipeline da prévia. Alterar altura, temperatura, mesa ou qualquer configuração invalida o programa; exportar regenera o resultado.
 
 O motor mantém limitações geométricas: não oferece suporte completo a suportes/bridges nem resolve toda geometria autointersectante. A tela não transforma esses recursos em disponíveis.
 
@@ -30,7 +30,7 @@ Cada distribuição contém o commit de origem, alvo, compiladores, hashes e res
 
 ## Próximas prioridades
 
-- Conexão/telemetria reais na GUI MultiCNC e perfis persistentes de máquina/ferramenta.
+- Validação física dos fluxos de operação e evolução da persistência de receitas/ferramentas; conexão serial/TCP e equipamentos salvos já estão na interface MultiCNC.
 - Expor HSM, raster, Gerber X2, restrições CAD e cenários editáveis de MultiPhysics nas respectivas telas.
 - Instalação/desinstalação automatizadas e smoke test em hardware ARM.
 - Publicação por tag imutável, com manifesto/checksums e aprovação das verificações da versão.

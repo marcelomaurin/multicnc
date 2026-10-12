@@ -25,3 +25,15 @@ A versão é a do executável MultiCAD. O número do instalador da MultiSuite é
 - Inclui exercício guiado, solução de problemas e atalhos.
 
 [16 capturas completas](../../imgs/manual_laserart_0_02_1/README.md) · [Guia do LaserArt](../../laserart/README.md)
+
+## MultiCNC
+
+[Abrir o manual ilustrado em português](Manual_do_Usuario_MultiCNC_0.1.0.3_PT-BR.pdf) · [Versão em texto](Manual_do_Usuario_MultiCNC_0.1.0.3_PT-BR.md)
+
+- Versão de referência: **MultiCNC 0.1.0.3**, Windows x64.
+- Edição: **12/10/2026**; fontes conferidas no commit **687756e**.
+- Formato: PDF A4, **33 páginas**, **31 capítulos**, sumário clicável, **22 figuras** e marcadores de navegação.
+- Conteúdo: interface, perfis, equipamentos salvos, serial/TCP, SimuCNC, simulador local, arquivos, busca, trajetória, análise, jog, homing/HOME/zero, execução, Console, router/spindle, laser, Frame/Outline, impressão 3D, temperaturas, joystick, compatibilidade e integrações.
+- Inclui exercício guiado, solução de problemas, atalhos e comportamento dos campos ainda incompletos do processamento laser.
+
+[17 capturas completas](../../imgs/manual_multicnc_0_1_0_3/README.md) · [Guia do painel](../../src/app/README.md)

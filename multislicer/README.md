@@ -2,11 +2,12 @@
 
 Fatiador para impressão 3D integrado ao ecossistema MultiCNC.
 
-> **Estado (12/10/2026, versão 0.0.6.0):** interface organizada por etapas,
-> perfis de impressora e material, cena com múltiplos modelos, posicionamento,
-> qualidade, suportes automáticos e manuais e aderência. As entregas até a etapa 6
-> estão integradas ao executável `bin/multislicer.exe`. O detalhamento e as próximas
-> etapas estão em [docs/PLANO_TAREFAS.md](docs/PLANO_TAREFAS.md).
+> **Estado (12/10/2026, versão 0.0.7.0):** perfis de impressora e material,
+> cena com múltiplos modelos, posicionamento, qualidade, suportes e aderência,
+> prévia 3D por camada e fatiamento em segundo plano com progresso e cancelamento.
+> As entregas até a etapa 7 estão integradas ao executável `bin/multislicer.exe`.
+> O detalhamento e as próximas etapas estão em
+> [docs/PLANO_TAREFAS.md](docs/PLANO_TAREFAS.md).
 
 ## Capturas da interface
 
@@ -32,6 +33,27 @@ As capturas das entregas publicadas também estão em `screenshots`:
 
 [Índice completo das imagens da suíte](../imgs/README.md)
 
+## Fatiamento e prévia 3D na versão 0.0.7.0
+
+Selecione a impressora no campo de equipamento no topo da janela. As impressoras
+salvas no MultiCNC aparecem nessa lista; marca e modelo completam o perfil pelo
+catálogo. A opção **Ajuste manual** permite configurar uma impressora personalizada.
+
+Depois de posicionar o modelo e ajustar material, qualidade e suportes, clique em
+**Fatiar**. A barra no rodapé informa a fase e o progresso. O processamento ocorre
+em segundo plano; **Cancelar** ou Esc interrompe o cálculo e preserva a prévia
+anterior. Ao mudar parâmetros, refaça o fatiamento antes de usar a saída.
+
+Na etapa **Prévia**, use o deslizante para selecionar a camada. A vista 3D usa a
+mesma câmera da mesa e diferencia paredes, preenchimento, superfícies sólidas e
+suportes por cores. Ative a opção de mostrar somente a camada para inspecionar seu
+interior. A prévia e a exportação usam o mesmo resultado do fatiamento. O deslizante
+de movimento dentro da camada e as marcas de retração ainda estão previstos.
+
+| Trajetórias acumuladas com suportes | Inspeção de uma camada |
+|---|---|
+| ![Prévia 3D dos percursos e suportes](../imgs/ms_preview3d.png) | ![Camada isolada com preenchimento e suportes](../imgs/ms_preview3d_layer.png) |
+
 ## Fluxo
 STL/3MF -> malha -> orientação/escala -> camadas -> perímetros/infill/suportes -> preview -> G-code -> MultiCNC.
 
@@ -48,7 +70,7 @@ MultiSlicer prepara o trabalho. MultiCNC conecta e controla a impressora.
 - exportação G-code inicial
 - aplicação Lazarus inicial
 
-Essa lista registra o ponto de partida. A versão 0.0.6.0 inclui contornos fechados, perímetros, preenchimento, suportes e retração, conforme o pipeline abaixo.
+Essa lista registra o ponto de partida. A versão 0.0.7.0 inclui contornos fechados, perímetros, preenchimento, suportes e retração, conforme o pipeline abaixo.
 
 ## Pipeline moderno (multislicer_pipeline)
 `TModernSlicer.Slice(malha, configuração, saída)`:

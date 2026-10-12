@@ -4,7 +4,17 @@
 registram a interface no momento em que foram feitas; os recursos atuais estão nos
 respectivos guias. Os projetos e parâmetros mostrados são exemplos.
 
-## MultiCNC e SimuCNC
+## MultiCNC 0.1.0.3 - manual do usuário
+
+[Manual ilustrado em português (PDF)](../docs/Manuals/Manual_do_Usuario_MultiCNC_0.1.0.3_PT-BR.pdf) · [Catálogo das 17 capturas](manual_multicnc_0_1_0_3/README.md)
+
+Capturas de 12/10/2026: programa, perfis de máquina, serial/TCP, análise, Console,
+laser, impressão 3D, temperaturas, joystick, spindle, busca, execução, pausa e
+parada. O manual tem 33 páginas, 31 capítulos e 22 figuras.
+
+![MultiCNC: programa e painel principal](manual_multicnc_0_1_0_3/01_programa.png)
+
+## MultiCNC e SimuCNC - capturas anteriores
 
 | Arquivo | Resolução | Conteúdo |
 |---|---|---|
@@ -53,6 +63,8 @@ para esses comandos; `Multicad03.png` registra a interface antiga do esboço.
 | [multislicer_previa.png](multislicer_previa.png) | 1280 × 860 | Prévia por camada de um anel: saia, paredes e topo/fundo |
 | [multislicer_qualidade.png](multislicer_qualidade.png) | 1280 × 860 | Configuração de qualidade |
 | [multislicer_suporte.png](multislicer_suporte.png) | 1280 × 860 | Configuração de suportes |
+| [ms_preview3d.png](ms_preview3d.png) | 730 × 632 | Prévia 3D dos percursos acumulados com suportes |
+| [ms_preview3d_layer.png](ms_preview3d_layer.png) | 730 × 632 | Camada isolada na prévia 3D, com preenchimento e suportes |
 
 As entregas publicadas das etapas 0 a 6 possuem também capturas em
 [`screenshots`](../screenshots): [modelo](../screenshots/multislicer_modelo.png),

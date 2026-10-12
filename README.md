@@ -10,6 +10,8 @@ O pacote Windows x64 inclui 13 aplicativos, os perfis de laser do MultiCNC, a co
 
 ## Manuais do usuário
 
+[MultiCNC 0.1.0.3 - manual ilustrado em português (PDF)](docs/Manuals/Manual_do_Usuario_MultiCNC_0.1.0.3_PT-BR.pdf) · [Guia de operação](src/app/README.md) · [Capturas atuais do MultiCNC](imgs/manual_multicnc_0_1_0_3/README.md)
+
 [MultiCAD 0.0.8.4 - manual ilustrado em português (PDF)](docs/Manuals/Manual_do_Usuario_MultiCAD_0.0.8.4_PT-BR.pdf) · [Capturas atuais do MultiCAD](imgs/manual_multicad_0_0_8_4/README.md)
 
 [LaserArt 0.02.1 - manual ilustrado em português (PDF)](docs/Manuals/Manual_do_Usuario_LaserArt_0.02.1_PT-BR.pdf) · [Capturas atuais do LaserArt](imgs/manual_laserart_0_02_1/README.md)
@@ -84,7 +86,7 @@ O MultiCNC é **open source** e está em desenvolvimento contínuo. Os módulos 
 
 | Aplicação / módulo | O que faz | Use quando quiser |
 |---|---|---|
-| **MultiCNC** | Análise de G-code, prévia e envio simulado; núcleo de protocolos e transportes | Inspecionar trabalhos e testar o envio antes da integração com hardware |
+| **MultiCNC** | Análise de G-code, prévia, conexão serial/TCP, execução confirmada e simulador local | Conferir e executar programas na router, laser ou impressora compatível |
 | **MultiSuite Bandeja** | Menu de atalhos ao lado do relógio | Abrir os aplicativos instalados a partir de `multisuite_tray.exe` |
 | **MultiPhysics** | Simulação física multidomínio | Estudar eletricidade, eletrônica, mecânica, térmica, magnetismo, materiais, sensores, motores, energia e falhas |
 | **Ferramentas de projeto mecânico** | Projeto e preparação de peças e conjuntos | Trabalhar com geometria, peças mecânicas, montagem e preparação para CNC Router |
@@ -96,17 +98,17 @@ O MultiCNC é **open source** e está em desenvolvimento contínuo. Os módulos 
 | **Ferramentas CNC Router/CAM** | Preparação de usinagem mecânica | Preparar operações, trajetórias e trabalhos para Router |
 | **Montagem eletromecânica** | Visualização conjunta de mecânica e eletrônica | Ver componentes mecânicos, placas, sensores, motores e conexões no mesmo projeto |
 
-MultiCNC analisa G-code e simula o envio; MultiPhysics simula o comportamento físico; as ferramentas de projeto criam e preparam o projeto; MultiSuite Bandeja abre os aplicativos instalados.
+MultiCNC analisa G-code, controla o envio serial/TCP e oferece simulador local; MultiPhysics simula o comportamento físico; as ferramentas de projeto criam e preparam o projeto; MultiSuite Bandeja abre os aplicativos instalados.
 
 ## Funcionalidades disponíveis nas interfaces
 
 | Aplicação | Fluxo implementado |
 |---|---|
 | MultiSuite Bandeja | Painel de atalhos com a aparência restaurada, busca e aplicativos existentes em `bin`; menu de contexto com Abrir painel e Sair. |
-| MultiCNC | Conexão serial, equipamentos salvos por nome, detecção da versão GRBL, prévia do G-code, execução com controle de fluxo e Frame para laser. |
+| MultiCNC | Conexão serial/TCP e simulador local, equipamentos salvos, identificação GRBL, análise e prévia, envio confirmado, Frame/Outline, temperaturas e joystick/spindle. |
 | LaserPCB | Placas Top/Bottom/N camadas, Mesa com equipamentos salvos, componentes compartilhados, tratamentos laser por camada e G-code. |
 | LaserArt | Desenhos, textos, vetores, imagens e camadas para laser; Mesa com equipamentos salvos no MultiCNC. |
-| MultiSlicer | Importa STL, configura camadas, paredes, infill, mesa, bico, velocidade, temperaturas e Marlin/Klipper; mostra percursos por camada. Prévia e exportação usam o mesmo pipeline e alterações invalidam o resultado anterior. |
+| MultiSlicer | Versão 0.0.7.0: importa STL/3MF, configura impressora, material, qualidade, suportes e aderência; fatia em segundo plano com progresso e cancelamento e mostra percursos em 3D por camada. Prévia e exportação usam o mesmo pipeline e alterações invalidam o resultado anterior. |
 
 O MultiCNC concentra a conexão e a execução física. LaserArt e LaserPCB preparam os trabalhos e os enviam ao MultiCNC; o botão Mesa dos dois programas utiliza os equipamentos laser salvos em `multicnc.json`. Veja [perfis e fontes](docs/LASER_PROFILES.md), [Frame](docs/OUTLINE.md), [LaserPCB](laserpcb/README.md) e [LaserArt](laserart/README.md).
 
@@ -153,7 +155,7 @@ O **MultiCNC** é a aplicação voltada ao controle e operação de máquinas de
 
 Seu núcleo separa quatro conceitos: **tipo de máquina**, **protocolo/firmware**, **transporte** e **execução de G-code**.
 
-### Máquinas previstas
+### Tipos de máquina disponíveis
 
 - **CNC Router:** XYZ, spindle, RPM, probe, zero da peça e ferramentas.
 - **Laser CNC:** XY, potência, velocidade, frame, foco e air assist quando suportado.
