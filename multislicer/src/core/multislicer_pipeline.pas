@@ -54,6 +54,13 @@ type
     FanFromLayer: Integer;
     FilamentDensity: Double;         // g/cm3
     ObjectName: string;
+    // Etapa 2 (perfis de impressora e material)
+    FirstLayerHotendTemp, FirstLayerBedTemp: Integer; // 0 = igual as demais camadas
+    FanPercent: Integer;             // 0..100; 0 = ventoinha desligada
+    FlowPercent: Double;             // multiplicador de extrusao (100 = nominal)
+    HeatedBed: Boolean;              // False = sem M140/M190
+    StartGCode, EndGCode: string;    // vazio = bloco padrao; aceita {variaveis}
+    MaterialName: string;
   end;
 
   TExtrusionPath = record
@@ -95,6 +102,7 @@ type
   end;
 
 function DefaultSliceSettings: TSliceSettings;
+function ExpandGCodeTemplate(const Template: string; const S: TSliceSettings): string;
 procedure AddBox(M: TMesh; X0, Y0, Z0, X1, Y1, Z1: Double);
 
 implementation
@@ -133,6 +141,49 @@ begin
   Result.FanFromLayer := 2;
   Result.FilamentDensity := 1.24; // PLA
   Result.ObjectName := 'objeto';
+  Result.FirstLayerHotendTemp := 0;
+  Result.FirstLayerBedTemp := 0;
+  Result.FanPercent := 100;
+  Result.FlowPercent := 100;
+  Result.HeatedBed := True;
+  Result.StartGCode := '';
+  Result.EndGCode := '';
+  Result.MaterialName := '';
+end;
+
+function FirstHotend(const S: TSliceSettings): Integer;
+begin
+  if S.FirstLayerHotendTemp > 0 then Result := S.FirstLayerHotendTemp else Result := S.Printer.HotendTemp;
+end;
+
+function FirstBed(const S: TSliceSettings): Integer;
+begin
+  if S.FirstLayerBedTemp > 0 then Result := S.FirstLayerBedTemp else Result := S.Printer.BedTemp;
+end;
+
+function FanPWM(const S: TSliceSettings): Integer;
+begin
+  Result := Round(255 * EnsureRange(S.FanPercent, 0, 100) / 100);
+end;
+
+function ExpandGCodeTemplate(const Template: string; const S: TSliceSettings): string;
+var FS: TFormatSettings;
+  procedure Sub(const Key, Value: string);
+  begin
+    Result := StringReplace(Result, '{' + Key + '}', Value, [rfReplaceAll, rfIgnoreCase]);
+  end;
+begin
+  FS := DefaultFormatSettings;
+  FS.DecimalSeparator := '.';
+  Result := Template;
+  Sub('first_layer_bed_temp', IntToStr(FirstBed(S)));
+  Sub('first_layer_hotend_temp', IntToStr(FirstHotend(S)));
+  Sub('bed_temp', IntToStr(S.Printer.BedTemp));
+  Sub('hotend_temp', IntToStr(S.Printer.HotendTemp));
+  Sub('bed_x', FormatFloat('0.###', S.Printer.BedX, FS));
+  Sub('bed_y', FormatFloat('0.###', S.Printer.BedY, FS));
+  Sub('bed_z', FormatFloat('0.###', S.Printer.MaxZ, FS));
+  Sub('fan_speed', IntToStr(FanPWM(S)));
 end;
 
 procedure AddBox(M: TMesh; X0, Y0, Z0, X1, Y1, Z1: Double);
@@ -721,13 +772,18 @@ begin
       Body.Add(';HEIGHT:' + W.N(FLayers[I].Height));
       Body.Add('{PROGRESS}');
       if S.Flavor = sfKlipper then Body.Add(Format('SET_PRINT_STATS_INFO CURRENT_LAYER=%d', [I + 1]));
-      if I = S.FanFromLayer - 1 then Body.Add('M106 S255');
+      if (I = S.FanFromLayer - 1) and (S.FanPercent > 0) then Body.Add(Format('M106 S%d', [FanPWM(S)]));
+      if (I = 1) and (FirstHotend(S) <> S.Printer.HotendTemp) then
+        Body.Add(Format('M104 S%d', [S.Printer.HotendTemp]));
+      if (I = 1) and S.HeatedBed and (FirstBed(S) <> S.Printer.BedTemp) then
+        Body.Add(Format('M140 S%d', [S.Printer.BedTemp]));
       W.Retract;
       W.MoveZ(FLayers[I].Z);
       if S.Flavor = sfKlipper then Body.Add('EXCLUDE_OBJECT_START NAME=' + ObjName)
       else Body.Add('M486 S0');
       OrderPaths(FLayers[I].Paths, Cur, True);
       EPM := ExtrusionPerMM(FSettings.LineWidth, FLayers[I].Height, S.Printer.FilamentDiameter);
+      if S.FlowPercent > 0 then EPM := EPM * S.FlowPercent / 100;
       for P := 0 to High(FLayers[I].Paths) do begin
         Path := FLayers[I].Paths[P];
         if I = 0 then Speed := S.FirstLayerSpeed
@@ -803,6 +859,10 @@ begin
     Output.Add(';MINX:' + W.N(MinX) + ' MINY:' + W.N(MinY) + ' MAXX:' + W.N(MaxX) + ' MAXY:' + W.N(MaxY));
     Output.Add('; layer_height = ' + W.N(S.LayerHeight) + ', adaptive = ' + BoolToStr(S.Adaptive, 'yes', 'no'));
     Output.Add('; walls = ' + IntToStr(S.Walls) + ', infill = ' + W.N(S.InfillDensity * 100, 0) + '%');
+    if S.Printer.Name <> '' then Output.Add('; printer = ' + S.Printer.Name);
+    if S.MaterialName <> '' then Output.Add('; filament_type = ' + S.MaterialName);
+    Output.Add(Format('; temperature = %d, first_layer_temperature = %d, bed_temperature = %d, first_layer_bed_temperature = %d',
+      [S.Printer.HotendTemp, FirstHotend(S), S.Printer.BedTemp, FirstBed(S)]));
     if S.Flavor = sfKlipper then begin
       // poligono do objeto (envelope) para EXCLUDE_OBJECT
       Poly := Format('[[%s,%s],[%s,%s],[%s,%s],[%s,%s]]',
@@ -815,11 +875,18 @@ begin
     Output.Add('G21');
     Output.Add('G90');
     Output.Add('M83 ; extrusao relativa');
-    Output.Add(Format('M140 S%d', [S.Printer.BedTemp]));
-    Output.Add(Format('M104 S%d', [S.Printer.HotendTemp]));
-    Output.Add('G28');
-    Output.Add(Format('M190 S%d', [S.Printer.BedTemp]));
-    Output.Add(Format('M109 S%d', [S.Printer.HotendTemp]));
+    if Trim(S.StartGCode) <> '' then begin
+      Output.Add('; --- G-code inicial do perfil da impressora ---');
+      Output.Text := Output.Text + ExpandGCodeTemplate(S.StartGCode, S);
+      Output.Add('; --- fim do G-code inicial ---');
+      Output.Add('M83 ; extrusao relativa');
+    end else begin
+      if S.HeatedBed then Output.Add(Format('M140 S%d', [FirstBed(S)]));
+      Output.Add(Format('M104 S%d', [FirstHotend(S)]));
+      Output.Add('G28');
+      if S.HeatedBed then Output.Add(Format('M190 S%d', [FirstBed(S)]));
+      Output.Add(Format('M109 S%d', [FirstHotend(S)]));
+    end;
     Output.Add('M107');
     if S.PressureAdvance > 0 then begin
       if S.Flavor = sfKlipper then Output.Add('SET_PRESSURE_ADVANCE ADVANCE=' + W.N(S.PressureAdvance, 4))
@@ -842,12 +909,18 @@ begin
     Output.Add('M73 P100 R0');
     if S.Flavor = sfMarlin then Output.Add('M486 S-1');
     Output.Add('M107');
-    Output.Add('G91');
-    Output.Add('G0 Z5');
-    Output.Add('G90');
-    Output.Add('M104 S0');
-    Output.Add('M140 S0');
-    Output.Add('M84');
+    if Trim(S.EndGCode) <> '' then begin
+      Output.Add('; --- G-code final do perfil da impressora ---');
+      Output.Text := Output.Text + ExpandGCodeTemplate(S.EndGCode, S);
+      Output.Add('; --- fim do G-code final ---');
+    end else begin
+      Output.Add('G91');
+      Output.Add('G0 Z5');
+      Output.Add('G90');
+      Output.Add('M104 S0');
+      Output.Add('M140 S0');
+      Output.Add('M84');
+    end;
   finally
     Body.Free;
     W.Free;

@@ -13,8 +13,8 @@ unit multislicer_main;
   programa; o MultiCNC conecta e imprime.
 
   Plano completo em multislicer/docs/PLANO_TAREFAS.md (esta e a Etapa 1:
-  posicionamento 3D, perfis salvos, materiais, suportes e previa 3D vem nas
-  etapas seguintes). }
+  posicionamento 3D, suportes e previa 3D vem nas etapas seguintes; perfis de
+  impressora e material estao em multislicer_printers/materials, Etapa 2). }
 
 {$mode objfpc}{$H+}
 
@@ -24,6 +24,7 @@ uses
   Classes, SysUtils, Math, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls, Spin,
   Dialogs, Graphics, LCLType, multislicer_types, multislicer_mesh, multislicer_stl,
   multislicer_3mf, multislicer_profile, multislicer_pipeline, multislicer_view,
+  multislicer_printers, multislicer_materials, multislicer_userdata,
   multisuite_controls, multisuite_icons;
 
 const
@@ -32,14 +33,6 @@ const
     '3  Material', '4  Qualidade', '5  Suportes', '6  Previa', '7  Saida');
 
 type
-  TPrinterPreset = record
-    Name: string;
-    BedX, BedY, BedZ, Nozzle, Filament, Retract: Double;
-    Flavor: TSlicerFlavor;
-  end;
-
-  TPrinterPresets = array of TPrinterPreset;
-
   TMultiSlicerForm = class(TForm)
   private
     M: TMesh;
@@ -63,11 +56,20 @@ type
     LayerLabel: TLabel;
     Log: TMemo;
     { impressora }
-    PrinterBox, FlavorChoice: TComboBox;
-    BedX, BedY, BedZ, Nozzle, FilamentDia, RetractLen: TFloatSpinEdit;
+    FPrinters: TPrinterDefs;
+    PrinterBox, FlavorChoice, ExtruderChoice: TComboBox;
+    BedX, BedY, BedZ, Nozzle, FilamentDia: TFloatSpinEdit;
+    HeatedBedBox: TCheckBox;
+    StartMemo, EndMemo: TMemo;
+    PrinterNote: TLabel;
+    PrinterDeleteBtn: TSuiteButton;
     { material }
-    Hotend, BedTemp, FanLayer: TSpinEdit;
-    Density: TFloatSpinEdit;
+    FMaterials: TMaterialDefs;
+    MaterialBox: TComboBox;
+    HotendFirst, Hotend, BedFirst, BedTemp, FanPct, FanLayer: TSpinEdit;
+    Density, Flow, RetractLen, RetractSpd, Cost: TFloatSpinEdit;
+    MaterialNote, MaterialNotes: TLabel;
+    MaterialDeleteBtn: TSuiteButton;
     { qualidade }
     LayerHeight, Speed: TFloatSpinEdit;
     Walls, TopLayers, BottomLayers, InfillDensity: TSpinEdit;
@@ -99,6 +101,17 @@ type
     procedure OpenClick(Sender: TObject);
     procedure CenterClick(Sender: TObject);
     procedure PrinterChange(Sender: TObject);
+    procedure ExtruderChange(Sender: TObject);
+    procedure MaterialChange(Sender: TObject);
+    procedure SavePrinterClick(Sender: TObject);
+    procedure DeletePrinterClick(Sender: TObject);
+    procedure SaveMaterialClick(Sender: TObject);
+    procedure DeleteMaterialClick(Sender: TObject);
+    procedure ReloadPrinters(const SelectName: string);
+    procedure ReloadMaterials(const SelectName: string);
+    procedure ApplyPrinter(const P: TPrinterDef);
+    procedure ApplyMaterial(const AMat: TMaterialDef);
+    procedure RefreshProfileNotes;
     procedure SliceClick(Sender: TObject);
     procedure ValidateClick(Sender: TObject);
     procedure ExportClick(Sender: TObject);
@@ -112,7 +125,6 @@ type
     procedure LayerChanged(Sender: TObject);
     procedure TrackChanged(Sender: TObject);
     procedure ResizeUI(Sender: TObject);
-    procedure ApplyPreset(const P: TPrinterPreset);
     procedure SetState(const ACaption: string; AColor: TColor);
     procedure ShowError(E: Exception);
     procedure ShowViewMode(AMode: TSlicerViewMode);
@@ -132,9 +144,13 @@ type
     property ProgramReady: Boolean read Ready;
     property Mesh: TMesh read M;
     property ExportedFile: string read FExportedFile;
+    { perfil atual montado a partir dos campos da tela }
+    function CurrentPrinter: TPrinterDef;
+    function CurrentMaterial: TMaterialDef;
+    procedure SelectPrinter(const AName: string);
+    procedure SelectMaterial(const AName: string);
   end;
 
-function PrinterPresets: TPrinterPresets;
 procedure MeshBounds(AMesh: TMesh; out AMin, AMax: TVec3);
 
 implementation
@@ -145,24 +161,6 @@ uses multisuite_numfmt, multisuite_registry, multisuite_launcher, multisuite_typ
 const
   STEP_ICONS: array[0..MS_STEP_COUNT - 1] of TSuiteIconKind = (sikGear, sikMove,
     sikThermo, sikLayers, sikFlag, sikEye, sikExport);
-
-function Preset(const AName: string; X, Y, Z, ANozzle, AFil, ARetract: Double;
-  AFlavor: TSlicerFlavor): TPrinterPreset;
-begin
-  Result.Name := AName;
-  Result.BedX := X; Result.BedY := Y; Result.BedZ := Z;
-  Result.Nozzle := ANozzle; Result.Filament := AFil; Result.Retract := ARetract;
-  Result.Flavor := AFlavor;
-end;
-
-function PrinterPresets: TPrinterPresets;
-begin
-  { Perfis fixos ate a Etapa 2 (perfis em JSON). Ender-3 original: extrusora
-    Bowden, por isso retracao bem maior que a de extrusora direta. }
-  SetLength(Result, 2);
-  Result[0] := Preset('Creality Ender-3', 220, 220, 250, 0.4, 1.75, 5.0, sfMarlin);
-  Result[1] := Preset('Generic Marlin', 220, 220, 250, 0.4, 1.75, 0.8, sfMarlin);
-end;
 
 procedure MeshBounds(AMesh: TMesh; out AMin, AMax: TVec3);
 var I: Integer; T: TTriangle;
@@ -363,8 +361,12 @@ begin
 
   FUpdating := False;
   OnResize := @ResizeUI;
-  PrinterBox.ItemIndex := 0;
+  ReloadPrinters(ReadLastChoice('printer'));
+  if PrinterBox.ItemIndex < 0 then PrinterBox.ItemIndex := 0;
   PrinterChange(nil);
+  ReloadMaterials(ReadLastChoice('material'));
+  if MaterialBox.ItemIndex < 0 then MaterialBox.ItemIndex := 0;
+  MaterialChange(nil);
   ShowViewMode(svMesa);
   ShowStep(1);
   SetState('Aguardando modelo', clSuiteWarning);
@@ -381,27 +383,48 @@ begin
 end;
 
 procedure TMultiSlicerForm.BuildPrinterPage(S: TScrollBox);
-var I: Integer; P: TPrinterPresets;
+var K: TExtruderKind;
 begin
-  LabelAt(S, 'Escolha a impressora onde a peca sera impressa. O volume define a mesa da vista e a validacao.',
+  LabelAt(S, 'O volume da impressora define a mesa da vista e a validacao.',
     16, 48, 290, 40);
-  PrinterBox := Combo(S, 'Impressora', 92);
-  P := PrinterPresets;
-  for I := 0 to High(P) do PrinterBox.Items.Add(P[I].Name);
-  PrinterBox.Items.Add('Personalizada');
+  PrinterBox := Combo(S, 'Perfil de impressora', 92);
   PrinterBox.OnChange := @PrinterChange;
-  FlavorChoice := Combo(S, 'Firmware', 150);
+  PrinterNote := LabelAt(S, '', 16, 146, 290, 20);
+  Button(S, 'Salvar...', 16, 168, 140, sikSave, @SavePrinterClick);
+  PrinterDeleteBtn := Button(S, 'Excluir', 166, 168, 140, sikTrash, @DeletePrinterClick);
+  FlavorChoice := Combo(S, 'Firmware', 214);
   FlavorChoice.Items.Add('Marlin'); FlavorChoice.Items.Add('Klipper');
   FlavorChoice.ItemIndex := 0;
   FlavorChoice.OnChange := @SettingsChanged;
-  BedX := FloatField(S, 'Mesa X (mm)', 'BedX', 220, 10, 2000, 1, 1, 208);
-  BedY := FloatField(S, 'Mesa Y (mm)', 'BedY', 220, 10, 2000, 1, 1, 264);
-  BedZ := FloatField(S, 'Altura maxima Z (mm)', 'BedZ', 250, 10, 2000, 1, 1, 320);
-  Nozzle := FloatField(S, 'Diametro do bico (mm)', 'Nozzle', 0.4, 0.1, 2, 0.05, 2, 376);
-  FilamentDia := FloatField(S, 'Diametro do filamento (mm)', 'FilamentDiameter', 1.75, 1, 3.5, 0.05, 2, 432);
-  RetractLen := FloatField(S, 'Retracao (mm)', 'RetractLength', 5, 0, 15, 0.1, 1, 488);
-  LabelAt(S, 'Ender-3 original usa extrusora Bowden (retracao maior). Perfis salvos e G-code inicial/final editavel entram na proxima etapa.',
-    16, 550, 290, 70);
+  ExtruderChoice := Combo(S, 'Extrusora', 272);
+  for K := Low(TExtruderKind) to High(TExtruderKind) do ExtruderChoice.Items.Add(EXTRUDER_NAMES[K]);
+  ExtruderChoice.ItemIndex := 0;
+  ExtruderChoice.OnChange := @ExtruderChange;
+  BedX := FloatField(S, 'Mesa X (mm)', 'BedX', 220, 10, 2000, 1, 1, 330);
+  BedY := FloatField(S, 'Mesa Y (mm)', 'BedY', 220, 10, 2000, 1, 1, 386);
+  BedZ := FloatField(S, 'Altura maxima Z (mm)', 'BedZ', 250, 10, 2000, 1, 1, 442);
+  Nozzle := FloatField(S, 'Diametro do bico (mm)', 'Nozzle', 0.4, 0.1, 2, 0.05, 2, 498);
+  FilamentDia := FloatField(S, 'Diametro do filamento (mm)', 'FilamentDiameter', 1.75, 1, 3.5, 0.05, 2, 554);
+  HeatedBedBox := Check(S, 'Mesa aquecida', 612);
+  HeatedBedBox.Checked := True;
+  Section(S, 'G-CODE INICIAL', 650);
+  StartMemo := TMemo.Create(Self);
+  StartMemo.Parent := S; StartMemo.Name := 'StartGCode';
+  StartMemo.SetBounds(16, 672, 290, 170);
+  StartMemo.ScrollBars := ssAutoBoth; StartMemo.WordWrap := False;
+  StartMemo.Font.Name := 'Courier New'; StartMemo.Font.Size := 9;
+  StartMemo.Clear;
+  StartMemo.OnChange := @SettingsChanged;
+  Section(S, 'G-CODE FINAL', 852);
+  EndMemo := TMemo.Create(Self);
+  EndMemo.Parent := S; EndMemo.Name := 'EndGCode';
+  EndMemo.SetBounds(16, 874, 290, 130);
+  EndMemo.ScrollBars := ssAutoBoth; EndMemo.WordWrap := False;
+  EndMemo.Font.Name := 'Courier New'; EndMemo.Font.Size := 9;
+  EndMemo.Clear;
+  EndMemo.OnChange := @SettingsChanged;
+  LabelAt(S, 'Vazio = bloco padrao (aquece, G28, espera). Variaveis: {first_layer_bed_temp} {first_layer_hotend_temp} {bed_temp} {hotend_temp} {bed_x} {bed_y} {bed_z} {fan_speed}.',
+    16, 1012, 290, 76);
 end;
 
 procedure TMultiSlicerForm.BuildModelPage(S: TScrollBox);
@@ -417,14 +440,29 @@ end;
 
 procedure TMultiSlicerForm.BuildMaterialPage(S: TScrollBox);
 begin
-  LabelAt(S, 'Temperaturas e ventoinha do filamento. A biblioteca de materiais (PLA, PETG, ABS, ASA, TPU) entra na proxima etapa.',
-    16, 48, 290, 56);
-  Hotend := IntField(S, 'Temperatura do bico (C)', 'HotendTemperature', 200, 0, 400, 108);
-  BedTemp := IntField(S, 'Temperatura da mesa (C)', 'BedTemperature', 60, 0, 150, 164);
-  FanLayer := IntField(S, 'Ventoinha a partir da camada', 'FanFromLayer', 2, 1, 50, 220);
-  Density := FloatField(S, 'Densidade do filamento (g/cm3)', 'FilamentDensity', 1.24, 0.5, 3, 0.01, 2, 276);
-  LabelAt(S, 'PLA: bico 190 a 220 C, mesa 50 a 60 C, densidade 1,24. Confira os valores do fabricante do filamento.',
-    16, 338, 290, 56);
+  MaterialBox := Combo(S, 'Filamento', 52);
+  MaterialBox.OnChange := @MaterialChange;
+  MaterialNote := LabelAt(S, '', 16, 106, 290, 20);
+  Button(S, 'Salvar...', 16, 128, 140, sikSave, @SaveMaterialClick);
+  MaterialDeleteBtn := Button(S, 'Excluir', 166, 128, 140, sikTrash, @DeleteMaterialClick);
+  MaterialNotes := LabelAt(S, '', 16, 170, 290, 58);
+  Section(S, 'TEMPERATURAS', 234);
+  HotendFirst := IntField(S, 'Bico na 1a camada (C)', 'HotendFirstLayer', 205, 0, 400, 256);
+  Hotend := IntField(S, 'Bico nas demais camadas (C)', 'HotendTemperature', 200, 0, 400, 312);
+  BedFirst := IntField(S, 'Mesa na 1a camada (C)', 'BedFirstLayer', 60, 0, 150, 368);
+  BedTemp := IntField(S, 'Mesa nas demais camadas (C)', 'BedTemperature', 60, 0, 150, 424);
+  Section(S, 'VENTOINHA', 490);
+  FanPct := IntField(S, 'Ventoinha da peca (%)', 'FanPercent', 100, 0, 100, 512);
+  FanLayer := IntField(S, 'Liga a partir da camada', 'FanFromLayer', 2, 1, 50, 568);
+  Section(S, 'EXTRUSAO', 634);
+  Flow := FloatField(S, 'Fluxo (%)', 'FlowPercent', 100, 50, 150, 1, 0, 656);
+  RetractLen := FloatField(S, 'Retracao (mm)', 'RetractLength', 5, 0, 15, 0.1, 1, 712);
+  RetractSpd := FloatField(S, 'Velocidade de retracao (mm/s)', 'RetractSpeed', 45, 5, 150, 1, 0, 768);
+  Section(S, 'PESO E CUSTO', 834);
+  Density := FloatField(S, 'Densidade (g/cm3)', 'FilamentDensity', 1.24, 0.5, 3, 0.01, 2, 856);
+  Cost := FloatField(S, 'Preco do carretel (R$ por kg)', 'CostPerKg', 120, 0, 10000, 5, 2, 912);
+  LabelAt(S, 'A retracao vem do material conforme a extrusora da impressora (Bowden ou direta). Confira a faixa de temperatura no carretel.',
+    16, 974, 290, 60);
 end;
 
 procedure TMultiSlicerForm.BuildQualityPage(S: TScrollBox);
@@ -586,48 +624,286 @@ begin
     [B.X - A.X, B.Y - A.Y, B.Z - A.Z, BedX.Value, BedY.Value, BedZ.Value], InvariantFS);
 end;
 
-procedure TMultiSlicerForm.ApplyPreset(const P: TPrinterPreset);
+{ ---------------- perfis de impressora e material ---------------- }
+
+function TMultiSlicerForm.CurrentPrinter: TPrinterDef;
+begin
+  Result.Name := '';
+  if (PrinterBox.ItemIndex >= 0) and (PrinterBox.ItemIndex <= High(FPrinters)) then
+    Result.Name := FPrinters[PrinterBox.ItemIndex].Name;
+  Result.BedX := BedX.Value; Result.BedY := BedY.Value; Result.BedZ := BedZ.Value;
+  Result.Nozzle := Nozzle.Value; Result.FilamentDiameter := FilamentDia.Value;
+  Result.Flavor := TSlicerFlavor(Max(0, FlavorChoice.ItemIndex));
+  Result.Extruder := TExtruderKind(Max(0, ExtruderChoice.ItemIndex));
+  Result.HeatedBed := HeatedBedBox.Checked;
+  Result.StartGCode := TrimRight(StartMemo.Text);
+  Result.EndGCode := TrimRight(EndMemo.Text);
+  Result.BuiltIn := False;
+end;
+
+function TMultiSlicerForm.CurrentMaterial: TMaterialDef;
+var K: Integer;
+begin
+  K := MaterialBox.ItemIndex;
+  if (K >= 0) and (K <= High(FMaterials)) then Result := FMaterials[K]
+  else Result := BuiltinMaterials[0];
+  Result.BuiltIn := False;
+  Result.HotendFirst := HotendFirst.Value; Result.Hotend := Hotend.Value;
+  Result.BedFirst := BedFirst.Value; Result.Bed := BedTemp.Value;
+  Result.FanPercent := FanPct.Value; Result.FanFromLayer := FanLayer.Value;
+  Result.Density := Density.Value; Result.FlowPercent := Flow.Value;
+  if ExtruderChoice.ItemIndex = Ord(ekBowden) then Result.RetractBowden := RetractLen.Value
+  else Result.RetractDirect := RetractLen.Value;
+  Result.RetractSpeed := RetractSpd.Value;
+  Result.CostPerKg := Cost.Value;
+end;
+
+procedure TMultiSlicerForm.ReloadPrinters(const SelectName: string);
+var I, K: Integer;
+begin
+  FPrinters := LoadPrinters;
+  FUpdating := True;
+  try
+    PrinterBox.Items.Clear;
+    for I := 0 to High(FPrinters) do
+      if FPrinters[I].BuiltIn then PrinterBox.Items.Add(FPrinters[I].Name)
+      else PrinterBox.Items.Add(FPrinters[I].Name + '  (meu)');
+    K := FindPrinter(FPrinters, SelectName);
+    PrinterBox.ItemIndex := K;
+  finally
+    FUpdating := False;
+  end;
+end;
+
+procedure TMultiSlicerForm.ReloadMaterials(const SelectName: string);
+var I, K: Integer;
+begin
+  FMaterials := LoadMaterials;
+  FUpdating := True;
+  try
+    MaterialBox.Items.Clear;
+    for I := 0 to High(FMaterials) do
+      if FMaterials[I].BuiltIn then MaterialBox.Items.Add(FMaterials[I].Name)
+      else MaterialBox.Items.Add(FMaterials[I].Name + '  (meu)');
+    K := FindMaterial(FMaterials, SelectName);
+    MaterialBox.ItemIndex := K;
+  finally
+    FUpdating := False;
+  end;
+end;
+
+procedure TMultiSlicerForm.SelectPrinter(const AName: string);
+var K: Integer;
+begin
+  K := FindPrinter(FPrinters, AName);
+  if K < 0 then raise Exception.Create('Perfil de impressora nao encontrado: ' + AName);
+  PrinterBox.ItemIndex := K;
+  PrinterChange(PrinterBox);
+end;
+
+procedure TMultiSlicerForm.SelectMaterial(const AName: string);
+var K: Integer;
+begin
+  K := FindMaterial(FMaterials, AName);
+  if K < 0 then raise Exception.Create('Material nao encontrado: ' + AName);
+  MaterialBox.ItemIndex := K;
+  MaterialChange(MaterialBox);
+end;
+
+procedure TMultiSlicerForm.ApplyPrinter(const P: TPrinterDef);
 begin
   FUpdating := True;
   try
     BedX.Value := P.BedX; BedY.Value := P.BedY; BedZ.Value := P.BedZ;
-    Nozzle.Value := P.Nozzle; FilamentDia.Value := P.Filament;
-    RetractLen.Value := P.Retract;
+    Nozzle.Value := P.Nozzle; FilamentDia.Value := P.FilamentDiameter;
     FlavorChoice.ItemIndex := Ord(P.Flavor);
+    ExtruderChoice.ItemIndex := Ord(P.Extruder);
+    HeatedBedBox.Checked := P.HeatedBed;
+    StartMemo.Text := P.StartGCode;
+    EndMemo.Text := P.EndGCode;
+    BedFirst.Enabled := P.HeatedBed; BedTemp.Enabled := P.HeatedBed;
   finally
     FUpdating := False;
   end;
-  SettingsChanged(nil);
+end;
+
+procedure TMultiSlicerForm.ApplyMaterial(const AMat: TMaterialDef);
+begin
+  FUpdating := True;
+  try
+    HotendFirst.Value := AMat.HotendFirst; Hotend.Value := AMat.Hotend;
+    BedFirst.Value := AMat.BedFirst; BedTemp.Value := AMat.Bed;
+    FanPct.Value := AMat.FanPercent; FanLayer.Value := AMat.FanFromLayer;
+    Density.Value := AMat.Density; Flow.Value := AMat.FlowPercent;
+    if ExtruderChoice.ItemIndex = Ord(ekBowden) then RetractLen.Value := AMat.RetractBowden
+    else RetractLen.Value := AMat.RetractDirect;
+    RetractSpd.Value := AMat.RetractSpeed;
+    Cost.Value := AMat.CostPerKg;
+    MaterialNotes.Caption := AMat.Notes;
+  finally
+    FUpdating := False;
+  end;
+end;
+
+procedure TMultiSlicerForm.RefreshProfileNotes;
+var K: Integer; C: TMaterialDef; MatChanged: Boolean;
+begin
+  if PrinterNote = nil then Exit;
+  K := PrinterBox.ItemIndex;
+  if (K >= 0) and (K <= High(FPrinters)) and not SamePrinter(CurrentPrinter, FPrinters[K]) then
+  begin
+    PrinterNote.Caption := 'Perfil alterado: salve para manter.';
+    PrinterNote.Font.Color := clSuiteWarning;
+  end
+  else
+  begin
+    PrinterNote.Caption := '';
+    PrinterNote.Font.Color := clSuiteMuted;
+  end;
+  PrinterDeleteBtn.Enabled := (K >= 0) and (K <= High(FPrinters)) and not FPrinters[K].BuiltIn;
+  K := MaterialBox.ItemIndex;
+  if (K >= 0) and (K <= High(FMaterials)) then
+  begin
+    C := CurrentMaterial;
+    MatChanged := (C.HotendFirst <> FMaterials[K].HotendFirst) or (C.Hotend <> FMaterials[K].Hotend) or
+      (C.BedFirst <> FMaterials[K].BedFirst) or (C.Bed <> FMaterials[K].Bed) or
+      (C.FanPercent <> FMaterials[K].FanPercent) or (C.FanFromLayer <> FMaterials[K].FanFromLayer) or
+      not SameValue(C.Density, FMaterials[K].Density) or not SameValue(C.FlowPercent, FMaterials[K].FlowPercent) or
+      not SameValue(C.RetractBowden, FMaterials[K].RetractBowden) or
+      not SameValue(C.RetractDirect, FMaterials[K].RetractDirect) or
+      not SameValue(C.RetractSpeed, FMaterials[K].RetractSpeed) or not SameValue(C.CostPerKg, FMaterials[K].CostPerKg);
+    if MatChanged then
+    begin
+      MaterialNote.Caption := 'Material alterado: salve para manter.';
+      MaterialNote.Font.Color := clSuiteWarning;
+    end
+    else MaterialNote.Caption := '';
+    MaterialDeleteBtn.Enabled := not FMaterials[K].BuiltIn;
+  end;
 end;
 
 procedure TMultiSlicerForm.PrinterChange(Sender: TObject);
-var P: TPrinterPresets;
-begin
-  P := PrinterPresets;
-  if (PrinterBox.ItemIndex >= 0) and (PrinterBox.ItemIndex <= High(P)) then
-    ApplyPreset(P[PrinterBox.ItemIndex]);
-end;
-
-procedure TMultiSlicerForm.SettingsChanged(Sender: TObject);
-var P: TPrinterPresets; I: Integer;
+var K: Integer;
 begin
   if FUpdating then Exit;
-  { campo da impressora alterado a mao: perfil passa a "Personalizada" }
-  if (Sender = BedX) or (Sender = BedY) or (Sender = BedZ) or (Sender = Nozzle) or
-    (Sender = FilamentDia) or (Sender = RetractLen) or (Sender = FlavorChoice) then
+  K := PrinterBox.ItemIndex;
+  if (K < 0) or (K > High(FPrinters)) then Exit;
+  ApplyPrinter(FPrinters[K]);
+  { a retracao depende da extrusora: reaplica a do material atual }
+  if (MaterialBox <> nil) and (MaterialBox.ItemIndex >= 0) and (MaterialBox.ItemIndex <= High(FMaterials)) then
+    ExtruderChange(nil);
+  if Sender <> nil then WriteLastChoice('printer', FPrinters[K].Name);
+  SettingsChanged(nil);
+end;
+
+procedure TMultiSlicerForm.ExtruderChange(Sender: TObject);
+var K: Integer;
+begin
+  if FUpdating then Exit;
+  K := MaterialBox.ItemIndex;
+  if (K >= 0) and (K <= High(FMaterials)) then
   begin
-    P := PrinterPresets;
-    I := PrinterBox.ItemIndex;
-    if (I >= 0) and (I <= High(P)) and not (SameValue(BedX.Value, P[I].BedX) and
-      SameValue(BedY.Value, P[I].BedY) and SameValue(BedZ.Value, P[I].BedZ) and
-      SameValue(Nozzle.Value, P[I].Nozzle) and SameValue(FilamentDia.Value, P[I].Filament) and
-      SameValue(RetractLen.Value, P[I].Retract) and (FlavorChoice.ItemIndex = Ord(P[I].Flavor))) then
-    begin
-      FUpdating := True;
-      PrinterBox.ItemIndex := PrinterBox.Items.Count - 1;
+    FUpdating := True;
+    try
+      if ExtruderChoice.ItemIndex = Ord(ekBowden) then RetractLen.Value := FMaterials[K].RetractBowden
+      else RetractLen.Value := FMaterials[K].RetractDirect;
+    finally
       FUpdating := False;
     end;
   end;
+  if Sender <> nil then SettingsChanged(Sender);
+end;
+
+procedure TMultiSlicerForm.MaterialChange(Sender: TObject);
+var K: Integer;
+begin
+  if FUpdating then Exit;
+  K := MaterialBox.ItemIndex;
+  if (K < 0) or (K > High(FMaterials)) then Exit;
+  ApplyMaterial(FMaterials[K]);
+  if Sender <> nil then WriteLastChoice('material', FMaterials[K].Name);
+  SettingsChanged(nil);
+end;
+
+procedure TMultiSlicerForm.SavePrinterClick(Sender: TObject);
+var P: TPrinterDef; AName: string;
+begin
+  P := CurrentPrinter;
+  AName := P.Name;
+  if not InputQuery('Salvar perfil de impressora', 'Nome do perfil:', AName) then Exit;
+  AName := Trim(AName);
+  if AName = '' then Exit;
+  P.Name := AName;
+  try
+    SavePrinter(P);
+    ReloadPrinters(AName);
+    WriteLastChoice('printer', AName);
+    RefreshProfileNotes;
+    Status.Caption := 'Perfil de impressora salvo: ' + AName;
+  except
+    on E: Exception do ShowError(E);
+  end;
+end;
+
+procedure TMultiSlicerForm.DeletePrinterClick(Sender: TObject);
+var K: Integer; AName: string;
+begin
+  K := PrinterBox.ItemIndex;
+  if (K < 0) or (K > High(FPrinters)) or FPrinters[K].BuiltIn then Exit;
+  AName := FPrinters[K].Name;
+  if MessageDlg('Excluir perfil', 'Excluir o perfil de impressora "' + AName + '"?',
+    mtConfirmation, [mbYes, mbNo], 0) <> mrYes then Exit;
+  DeletePrinter(AName);
+  ReloadPrinters(AName);  { se havia perfil pronto com o mesmo nome, ele volta }
+  if PrinterBox.ItemIndex < 0 then PrinterBox.ItemIndex := 0;
+  PrinterChange(PrinterBox);
+  Status.Caption := 'Perfil excluido: ' + AName;
+end;
+
+procedure TMultiSlicerForm.SaveMaterialClick(Sender: TObject);
+var MD: TMaterialDef; AName: string;
+begin
+  MD := CurrentMaterial;
+  AName := MD.Name;
+  if not InputQuery('Salvar material', 'Nome do material:', AName) then Exit;
+  AName := Trim(AName);
+  if AName = '' then Exit;
+  MD.Name := AName;
+  try
+    SaveMaterial(MD);
+    ReloadMaterials(AName);
+    WriteLastChoice('material', AName);
+    RefreshProfileNotes;
+    Status.Caption := 'Material salvo: ' + AName;
+  except
+    on E: Exception do ShowError(E);
+  end;
+end;
+
+procedure TMultiSlicerForm.DeleteMaterialClick(Sender: TObject);
+var K: Integer; AName: string;
+begin
+  K := MaterialBox.ItemIndex;
+  if (K < 0) or (K > High(FMaterials)) or FMaterials[K].BuiltIn then Exit;
+  AName := FMaterials[K].Name;
+  if MessageDlg('Excluir material', 'Excluir o material "' + AName + '"?',
+    mtConfirmation, [mbYes, mbNo], 0) <> mrYes then Exit;
+  DeleteMaterial(AName);
+  ReloadMaterials(AName);
+  if MaterialBox.ItemIndex < 0 then MaterialBox.ItemIndex := 0;
+  MaterialChange(MaterialBox);
+  Status.Caption := 'Material excluido: ' + AName;
+end;
+
+procedure TMultiSlicerForm.SettingsChanged(Sender: TObject);
+begin
+  if FUpdating then Exit;
+  if Sender = HeatedBedBox then
+  begin
+    BedFirst.Enabled := HeatedBedBox.Checked;
+    BedTemp.Enabled := HeatedBedBox.Checked;
+  end;
+  RefreshProfileNotes;
   Ready := False;
   FExportedFile := '';
   if Assigned(Code) then Code.Clear;
@@ -731,11 +1007,30 @@ function TMultiSlicerForm.Settings: TSliceSettings;
 begin
   Result := DefaultSliceSettings;
   Result.Printer := DefaultPrinterProfile;
-  if PrinterBox.ItemIndex >= 0 then Result.Printer.Name := PrinterBox.Text;
+  Result.Printer.Name := CurrentPrinter.Name;
   Result.Printer.BedX := BedX.Value; Result.Printer.BedY := BedY.Value; Result.Printer.MaxZ := BedZ.Value;
   Result.Printer.Nozzle := Nozzle.Value;
   Result.Printer.FilamentDiameter := FilamentDia.Value;
-  Result.Printer.HotendTemp := Hotend.Value; Result.Printer.BedTemp := BedTemp.Value;
+  Result.Printer.HotendTemp := Hotend.Value;
+  Result.FirstLayerHotendTemp := HotendFirst.Value;
+  Result.HeatedBed := HeatedBedBox.Checked;
+  if Result.HeatedBed then
+  begin
+    Result.Printer.BedTemp := BedTemp.Value;
+    Result.FirstLayerBedTemp := BedFirst.Value;
+  end
+  else
+  begin
+    Result.Printer.BedTemp := 0;
+    Result.FirstLayerBedTemp := 0;
+  end;
+  Result.FanPercent := FanPct.Value;
+  Result.FlowPercent := Flow.Value;
+  Result.RetractSpeed := RetractSpd.Value;
+  Result.StartGCode := TrimRight(StartMemo.Text);
+  Result.EndGCode := TrimRight(EndMemo.Text);
+  if (MaterialBox.ItemIndex >= 0) and (MaterialBox.ItemIndex <= High(FMaterials)) then
+    Result.MaterialName := FMaterials[MaterialBox.ItemIndex].Name;
   Result.Flavor := TSlicerFlavor(FlavorChoice.ItemIndex);
   Result.LayerHeight := LayerHeight.Value; Result.Printer.LayerHeight := Result.LayerHeight;
   Result.FirstLayerHeight := Result.LayerHeight;
@@ -827,6 +1122,11 @@ begin
       'Filamento: %.2f m  /  %.1f g'#10'Retracoes: %d', [R.Layers, Trunc(R.EstimatedSeconds / 3600),
       Trunc(R.EstimatedSeconds / 60) mod 60, R.FilamentMM / 1000, R.FilamentGrams, R.Retractions],
       InvariantFS);
+    if Cost.Value > 0 then
+      PreviewSummary.Caption := PreviewSummary.Caption + Format(#10'Custo do filamento: R$ %.2f',
+        [R.FilamentGrams / 1000 * Cost.Value], InvariantFS);
+    PreviewSummary.Caption := PreviewSummary.Caption + #10'Impressora: ' + CurrentPrinter.Name +
+      #10'Material: ' + CurrentMaterial.Name + Format(' (bico %d C, mesa %d C)', [Hotend.Value, BedTemp.Value]);
     if R.Warnings <> '' then PreviewSummary.Caption := PreviewSummary.Caption + #10'Avisos: ' + R.Warnings;
     OutSummary.Caption := Format('%d linhas de G-code (%s). Gere o arquivo para salvar e enviar ao MultiCNC.',
       [Code.Count, FlavorChoice.Text]);

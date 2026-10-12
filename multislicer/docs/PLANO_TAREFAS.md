@@ -22,7 +22,7 @@ Legenda: **Arq.** = arquivos a criar/alterar. **Aceite** = como verificar.
       (necessario para `multisuite_controls`, `multisuite_icons`, `multisuite_registry`,
       `multisuite_launcher`).
 - [x] 0.2 Garantir que `multislicer.lpi` e `tests/test_modern_slicer.lpr` compilam com `lazbuild`.
-- [ ] 0.3 (adiada para a Etapa 2, junto com os perfis em JSON) Criar `src/core/multislicer_settings.pas` concentrando os tipos de configuracao
+- [x] 0.3 (resolvida na Etapa 2 com `multislicer_printers` e `multislicer_materials`, em vez de uma unidade unica) Criar `src/core/multislicer_settings.pas` concentrando os tipos de configuracao
       (impressora, material, qualidade, suporte, aderencia) hoje espalhados entre
       `multislicer_types`, `multislicer_profile` e `multislicer_pipeline`.
 - [x] 0.4 Marcar como legado (sem uso pela tela) `multislicer_engine.pas` e
@@ -70,29 +70,40 @@ botao Abrir no MultiCNC ja chama o MultiCNC (a troca automatica para Impressora 
 ## Etapa 2 - Perfis de impressora e material
 
 **Arq.:** `src/core/multislicer_printers.pas`, `src/core/multislicer_materials.pas`,
-pasta de dados `multislicer/profiles/` (JSON).
+`src/core/multislicer_userdata.pas`. Perfis prontos no codigo; perfis do usuario em JSON na pasta de
+configuracao (`GetAppConfigDir`, no Windows `%LOCALAPPDATA%\multislicer\printers|materials`), trocavel
+pela variavel `MULTISLICER_PROFILE_DIR`.
 
 ### 2A Impressora
-- [ ] 2.1 Registro `TPrinterProfile` ampliado: nome, volume X/Y/Z, origem (canto/centro), bico,
+- [x] 2.1 (origem no centro ficou para depois: o pipeline gera sempre com origem no canto) Registro `TPrinterDef`: nome, volume X/Y/Z, origem (canto/centro), bico,
       diametro do filamento, firmware (Marlin/Klipper), mesa aquecida, tipo de extrusora
       (Bowden/direta), G-code inicial e final (texto com variaveis `{hotend}`, `{bed}`).
-- [ ] 2.2 Ler/gravar perfis em JSON (`fpjson`), lista de perfis no combo da etapa 1.
-- [ ] 2.3 Perfil pronto **Creality Ender-3** (220 x 220 x 250, Marlin, 1,75 mm, Bowden, bico 0,4).
-- [ ] 2.4 Perfil "Generic Marlin" mantido; botao duplicar/editar perfil.
-- [ ] 2.5 Pagina "Impressora": campos acima + memos de G-code inicial/final.
+- [x] 2.2 Ler/gravar perfis em JSON (`fpjson`), lista de perfis no combo da etapa 1.
+- [x] 2.3 Perfil pronto **Creality Ender-3** (220 x 220 x 250, Marlin, 1,75 mm, Bowden, bico 0,4).
+- [x] 2.4 Perfis "Generic Marlin" e "Generic Klipper"; editar os campos e Salvar com outro nome = duplicar;
+      Excluir so para perfis do usuario (mesmo nome de um pronto substitui o pronto).
+- [x] 2.5 Pagina "Impressora": campos acima + memos de G-code inicial/final.
 
 ### 2B Material
-- [ ] 2.6 Registro `TMaterialProfile`: nome, tipo, bico 1a camada e demais, mesa 1a camada e demais,
+- [x] 2.6 Registro `TMaterialProfile`: nome, tipo, bico 1a camada e demais, mesa 1a camada e demais,
       ventoinha min/max e camada de inicio, densidade g/cm3, fluxo %, retracao comprimento/velocidade
       (Bowden e direta), custo por kg.
-- [ ] 2.7 Biblioteca padrao: PLA, PETG, ABS, ASA, TPU, Personalizado.
-- [ ] 2.8 Pagina "Material": combo de material; ao trocar, preenche os campos (editaveis);
+- [x] 2.7 Biblioteca padrao: PLA, PETG, ABS, ASA, TPU, Personalizado.
+- [x] 2.8 Pagina "Material": combo de material; ao trocar, preenche os campos (editaveis);
       salvar como material do usuario.
-- [ ] 2.9 Pipeline usa temperatura de 1a camada e demais, densidade, ventoinha e retracao do material
+- [x] 2.9 Pipeline usa temperatura de 1a camada e demais, densidade, ventoinha e retracao do material
       (retracao conforme o tipo de extrusora da impressora).
 
 **Aceite:** trocar PLA -> PETG altera M104/M140/M106 e a retracao no G-code gerado;
 perfis sobrevivem ao reabrir o programa.
+
+**Entregue (2026-10-12):** pagina Impressora com perfil, firmware, extrusora (Bowden/direta), mesa aquecida,
+volume, bico, filamento e G-code inicial/final com variaveis (`{first_layer_bed_temp}`, `{bed_y}`...);
+Ender-3 com linha de purga e final que traz a mesa para frente. Pagina Material com PLA, PETG, ABS, ASA,
+TPU e Personalizado: bico/mesa da 1a camada e demais, ventoinha %, fluxo, retracao (do tipo de extrusora),
+densidade e custo (aparece no resumo da previa). Ultima impressora/material lembrados. Pipeline:
+temperatura da 1a camada com troca na 2a, M106 proporcional, fluxo, mesa nao aquecida, cabecalho com
+impressora e `filament_type`. Teste de GUI cobre o aceite.
 
 ---
 
