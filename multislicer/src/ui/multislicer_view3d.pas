@@ -32,6 +32,7 @@ uses
 
 type
   TSlicerMouseMode = (smmNone, smmPending, smmOrbit, smmPan, smmMove);
+  TSlicerFacePickEvent = procedure(Sender: TObject; ObjIndex, TriIndex: Integer) of object;
 
   TSlicerObjCache = record
     Obj: TSliceObject;
@@ -65,7 +66,10 @@ type
     FFullRenderMS: Int64;      { ultimo quadro em qualidade total }
     FInteractive: Boolean;     { girando/deslocando: quadro rapido }
     FFactor: Integer;          { 1 = resolucao total; 2 = meia }
-    FOnSelect, FOnMoved, FOnDelete: TNotifyEvent;
+    FOnSelect, FOnMoved, FOnDelete, FOnBeforeMove: TNotifyEvent;
+    FOnFacePicked: TSlicerFacePickEvent;
+    FPickFace: Boolean;
+    procedure SetPickFace(AValue: Boolean);
     procedure SetScene(AValue: TSliceScene);
     procedure SyncCaches;
     procedure FreeCaches;
@@ -97,6 +101,13 @@ type
     function PickObject(X, Y: Integer): Integer;   { -1 = nenhuma }
     function ObjectPixels(Index: Integer): Integer;
     function ScreenOf(const P: TVec3): TPoint;      { ponto da mesa -> pixel }
+    { triangulo da malha na mesa atingido pelo raio do pixel (-1 = nenhum) }
+    function PickTriangle(X, Y: Integer; out ObjIndex: Integer): Integer;
+    { proximo clique escolhe a face a deitar na mesa (OnFacePicked) }
+    property PickFaceMode: Boolean read FPickFace write SetPickFace;
+    property OnFacePicked: TSlicerFacePickEvent read FOnFacePicked write FOnFacePicked;
+    { avisa antes do primeiro movimento de um arraste (para desfazer) }
+    property OnBeforeMove: TNotifyEvent read FOnBeforeMove write FOnBeforeMove;
     property Scene: TSliceScene read FScene write SetScene;
     property Camera: TCadCamera read FCam;
     property LastRenderMS: Int64 read FLastRenderMS;
@@ -476,6 +487,9 @@ begin
   if (FScene = nil) or (FScene.Count = 0) then
     HelpText := 'Abra um modelo STL ou 3MF'
   else
+    if FPickFace then
+      HelpText := 'Clique na face da peca que deve ficar apoiada na mesa  (Esc cancela)'
+    else
     HelpText := 'Clique na peca para selecionar e arraste para mover  |  direito: girar  |  Shift: deslocar  |  roda: zoom  |  F: enquadrar';
   Canvas.TextOut(90, ClientHeight - 22, HelpText);
 end;
@@ -532,6 +546,36 @@ begin
   Result := FRaster.CountId(CadPickCode(Index + 1, 0));
 end;
 
+procedure TSlicerView3D.SetPickFace(AValue: Boolean);
+begin
+  FPickFace := AValue;
+  if AValue then Cursor := crCross else Cursor := crDefault;
+end;
+
+function TSlicerView3D.PickTriangle(X, Y: Integer; out ObjIndex: Integer): Integer;
+var O, D: TCadVec3; OS, DS: TVec3; M: TMesh; I: Integer; T: TTriangle; Dist, Best: Double;
+  A, B, C: TCadVec3;
+begin
+  Result := -1;
+  ObjIndex := PickObject(X, Y);
+  if ObjIndex < 0 then Exit;
+  FCam.SetViewport(Max(1, ClientWidth), Max(1, ClientHeight));
+  FCam.ScreenRay(X, Y, O, D);
+  OS := CadToSlicer(O); DS := CadToSlicer(D);
+  M := FScene[ObjIndex].WorldMesh;
+  Best := MaxDouble;
+  for I := 0 to M.Count - 1 do
+  begin
+    T := M.Triangle(I);
+    A := V3(T.A.X, T.A.Y, T.A.Z); B := V3(T.B.X, T.B.Y, T.B.Z); C := V3(T.C.X, T.C.Y, T.C.Z);
+    if CadRayTri(V3(OS.X, OS.Y, OS.Z), V3(DS.X, DS.Y, DS.Z), A, B, C, Dist) and (Dist < Best) then
+    begin
+      Best := Dist;
+      Result := I;
+    end;
+  end;
+end;
+
 function TSlicerView3D.ScreenOf(const P: TVec3): TPoint;
 var S: TCadScreenPt;
 begin
@@ -541,6 +585,7 @@ begin
 end;
 
 procedure TSlicerView3D.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+var Tri, Obj: Integer;
 begin
   inherited MouseDown(Button, Shift, X, Y);
   if CanFocus then SetFocus;
@@ -553,6 +598,17 @@ begin
     FMode := smmOrbit
   else if Button = mbLeft then
   begin
+    if FPickFace then
+    begin
+      FMode := smmNone;
+      Tri := PickTriangle(X, Y, Obj);
+      if Tri >= 0 then
+      begin
+        PickFaceMode := False;
+        if Assigned(FOnFacePicked) then FOnFacePicked(Self, Obj, Tri);
+      end;
+      Exit;
+    end;
     FDownObj := PickObject(X, Y);
     if FDownObj >= 0 then
     begin
@@ -593,6 +649,7 @@ begin
         DX := P.X - FDragFrom.X; DY := P.Y - FDragFrom.Y;
         if (DX <> 0) or (DY <> 0) then
         begin
+          if (not FMoved) and Assigned(FOnBeforeMove) then FOnBeforeMove(Self);
           for I := 0 to FScene.Count - 1 do
             if FScene[I].Selected then FScene[I].MoveBy(DX, DY);
           FScene.Touch;
@@ -636,6 +693,7 @@ procedure TSlicerView3D.KeyDown(var Key: Word; Shift: TShiftState);
 begin
   case Key of
     VK_F: begin FitBed; Redraw; Key := 0; end;
+    VK_ESCAPE: if FPickFace then begin PickFaceMode := False; Key := 0; end;
     VK_DELETE:
       begin
         if Assigned(FOnDelete) then FOnDelete(Self);

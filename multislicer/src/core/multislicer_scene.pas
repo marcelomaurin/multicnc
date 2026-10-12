@@ -15,19 +15,33 @@ unit multislicer_scene;
   triangulo, para as normais continuarem para fora.
 
   Coordenadas da mesa: origem no canto inferior esquerdo, Z para cima, mm.
-  O fatiamento usa MergedMesh (todas as pecas ja na mesa). }
+  O fatiamento usa MergedMesh (todas as pecas ja na mesa).
+
+  Etapa 4: deitar face na mesa (por triangulo ou automatico pela maior area
+  plana), auto-arranjo, travar e desfazer/refazer das transformacoes (cada
+  peca tem um Id unico; o historico guarda so os parametros, nao as malhas). }
 
 {$mode objfpc}{$H+}
 
 interface
 
-uses Classes, SysUtils, Math, Contnrs, multislicer_types, multislicer_mesh;
+uses Classes, SysUtils, Math, Contnrs, Generics.Collections, multislicer_types, multislicer_mesh;
 
 type
   TBox3 = record
     Min, Max: TVec3;
     Empty: Boolean;
   end;
+
+  TMat3 = array[0..2, 0..2] of Double;
+
+  { parametros de uma peca, para desfazer/refazer }
+  TTransformState = record
+    Id: Integer;
+    X, Y, Lift, RotX, RotY, RotZ, ScaleX, ScaleY, ScaleZ: Double;
+    MirrorX, MirrorY, MirrorZ, Locked: Boolean;
+  end;
+  TSceneState = array of TTransformState;
 
   TSliceObject = class
   private
@@ -42,6 +56,7 @@ type
     FRotX, FRotY, FRotZ: Double;
     FScaleX, FScaleY, FScaleZ: Double;
     FMirrorX, FMirrorY, FMirrorZ: Boolean;
+    FId: Integer;
     procedure Rebuild;
     procedure Changed;
     procedure SetX(V: Double);
@@ -69,6 +84,20 @@ type
     function TransformPoint(const P: TVec3): TVec3;
     function SourceSize: TVec3;
     function Size: TVec3;                       { tamanho na mesa }
+    function GetState: TTransformState;
+    procedure SetState(const S: TTransformState);
+    procedure SetRotation(AX, AY, AZ: Double);
+    { gira para a normal N (na mesa) ficar para baixo, apoiada na mesa }
+    procedure AlignNormalDown(const N: TVec3);
+    { gira Deg graus em torno de um eixo da mesa (0 = X, 1 = Y, 2 = Z) }
+    procedure RotateWorld(Axis: Integer; Deg: Double);
+    { deita na mesa o triangulo Index da malha na mesa }
+    procedure LayFlatTriangle(Index: Integer);
+    { deita na mesa a face plana que da a maior area de apoio; False se nada mudou }
+    function LayFlatAuto: Boolean;
+    { area de apoio na mesa (triangulos virados para baixo, em Z minimo), mm2 }
+    function ContactArea: Double;
+    property Id: Integer read FId;
     property Source: TMesh read FSource;
     property WorldMesh: TMesh read GetWorld;
     property WorldBox: TBox3 read GetWorldBox;
@@ -92,7 +121,11 @@ type
   private
     FItems: TObjectList;
     FVersion: Integer;
+    FUndo, FRedo: array of TSceneState;
     function GetItem(I: Integer): TSliceObject;
+    function FindSpotAmong(SX, SY: Double; const Obstacles: array of TBox3; out PX, PY: Double): Boolean;
+    function Capture: TSceneState;
+    procedure Apply(const St: TSceneState);
   public
     BedX, BedY, BedZ: Double;
     Spacing: Double;      { folga minima entre pecas (mm) }
@@ -121,6 +154,18 @@ type
     function Bounds: TBox3;
     function TriangleCount: Integer;
     procedure Touch;                     { avisa mudanca (vista redesenha) }
+    function FindById(AId: Integer): TSliceObject;
+    { organiza as pecas destravadas a partir do centro, maiores primeiro;
+      False se alguma nao coube }
+    function Arrange: Boolean;
+    function DuplicateN(I, N: Integer): Integer;   { devolve quantas couberam }
+    { desfazer/refazer: chame PushUndo ANTES de alterar }
+    procedure PushUndo;
+    function Undo: Boolean;
+    function Redo: Boolean;
+    function CanUndo: Boolean;
+    function CanRedo: Boolean;
+    procedure ClearHistory;
     property Items[I: Integer]: TSliceObject read GetItem; default;
     property Version: Integer read FVersion;
   end;
@@ -128,8 +173,137 @@ type
 function MeshBox(M: TMesh): TBox3;
 procedure BoxInclude(var B: TBox3; const P: TVec3);
 function Vec3(AX, AY, AZ: Double): TVec3;
+function TriNormal(const T: TTriangle): TVec3;   { unitaria (0 se degenerado) }
+function TriArea(const T: TTriangle): Double;
+{ R = Rz * Ry * Rx (graus), a mesma ordem de TransformPoint }
+function EulerToMatrix(AX, AY, AZ: Double): TMat3;
+procedure MatrixToEuler(const M: TMat3; out AX, AY, AZ: Double);
+function MatMul3(const A, B: TMat3): TMat3;
+function AxisAngle(const Axis: TVec3; AngleRad: Double): TMat3;
 
 implementation
+
+var
+  NextObjectId: Integer = 0;
+
+function Cross(const A, B: TVec3): TVec3;
+begin
+  Result := Vec3(A.Y * B.Z - A.Z * B.Y, A.Z * B.X - A.X * B.Z, A.X * B.Y - A.Y * B.X);
+end;
+
+function Dot(const A, B: TVec3): Double;
+begin
+  Result := A.X * B.X + A.Y * B.Y + A.Z * B.Z;
+end;
+
+function Sub(const A, B: TVec3): TVec3;
+begin
+  Result := Vec3(A.X - B.X, A.Y - B.Y, A.Z - B.Z);
+end;
+
+function TriNormal(const T: TTriangle): TVec3;
+var L: Double;
+begin
+  Result := Cross(Sub(T.B, T.A), Sub(T.C, T.A));
+  L := Sqrt(Dot(Result, Result));
+  if L < 1e-12 then Result := Vec3(0, 0, 0)
+  else Result := Vec3(Result.X / L, Result.Y / L, Result.Z / L);
+end;
+
+function TriArea(const T: TTriangle): Double;
+var C: TVec3;
+begin
+  C := Cross(Sub(T.B, T.A), Sub(T.C, T.A));
+  Result := 0.5 * Sqrt(Dot(C, C));
+end;
+
+function MatMul3(const A, B: TMat3): TMat3;
+var I, J, K: Integer;
+begin
+  for I := 0 to 2 do
+    for J := 0 to 2 do
+    begin
+      Result[I, J] := 0;
+      for K := 0 to 2 do Result[I, J] := Result[I, J] + A[I, K] * B[K, J];
+    end;
+end;
+
+function EulerToMatrix(AX, AY, AZ: Double): TMat3;
+var RX, RY, RZ: TMat3; C, S: Double;
+begin
+  FillChar(RX, SizeOf(RX), 0); FillChar(RY, SizeOf(RY), 0); FillChar(RZ, SizeOf(RZ), 0);
+  C := Cos(DegToRad(AX)); S := Sin(DegToRad(AX));
+  RX[0, 0] := 1; RX[1, 1] := C; RX[1, 2] := -S; RX[2, 1] := S; RX[2, 2] := C;
+  C := Cos(DegToRad(AY)); S := Sin(DegToRad(AY));
+  RY[0, 0] := C; RY[0, 2] := S; RY[1, 1] := 1; RY[2, 0] := -S; RY[2, 2] := C;
+  C := Cos(DegToRad(AZ)); S := Sin(DegToRad(AZ));
+  RZ[0, 0] := C; RZ[0, 1] := -S; RZ[1, 0] := S; RZ[1, 1] := C; RZ[2, 2] := 1;
+  Result := MatMul3(RZ, MatMul3(RY, RX));
+end;
+
+function CleanAngle(A: Double): Double;
+begin
+  { arredonda ruido numerico (89.9999999 -> 90) e deixa em -180..180 }
+  Result := RoundTo(A, -6);
+  while Result > 180 do Result := Result - 360;
+  while Result <= -180 do Result := Result + 360;
+  if Abs(Result) < 1e-6 then Result := 0;
+end;
+
+procedure MatrixToEuler(const M: TMat3; out AX, AY, AZ: Double);
+var SY: Double;
+begin
+  SY := EnsureRange(-M[2, 0], -1, 1);
+  AY := ArcSin(SY);
+  if Abs(Cos(AY)) > 1e-6 then
+  begin
+    AX := ArcTan2(M[2, 1], M[2, 2]);
+    AZ := ArcTan2(M[1, 0], M[0, 0]);
+  end
+  else
+  begin
+    { trava de cardan: fixa Z = 0 }
+    AZ := 0;
+    AX := ArcTan2(-M[1, 2], M[1, 1]);
+  end;
+  AX := CleanAngle(RadToDeg(AX));
+  AY := CleanAngle(RadToDeg(AY));
+  AZ := CleanAngle(RadToDeg(AZ));
+end;
+
+function AxisAngle(const Axis: TVec3; AngleRad: Double): TMat3;
+var C, S, T, L, X, Y, Z: Double;
+begin
+  L := Sqrt(Dot(Axis, Axis));
+  if L < 1e-12 then
+  begin
+    FillChar(Result, SizeOf(Result), 0);
+    Result[0, 0] := 1; Result[1, 1] := 1; Result[2, 2] := 1;
+    Exit;
+  end;
+  X := Axis.X / L; Y := Axis.Y / L; Z := Axis.Z / L;
+  C := Cos(AngleRad); S := Sin(AngleRad); T := 1 - C;
+  Result[0, 0] := T * X * X + C;     Result[0, 1] := T * X * Y - S * Z; Result[0, 2] := T * X * Z + S * Y;
+  Result[1, 0] := T * X * Y + S * Z; Result[1, 1] := T * Y * Y + C;     Result[1, 2] := T * Y * Z - S * X;
+  Result[2, 0] := T * X * Z - S * Y; Result[2, 1] := T * Y * Z + S * X; Result[2, 2] := T * Z * Z + C;
+end;
+
+function MatApply(const M: TMat3; const P: TVec3): TVec3;
+begin
+  Result := Vec3(M[0, 0] * P.X + M[0, 1] * P.Y + M[0, 2] * P.Z,
+                 M[1, 0] * P.X + M[1, 1] * P.Y + M[1, 2] * P.Z,
+                 M[2, 0] * P.X + M[2, 1] * P.Y + M[2, 2] * P.Z);
+end;
+
+{ rotacao que leva a normal unitaria N para (0, 0, -1) }
+function AlignDown(const N: TVec3): TMat3;
+var D: Double;
+begin
+  D := -N.Z;   { N . (0,0,-1) }
+  if D > 1 - 1e-9 then Result := AxisAngle(Vec3(1, 0, 0), 0)
+  else if D < -1 + 1e-9 then Result := AxisAngle(Vec3(1, 0, 0), Pi)
+  else Result := AxisAngle(Cross(N, Vec3(0, 0, -1)), ArcCos(EnsureRange(D, -1, 1)));
+end;
 
 function Vec3(AX, AY, AZ: Double): TVec3;
 begin
@@ -174,6 +348,8 @@ begin
   FSourceCenter := Vec3((B.Min.X + B.Max.X) / 2, (B.Min.Y + B.Max.Y) / 2, (B.Min.Z + B.Max.Z) / 2);
   FScaleX := 1; FScaleY := 1; FScaleZ := 1;
   FDirty := True;
+  Inc(NextObjectId);
+  FId := NextObjectId;
 end;
 
 destructor TSliceObject.Destroy;
@@ -351,6 +527,167 @@ begin
   Result := Vec3(B.Max.X - B.Min.X, B.Max.Y - B.Min.Y, B.Max.Z - B.Min.Z);
 end;
 
+function TSliceObject.GetState: TTransformState;
+begin
+  Result.Id := FId;
+  Result.X := FX; Result.Y := FY; Result.Lift := FLift;
+  Result.RotX := FRotX; Result.RotY := FRotY; Result.RotZ := FRotZ;
+  Result.ScaleX := FScaleX; Result.ScaleY := FScaleY; Result.ScaleZ := FScaleZ;
+  Result.MirrorX := FMirrorX; Result.MirrorY := FMirrorY; Result.MirrorZ := FMirrorZ;
+  Result.Locked := Locked;
+end;
+
+procedure TSliceObject.SetState(const S: TTransformState);
+begin
+  FX := S.X; FY := S.Y; FLift := S.Lift;
+  FRotX := S.RotX; FRotY := S.RotY; FRotZ := S.RotZ;
+  FScaleX := S.ScaleX; FScaleY := S.ScaleY; FScaleZ := S.ScaleZ;
+  FMirrorX := S.MirrorX; FMirrorY := S.MirrorY; FMirrorZ := S.MirrorZ;
+  Locked := S.Locked;
+  Changed;
+end;
+
+procedure TSliceObject.SetRotation(AX, AY, AZ: Double);
+begin
+  FRotX := CleanAngle(AX); FRotY := CleanAngle(AY); FRotZ := CleanAngle(AZ);
+  Changed;
+end;
+
+procedure TSliceObject.AlignNormalDown(const N: TVec3);
+var M: TMat3; AX, AY, AZ: Double;
+begin
+  if Dot(N, N) < 1e-12 then Exit;
+  { mundo = R * S * p; a nova rotacao e A * R (A leva N para baixo) }
+  M := MatMul3(AlignDown(N), EulerToMatrix(FRotX, FRotY, FRotZ));
+  MatrixToEuler(M, AX, AY, AZ);
+  SetRotation(AX, AY, AZ);
+end;
+
+procedure TSliceObject.RotateWorld(Axis: Integer; Deg: Double);
+var Ax: TVec3; M: TMat3; AX2, AY2, AZ2: Double;
+begin
+  case Axis of
+    0: Ax := Vec3(1, 0, 0);
+    1: Ax := Vec3(0, 1, 0);
+  else
+    Ax := Vec3(0, 0, 1);
+  end;
+  M := MatMul3(AxisAngle(Ax, DegToRad(Deg)), EulerToMatrix(FRotX, FRotY, FRotZ));
+  MatrixToEuler(M, AX2, AY2, AZ2);
+  SetRotation(AX2, AY2, AZ2);
+end;
+
+procedure TSliceObject.LayFlatTriangle(Index: Integer);
+var W: TMesh;
+begin
+  W := WorldMesh;
+  if (Index < 0) or (Index >= W.Count) then Exit;
+  AlignNormalDown(TriNormal(W.Triangle(Index)));
+end;
+
+function TSliceObject.ContactArea: Double;
+var W: TMesh; I: Integer; T: TTriangle; Z0: Double;
+begin
+  Result := 0;
+  W := WorldMesh;
+  Z0 := WorldBox.Min.Z;
+  for I := 0 to W.Count - 1 do
+  begin
+    T := W.Triangle(I);
+    if (T.A.Z < Z0 + 0.05) and (T.B.Z < Z0 + 0.05) and (T.C.Z < Z0 + 0.05) and
+      (TriNormal(T).Z < -0.98) then
+      Result := Result + TriArea(T);
+  end;
+end;
+
+function TSliceObject.LayFlatAuto: Boolean;
+type
+  TGroup = record N: TVec3; Area: Double; end;
+var
+  W: TMesh; I, K, Best, C: Integer; T: TTriangle; N, P: TVec3; A, Z0, Contact, BestContact: Double;
+  Map: specialize TDictionary<Int64, Integer>; Groups: array of TGroup; Key: Int64;
+  Order: array of Integer; Tmp: Integer; Al: TMat3; Zs: array of Double;
+  function Quant(V: Double): Int64; begin Result := Round(V * 60) + 100; end;
+begin
+  Result := False;
+  W := WorldMesh;
+  if W.Count = 0 then Exit;
+  { agrupa os triangulos pela normal (passo ~1 grau) e soma as areas }
+  Map := specialize TDictionary<Int64, Integer>.Create;
+  try
+    for I := 0 to W.Count - 1 do
+    begin
+      T := W.Triangle(I);
+      N := TriNormal(T);
+      if Dot(N, N) < 0.5 then Continue;
+      Key := (Quant(N.X) * 1000 + Quant(N.Y)) * 1000 + Quant(N.Z);
+      A := TriArea(T);
+      if Map.TryGetValue(Key, K) then
+      begin
+        Groups[K].N := Vec3(Groups[K].N.X + N.X * A, Groups[K].N.Y + N.Y * A, Groups[K].N.Z + N.Z * A);
+        Groups[K].Area := Groups[K].Area + A;
+      end
+      else
+      begin
+        K := Length(Groups);
+        SetLength(Groups, K + 1);
+        Groups[K].N := Vec3(N.X * A, N.Y * A, N.Z * A);
+        Groups[K].Area := A;
+        Map.Add(Key, K);
+      end;
+    end;
+  finally
+    Map.Free;
+  end;
+  if Length(Groups) = 0 then Exit;
+  { as 12 maiores areas planas sao candidatas; vence a que da mais apoio na mesa }
+  SetLength(Order, Length(Groups));
+  for I := 0 to High(Order) do Order[I] := I;
+  for I := 0 to Min(11, High(Order)) do
+    for K := I + 1 to High(Order) do
+      if Groups[Order[K]].Area > Groups[Order[I]].Area then
+      begin
+        Tmp := Order[I]; Order[I] := Order[K]; Order[K] := Tmp;
+      end;
+  SetLength(Zs, W.Count * 3);
+  Best := -1;
+  BestContact := ContactArea * 1.02;   { so troca se melhorar de verdade }
+  for C := 0 to Min(11, High(Order)) do
+  begin
+    N := Groups[Order[C]].N;
+    A := Sqrt(Dot(N, N));
+    if A < 1e-12 then Continue;
+    N := Vec3(N.X / A, N.Y / A, N.Z / A);
+    Al := AlignDown(N);
+    Z0 := MaxDouble;
+    for I := 0 to W.Count - 1 do
+    begin
+      T := W.Triangle(I);
+      P := MatApply(Al, T.A); Zs[I * 3] := P.Z;
+      P := MatApply(Al, T.B); Zs[I * 3 + 1] := P.Z;
+      P := MatApply(Al, T.C); Zs[I * 3 + 2] := P.Z;
+      Z0 := Min(Z0, Min(Zs[I * 3], Min(Zs[I * 3 + 1], Zs[I * 3 + 2])));
+    end;
+    Contact := 0;
+    for I := 0 to W.Count - 1 do
+      if (Zs[I * 3] < Z0 + 0.05) and (Zs[I * 3 + 1] < Z0 + 0.05) and (Zs[I * 3 + 2] < Z0 + 0.05) then
+      begin
+        T := W.Triangle(I);
+        if Dot(TriNormal(T), N) > 0.98 then Contact := Contact + TriArea(T);
+      end;
+    if Contact > BestContact then
+    begin
+      BestContact := Contact;
+      Best := Order[C];
+    end;
+  end;
+  if Best < 0 then Exit;
+  N := Groups[Best].N;
+  A := Sqrt(Dot(N, N));
+  AlignNormalDown(Vec3(N.X / A, N.Y / A, N.Z / A));
+  Result := True;
+end;
+
 { ---------------- TSliceScene ---------------- }
 
 constructor TSliceScene.Create;
@@ -399,19 +736,19 @@ begin
     (A.Max.Y + Gap <= B.Min.Y) or (B.Max.Y + Gap <= A.Min.Y));
 end;
 
-function TSliceScene.FindFreeSpot(SX, SY: Double; Ignore: Integer; out PX, PY: Double): Boolean;
-var Ring, K, Steps: Integer; Step, CX, CY: Double; Cand: TBox3; Ok: Boolean;
+function TSliceScene.FindSpotAmong(SX, SY: Double; const Obstacles: array of TBox3; out PX, PY: Double): Boolean;
+var Ring, K, Steps: Integer; Step, CX, CY: Double;
 
   function TrySpot(X0, Y0: Double): Boolean;
-  var J: Integer;
+  var J: Integer; Cand: TBox3;
   begin
     Result := False;
     Cand.Empty := False;
     Cand.Min := Vec3(X0 - SX / 2, Y0 - SY / 2, 0);
     Cand.Max := Vec3(X0 + SX / 2, Y0 + SY / 2, 0);
     if (Cand.Min.X < 0) or (Cand.Min.Y < 0) or (Cand.Max.X > BedX) or (Cand.Max.Y > BedY) then Exit;
-    for J := 0 to Count - 1 do
-      if (J <> Ignore) and BoxesOverlap(Cand, Items[J].WorldBox, Spacing) then Exit;
+    for J := 0 to High(Obstacles) do
+      if (not Obstacles[J].Empty) and BoxesOverlap(Cand, Obstacles[J], Spacing) then Exit;
     PX := X0; PY := Y0;
     Result := True;
   end;
@@ -420,21 +757,160 @@ begin
   CX := BedX / 2; CY := BedY / 2;
   PX := CX; PY := CY;
   if TrySpot(CX, CY) then Exit(True);
-  { aneis quadrados em volta do centro, passo de 5 mm }
-  Step := 5;
+  { aneis quadrados em volta do centro, passo de 2 mm }
+  Step := 2;
   Steps := Ceil(Max(BedX, BedY) / Step);
   for Ring := 1 to Steps do
-  begin
     for K := -Ring to Ring do
-    begin
-      Ok := TrySpot(CX + K * Step, CY - Ring * Step) or TrySpot(CX + K * Step, CY + Ring * Step) or
-        TrySpot(CX - Ring * Step, CY + K * Step) or TrySpot(CX + Ring * Step, CY + K * Step);
-      if Ok then Exit(True);
-    end;
-  end;
+      if TrySpot(CX + K * Step, CY - Ring * Step) or TrySpot(CX + K * Step, CY + Ring * Step) or
+        TrySpot(CX - Ring * Step, CY + K * Step) or TrySpot(CX + Ring * Step, CY + K * Step) then
+        Exit(True);
   { sem lugar: fica no centro e a validacao avisa }
   PX := CX; PY := CY;
   Result := False;
+end;
+
+function TSliceScene.FindFreeSpot(SX, SY: Double; Ignore: Integer; out PX, PY: Double): Boolean;
+var Obs: array of TBox3; I: Integer;
+begin
+  SetLength(Obs, Count);
+  for I := 0 to Count - 1 do
+    if I = Ignore then Obs[I].Empty := True else Obs[I] := Items[I].WorldBox;
+  Result := FindSpotAmong(SX, SY, Obs, PX, PY);
+end;
+
+function TSliceScene.FindById(AId: Integer): TSliceObject;
+var I: Integer;
+begin
+  for I := 0 to Count - 1 do
+    if Items[I].Id = AId then Exit(Items[I]);
+  Result := nil;
+end;
+
+function TSliceScene.Arrange: Boolean;
+var
+  Order: array of Integer; Obs: array of TBox3; I, K, Tmp, N: Integer; Sz: TVec3; PX, PY: Double;
+  function Area(Idx: Integer): Double;
+  var S: TVec3;
+  begin
+    S := Items[Idx].Size;
+    Result := S.X * S.Y;
+  end;
+begin
+  Result := True;
+  { travadas ficam onde estao e viram obstaculo }
+  N := 0;
+  SetLength(Obs, Count);
+  for I := 0 to Count - 1 do
+    if Items[I].Locked then
+    begin
+      Obs[N] := Items[I].WorldBox;
+      Inc(N);
+    end;
+  SetLength(Order, 0);
+  for I := 0 to Count - 1 do
+    if not Items[I].Locked then
+    begin
+      SetLength(Order, Length(Order) + 1);
+      Order[High(Order)] := I;
+    end;
+  for I := 0 to High(Order) do
+    for K := I + 1 to High(Order) do
+      if Area(Order[K]) > Area(Order[I]) then
+      begin
+        Tmp := Order[I]; Order[I] := Order[K]; Order[K] := Tmp;
+      end;
+  for I := 0 to High(Order) do
+  begin
+    Sz := Items[Order[I]].Size;
+    if not FindSpotAmong(Sz.X, Sz.Y, Copy(Obs, 0, N), PX, PY) then Result := False;
+    Items[Order[I]].X := PX;
+    Items[Order[I]].Y := PY;
+    Obs[N] := Items[Order[I]].WorldBox;
+    Inc(N);
+  end;
+  Touch;
+end;
+
+function TSliceScene.DuplicateN(I, N: Integer): Integer;
+var K: Integer; O: TSliceObject; S: TVec3; PX, PY: Double;
+begin
+  Result := 0;
+  for K := 1 to N do
+  begin
+    S := Items[I].Size;
+    if not FindFreeSpot(S.X, S.Y, -1, PX, PY) then Break;
+    O := Items[I].Clone;
+    O.Name := Items[I].Name;
+    O.Locked := False;
+    O.X := PX; O.Y := PY;
+    FItems.Add(O);
+    Inc(Result);
+  end;
+  Touch;
+end;
+
+function TSliceScene.Capture: TSceneState;
+var I: Integer;
+begin
+  SetLength(Result, Count);
+  for I := 0 to Count - 1 do Result[I] := Items[I].GetState;
+end;
+
+procedure TSliceScene.Apply(const St: TSceneState);
+var I: Integer; O: TSliceObject;
+begin
+  for I := 0 to High(St) do
+  begin
+    O := FindById(St[I].Id);
+    if O <> nil then O.SetState(St[I]);
+  end;
+  Touch;
+end;
+
+procedure TSliceScene.PushUndo;
+const MaxHistory = 60;
+begin
+  if Length(FUndo) >= MaxHistory then System.Delete(FUndo, 0, 1);
+  SetLength(FUndo, Length(FUndo) + 1);
+  FUndo[High(FUndo)] := Capture;
+  SetLength(FRedo, 0);
+end;
+
+function TSliceScene.Undo: Boolean;
+begin
+  Result := Length(FUndo) > 0;
+  if not Result then Exit;
+  SetLength(FRedo, Length(FRedo) + 1);
+  FRedo[High(FRedo)] := Capture;
+  Apply(FUndo[High(FUndo)]);
+  SetLength(FUndo, Length(FUndo) - 1);
+end;
+
+function TSliceScene.Redo: Boolean;
+begin
+  Result := Length(FRedo) > 0;
+  if not Result then Exit;
+  SetLength(FUndo, Length(FUndo) + 1);
+  FUndo[High(FUndo)] := Capture;
+  Apply(FRedo[High(FRedo)]);
+  SetLength(FRedo, Length(FRedo) - 1);
+end;
+
+function TSliceScene.CanUndo: Boolean;
+begin
+  Result := Length(FUndo) > 0;
+end;
+
+function TSliceScene.CanRedo: Boolean;
+begin
+  Result := Length(FRedo) > 0;
+end;
+
+procedure TSliceScene.ClearHistory;
+begin
+  SetLength(FUndo, 0);
+  SetLength(FRedo, 0);
 end;
 
 function TSliceScene.AddObject(O: TSliceObject; FindPlace: Boolean): TSliceObject;

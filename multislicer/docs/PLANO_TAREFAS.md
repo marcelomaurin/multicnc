@@ -146,20 +146,29 @@ abrir varios arquivos de uma vez pela linha de comando.
 **Arq.:** `src/layout/multislicer_layout3d.pas` (adaptar a cena), `src/app/multislicer_main.pas`
 (pagina "Modelo"), `src/ui/multislicer_view3d.pas` (gizmos).
 
-- [ ] 4.1 (arrastar na mesa e assentar em Z = 0 ja entregues na Etapa 3; faltam os campos X/Y/Z) Ferramenta Mover: arrastar no plano da mesa; campos X/Y/Z; "Cair na mesa" (Z min = 0) sempre ligado por padrao.
-- [ ] 4.2 Ferramenta Girar: campos X/Y/Z em graus, botoes +-90; aneis na vista (fase posterior).
-- [ ] 4.3 Ferramenta Escalar: uniforme ou por eixo, em mm ou %; mostra tamanho final.
-- [ ] 4.4 Espelhar X/Y/Z.
-- [ ] 4.5 **Deitar face na mesa** (lay flat): por clique numa face e automatico (maior area plana).
-- [ ] 4.6 (centralizar, duplicar 1 copia e apagar ja entregues na Etapa 3; faltam N copias e travar na tela) Centralizar, duplicar (N copias), travar, apagar.
-- [ ] 4.7 Auto-arranjo usando a caixa envolvente real; validacao de colisao e de volume.
-- [ ] 4.8 Desfazer/refazer das transformacoes.
-- [ ] 4.9 O fatiamento usa `Scene.MergedMesh` (coordenadas da mesa); cada objeto recebe rotulo
+- [x] 4.1 (campos X/Y do centro; Z e sempre assentado na mesa) Ferramenta Mover: arrastar no plano da mesa; campos X/Y/Z; "Cair na mesa" (Z min = 0) sempre ligado por padrao.
+- [x] 4.2 Ferramenta Girar: campos X/Y/Z em graus, botoes +90 (em torno dos eixos da mesa); aneis na vista ficam para depois.
+- [x] 4.3 Ferramenta Escalar: uniforme ou por eixo, em mm ou %; mostra tamanho final.
+- [x] 4.4 Espelhar X/Y/Z.
+- [x] 4.5 **Deitar face na mesa** (lay flat): por clique numa face e automatico (maior area plana).
+- [x] 4.6 Centralizar, duplicar (N copias), travar, apagar.
+- [x] 4.7 Auto-arranjo usando a caixa envolvente real; validacao de colisao e de volume.
+- [x] 4.8 Desfazer/refazer das transformacoes (posicao, rotacao, escala, espelho, travar; nao recupera peca removida).
+- [x] 4.9 O fatiamento usa `Scene.MergedMesh` (coordenadas da mesa); cada objeto recebe rotulo
       proprio no G-code (`M486` / `EXCLUDE_OBJECT`) para cancelar uma peca durante a impressao.
-- [ ] 4.10 Retirar o executavel separado `multislicer_position` (funcionalidade migrou para a tela principal).
+- [x] 4.10 Retirar o executavel separado `multislicer_position` (funcionalidade migrou para a tela principal).
 
 **Aceite:** girar a peca 90 graus em X e fatiar gera camadas na nova orientacao; peca movida
 para o canto sai com as coordenadas X/Y corretas no G-code; validacao barra peca fora da mesa.
+
+**Entregue (2026-10-12):** pagina Modelo com Mover (X/Y), Girar (campos e +90 nos eixos da mesa),
+Deitar (auto, pela face plana com maior apoio) e Escolher face (clique na vista), Escalar (% ou mm,
+uniforme ou por eixo), Espelhar, copias, travar, Organizar mesa e Desfazer/Refazer (Ctrl+Z / Ctrl+Y).
+Cena: rotacao composta por matriz e convertida de volta para X/Y/Z; historico por Id da peca.
+Pipeline: com varias pecas, cada camada sai agrupada por peca entre `M486 S<n>` (Marlin) ou
+`EXCLUDE_OBJECT_START/END` (Klipper), com `M486 T<n>` / `EXCLUDE_OBJECT_DEFINE` por peca no cabecalho,
+para cancelar uma peca durante a impressao. Executavel `multislicer_position` removido.
+Testes: `test_scene` (deitar, Euler, desfazer, organizar, copias, travar, rotulos) e o teste de GUI (aceite).
 
 ---
 

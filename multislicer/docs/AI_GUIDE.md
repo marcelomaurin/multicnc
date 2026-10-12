@@ -16,7 +16,6 @@ MultiSlicer prepara modelos 3D para impressao 3D.
 - export/multislicer_gcode.pas: G-code.
 - ui/multislicer_view3d.pas: mesa em 3D (renderizador por software do MultiCAD, via multicad/src/core|kernel|ui no .lpi).
 - ui/multislicer_view.pas: previa de camadas 2D.
-- ui/multislicer_bedcanvas.pas: mesa 2D do executavel de posicionamento antigo (legado).
 - app/: aplicacao e posicionamento.
 - tests/test_layout3d.lpr.
 

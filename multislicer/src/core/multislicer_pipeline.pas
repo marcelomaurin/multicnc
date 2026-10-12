@@ -35,6 +35,13 @@ type
   TInfillPattern = (ipGyroid, ipRectilinear);
   TPathRole = (prSkirt, prOuterWall, prInnerWall, prSolidInfill, prSparseInfill);
 
+  { peca da cena, para rotular as trajetorias no G-code (cancelar uma peca) }
+  TSliceObjectLabel = record
+    Name: string;
+    MinX, MinY, MaxX, MaxY: Double;
+  end;
+  TSliceObjectLabels = array of TSliceObjectLabel;
+
   TSliceSettings = record
     Printer: TPrinterProfile;
     Flavor: TSlicerFlavor;
@@ -61,6 +68,8 @@ type
     HeatedBed: Boolean;              // False = sem M140/M190
     StartGCode, EndGCode: string;    // vazio = bloco padrao; aceita {variaveis}
     MaterialName: string;
+    // Etapa 4: varias pecas. Vazio ou 1 = um rotulo so (ObjectName)
+    Objects: TSliceObjectLabels;
   end;
 
   TExtrusionPath = record
@@ -149,6 +158,7 @@ begin
   Result.StartGCode := '';
   Result.EndGCode := '';
   Result.MaterialName := '';
+  SetLength(Result.Objects, 0);
 end;
 
 function FirstHotend(const S: TSliceSettings): Integer;
@@ -721,6 +731,103 @@ var
   Run: TPolygon2D;
   LayerTimes: array of Double;
   ObjName, Poly: string;
+  NObj, G: Integer;
+  ObjNames: array of string;
+  Groups: array of TExtrusionPaths;   { [0] = sem peca (saia); [k+1] = peca k }
+  Joined: TExtrusionPaths;
+
+  { peca de uma trajetoria: a caixa (com folga) que contem o primeiro ponto;
+    se nenhuma, a de centro mais proximo. A saia nao pertence a peca. }
+  function ObjectOf(const Pa: TExtrusionPath): Integer;
+  var J: Integer; X, Y, D, BestD: Double;
+  begin
+    Result := -1;
+    if (Pa.Role = prSkirt) or (Length(Pa.Points) = 0) then Exit;
+    X := Pa.Points[0].X; Y := Pa.Points[0].Y;
+    for J := 0 to NObj - 1 do
+      with S.Objects[J] do
+        if (X >= MinX - 2) and (X <= MaxX + 2) and (Y >= MinY - 2) and (Y <= MaxY + 2) then Exit(J);
+    BestD := MaxDouble;
+    for J := 0 to NObj - 1 do
+      with S.Objects[J] do
+      begin
+        D := Sqr(X - (MinX + MaxX) / 2) + Sqr(Y - (MinY + MaxY) / 2);
+        if D < BestD then begin BestD := D; Result := J; end;
+      end;
+  end;
+
+  procedure LabelStart(K: Integer);
+  begin
+    if S.Flavor = sfKlipper then Body.Add('EXCLUDE_OBJECT_START NAME=' + ObjNames[K])
+    else Body.Add(Format('M486 S%d', [K]));
+  end;
+
+  procedure LabelEnd(K: Integer);
+  begin
+    if S.Flavor = sfKlipper then Body.Add('EXCLUDE_OBJECT_END NAME=' + ObjNames[K])
+    else Body.Add('M486 S-1');
+  end;
+
+  { ordena e escreve uma lista de trajetorias da camada I }
+  procedure EmitList(var L: TExtrusionPaths);
+  var Q, KK: Integer;
+  begin
+    if Length(L) = 0 then Exit;
+    OrderPaths(L, Cur, True);
+    for Q := 0 to High(L) do begin
+      Path := L[Q];
+      if I = 0 then Speed := S.FirstLayerSpeed
+      else case Path.Role of
+        prOuterWall: Speed := S.OuterWallSpeed;
+        prInnerWall, prSkirt: Speed := S.WallSpeed;
+      else
+        Speed := S.InfillSpeed;
+      end;
+      case Path.Role of
+        prSkirt: Body.Add(';TYPE:Skirt');
+        prOuterWall: Body.Add(';TYPE:External perimeter');
+        prInnerWall: Body.Add(';TYPE:Perimeter');
+        prSolidInfill: Body.Add(';TYPE:Solid infill');
+        prSparseInfill: Body.Add(';TYPE:Internal infill');
+      end;
+      if Path.Role in [prSolidInfill, prSparseInfill] then W.Region := FLayers[I].InfillRegion
+      else SetLength(W.Region, 0);
+      W.Travel(Path.Points[0].X, Path.Points[0].Y);
+      // fecha os lacos voltando ao primeiro ponto
+      Run := Path.Points;
+      if Path.Closed then begin
+        SetLength(Run, Length(Run) + 1);
+        Run[High(Run)] := Run[0];
+      end;
+      if S.ArcFitting and Path.Closed and (Length(Run) >= 5) then begin
+        Fit := FitArcs(Run, AF);
+        TX := Run[0].X; TY := Run[0].Y;
+        for KK := 0 to High(Fit) do begin
+          if Fit[KK].Kind = fmLine then begin
+            Len := Hypot(Fit[KK].X - TX, Fit[KK].Y - TY);
+            W.Extrude(Fit[KK].X, Fit[KK].Y, Len * EPM, Speed);
+          end else begin
+            A0 := ArcTan2(-Fit[KK].J, -Fit[KK].I);
+            A1 := ArcTan2(Fit[KK].Y - (TY + Fit[KK].J), Fit[KK].X - (TX + Fit[KK].I));
+            Sweep := A1 - A0;
+            if Fit[KK].Kind = fmArcCCW then begin
+              while Sweep <= 0 do Sweep := Sweep + 2 * Pi;
+            end else
+              while Sweep >= 0 do Sweep := Sweep - 2 * Pi;
+            Len := Abs(Sweep) * Fit[KK].Radius;
+            W.ArcExtrude(Fit[KK].Kind = fmArcCW, Fit[KK].X, Fit[KK].Y, Fit[KK].I, Fit[KK].J, Len, Len * EPM, Speed);
+          end;
+          TX := Fit[KK].X; TY := Fit[KK].Y;
+        end;
+      end else
+        for KK := 1 to High(Run) do begin
+          Len := Hypot(Run[KK].X - Run[KK - 1].X, Run[KK].Y - Run[KK - 1].Y);
+          W.Extrude(Run[KK].X, Run[KK].Y, Len * EPM, Speed);
+        end;
+      Cur := Pt(W.X, W.Y);
+    end;
+  end;
+
 begin
   FillChar(Result, SizeOf(Result), 0);
   Result.Warnings := '';
@@ -755,6 +862,21 @@ begin
   AF.Tolerance := 0.05; // resolucao usual de arc welders para FDM
   AF.MinRadius := 1;
   ObjName := StringReplace(FSettings.ObjectName, ' ', '_', [rfReplaceAll]);
+  NObj := Length(S.Objects);
+  if NObj <= 1 then begin
+    SetLength(ObjNames, 1);
+    if NObj = 1 then ObjNames[0] := StringReplace(S.Objects[0].Name, ' ', '_', [rfReplaceAll])
+    else ObjNames[0] := ObjName;
+    if ObjNames[0] = '' then ObjNames[0] := 'objeto';
+  end else begin
+    { nomes sem espaco e unicos (o Klipper cancela pelo nome) }
+    SetLength(ObjNames, NObj);
+    for K := 0 to NObj - 1 do begin
+      ObjNames[K] := StringReplace(S.Objects[K].Name, ' ', '_', [rfReplaceAll]);
+      if ObjNames[K] = '' then ObjNames[K] := 'objeto';
+      ObjNames[K] := ObjNames[K] + '_' + IntToStr(K + 1);
+    end;
+  end;
   W := TGCodeWriter.Create;
   Body := TStringList.Create;
   try
@@ -779,65 +901,37 @@ begin
         Body.Add(Format('M140 S%d', [S.Printer.BedTemp]));
       W.Retract;
       W.MoveZ(FLayers[I].Z);
-      if S.Flavor = sfKlipper then Body.Add('EXCLUDE_OBJECT_START NAME=' + ObjName)
-      else Body.Add('M486 S0');
-      OrderPaths(FLayers[I].Paths, Cur, True);
       EPM := ExtrusionPerMM(FSettings.LineWidth, FLayers[I].Height, S.Printer.FilamentDiameter);
       if S.FlowPercent > 0 then EPM := EPM * S.FlowPercent / 100;
-      for P := 0 to High(FLayers[I].Paths) do begin
-        Path := FLayers[I].Paths[P];
-        if I = 0 then Speed := S.FirstLayerSpeed
-        else case Path.Role of
-          prOuterWall: Speed := S.OuterWallSpeed;
-          prInnerWall, prSkirt: Speed := S.WallSpeed;
-        else
-          Speed := S.InfillSpeed;
+      if NObj <= 1 then begin
+        LabelStart(0);
+        EmitList(FLayers[I].Paths);
+        LabelEnd(0);
+      end else begin
+        { agrupa por peca: saia primeiro (sem rotulo), depois cada peca entre rotulos }
+        SetLength(Groups, 0);
+        SetLength(Groups, NObj + 1);
+        for P := 0 to High(FLayers[I].Paths) do begin
+          G := ObjectOf(FLayers[I].Paths[P]) + 1;
+          SetLength(Groups[G], Length(Groups[G]) + 1);
+          Groups[G][High(Groups[G])] := FLayers[I].Paths[P];
         end;
-        case Path.Role of
-          prSkirt: Body.Add(';TYPE:Skirt');
-          prOuterWall: Body.Add(';TYPE:External perimeter');
-          prInnerWall: Body.Add(';TYPE:Perimeter');
-          prSolidInfill: Body.Add(';TYPE:Solid infill');
-          prSparseInfill: Body.Add(';TYPE:Internal infill');
-        end;
-        if Path.Role in [prSolidInfill, prSparseInfill] then W.Region := FLayers[I].InfillRegion
-        else SetLength(W.Region, 0);
-        W.Travel(Path.Points[0].X, Path.Points[0].Y);
-        // fecha os lacos voltando ao primeiro ponto
-        Run := Path.Points;
-        if Path.Closed then begin
-          SetLength(Run, Length(Run) + 1);
-          Run[High(Run)] := Run[0];
-        end;
-        if S.ArcFitting and Path.Closed and (Length(Run) >= 5) then begin
-          Fit := FitArcs(Run, AF);
-          TX := Run[0].X; TY := Run[0].Y;
-          for K := 0 to High(Fit) do begin
-            if Fit[K].Kind = fmLine then begin
-              Len := Hypot(Fit[K].X - TX, Fit[K].Y - TY);
-              W.Extrude(Fit[K].X, Fit[K].Y, Len * EPM, Speed);
-            end else begin
-              A0 := ArcTan2(-Fit[K].J, -Fit[K].I);
-              A1 := ArcTan2(Fit[K].Y - (TY + Fit[K].J), Fit[K].X - (TX + Fit[K].I));
-              Sweep := A1 - A0;
-              if Fit[K].Kind = fmArcCCW then begin
-                while Sweep <= 0 do Sweep := Sweep + 2 * Pi;
-              end else
-                while Sweep >= 0 do Sweep := Sweep - 2 * Pi;
-              Len := Abs(Sweep) * Fit[K].Radius;
-              W.ArcExtrude(Fit[K].Kind = fmArcCW, Fit[K].X, Fit[K].Y, Fit[K].I, Fit[K].J, Len, Len * EPM, Speed);
-            end;
-            TX := Fit[K].X; TY := Fit[K].Y;
+        EmitList(Groups[0]);
+        for G := 1 to NObj do
+          if Length(Groups[G]) > 0 then begin
+            LabelStart(G - 1);
+            EmitList(Groups[G]);
+            LabelEnd(G - 1);
           end;
-        end else
-          for K := 1 to High(Run) do begin
-            Len := Hypot(Run[K].X - Run[K - 1].X, Run[K].Y - Run[K - 1].Y);
-            W.Extrude(Run[K].X, Run[K].Y, Len * EPM, Speed);
+        { a previa mostra a mesma ordem do G-code }
+        SetLength(Joined, 0);
+        for G := 0 to NObj do
+          for P := 0 to High(Groups[G]) do begin
+            SetLength(Joined, Length(Joined) + 1);
+            Joined[High(Joined)] := Groups[G][P];
           end;
-        Cur := Pt(W.X, W.Y);
+        FLayers[I].Paths := Joined;
       end;
-      if S.Flavor = sfKlipper then Body.Add('EXCLUDE_OBJECT_END NAME=' + ObjName)
-      else Body.Add('M486 S-1');
       LayerTimes[I] := W.Seconds;
     end;
     W.Retract;
@@ -863,15 +957,29 @@ begin
     if S.MaterialName <> '' then Output.Add('; filament_type = ' + S.MaterialName);
     Output.Add(Format('; temperature = %d, first_layer_temperature = %d, bed_temperature = %d, first_layer_bed_temperature = %d',
       [S.Printer.HotendTemp, FirstHotend(S), S.Printer.BedTemp, FirstBed(S)]));
+    if NObj > 1 then
+      for K := 0 to NObj - 1 do
+        with S.Objects[K] do
+          Output.Add(Format('; object %d = %s (X %s..%s, Y %s..%s)',
+            [K, ObjNames[K], W.N(MinX), W.N(MaxX), W.N(MinY), W.N(MaxY)]));
     if S.Flavor = sfKlipper then begin
-      // poligono do objeto (envelope) para EXCLUDE_OBJECT
-      Poly := Format('[[%s,%s],[%s,%s],[%s,%s],[%s,%s]]',
-        [W.N(MinX), W.N(MinY), W.N(MaxX), W.N(MinY), W.N(MaxX), W.N(MaxY), W.N(MinX), W.N(MaxY)]);
-      Output.Add(Format('EXCLUDE_OBJECT_DEFINE NAME=%s CENTER=%s,%s POLYGON=%s',
-        [ObjName, W.N((MinX + MaxX) / 2), W.N((MinY + MaxY) / 2), Poly]));
+      // poligono de cada objeto (envelope) para EXCLUDE_OBJECT
+      if NObj <= 1 then begin
+        Poly := Format('[[%s,%s],[%s,%s],[%s,%s],[%s,%s]]',
+          [W.N(MinX), W.N(MinY), W.N(MaxX), W.N(MinY), W.N(MaxX), W.N(MaxY), W.N(MinX), W.N(MaxY)]);
+        Output.Add(Format('EXCLUDE_OBJECT_DEFINE NAME=%s CENTER=%s,%s POLYGON=%s',
+          [ObjNames[0], W.N((MinX + MaxX) / 2), W.N((MinY + MaxY) / 2), Poly]));
+      end else
+        for K := 0 to NObj - 1 do
+          with S.Objects[K] do begin
+            Poly := Format('[[%s,%s],[%s,%s],[%s,%s],[%s,%s]]',
+              [W.N(MinX), W.N(MinY), W.N(MaxX), W.N(MinY), W.N(MaxX), W.N(MaxY), W.N(MinX), W.N(MaxY)]);
+            Output.Add(Format('EXCLUDE_OBJECT_DEFINE NAME=%s CENTER=%s,%s POLYGON=%s',
+              [ObjNames[K], W.N((MinX + MaxX) / 2), W.N((MinY + MaxY) / 2), Poly]));
+          end;
       Output.Add(Format('SET_PRINT_STATS_INFO TOTAL_LAYER=%d', [Result.Layers]));
     end else
-      Output.Add('M486 T1');
+      Output.Add(Format('M486 T%d', [Max(1, NObj)]));
     Output.Add('G21');
     Output.Add('G90');
     Output.Add('M83 ; extrusao relativa');

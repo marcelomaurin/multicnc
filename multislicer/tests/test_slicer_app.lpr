@@ -136,8 +136,41 @@ begin
     Writeln(Format('  quadros seguintes ao girar: %d ms', [F.ViewControl3D.LastRenderMS]));
     Check(F.ViewControl3D.LastRenderMS < 150, 'orbiting a 200k-triangle part stays interactive');
     F.ViewControl3D.Interactive := False;
+    { Etapa 4: ferramentas de posicionamento pela tela }
+    F.Scene.Clear;
+    F.OpenFile(FN2);                         { caixa 30 x 10 x 15 }
+    F.Scene.SelectOnly(0);
+    TFloatSpinEdit(F.FindComponent('RotX')).Value := 90;
+    Check(Abs(F.Scene[0].Size.Z - 10) < 1e-6, 'rotate X 90 from the panel: part stands 10 mm tall');
+    F.GenerateProgram;
+    Check(F.SliceReport.Layers = 50, 'slicing follows the new orientation (10 mm / 0.2)');
+    F.DoUndo;
+    Check(Abs(F.Scene[0].Size.Z - 15) < 1e-6, 'undo restores the original orientation');
+    F.DoRedo;
+    { leva a peca para o canto: caixa 30 x 15 com canto em (5, 5) }
+    TFloatSpinEdit(F.FindComponent('PosX')).Value := 20;
+    TFloatSpinEdit(F.FindComponent('PosY')).Value := 12.5;
+    Bx := F.Scene[0].WorldBox;
+    Check((Abs(Bx.Min.X - 5) < 1e-6) and (Abs(Bx.Min.Y - 5) < 1e-6), 'X/Y fields move the part to the corner');
+    F.ExportProgram(Output); G.LoadFromFile(Output);
+    Check(Pos(';MINX:5 MINY:5 MAXX:35 MAXY:20', G.Text) > 0, 'G-code envelope matches the corner position');
+    TFloatSpinEdit(F.FindComponent('PosX')).Value := -10;
+    Check(not F.ValidateJob, 'part moved off the bed fails validation');
+    TFloatSpinEdit(F.FindComponent('PosX')).Value := 60;
+    { escala uniforme por % e por mm }
+    TFloatSpinEdit(F.FindComponent('ScaleXP')).Value := 50;
+    Check(Abs(F.Scene[0].Size.X - 15) < 1e-6, 'uniform 50% scale');
+    TFloatSpinEdit(F.FindComponent('SizeX')).Value := 60;
+    Check((Abs(F.Scene[0].Size.X - 60) < 1e-6) and (Abs(F.Scene[0].Size.Z - 20) < 1e-6), 'size in mm keeps proportion');
+    { duas pecas: um rotulo por peca }
+    TFloatSpinEdit(F.FindComponent('PosX')).Value := 110;
+    TFloatSpinEdit(F.FindComponent('PosY')).Value := 110;
+    F.OpenFile(FN);
+    Check(F.ValidateJob, 'second part placed without overlap');
+    F.ExportProgram(Output); G.LoadFromFile(Output);
+    Check((Pos('M486 T2', G.Text) > 0) and (Pos('M486 S1', G.Text) > 0), 'each part gets its own cancel label');
     DeleteFile(FN2); DeleteFile(FNBig);
-    Writeln('MultiSlicer GUI: OK (suite UI, centering, validation, profiles, start/end G-code, persistence, 3D scene, picking, layers, export)');
+    Writeln('MultiSlicer GUI: OK (suite UI, centering, validation, profiles, start/end G-code, persistence, 3D scene, picking, transform panel, undo, labels, layers, export)');
   finally F.Free; Mesh.Free; DeleteFile(ProfileDir + PathDelim + 'multislicer.json'); RemoveDir(ProfileDir + PathDelim + 'materials'); RemoveDir(ProfileDir); G.Free; DeleteFile(FN); DeleteFile(Output); DeleteFile(BadOutput); end;
   except on E: Exception do begin Writeln('FAIL: ', E.Message); Halt(1); end; end;
 end.

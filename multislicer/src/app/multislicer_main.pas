@@ -51,6 +51,13 @@ type
     View: TSlicerView;          { previa de camadas (2D) }
     View3D: TSlicerView3D;      { mesa em 3D }
     ObjectList: TListBox;
+    { modelo: transformacao da peca selecionada }
+    PosX, PosY, RotXEd, RotYEd, RotZEd, ScaleXP, ScaleYP, ScaleZP, SizeX, SizeY, SizeZ: TFloatSpinEdit;
+    CopiesEd: TSpinEdit;
+    UniformBox, LockBox: TCheckBox;
+    TransformNote: TLabel;
+    UndoBtn, RedoBtn: TSuiteButton;
+    FUndoKey: string;
     ViewButtons: array[0..2] of TSuiteButton;
     FooterPanel, ViewBar: TPanel;
     Status, Coords, ModelInfo, PreviewSummary, OutSummary: TLabel;
@@ -144,6 +151,23 @@ type
     procedure View3DMoved(Sender: TObject);
     procedure View3DDelete(Sender: TObject);
     procedure StdViewClick(Sender: TObject);
+    procedure LoadTransformEditor;
+    procedure TransformChange(Sender: TObject);
+    procedure Rotate90Click(Sender: TObject);
+    procedure MirrorClick(Sender: TObject);
+    procedure LayFlatClick(Sender: TObject);
+    procedure PickFaceClick(Sender: TObject);
+    procedure FacePicked(Sender: TObject; ObjIndex, TriIndex: Integer);
+    procedure ArrangeClick(Sender: TObject);
+    procedure LockClick(Sender: TObject);
+    procedure UndoClick(Sender: TObject);
+    procedure RedoClick(Sender: TObject);
+    procedure BeforeMove(Sender: TObject);
+    procedure FormKey(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure PushUndo(const Key: string);
+    function TargetObject: TSliceObject;
+    function TransformField(AParent: TWinControl; const AText, AName: string; X, Y, W: Integer;
+      MinV, MaxV, Step: Double; Decimals: Integer): TFloatSpinEdit;
     function GetMergedMesh: TMesh;
     function Settings: TSliceSettings;
   public
@@ -162,6 +186,8 @@ type
     property Scene: TSliceScene read FScene;
     property ViewControl3D: TSlicerView3D read View3D;
     procedure RemoveSelected;
+    procedure DoUndo;
+    procedure DoRedo;
     property ExportedFile: string read FExportedFile;
     { perfil atual montado a partir dos campos da tela }
     function CurrentPrinter: TPrinterDef;
@@ -397,6 +423,10 @@ begin
   View3D.OnSelect := @View3DSelect;
   View3D.OnMoved := @View3DMoved;
   View3D.OnDelete := @View3DDelete;
+  View3D.OnFacePicked := @FacePicked;
+  View3D.OnBeforeMove := @BeforeMove;
+  KeyPreview := True;
+  OnKeyDown := @FormKey;
 
   FUpdating := False;
   OnResize := @ResizeUI;
@@ -468,21 +498,84 @@ begin
     16, 1012, 290, 76);
 end;
 
+function TMultiSlicerForm.TransformField(AParent: TWinControl; const AText, AName: string;
+  X, Y, W: Integer; MinV, MaxV, Step: Double; Decimals: Integer): TFloatSpinEdit;
+begin
+  LabelAt(AParent, AText, X, Y, W, 18);
+  Result := TFloatSpinEdit.Create(Self);
+  Result.Parent := AParent;
+  Result.Name := AName;
+  Result.SetBounds(X, Y + 20, W, 28);
+  Result.DecimalPlaces := Decimals;
+  Result.MinValue := MinV; Result.MaxValue := MaxV;
+  Result.Increment := Step;
+  Result.OnChange := @TransformChange;
+end;
+
 procedure TMultiSlicerForm.BuildModelPage(S: TScrollBox);
+var B: TSuiteButton;
 begin
   Button(S, 'Abrir modelo...', 16, 52, 290, sikFolder, @OpenClick).SetLook(sbsSolid, clSuitePrimary, sikFolder);
-  LabelAt(S, 'Cada modelo aberto entra na mesa num lugar livre, assentado em Z = 0. Abra varios para imprimir juntos.',
-    16, 94, 290, 56);
-  Section(S, 'PECAS SELECIONADAS', 160);
-  Button(S, 'Duplicar', 16, 184, 140, sikCopy, @DuplicateClick);
-  Button(S, 'Remover', 166, 184, 140, sikTrash, @RemoveClick);
-  Button(S, 'Centralizar', 16, 226, 140, sikFit, @CenterClick);
-  Button(S, 'Limpar mesa', 166, 226, 140, sikClose, @ClearClick);
-  LabelAt(S, 'Na vista: clique na peca para selecionar (Ctrl soma) e arraste para mover na mesa. Delete remove. Vermelho = fora do volume da impressora.',
-    16, 274, 290, 76);
-  Section(S, 'POSICIONAMENTO', 360);
-  LabelAt(S, 'Girar, escalar, espelhar e deitar face na mesa entram na etapa 4 do plano.',
-    16, 382, 290, 40);
+  LabelAt(S, 'Cada modelo entra num lugar livre da mesa, apoiado em Z = 0. Clique na peca (Ctrl soma) e arraste para mover.',
+    16, 94, 290, 42);
+  Section(S, 'PECAS', 146);
+  Button(S, 'Duplicar', 16, 168, 140, sikCopy, @DuplicateClick);
+  Button(S, 'Remover', 166, 168, 140, sikTrash, @RemoveClick);
+  Button(S, 'Centralizar', 16, 210, 140, sikFit, @CenterClick);
+  Button(S, 'Limpar mesa', 166, 210, 140, sikClose, @ClearClick);
+  LabelAt(S, 'Copias ao duplicar', 16, 254, 140, 18);
+  CopiesEd := TSpinEdit.Create(Self);
+  CopiesEd.Parent := S; CopiesEd.Name := 'Copies';
+  CopiesEd.SetBounds(16, 274, 140, 28);
+  CopiesEd.MinValue := 1; CopiesEd.MaxValue := 100; CopiesEd.Value := 1;
+  LockBox := TCheckBox.Create(Self);
+  LockBox.Parent := S; LockBox.Name := 'LockPart';
+  LockBox.SetBounds(166, 278, 140, 24);
+  LockBox.Caption := 'Travar peca';
+  LockBox.OnChange := @LockClick;
+  Button(S, 'Organizar mesa', 16, 314, 290, sikWand, @ArrangeClick).Hint := 'Distribui as pecas destravadas a partir do centro';
+  UndoBtn := Button(S, 'Desfazer', 16, 356, 140, sikUndo, @UndoClick);
+  UndoBtn.Hint := 'Ctrl+Z';
+  RedoBtn := Button(S, 'Refazer', 166, 356, 140, sikRedo, @RedoClick);
+  RedoBtn.Hint := 'Ctrl+Y';
+  TransformNote := LabelAt(S, '', 16, 400, 290, 20);
+  TransformNote.Font.Style := [fsBold];
+
+  Section(S, 'MOVER (CENTRO DA PECA)', 428);
+  PosX := TransformField(S, 'X (mm)', 'PosX', 16, 450, 140, -5000, 5000, 1, 2);
+  PosY := TransformField(S, 'Y (mm)', 'PosY', 166, 450, 140, -5000, 5000, 1, 2);
+
+  Section(S, 'GIRAR (GRAUS)', 514);
+  RotXEd := TransformField(S, 'X', 'RotX', 16, 536, 92, -360, 360, 15, 1);
+  RotYEd := TransformField(S, 'Y', 'RotY', 115, 536, 92, -360, 360, 15, 1);
+  RotZEd := TransformField(S, 'Z', 'RotZ', 214, 536, 92, -360, 360, 15, 1);
+  B := Button(S, 'X +90', 16, 592, 92, sikRedo, @Rotate90Click); B.Tag := 0;
+  B := Button(S, 'Y +90', 115, 592, 92, sikRedo, @Rotate90Click); B.Tag := 1;
+  B := Button(S, 'Z +90', 214, 592, 92, sikRedo, @Rotate90Click); B.Tag := 2;
+  Button(S, 'Deitar (auto)', 16, 634, 140, sikArrowDown, @LayFlatClick).Hint :=
+    'Gira a peca para a maior face plana ficar apoiada na mesa';
+  Button(S, 'Escolher face', 166, 634, 140, sikPointer, @PickFaceClick).Hint :=
+    'Clique depois na face da peca que deve ficar apoiada na mesa';
+
+  Section(S, 'ESCALAR', 686);
+  UniformBox := TCheckBox.Create(Self);
+  UniformBox.Parent := S; UniformBox.Name := 'UniformScale';
+  UniformBox.SetBounds(16, 706, 290, 24);
+  UniformBox.Caption := 'Uniforme (mantem a proporcao)';
+  UniformBox.Checked := True;
+  ScaleXP := TransformField(S, 'X (%)', 'ScaleXP', 16, 734, 140, 1, 10000, 5, 1);
+  SizeX := TransformField(S, 'X (mm)', 'SizeX', 166, 734, 140, 0.01, 5000, 1, 2);
+  ScaleYP := TransformField(S, 'Y (%)', 'ScaleYP', 16, 790, 140, 1, 10000, 5, 1);
+  SizeY := TransformField(S, 'Y (mm)', 'SizeY', 166, 790, 140, 0.01, 5000, 1, 2);
+  ScaleZP := TransformField(S, 'Z (%)', 'ScaleZP', 16, 846, 140, 1, 10000, 5, 1);
+  SizeZ := TransformField(S, 'Z (mm)', 'SizeZ', 166, 846, 140, 0.01, 5000, 1, 2);
+
+  Section(S, 'ESPELHAR', 912);
+  B := Button(S, 'X', 16, 934, 92, sikMirrorH, @MirrorClick); B.Tag := 0;
+  B := Button(S, 'Y', 115, 934, 92, sikMirrorV, @MirrorClick); B.Tag := 1;
+  B := Button(S, 'Z', 214, 934, 92, sikMirrorV, @MirrorClick); B.Tag := 2;
+  LabelAt(S, 'Os campos valem para a peca selecionada; girar 90, espelhar e deitar valem para todas as selecionadas. Desfazer vale para posicao, rotacao, escala e espelho.',
+    16, 980, 290, 76);
 end;
 
 procedure TMultiSlicerForm.BuildMaterialPage(S: TScrollBox);
@@ -698,11 +791,12 @@ begin
       ObjectList.Items.Clear;
       for I := 0 to FScene.Count - 1 do
         ObjectList.Items.Add(FScene[I].Name);
-      for I := 0 to FScene.Count - 1 do
-        ObjectList.Selected[I] := FScene[I].Selected;
     finally
       ObjectList.Items.EndUpdate;
     end;
+    { a selecao so vale depois do EndUpdate (GTK2) }
+    for I := 0 to FScene.Count - 1 do
+      ObjectList.Selected[I] := FScene[I].Selected;
   finally
     FUpdating := False;
   end;
@@ -711,6 +805,7 @@ end;
 procedure TMultiSlicerForm.SceneChanged(const Msg: string);
 begin
   RefreshObjectList;
+  if not FUpdating then LoadTransformEditor;
   SettingsChanged(nil);
   View3D.Redraw;
   if Msg <> '' then Status.Caption := Msg;
@@ -733,16 +828,19 @@ begin
   FScene.Touch;
   View3D.Redraw;
   RefreshModelInfo;
+  LoadTransformEditor;
 end;
 
 procedure TMultiSlicerForm.View3DSelect(Sender: TObject);
 begin
   RefreshObjectList;
   RefreshModelInfo;
+  LoadTransformEditor;
 end;
 
 procedure TMultiSlicerForm.View3DMoved(Sender: TObject);
 begin
+  FUndoKey := '';
   SceneChanged('Peca movida na mesa.');
 end;
 
@@ -761,17 +859,29 @@ begin
 end;
 
 procedure TMultiSlicerForm.DuplicateClick(Sender: TObject);
-var I, N: Integer; O: TSliceObject;
+var I, N, Want, Got: Integer; Sel: array of Integer;
 begin
   N := FScene.Count;
+  Want := 1;
+  if CopiesEd <> nil then Want := CopiesEd.Value;
+  SetLength(Sel, 0);
   for I := 0 to N - 1 do
     if FScene[I].Selected then
     begin
-      O := FScene.Duplicate(I);
-      O.Selected := False;
+      SetLength(Sel, Length(Sel) + 1);
+      Sel[High(Sel)] := I;
     end;
-  if FScene.Count > N then SceneChanged(Format('%d copia(s) colocada(s) na mesa.', [FScene.Count - N]))
-  else Status.Caption := 'Selecione a peca a duplicar (clique nela na vista ou na lista).';
+  if Length(Sel) = 0 then
+  begin
+    Status.Caption := 'Selecione a peca a duplicar (clique nela na vista ou na lista).';
+    Exit;
+  end;
+  Got := 0;
+  for I := 0 to High(Sel) do Inc(Got, FScene.DuplicateN(Sel[I], Want));
+  if Got < Want * Length(Sel) then
+    SceneChanged(Format('%d copia(s) colocada(s); as demais nao couberam na mesa.', [Got]))
+  else
+    SceneChanged(Format('%d copia(s) colocada(s) na mesa.', [Got]));
 end;
 
 procedure TMultiSlicerForm.RemoveClick(Sender: TObject);
@@ -787,6 +897,251 @@ begin
   if FScene.Count = 0 then Exit;
   FScene.Clear;
   SceneChanged('Mesa limpa.');
+end;
+
+function TMultiSlicerForm.TargetObject: TSliceObject;
+var K: Integer;
+begin
+  Result := nil;
+  K := FScene.FirstSelected;
+  if (K < 0) and (FScene.Count = 1) then K := 0;
+  if K >= 0 then Result := FScene[K];
+end;
+
+procedure TMultiSlicerForm.LoadTransformEditor;
+var O: TSliceObject; Sz: TVec3; On: Boolean; I: Integer; C: TControl;
+begin
+  if PosX = nil then Exit;
+  O := TargetObject;
+  On := O <> nil;
+  FUpdating := True;
+  try
+    for I := 0 to PosX.Parent.ControlCount - 1 do
+    begin
+      C := PosX.Parent.Controls[I];
+      if (C is TFloatSpinEdit) or (C = LockBox) then C.Enabled := On;
+    end;
+    if not On then
+    begin
+      TransformNote.Caption := 'Selecione uma peca na vista ou na lista.';
+      Exit;
+    end;
+    if FScene.SelectedCount > 1 then
+      TransformNote.Caption := Format('%d pecas selecionadas; campos mostram: %s', [FScene.SelectedCount, O.Name])
+    else
+      TransformNote.Caption := 'Peca: ' + O.Name;
+    PosX.Value := O.X; PosY.Value := O.Y;
+    RotXEd.Value := O.RotX; RotYEd.Value := O.RotY; RotZEd.Value := O.RotZ;
+    ScaleXP.Value := O.ScaleX * 100; ScaleYP.Value := O.ScaleY * 100; ScaleZP.Value := O.ScaleZ * 100;
+    Sz := O.Size;
+    SizeX.Value := Sz.X; SizeY.Value := Sz.Y; SizeZ.Value := Sz.Z;
+    LockBox.Checked := O.Locked;
+    PosX.Enabled := not O.Locked; PosY.Enabled := not O.Locked;
+  finally
+    FUpdating := False;
+  end;
+  if UndoBtn <> nil then
+  begin
+    UndoBtn.Enabled := FScene.CanUndo;
+    RedoBtn.Enabled := FScene.CanRedo;
+  end;
+end;
+
+procedure TMultiSlicerForm.PushUndo(const Key: string);
+begin
+  { varias mudancas seguidas no mesmo campo e na mesma peca viram um passo so }
+  if (Key <> '') and (Key = FUndoKey) then Exit;
+  FScene.PushUndo;
+  FUndoKey := Key;
+end;
+
+procedure TMultiSlicerForm.TransformChange(Sender: TObject);
+var O: TSliceObject; Sz: TVec3; F: Double;
+
+  procedure Uniform(Factor: Double);
+  begin
+    O.SetScaleUniform(Factor);
+  end;
+
+begin
+  if FUpdating then Exit;
+  O := TargetObject;
+  if O = nil then Exit;
+  PushUndo(TComponent(Sender).Name + ':' + IntToStr(O.Id));
+  if (Sender = PosX) or (Sender = PosY) then
+  begin
+    if O.Locked then Exit;
+    O.X := PosX.Value; O.Y := PosY.Value;
+  end
+  else if (Sender = RotXEd) or (Sender = RotYEd) or (Sender = RotZEd) then
+    O.SetRotation(RotXEd.Value, RotYEd.Value, RotZEd.Value)
+  else if (Sender = ScaleXP) or (Sender = ScaleYP) or (Sender = ScaleZP) then
+  begin
+    if UniformBox.Checked then Uniform(TFloatSpinEdit(Sender).Value / 100)
+    else
+    begin
+      O.ScaleX := ScaleXP.Value / 100; O.ScaleY := ScaleYP.Value / 100; O.ScaleZ := ScaleZP.Value / 100;
+    end;
+  end
+  else if (Sender = SizeX) or (Sender = SizeY) or (Sender = SizeZ) then
+  begin
+    { tamanho em mm: fator sobre o tamanho atual nesse eixo da mesa }
+    Sz := O.Size;
+    if Sender = SizeX then F := SizeX.Value / Max(1e-6, Sz.X)
+    else if Sender = SizeY then F := SizeY.Value / Max(1e-6, Sz.Y)
+    else F := SizeZ.Value / Max(1e-6, Sz.Z);
+    if UniformBox.Checked then Uniform(O.ScaleX * F)
+    else if Sender = SizeX then O.ScaleX := O.ScaleX * F
+    else if Sender = SizeY then O.ScaleY := O.ScaleY * F
+    else O.ScaleZ := O.ScaleZ * F;
+  end;
+  FScene.Touch;
+  LoadTransformEditor;
+  SceneChanged('');
+end;
+
+procedure TMultiSlicerForm.Rotate90Click(Sender: TObject);
+var I, N: Integer;
+begin
+  N := 0;
+  FScene.PushUndo; FUndoKey := '';
+  for I := 0 to FScene.Count - 1 do
+    if FScene[I].Selected or ((FScene.SelectedCount = 0) and (FScene.Count = 1)) then
+    begin
+      FScene[I].RotateWorld(TSuiteButton(Sender).Tag, 90);
+      Inc(N);
+    end;
+  if N = 0 then begin Status.Caption := 'Selecione a peca a girar.'; Exit; end;
+  FScene.Touch;
+  LoadTransformEditor;
+  SceneChanged(Format('%d peca(s) girada(s) 90 graus em %s.', [N, Copy('XYZ', TSuiteButton(Sender).Tag + 1, 1)]));
+end;
+
+procedure TMultiSlicerForm.MirrorClick(Sender: TObject);
+var I, N: Integer; O: TSliceObject;
+begin
+  N := 0;
+  FScene.PushUndo; FUndoKey := '';
+  for I := 0 to FScene.Count - 1 do
+    if FScene[I].Selected or ((FScene.SelectedCount = 0) and (FScene.Count = 1)) then
+    begin
+      O := FScene[I];
+      case TSuiteButton(Sender).Tag of
+        0: O.MirrorX := not O.MirrorX;
+        1: O.MirrorY := not O.MirrorY;
+      else
+        O.MirrorZ := not O.MirrorZ;
+      end;
+      Inc(N);
+    end;
+  if N = 0 then begin Status.Caption := 'Selecione a peca a espelhar.'; Exit; end;
+  FScene.Touch;
+  LoadTransformEditor;
+  SceneChanged(Format('%d peca(s) espelhada(s) em %s.', [N, Copy('XYZ', TSuiteButton(Sender).Tag + 1, 1)]));
+end;
+
+procedure TMultiSlicerForm.LayFlatClick(Sender: TObject);
+var I, N, NChanged: Integer;
+begin
+  N := 0; NChanged := 0;
+  FScene.PushUndo; FUndoKey := '';
+  for I := 0 to FScene.Count - 1 do
+    if FScene[I].Selected or ((FScene.SelectedCount = 0) and (FScene.Count = 1)) then
+    begin
+      Inc(N);
+      if FScene[I].LayFlatAuto then Inc(NChanged);
+    end;
+  if N = 0 then begin Status.Caption := 'Selecione a peca a deitar na mesa.'; Exit; end;
+  FScene.Touch;
+  LoadTransformEditor;
+  if NChanged = 0 then SceneChanged('A peca ja esta apoiada pela maior face plana.')
+  else SceneChanged(Format('%d peca(s) deitada(s) pela maior face plana.', [NChanged]));
+end;
+
+procedure TMultiSlicerForm.PickFaceClick(Sender: TObject);
+begin
+  if FScene.Count = 0 then Exit;
+  ShowViewMode(svMesa);
+  View3D.PickFaceMode := True;
+  View3D.Redraw;
+  Status.Caption := 'Clique na face da peca que deve ficar apoiada na mesa (Esc cancela).';
+end;
+
+procedure TMultiSlicerForm.FacePicked(Sender: TObject; ObjIndex, TriIndex: Integer);
+begin
+  FScene.PushUndo; FUndoKey := '';
+  FScene[ObjIndex].LayFlatTriangle(TriIndex);
+  FScene.SelectOnly(ObjIndex);
+  LoadTransformEditor;
+  SceneChanged('Face escolhida apoiada na mesa.');
+end;
+
+procedure TMultiSlicerForm.ArrangeClick(Sender: TObject);
+begin
+  if FScene.Count = 0 then Exit;
+  FScene.PushUndo; FUndoKey := '';
+  if FScene.Arrange then SceneChanged('Pecas organizadas na mesa.')
+  else SceneChanged('Nem todas as pecas couberam na mesa: remova alguma ou diminua a escala.');
+  LoadTransformEditor;
+end;
+
+procedure TMultiSlicerForm.LockClick(Sender: TObject);
+var I: Integer;
+begin
+  if FUpdating then Exit;
+  FScene.PushUndo; FUndoKey := '';
+  for I := 0 to FScene.Count - 1 do
+    if FScene[I].Selected or ((FScene.SelectedCount = 0) and (FScene.Count = 1)) then
+      FScene[I].Locked := LockBox.Checked;
+  LoadTransformEditor;
+  View3D.Redraw;
+end;
+
+procedure TMultiSlicerForm.DoUndo;
+begin
+  if FScene.Undo then
+  begin
+    FUndoKey := '';
+    LoadTransformEditor;
+    SceneChanged('Desfeito.');
+  end;
+end;
+
+procedure TMultiSlicerForm.DoRedo;
+begin
+  if FScene.Redo then
+  begin
+    FUndoKey := '';
+    LoadTransformEditor;
+    SceneChanged('Refeito.');
+  end;
+end;
+
+procedure TMultiSlicerForm.UndoClick(Sender: TObject);
+begin
+  DoUndo;
+end;
+
+procedure TMultiSlicerForm.RedoClick(Sender: TObject);
+begin
+  DoRedo;
+end;
+
+procedure TMultiSlicerForm.BeforeMove(Sender: TObject);
+begin
+  FScene.PushUndo;
+  FUndoKey := '';
+end;
+
+procedure TMultiSlicerForm.FormKey(Sender: TObject; var Key: Word; Shift: TShiftState);
+begin
+  { Ctrl+Z / Ctrl+Y so fora dos campos de texto (la eles desfazem o texto) }
+  if (ssCtrl in Shift) and ((ActiveControl = View3D) or (ActiveControl = ObjectList) or (ActiveControl = nil) or
+    (ActiveControl is TSuiteButton)) then
+  begin
+    if Key = VK_Z then begin DoUndo; Key := 0; end
+    else if Key = VK_Y then begin DoRedo; Key := 0; end;
+  end;
 end;
 
 procedure TMultiSlicerForm.StdViewClick(Sender: TObject);
@@ -1132,6 +1487,7 @@ procedure TMultiSlicerForm.CenterModel;
 var I, N: Integer;
 begin
   if FScene.Count = 0 then Exit;
+  FScene.PushUndo; FUndoKey := '';
   N := 0;
   for I := 0 to FScene.Count - 1 do
     if FScene[I].Selected then
@@ -1177,6 +1533,7 @@ end;
 { ---------------- fatiamento ---------------- }
 
 function TMultiSlicerForm.Settings: TSliceSettings;
+var I: Integer; B: TBox3;
 begin
   Result := DefaultSliceSettings;
   Result.Printer := DefaultPrinterProfile;
@@ -1225,6 +1582,15 @@ begin
   Result.AdaptiveMax := Min(Result.LayerHeight, Result.Printer.Nozzle * 0.8);
   if FScene.Count = 1 then Result.ObjectName := FScene[0].Name
   else Result.ObjectName := 'pecas';
+  { cada peca com rotulo proprio no G-code (cancelar uma peca na impressora) }
+  SetLength(Result.Objects, FScene.Count);
+  for I := 0 to FScene.Count - 1 do
+  begin
+    B := FScene[I].WorldBox;
+    Result.Objects[I].Name := FScene[I].Name;
+    Result.Objects[I].MinX := B.Min.X; Result.Objects[I].MinY := B.Min.Y;
+    Result.Objects[I].MaxX := B.Max.X; Result.Objects[I].MaxY := B.Max.Y;
+  end;
   if Result.ObjectName = '' then Result.ObjectName := 'objeto';
 end;
 
