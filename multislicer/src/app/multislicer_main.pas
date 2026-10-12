@@ -29,6 +29,8 @@ uses
   multisuite_controls, multisuite_icons;
 
 const
+  { manter igual ao VersionInfo do multislicer.lpi (revisao = etapa do PLANO_TAREFAS) }
+  MS_VERSION = '0.0.6.0';
   MS_STEP_COUNT = 7;
   MS_STEPS: array[0..MS_STEP_COUNT - 1] of string = ('1  Impressora', '2  Modelo',
     '3  Material', '4  Qualidade', '5  Suportes', '6  Previa', '7  Saida');
@@ -352,7 +354,7 @@ var
   I: Integer;
 begin
   inherited CreateNew(AOwner, 1);
-  Caption := 'MultiSlicer • MultiSuite';
+  Caption := 'MultiSlicer ' + MS_VERSION + ' • MultiSuite';
   Width := 1280; Height := 860;
   Constraints.MinWidth := 1060; Constraints.MinHeight := 680;
   Position := poScreenCenter;
@@ -366,7 +368,7 @@ begin
 
   Header := TSuiteHeader.Create(Self);
   Header.Parent := Self; Header.Align := alTop; Header.Height := 72;
-  Header.Setup('MultiSlicer', 'Preparacao para impressao 3D  /  MultiSuite', sikSlicer);
+  Header.Setup('MultiSlicer', 'Preparacao para impressao 3D  /  MultiSuite  /  versao ' + MS_VERSION, sikSlicer);
 
   FooterPanel := TPanel.Create(Self);
   FooterPanel.Parent := Self; FooterPanel.Align := alBottom; FooterPanel.Height := 66;

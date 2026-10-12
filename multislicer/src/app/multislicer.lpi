@@ -8,6 +8,13 @@
    <ResourceType Value="res" />
    <Icon Value="0"/>
   </General>
+  <VersionInfo>
+   <UseVersionInfo Value="True"/>
+   <MinorVersionNr Value="0"/>
+   <RevisionNr Value="6"/>
+   <BuildNr Value="0"/>
+   <StringTable CompanyName="Maurinsoft" FileDescription="MultiSlicer" ProductName="MultiSlicer / MultiSuite" ProductVersion="0.0.6.0"/>
+  </VersionInfo>
   <BuildModes Count="1">
    <Item1 Name="Default" Default="True" />
   </BuildModes>

@@ -5,6 +5,7 @@ program multislicer;
   --file vem do contexto da suite; arquivos .stl/.3mf soltos entram todos na mesa
   (abrir varios pelo Explorer ou arrastar para o executavel). }
 uses Interfaces,Forms,SysUtils,Dialogs,multislicer_main,multisuite_context;
+{$R *.res}   { icone e versao (VersionInfo do .lpi) }
 var F:TMultiSlicerForm;C:TSuiteContext;I:Integer;P,Ext:string;
 procedure TryOpen(const FN:string);
 begin try F.OpenFile(FN);except on E:Exception do ShowMessage(E.Message);end;end;
