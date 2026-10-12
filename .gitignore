@@ -79,3 +79,4 @@ bin/libmcad_occt.so
 /multislicer/src/app/multislicer
 /multislicer/tests/test_slicer_app
 /multislicer/tests/test_modern_slicer
+/multislicer/tests/test_scene

@@ -5,7 +5,8 @@ MultiSlicer prepara modelos 3D para impressao 3D.
 
 ## Estrutura atual
 - core/multislicer_types.pas: tipos.
-- core/multislicer_mesh.pas: malha.
+- core/multislicer_mesh.pas: malha (cresce em blocos).
+- core/multislicer_scene.pas: cena com varias pecas, transformacoes e malha unica para fatiar.
 - core/multislicer_engine.pas: motor de slicing.
 - core/multislicer_profile.pas: perfil base do pipeline.
 - core/multislicer_printers.pas / multislicer_materials.pas: perfis de impressora e filamento (prontos + JSON do usuario).
@@ -13,7 +14,8 @@ MultiSlicer prepara modelos 3D para impressao 3D.
 - import/multislicer_stl.pas: importacao STL.
 - layout/: posicionamento, transformacao e arranjo 3D.
 - export/multislicer_gcode.pas: G-code.
-- ui/multislicer_view.pas: vista central da tela (mesa vista de cima e previa de camadas).
+- ui/multislicer_view3d.pas: mesa em 3D (renderizador por software do MultiCAD, via multicad/src/core|kernel|ui no .lpi).
+- ui/multislicer_view.pas: previa de camadas 2D.
 - ui/multislicer_bedcanvas.pas: mesa 2D do executavel de posicionamento antigo (legado).
 - app/: aplicacao e posicionamento.
 - tests/test_layout3d.lpr.

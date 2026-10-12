@@ -112,21 +112,32 @@ impressora e `filament_type`. Teste de GUI cobre o aceite.
 **Arq.:** `src/core/multislicer_scene.pas`, `src/ui/multislicer_view3d.pas`,
 `src/layout/multislicer_transform3d.pas` (matriz completa), unidades de render compartilhadas.
 
-- [ ] 3.1 Mover `multicad_camera` e `multicad_softrender` (ou um nucleo comum deles) para
+- [x] 3.1 (decidido: o `.lpi` referencia `multicad/src/core;kernel;ui`, sem mover arquivos nem mexer no MultiCAD) Mover `multicad_camera` e `multicad_softrender` (ou um nucleo comum deles) para
       `src/shared/` sem quebrar o MultiCAD; ou referenciar a pasta do MultiCAD no `.lpi`.
       Decidir e documentar.
-- [ ] 3.2 `TSliceObject`: malha original, nome, arquivo, posicao, rotacao, escala, espelho, travado,
+- [x] 3.2 `TSliceObject`: malha original, nome, arquivo, posicao, rotacao, escala, espelho, travado,
       cor; `WorldMesh` (malha transformada em cache) e caixa envolvente real (dos vertices).
-- [ ] 3.3 `TSliceScene`: lista de objetos, volume da impressora, adicionar/remover/duplicar,
+- [x] 3.3 `TSliceScene`: lista de objetos, volume da impressora, adicionar/remover/duplicar,
       `MergedMesh` para o fatiamento.
-- [ ] 3.4 `TSlicerView3D`: mesa com grade de 10 mm, volume em linhas, triedro, malhas sombreadas,
+- [x] 3.4 `TSlicerView3D`: mesa com grade de 10 mm, volume em linhas, triedro, malhas sombreadas,
       objeto selecionado em destaque, objeto fora do volume em vermelho.
-- [ ] 3.5 Navegacao igual ao MultiCAD (meio gira, Ctrl+meio desloca, roda zoom no cursor, F enquadrar,
+- [x] 3.5 Navegacao igual ao MultiCAD (meio gira, Ctrl+meio desloca, roda zoom no cursor, F enquadrar,
       cubo de vistas).
-- [ ] 3.6 Selecionar objeto por clique (raio x triangulo); Ctrl soma a selecao.
-- [ ] 3.7 Desempenho: malha de 200 mil triangulos navega sem travar (reduzir a malha durante o arraste se preciso).
+- [x] 3.6 Selecionar objeto por clique (raio x triangulo); Ctrl soma a selecao.
+- [x] 3.7 Desempenho: malha de 200 mil triangulos navega sem travar (reduzir a malha durante o arraste se preciso).
 
 **Aceite:** abrir dois STL, ve-los na mesa da Ender-3 em 3D, girar a camera e selecionar cada um.
+
+**Entregue (2026-10-12):** `src/core/multislicer_scene.pas` (pecas com malha original + transformacao,
+malha na mesa em cache, assentada em Z = 0, lugar livre ao abrir, validacao de volume e sobreposicao,
+malha unica para o fatiamento) e `src/ui/multislicer_view3d.pas` (mesa, grade de 10 mm, volume tracejado,
+eixos, pecas sombreadas; azul = selecionada, vermelho = fora do volume; selecao exata pelo buffer de Id;
+Frente/Topo/Iso, F enquadra). Navegacao: direito ou meio gira, Shift/Ctrl desloca, roda amplia no cursor,
+esquerdo no vazio gira. Malha de 200 mil triangulos: abre em ~1,5 s, quadro completo ~250 ms e, ao girar,
+quadro rapido de ~13 ms com malha reduzida (agrupamento de vertices) em meia resolucao. A previa de
+camadas continua 2D (`multislicer_view.pas`) ate a Etapa 7. Testes: `tests/test_scene.lpr` e o teste de GUI.
+Adiantado da Etapa 4: arrastar a peca na mesa, duplicar, remover (Delete), centralizar, limpar mesa;
+abrir varios arquivos de uma vez pela linha de comando.
 
 ---
 
@@ -135,12 +146,12 @@ impressora e `filament_type`. Teste de GUI cobre o aceite.
 **Arq.:** `src/layout/multislicer_layout3d.pas` (adaptar a cena), `src/app/multislicer_main.pas`
 (pagina "Modelo"), `src/ui/multislicer_view3d.pas` (gizmos).
 
-- [ ] 4.1 Ferramenta Mover: arrastar no plano da mesa; campos X/Y/Z; "Cair na mesa" (Z min = 0) sempre ligado por padrao.
+- [ ] 4.1 (arrastar na mesa e assentar em Z = 0 ja entregues na Etapa 3; faltam os campos X/Y/Z) Ferramenta Mover: arrastar no plano da mesa; campos X/Y/Z; "Cair na mesa" (Z min = 0) sempre ligado por padrao.
 - [ ] 4.2 Ferramenta Girar: campos X/Y/Z em graus, botoes +-90; aneis na vista (fase posterior).
 - [ ] 4.3 Ferramenta Escalar: uniforme ou por eixo, em mm ou %; mostra tamanho final.
 - [ ] 4.4 Espelhar X/Y/Z.
 - [ ] 4.5 **Deitar face na mesa** (lay flat): por clique numa face e automatico (maior area plana).
-- [ ] 4.6 Centralizar, duplicar (N copias), travar, apagar.
+- [ ] 4.6 (centralizar, duplicar 1 copia e apagar ja entregues na Etapa 3; faltam N copias e travar na tela) Centralizar, duplicar (N copias), travar, apagar.
 - [ ] 4.7 Auto-arranjo usando a caixa envolvente real; validacao de colisao e de volume.
 - [ ] 4.8 Desfazer/refazer das transformacoes.
 - [ ] 4.9 O fatiamento usa `Scene.MergedMesh` (coordenadas da mesa); cada objeto recebe rotulo

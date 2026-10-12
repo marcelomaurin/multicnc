@@ -25,6 +25,7 @@ uses
   Dialogs, Graphics, LCLType, multislicer_types, multislicer_mesh, multislicer_stl,
   multislicer_3mf, multislicer_profile, multislicer_pipeline, multislicer_view,
   multislicer_printers, multislicer_materials, multislicer_userdata,
+  multislicer_scene, multislicer_view3d, multicad_camera,
   multisuite_controls, multisuite_icons;
 
 const
@@ -35,7 +36,8 @@ const
 type
   TMultiSlicerForm = class(TForm)
   private
-    M: TMesh;
+    FScene: TSliceScene;
+    FMerged: TMesh;
     Engine: TModernSlicer;
     Code: TStringList;
     Report: TSliceReport;
@@ -46,7 +48,10 @@ type
     { estrutura }
     Pages: TPageControl;
     Nav: array[0..MS_STEP_COUNT - 1] of TSuiteButton;
-    View: TSlicerView;
+    View: TSlicerView;          { previa de camadas (2D) }
+    View3D: TSlicerView3D;      { mesa em 3D }
+    ObjectList: TListBox;
+    ViewButtons: array[0..2] of TSuiteButton;
     FooterPanel, ViewBar: TPanel;
     Status, Coords, ModelInfo, PreviewSummary, OutSummary: TLabel;
     State: TSuiteBadge;
@@ -129,6 +134,17 @@ type
     procedure ShowError(E: Exception);
     procedure ShowViewMode(AMode: TSlicerViewMode);
     procedure RefreshModelInfo;
+    procedure RefreshObjectList;
+    procedure SceneChanged(const Msg: string);
+    procedure DuplicateClick(Sender: TObject);
+    procedure RemoveClick(Sender: TObject);
+    procedure ClearClick(Sender: TObject);
+    procedure ObjectListClick(Sender: TObject);
+    procedure View3DSelect(Sender: TObject);
+    procedure View3DMoved(Sender: TObject);
+    procedure View3DDelete(Sender: TObject);
+    procedure StdViewClick(Sender: TObject);
+    function GetMergedMesh: TMesh;
     function Settings: TSliceSettings;
   public
     constructor Create(AOwner: TComponent); override;
@@ -142,7 +158,10 @@ type
     procedure ExportProgram(const FN: string);
     property SliceReport: TSliceReport read Report;
     property ProgramReady: Boolean read Ready;
-    property Mesh: TMesh read M;
+    property Mesh: TMesh read GetMergedMesh;   { todas as pecas, ja na mesa }
+    property Scene: TSliceScene read FScene;
+    property ViewControl3D: TSlicerView3D read View3D;
+    procedure RemoveSelected;
     property ExportedFile: string read FExportedFile;
     { perfil atual montado a partir dos campos da tela }
     function CurrentPrinter: TPrinterDef;
@@ -274,7 +293,8 @@ begin
   Position := poScreenCenter;
   Font.Name := SUITE_FONT; Font.Size := 10;
   Color := clSuiteSurface;
-  M := TMesh.Create;
+  FScene := TSliceScene.Create;
+  FMerged := TMesh.Create;
   Engine := TModernSlicer.Create;
   Code := TStringList.Create;
   FUpdating := True;
@@ -309,9 +329,16 @@ begin
     'Abrir modelo STL ou 3MF';
   Button(Sidebar, 'Centro', 110, 16 + MS_STEP_COUNT * 44 + 8, 92, sikFit, @CenterClick).Hint :=
     'Centralizar a peca na mesa e assentar em Z = 0';
-  ModelInfo := LabelAt(Sidebar, '', 16, 16 + MS_STEP_COUNT * 44 + 56, 184, 150);
+  ModelInfo := LabelAt(Sidebar, '', 16, 16 + MS_STEP_COUNT * 44 + 56, 184, 96);
   ModelInfo.Align := alBottom;
   ModelInfo.BorderSpacing.Around := 12;
+  Section(Sidebar, 'PECAS NA MESA', 16 + MS_STEP_COUNT * 44 + 56).Width := 190;
+  ObjectList := TListBox.Create(Self);
+  ObjectList.Parent := Sidebar;
+  ObjectList.SetBounds(12, 16 + MS_STEP_COUNT * 44 + 80, 190, 160);
+  ObjectList.Anchors := [akLeft, akTop, akRight, akBottom];
+  ObjectList.MultiSelect := True;
+  ObjectList.OnClick := @ObjectListClick;
 
   Pages := TPageControl.Create(Self);
   Pages.Parent := Self; Pages.Align := alRight; Pages.Width := 336;
@@ -348,6 +375,12 @@ begin
   Button(ViewBar, 'Ajustar', 248, 9, 96, sikFit, @FitClick).Hint := 'Mostrar a mesa inteira';
   Button(ViewBar, '', 350, 9, 42, sikZoomIn, @ZoomInClick).Hint := 'Ampliar (roda do mouse)';
   Button(ViewBar, '', 398, 9, 42, sikZoomOut, @ZoomOutClick).Hint := 'Reduzir (roda do mouse)';
+  ViewButtons[0] := Button(ViewBar, 'Frente', 456, 9, 84, sikFrame, @StdViewClick);
+  ViewButtons[0].Tag := Ord(svFront);
+  ViewButtons[1] := Button(ViewBar, 'Topo', 546, 9, 76, sikLayers, @StdViewClick);
+  ViewButtons[1].Tag := Ord(svTop);
+  ViewButtons[2] := Button(ViewBar, 'Iso', 628, 9, 66, sikCAD, @StdViewClick);
+  ViewButtons[2].Tag := Ord(svIso);
   LayerLabel := LabelAt(ViewBar, 'Camada', 456, 17, 64, 20);
   LayerTrack := TTrackBar.Create(Self);
   LayerTrack.Parent := ViewBar;
@@ -357,7 +390,13 @@ begin
   LayerTrack.OnChange := @TrackChanged;
   View := TSlicerView.Create(Self);
   View.Parent := Work; View.Align := alClient;
-  View.SetMesh(M);
+  View.Mode := svCamadas;
+  View3D := TSlicerView3D.Create(Self);
+  View3D.Parent := Work; View3D.Align := alClient;
+  View3D.Scene := FScene;
+  View3D.OnSelect := @View3DSelect;
+  View3D.OnMoved := @View3DMoved;
+  View3D.OnDelete := @View3DDelete;
 
   FUpdating := False;
   OnResize := @ResizeUI;
@@ -375,10 +414,12 @@ end;
 
 destructor TMultiSlicerForm.Destroy;
 begin
-  if View <> nil then View.SetMesh(nil);
+  if View3D <> nil then View3D.Scene := nil;
+  if View <> nil then View.SetSlice(nil, -1);
   Code.Free;
   Engine.Free;
-  M.Free;
+  FMerged.Free;
+  FScene.Free;
   inherited Destroy;
 end;
 
@@ -430,12 +471,18 @@ end;
 procedure TMultiSlicerForm.BuildModelPage(S: TScrollBox);
 begin
   Button(S, 'Abrir modelo...', 16, 52, 290, sikFolder, @OpenClick).SetLook(sbsSolid, clSuitePrimary, sikFolder);
-  Button(S, 'Centralizar na mesa', 16, 94, 290, sikFit, @CenterClick);
-  LabelAt(S, 'Ao abrir, a peca e centralizada na mesa e assentada em Z = 0, como no Cura. Parte vermelha na vista = fora da mesa. Roda do mouse amplia; arraste para deslocar.',
-    16, 142, 290, 80);
-  Section(S, 'POSICIONAMENTO', 234);
-  LabelAt(S, 'Mover, girar, escalar, espelhar, deitar face na mesa, varias pecas e a vista 3D entram nas etapas 3 e 4 do plano.',
-    16, 256, 290, 60);
+  LabelAt(S, 'Cada modelo aberto entra na mesa num lugar livre, assentado em Z = 0. Abra varios para imprimir juntos.',
+    16, 94, 290, 56);
+  Section(S, 'PECAS SELECIONADAS', 160);
+  Button(S, 'Duplicar', 16, 184, 140, sikCopy, @DuplicateClick);
+  Button(S, 'Remover', 166, 184, 140, sikTrash, @RemoveClick);
+  Button(S, 'Centralizar', 16, 226, 140, sikFit, @CenterClick);
+  Button(S, 'Limpar mesa', 166, 226, 140, sikClose, @ClearClick);
+  LabelAt(S, 'Na vista: clique na peca para selecionar (Ctrl soma) e arraste para mover na mesa. Delete remove. Vermelho = fora do volume da impressora.',
+    16, 274, 290, 76);
+  Section(S, 'POSICIONAMENTO', 360);
+  LabelAt(S, 'Girar, escalar, espelhar e deitar face na mesa entram na etapa 4 do plano.',
+    16, 382, 290, 40);
 end;
 
 procedure TMultiSlicerForm.BuildMaterialPage(S: TScrollBox);
@@ -566,8 +613,12 @@ begin
 end;
 
 procedure TMultiSlicerForm.ShowViewMode(AMode: TSlicerViewMode);
+var I: Integer;
 begin
-  View.Mode := AMode;
+  View.Mode := svCamadas;
+  View3D.Visible := AMode = svMesa;
+  View.Visible := AMode = svCamadas;
+  for I := 0 to High(ViewButtons) do ViewButtons[I].Visible := AMode = svMesa;
   if AMode = svMesa then
   begin
     BedButton.SetLook(sbsSolid, clSuitePrimary);
@@ -579,6 +630,8 @@ begin
     LayersButton.SetLook(sbsSolid, clSuitePrimary);
   end;
   LayerTrack.Visible := (AMode = svCamadas) and Ready;
+  { mantem o modo para quem consulta View.Mode }
+  if AMode = svMesa then View.Tag := 0 else View.Tag := 1;
   LayerLabel.Visible := LayerTrack.Visible;
 end;
 
@@ -594,34 +647,151 @@ end;
 
 procedure TMultiSlicerForm.FitClick(Sender: TObject);
 begin
-  View.FitView;
+  if View3D.Visible then View3D.FitBed else View.FitView;
 end;
 
 procedure TMultiSlicerForm.ZoomInClick(Sender: TObject);
 begin
-  View.ZoomIn;
+  if View3D.Visible then View3D.ZoomBy(1.25) else View.ZoomIn;
 end;
 
 procedure TMultiSlicerForm.ZoomOutClick(Sender: TObject);
 begin
-  View.ZoomOut;
+  if View3D.Visible then View3D.ZoomBy(1 / 1.25) else View.ZoomOut;
 end;
 
 procedure TMultiSlicerForm.RefreshModelInfo;
-var A, B: TVec3;
+var B: TBox3; Sz: TVec3; K: Integer;
 begin
-  if M.Count = 0 then
+  if FScene.Count = 0 then
   begin
-    ModelInfo.Caption := 'Nenhum modelo aberto.';
+    ModelInfo.Caption := 'Nenhum modelo na mesa.';
     Coords.Caption := '';
     Exit;
   end;
-  MeshBounds(M, A, B);
-  ModelInfo.Caption := Format('%s'#10'%d triangulos'#10'%.1f x %.1f x %.1f mm'#10'X %.1f..%.1f  Y %.1f..%.1f',
-    [ExtractFileName(SourceFile), M.Count, B.X - A.X, B.Y - A.Y, B.Z - A.Z, A.X, B.X, A.Y, B.Y],
-    InvariantFS);
-  Coords.Caption := Format('Peca %.1f x %.1f x %.1f mm  |  mesa %.0f x %.0f x %.0f mm',
-    [B.X - A.X, B.Y - A.Y, B.Z - A.Z, BedX.Value, BedY.Value, BedZ.Value], InvariantFS);
+  K := FScene.FirstSelected;
+  if (K >= 0) and (FScene.SelectedCount = 1) then
+  begin
+    Sz := FScene[K].Size;
+    B := FScene[K].WorldBox;
+    ModelInfo.Caption := Format('%s'#10'%d triangulos'#10'%.1f x %.1f x %.1f mm'#10'centro X %.1f  Y %.1f',
+      [FScene[K].Name, FScene[K].Source.Count, Sz.X, Sz.Y, Sz.Z, (B.Min.X + B.Max.X) / 2,
+       (B.Min.Y + B.Max.Y) / 2], InvariantFS);
+  end
+  else
+    ModelInfo.Caption := Format('%d peca(s), %d selecionada(s)'#10'%d triangulos',
+      [FScene.Count, FScene.SelectedCount, FScene.TriangleCount]);
+  B := FScene.Bounds;
+  Coords.Caption := Format('%d peca(s)  |  conjunto %.1f x %.1f x %.1f mm  |  mesa %.0f x %.0f x %.0f mm',
+    [FScene.Count, B.Max.X - B.Min.X, B.Max.Y - B.Min.Y, B.Max.Z - B.Min.Z, BedX.Value, BedY.Value,
+     BedZ.Value], InvariantFS);
+end;
+
+procedure TMultiSlicerForm.RefreshObjectList;
+var I: Integer;
+begin
+  if ObjectList = nil then Exit;
+  FUpdating := True;
+  try
+    ObjectList.Items.BeginUpdate;
+    try
+      ObjectList.Items.Clear;
+      for I := 0 to FScene.Count - 1 do
+        ObjectList.Items.Add(FScene[I].Name);
+      for I := 0 to FScene.Count - 1 do
+        ObjectList.Selected[I] := FScene[I].Selected;
+    finally
+      ObjectList.Items.EndUpdate;
+    end;
+  finally
+    FUpdating := False;
+  end;
+end;
+
+procedure TMultiSlicerForm.SceneChanged(const Msg: string);
+begin
+  RefreshObjectList;
+  SettingsChanged(nil);
+  View3D.Redraw;
+  if Msg <> '' then Status.Caption := Msg;
+  SliceBtn.Enabled := FScene.Count > 0;
+  ExportBtn.Enabled := FScene.Count > 0;
+end;
+
+function TMultiSlicerForm.GetMergedMesh: TMesh;
+begin
+  FScene.MergedMesh(FMerged);
+  Result := FMerged;
+end;
+
+procedure TMultiSlicerForm.ObjectListClick(Sender: TObject);
+var I: Integer;
+begin
+  if FUpdating then Exit;
+  for I := 0 to FScene.Count - 1 do
+    FScene[I].Selected := (I < ObjectList.Items.Count) and ObjectList.Selected[I];
+  FScene.Touch;
+  View3D.Redraw;
+  RefreshModelInfo;
+end;
+
+procedure TMultiSlicerForm.View3DSelect(Sender: TObject);
+begin
+  RefreshObjectList;
+  RefreshModelInfo;
+end;
+
+procedure TMultiSlicerForm.View3DMoved(Sender: TObject);
+begin
+  SceneChanged('Peca movida na mesa.');
+end;
+
+procedure TMultiSlicerForm.View3DDelete(Sender: TObject);
+begin
+  RemoveSelected;
+end;
+
+procedure TMultiSlicerForm.RemoveSelected;
+var N: Integer;
+begin
+  N := FScene.SelectedCount;
+  if N = 0 then Exit;
+  FScene.DeleteSelected;
+  SceneChanged(Format('%d peca(s) removida(s) da mesa.', [N]));
+end;
+
+procedure TMultiSlicerForm.DuplicateClick(Sender: TObject);
+var I, N: Integer; O: TSliceObject;
+begin
+  N := FScene.Count;
+  for I := 0 to N - 1 do
+    if FScene[I].Selected then
+    begin
+      O := FScene.Duplicate(I);
+      O.Selected := False;
+    end;
+  if FScene.Count > N then SceneChanged(Format('%d copia(s) colocada(s) na mesa.', [FScene.Count - N]))
+  else Status.Caption := 'Selecione a peca a duplicar (clique nela na vista ou na lista).';
+end;
+
+procedure TMultiSlicerForm.RemoveClick(Sender: TObject);
+begin
+  if FScene.SelectedCount = 0 then
+    Status.Caption := 'Selecione a peca a remover (clique nela na vista ou na lista).'
+  else
+    RemoveSelected;
+end;
+
+procedure TMultiSlicerForm.ClearClick(Sender: TObject);
+begin
+  if FScene.Count = 0 then Exit;
+  FScene.Clear;
+  SceneChanged('Mesa limpa.');
+end;
+
+procedure TMultiSlicerForm.StdViewClick(Sender: TObject);
+begin
+  View3D.StdView(TCadStdView(TSuiteButton(Sender).Tag));
 end;
 
 { ---------------- perfis de impressora e material ---------------- }
@@ -911,11 +1081,18 @@ begin
   begin
     View.SetBed(BedX.Value, BedY.Value);
     View.SetSlice(nil, -1);
-    ShowViewMode(View.Mode);
+    if (FScene.BedX <> BedX.Value) or (FScene.BedY <> BedY.Value) or (FScene.BedZ <> BedZ.Value) then
+    begin
+      FScene.BedX := BedX.Value; FScene.BedY := BedY.Value; FScene.BedZ := BedZ.Value;
+      FScene.Touch;
+      View3D.FitBed;
+    end;
+    View3D.Redraw;
+    if View.Tag = 1 then ShowViewMode(svCamadas) else ShowViewMode(svMesa);
   end;
   if Assigned(SendButton) then SendButton.Enabled := False;
   if Assigned(ModelInfo) then RefreshModelInfo;
-  if M.Count > 0 then
+  if FScene.Count > 0 then
   begin
     SetState('Alteracoes pendentes', clSuiteWarning);
     if Assigned(Status) then Status.Caption := 'Configuracao alterada. Fatie novamente para atualizar a previa.';
@@ -926,7 +1103,7 @@ end;
 { ---------------- modelo ---------------- }
 
 procedure TMultiSlicerForm.OpenFile(const FN: string);
-var Candidate: TMesh; OK: Boolean;
+var Candidate: TMesh; OK: Boolean; O: TSliceObject;
 begin
   if not FileExists(FN) then raise EInOutError.Create('Arquivo nao encontrado: ' + FN);
   Candidate := TMesh.Create;
@@ -939,40 +1116,31 @@ begin
     end;
     if not OK or (Candidate.Count = 0) then
       raise Exception.Create('Modelo invalido ou sem triangulos: ' + FN);
-    View.SetMesh(nil);
-    M.Free; M := Candidate; Candidate := nil;
+    O := FScene.Add(Candidate, ChangeFileExt(ExtractFileName(FN), ''), ExpandFileName(FN));
+    Candidate := nil;
+    FScene.SelectOnly(FScene.IndexOf(O));
     SourceFile := ExpandFileName(FN);
-    CenterModel;
-    SliceBtn.Enabled := True; ExportBtn.Enabled := True;
-    Status.Caption := Format('Aberto: %s (%d triangulos). Peca centralizada na mesa.',
-      [ExtractFileName(FN), M.Count]);
     if Log <> nil then Log.Lines.Add('Aberto: ' + SourceFile);
+    SceneChanged(Format('Aberto: %s (%d triangulos). Peca colocada na mesa.',
+      [ExtractFileName(FN), O.Source.Count]));
   finally
     Candidate.Free;
   end;
 end;
 
 procedure TMultiSlicerForm.CenterModel;
-var A, B: TVec3; DX, DY, DZ: Double; I: Integer; T: TTriangle; N: TMesh;
+var I, N: Integer;
 begin
-  if M.Count = 0 then Exit;
-  MeshBounds(M, A, B);
-  DX := BedX.Value / 2 - (A.X + B.X) / 2;
-  DY := BedY.Value / 2 - (A.Y + B.Y) / 2;
-  DZ := -A.Z;
-  N := TMesh.Create;
-  for I := 0 to M.Count - 1 do
-  begin
-    T := M.Triangle(I);
-    T.A.X := T.A.X + DX; T.A.Y := T.A.Y + DY; T.A.Z := T.A.Z + DZ;
-    T.B.X := T.B.X + DX; T.B.Y := T.B.Y + DY; T.B.Z := T.B.Z + DZ;
-    T.C.X := T.C.X + DX; T.C.Y := T.C.Y + DY; T.C.Z := T.C.Z + DZ;
-    N.Add(T);
-  end;
-  View.SetMesh(nil);
-  M.Free; M := N;
-  View.SetMesh(M);
-  SettingsChanged(nil);
+  if FScene.Count = 0 then Exit;
+  N := 0;
+  for I := 0 to FScene.Count - 1 do
+    if FScene[I].Selected then
+    begin
+      FScene.CenterObject(I);
+      Inc(N);
+    end;
+  if (N = 0) and (FScene.Count = 1) then FScene.CenterObject(0);
+  SceneChanged('');
 end;
 
 procedure TMultiSlicerForm.OpenClick(Sender: TObject);
@@ -996,9 +1164,14 @@ end;
 
 procedure TMultiSlicerForm.CenterClick(Sender: TObject);
 begin
-  if M.Count = 0 then Exit;
+  if FScene.Count = 0 then Exit;
+  if (FScene.SelectedCount = 0) and (FScene.Count > 1) then
+  begin
+    Status.Caption := 'Selecione a peca a centralizar.';
+    Exit;
+  end;
   CenterModel;
-  Status.Caption := 'Peca centralizada na mesa e assentada em Z = 0.';
+  Status.Caption := 'Peca centralizada na mesa.';
 end;
 
 { ---------------- fatiamento ---------------- }
@@ -1050,28 +1223,18 @@ begin
   Result.Adaptive := Adaptive.Checked;
   Result.AdaptiveMin := Min(0.08, Result.LayerHeight);
   Result.AdaptiveMax := Min(Result.LayerHeight, Result.Printer.Nozzle * 0.8);
-  Result.ObjectName := ChangeFileExt(ExtractFileName(SourceFile), '');
+  if FScene.Count = 1 then Result.ObjectName := FScene[0].Name
+  else Result.ObjectName := 'pecas';
   if Result.ObjectName = '' then Result.ObjectName := 'objeto';
 end;
 
 function TMultiSlicerForm.ValidateJob: Boolean;
-var A, B: TVec3; Errors: TStringList; S: TSliceSettings; I: Integer;
+var Errors: TStringList; S: TSliceSettings; I: Integer;
 begin
   Errors := TStringList.Create;
   try
-    if M.Count = 0 then Errors.Add('Abra um modelo STL ou 3MF.')
-    else
-    begin
-      MeshBounds(M, A, B);
-      if (A.X < -1e-6) or (A.Y < -1e-6) or (B.X > BedX.Value + 1e-6) or (B.Y > BedY.Value + 1e-6) then
-        Errors.Add(Format('A peca sai da mesa (X %.1f..%.1f, Y %.1f..%.1f; mesa %.0f x %.0f mm). Use Centralizar.',
-          [A.X, B.X, A.Y, B.Y, BedX.Value, BedY.Value], InvariantFS));
-      if B.Z - A.Z > BedZ.Value + 1e-6 then
-        Errors.Add(Format('A peca tem %.1f mm de altura; a impressora vai ate %.0f mm.',
-          [B.Z - A.Z, BedZ.Value], InvariantFS));
-      if Abs(A.Z) > 1e-3 then
-        Errors.Add('A peca nao esta assentada na mesa (Z minimo diferente de 0). Use Centralizar.');
-    end;
+    FScene.BedX := BedX.Value; FScene.BedY := BedY.Value; FScene.BedZ := BedZ.Value;
+    FScene.Validate(Errors);
     try
       S := Settings;
       if S.InfillDensity < 0 then Errors.Add('Preenchimento invalido.');
@@ -1100,12 +1263,13 @@ end;
 procedure TMultiSlicerForm.GenerateProgram;
 var Candidate: TModernSlicer; G: TStringList; R: TSliceReport;
 begin
-  if M.Count = 0 then raise Exception.Create('Abra um modelo STL ou 3MF primeiro.');
+  if FScene.Count = 0 then raise Exception.Create('Abra um modelo STL ou 3MF primeiro.');
+  FScene.MergedMesh(FMerged);
   Candidate := TModernSlicer.Create;
   G := TStringList.Create;
   Screen.Cursor := crHourGlass;
   try
-    R := Candidate.Slice(M, Settings, G);
+    R := Candidate.Slice(FMerged, Settings, G);
     if (R.Layers = 0) or (G.Count = 0) then raise Exception.Create('O modelo nao gerou camadas imprimiveis.');
     View.SetSlice(nil, -1);
     Engine.Free; Engine := Candidate; Candidate := nil;
