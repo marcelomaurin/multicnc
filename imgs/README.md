@@ -63,27 +63,37 @@ para esses comandos; `Multicad03.png` registra a interface antiga do esboço.
 
 ![MultiCAD: esboço cotado](Multicad03.png)
 
-## MultiSlicer
+## MultiSlicer 0.1.0.0 - manual do usuário
+
+[Manual ilustrado em português (PDF)](../docs/Manuals/Manual_do_Usuario_MultiSlicer_0.1.0.0_PT-BR.pdf) · [Versão em texto](../docs/Manuals/Manual_do_Usuario_MultiSlicer_0.1.0.0_PT-BR.md)
+
+Capturas da versão **0.1.0.0** (todas as etapas entregues: perfis, catálogo de equipamentos, cena 3D, materiais, qualidade, suportes, prévia 3D, segundo plano, projeto .mslice e integração MultiCNC). O manual tem 30 páginas e 5 figuras.
 
 | Arquivo | Resolução | Conteúdo |
 |---|---|---|
 | [multislicer_material.png](multislicer_material.png) | 1280 × 860 | Modelo na mesa, filamento, temperaturas e ventilação |
-| [multislicer_previa.png](multislicer_previa.png) | 1280 × 860 | Prévia por camada de um anel: saia, paredes e topo/fundo |
-| [multislicer_qualidade.png](multislicer_qualidade.png) | 1280 × 860 | Configuração de qualidade |
-| [multislicer_suporte.png](multislicer_suporte.png) | 1280 × 860 | Configuração de suportes |
+| [multislicer_qualidade.png](multislicer_qualidade.png) | 1280 × 860 | Configuração de qualidade, perímetros, alturas e infill |
+| [multislicer_suporte.png](multislicer_suporte.png) | 1280 × 860 | Suportes automáticos e manuais, hastes e aderência à mesa |
+| [multislicer_previa.png](multislicer_previa.png) | 1280 × 860 | Prévia por camada com legenda de cores e métricas de produção |
+| [multislicer_projeto.png](multislicer_projeto.png) | 1280 × 860 | Gerenciamento de projeto .mslice, G-code e envio ao MultiCNC |
 | [ms_preview3d.png](ms_preview3d.png) | 730 × 632 | Prévia 3D dos percursos acumulados com suportes |
 | [ms_preview3d_layer.png](ms_preview3d_layer.png) | 730 × 632 | Camada isolada na prévia 3D, com preenchimento e suportes |
 
-As entregas publicadas das etapas 0 a 6 possuem também capturas em
-[`screenshots`](../screenshots): [modelo](../screenshots/multislicer_modelo.png),
+As entregas das etapas de desenvolvimento possuem também capturas em
+[screenshots](../screenshots): [fatiando](../screenshots/multislicer_fatiando.png),
+[modelo](../screenshots/multislicer_modelo.png),
 [mesa 3D](../screenshots/multislicer_mesa3d.png),
-[qualidade](../screenshots/multislicer_qualidade.png) e
-[suportes e aderência](../screenshots/multislicer_suporte.png). O executável de
-referência sincronizado é o MultiSlicer **0.0.6.0**.
+[qualidade](../screenshots/multislicer_qualidade.png),
+[suporte](../screenshots/multislicer_suporte.png) e
+[projeto](../screenshots/multislicer_projeto.png).
 
-[Guia e capturas do MultiSlicer](../multislicer/README.md#capturas-da-interface)
+[Guia completo e capturas do MultiSlicer](../multislicer/README.md#capturas-da-interface)
 
-## MakePCB
+## MakePCB 0.1.0.0 - manual do usuário
+
+[Manual ilustrado em português (PDF)](../docs/Manuals/Manual_do_Usuario_MakePCB_0.1.0.0_PT-BR.pdf) · [Versão em texto](../docs/Manuals/Manual_do_Usuario_MakePCB_0.1.0.0_PT-BR.md)
+
+Capturas da interface do MakePCB 0.1.0.0: esquema com galeria de símbolos, roteamento automático, 4 vistas de inspeção, editor de footprints, componentes SMD e impressão 1:1. O manual tem 30 páginas e 6 figuras.
 
 | Arquivo | Resolução | Conteúdo |
 |---|---|---|
@@ -96,7 +106,11 @@ referência sincronizado é o MultiSlicer **0.0.6.0**.
 
 [Guia e galeria do MakePCB](../makepcb/README.md)
 
-## MakeRouter
+## MakeRouter 0.1.0.0 - manual do usuário
+
+[Manual ilustrado em português (PDF)](../docs/Manuals/Manual_do_Usuario_MakeRouter_0.1.0.0_PT-BR.pdf) · [Versão em texto](../docs/Manuals/Manual_do_Usuario_MakeRouter_0.1.0.0_PT-BR.md)
+
+Capturas da interface do MakeRouter 0.1.0.0: definição de bloco e 9 pontos de zero virtual, biblioteca de fresas, percursos de perfil com abas (tabs), bolsão com ilhas, furação pica-pau, simulação 3D sombreada e geração de G-code GRBL. O manual tem 30 páginas e 5 figuras.
 
 | Arquivo | Resolução | Conteúdo |
 |---|---|---|

@@ -1,5 +1,7 @@
 # MakeRouter
 
+[Manual ilustrado em português (PDF)](../docs/Manuals/Manual_do_Usuario_MakeRouter_0.1.0.0_PT-BR.pdf) · [Versão em texto](../docs/Manuals/Manual_do_Usuario_MakeRouter_0.1.0.0_PT-BR.md)
+
 > **Estado (08/10/2026):** primeira versão **2,5D** pronta (`bin/makerouter.exe`, instalador
 > 0.05). Já faz material e zero virtual, formas, perfil com pontes, bolsão, furação, gravação,
 > simulação sombreada e G-code para o MultiCNC. **Ainda não tem** V-Carve (fase 5), relevo 3D

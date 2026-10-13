@@ -1,5 +1,7 @@
 # MultiSlicer
 
+[Manual ilustrado em português (PDF)](../docs/Manuals/Manual_do_Usuario_MultiSlicer_0.1.0.0_PT-BR.pdf) · [Versão em texto](../docs/Manuals/Manual_do_Usuario_MultiSlicer_0.1.0.0_PT-BR.md)
+
 Fatiador para impressão 3D integrado ao ecossistema MultiCNC.
 
 > **Estado (13/10/2026, versão 0.1.0.0):** todas as etapas do plano entregues: perfis,

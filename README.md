@@ -10,11 +10,16 @@ O pacote Windows x64 inclui 13 aplicativos, os perfis de laser do MultiCNC, a co
 
 ## Manuais do usuário
 
-[MultiCNC 0.1.0.3 - manual ilustrado em português (PDF)](docs/Manuals/Manual_do_Usuario_MultiCNC_0.1.0.3_PT-BR.pdf) · [Guia de operação](src/app/README.md) · [Capturas atuais do MultiCNC](imgs/manual_multicnc_0_1_0_3/README.md)
+Documentação oficial completa com ilustrações, diagramas e procedimentos operacionais:
 
-[MultiCAD 0.0.8.4 - manual ilustrado em português (PDF)](docs/Manuals/Manual_do_Usuario_MultiCAD_0.0.8.4_PT-BR.pdf) · [Capturas atuais do MultiCAD](imgs/manual_multicad_0_0_8_4/README.md)
+- [MultiCNC 0.1.0.3 - manual ilustrado (PDF)](docs/Manuals/Manual_do_Usuario_MultiCNC_0.1.0.3_PT-BR.pdf) · [Versão em texto](docs/Manuals/Manual_do_Usuario_MultiCNC_0.1.0.3_PT-BR.md) · [Guia do painel](src/app/README.md) · [Capturas atuais](imgs/manual_multicnc_0_1_0_3/README.md)
+- [MultiCAD 0.0.8.4 - manual ilustrado (PDF)](docs/Manuals/Manual_do_Usuario_MultiCAD_0.0.8.4_PT-BR.pdf) · [Guia do MultiCAD](multicad/README.md) · [Capturas atuais](imgs/manual_multicad_0_0_8_4/README.md)
+- [LaserArt 0.02.1 - manual ilustrado (PDF)](docs/Manuals/Manual_do_Usuario_LaserArt_0.02.1_PT-BR.pdf) · [Guia do LaserArt](laserart/README.md) · [Capturas atuais](imgs/manual_laserart_0_02_1/README.md)
+- [MakePCB 0.1.0.0 - manual ilustrado (PDF)](docs/Manuals/Manual_do_Usuario_MakePCB_0.1.0.0_PT-BR.pdf) · [Versão em texto](docs/Manuals/Manual_do_Usuario_MakePCB_0.1.0.0_PT-BR.md) · [Guia do MakePCB](makepcb/README.md) · [Capturas atuais](imgs/README.md#makepcb)
+- [MakeRouter 0.1.0.0 - manual ilustrado (PDF)](docs/Manuals/Manual_do_Usuario_MakeRouter_0.1.0.0_PT-BR.pdf) · [Versão em texto](docs/Manuals/Manual_do_Usuario_MakeRouter_0.1.0.0_PT-BR.md) · [Guia do MakeRouter](makerouter/README.md) · [Capturas atuais](imgs/README.md#makerouter)
+- [MultiSlicer 0.1.0.0 - manual ilustrado (PDF)](docs/Manuals/Manual_do_Usuario_MultiSlicer_0.1.0.0_PT-BR.pdf) · [Versão em texto](docs/Manuals/Manual_do_Usuario_MultiSlicer_0.1.0.0_PT-BR.md) · [Guia do MultiSlicer](multislicer/README.md) · [Capturas atuais](imgs/README.md#multislicer)
 
-[LaserArt 0.02.1 - manual ilustrado em português (PDF)](docs/Manuals/Manual_do_Usuario_LaserArt_0.02.1_PT-BR.pdf) · [Capturas atuais do LaserArt](imgs/manual_laserart_0_02_1/README.md)
+[Índice geral dos manuais da MultiSuite](docs/Manuals/README.md)
 
 ## Uma plataforma integrada para projetar, simular e fabricar
 
@@ -104,11 +109,14 @@ MultiCNC analisa G-code, controla o envio serial/TCP e oferece simulador local; 
 
 | Aplicação | Fluxo implementado |
 |---|---|
-| MultiSuite Bandeja | Painel de atalhos com a aparência restaurada, busca e aplicativos existentes em `bin`; menu de contexto com Abrir painel e Sair. |
-| MultiCNC | Conexão serial/TCP e simulador local, equipamentos salvos, identificação GRBL, análise e prévia, envio confirmado, Frame/Outline, temperaturas e joystick/spindle. |
+| MultiSuite Bandeja | Painel de atalhos com busca e aplicativos existentes em in; menu de contexto com Abrir painel e Sair. |
+| MultiCNC | Versão 0.1.0.3: conexão serial/TCP e simulador local, equipamentos salvos, identificação GRBL, análise e prévia, envio confirmado, Frame/Outline, temperaturas e joystick/spindle. |
 | LaserPCB | Placas Top/Bottom/N camadas, Mesa com equipamentos salvos, componentes compartilhados, tratamentos laser por camada e G-code. |
-| LaserArt | Desenhos, textos, vetores, imagens e camadas para laser; Mesa com equipamentos salvos no MultiCNC. |
-| MultiSlicer | Versão 0.0.7.0: importa STL/3MF, configura impressora, material, qualidade, suportes e aderência; fatia em segundo plano com progresso e cancelamento e mostra percursos em 3D por camada. Prévia e exportação usam o mesmo pipeline e alterações invalidam o resultado anterior. |
+| LaserArt | Versão 0.02.1: desenhos, textos vetoriais, formas, imagens, dithering e camadas para laser; Mesa com equipamentos salvos no MultiCNC. |
+| MakePCB | Versão 0.1.0.0: projeto de circuito impresso do zero, esquema, conversão pad-a-pad, editor de componentes/footprints, 4 vistas, roteamento A*, DRC, BOM CSV, impressão 1:1 e exportação Gerber/Excellon para LaserPCB e RouterPCB. |
+| MakeRouter | Versão 0.1.0.0: CAM 2.5D para madeira, acrílico e metais não-ferrosos; bloco com 9 pontos de zero virtual, biblioteca de fresas, percursos de perfil com pontes, bolsão com ilhas, furação pica-pau, simulação 3D sombreada e G-code GRBL com contrato MultiSuite. |
+| MultiSlicer | Versão 0.1.0.0: fatiador FDM/FFF integrado; perfis de impressoras do MultiCNC, gestão de filamentos e temperaturas, alturas fixas e adaptativas (Cusp Height), infill Gyroid, suportes automáticos e manuais, prévia 3D por camada em segundo plano, projeto .mslice e envio direto ao MultiCNC com conferência de volume. |
+| MultiCAD | Versão 0.0.8.4: modelador CAD 3D paramétrico com solver de restrições geométricas, esboço cotado, operações de extrusão/corte/revolução, Trim, texto vetorial, materiais e exportação STL/3MF direta para o MultiSlicer. |
 
 O MultiCNC concentra a conexão e a execução física. LaserArt e LaserPCB preparam os trabalhos e os enviam ao MultiCNC; o botão Mesa dos dois programas utiliza os equipamentos laser salvos em `multicnc.json`. Veja [perfis e fontes](docs/LASER_PROFILES.md), [Frame](docs/OUTLINE.md), [LaserPCB](laserpcb/README.md) e [LaserArt](laserart/README.md).
 
@@ -329,14 +337,23 @@ botão duplicado de linha de apoio. [Galeria do MultiCAD](multicad/README.md#cap
 
 ### MultiSlicer — preparar a impressão 3D
 
-O [MultiSlicer](multislicer/README.md) prepara modelos para impressão 3D. As imagens
-mostram as configurações de material e a prévia dos percursos por camada.
+O [MultiSlicer](multislicer/README.md) (versão **0.1.0.0**) prepara modelos 3D (STL e 3MF) para manufatura aditiva FDM/FFF, gerando G-code otimizado para Marlin e Klipper com contrato MultiSuite e envio direto ao MultiCNC.
 
-| Material e temperaturas | Percursos por camada |
+[Abrir manual ilustrado em PDF (30 páginas)](docs/Manuals/Manual_do_Usuario_MultiSlicer_0.1.0.0_PT-BR.pdf) · [Versão em texto](docs/Manuals/Manual_do_Usuario_MultiSlicer_0.1.0.0_PT-BR.md)
+
+| Material e temperaturas | Qualidade e camadas |
 |---|---|
-| ![MultiSlicer: material e modelo na mesa](imgs/multislicer_material.png) | ![MultiSlicer: prévia de um anel fatiado](imgs/multislicer_previa.png) |
+| ![MultiSlicer: material e temperaturas](imgs/multislicer_material.png) | ![MultiSlicer: qualidade e camadas](imgs/multislicer_qualidade.png) |
 
-[Galeria do MultiSlicer](multislicer/README.md#capturas-da-interface) · [Índice completo das imagens](imgs/README.md)
+| Suportes e adesão | Prévia 3D por camada |
+|---|---|
+| ![MultiSlicer: suportes e aderência](imgs/multislicer_suporte.png) | ![MultiSlicer: prévia por camada](imgs/multislicer_previa.png) |
+
+| Projeto e saída G-code | Trajetórias acumuladas 3D |
+|---|---|
+| ![MultiSlicer: projeto .mslice e saída](imgs/multislicer_projeto.png) | ![MultiSlicer: prévia 3D de suportes](imgs/ms_preview3d.png) |
+
+[Guia completo do MultiSlicer](multislicer/README.md) · [Índice completo das imagens](imgs/README.md#multislicer)
 
 ---
 
@@ -350,10 +367,13 @@ Os projetos eletrônicos podem posteriormente participar da montagem eletromecâ
 
 Use essas ferramentas quando estiver desenvolvendo **uma placa, circuito ou sistema eletrônico**.
 
-### MakePCB — placa do zero
+### MakePCB — projeto e fabricação de circuitos impressos
 
-O **MakePCB** (`makepcb/`) cria a placa do zero, no estilo do PCB Wizard, e gera os arquivos que o
-**LaserPCB** consome:
+O **MakePCB** (makepcb/, versão **0.1.0.0**) projeta circuitos e placas de circuito impresso (PCI/PCB) do zero, gerando esquemáticos, roteamento A*, DRC, arte final 1:1 e arquivos Gerber RS-274X + Excellon para fabricação a laser (**LaserPCB**) ou usinagem CNC (**RouterPCB**).
+
+[Abrir manual ilustrado em PDF (30 páginas)](docs/Manuals/Manual_do_Usuario_MakePCB_0.1.0.0_PT-BR.pdf) · [Versão em texto](docs/Manuals/Manual_do_Usuario_MakePCB_0.1.0.0_PT-BR.md)
+
+O fluxo de fabricação gera os arquivos que o **LaserPCB** e o **RouterPCB** consomem:
 
 ```text
 MakePCB (esquema + placa) --Gerber + Excellon--> LaserPCB  (isolação a laser) --G-code--> MultiCNC (Laser)
@@ -434,11 +454,11 @@ Use essas ferramentas quando quiser **preparar uma peça para ser usinada**.
 Para **placas de circuito**, use o **RouterPCB**: isolação, furação e recorte de PCB
 a partir do Gerber + Excellon (veja a seção 5). O MultiCAM continua dedicado à usinagem de peças.
 
-### MakeRouter — projetar e usinar madeira
+### MakeRouter — projeto e usinagem CAM 2.5D de madeira e acrílico
 
-O **MakeRouter** (`makerouter/`) é o programa para **peças de madeira, MDF, compensado e
-acrílico**: letreiros, bandejas, painéis de móveis, entalhes. O fluxo de referência é o do Vectric
-Aspire, sem copiá-lo: desenho, relevo e percursos ficam no mesmo programa.
+O **MakeRouter** (makerouter/, versão **0.1.0.0**) é o software CAM 2.5D integrado para **peças de madeira, MDF, compensado, plásticos/acrílico e metais não-ferrosos**: letreiros, bandejas, painéis, caixas e entalhes. Integra desenho vetorial, definição de matéria-prima com 9 pontos de zero virtual, biblioteca de fresas, percursos de perfil com pontes, bolsão com ilhas, furação pica-pau, simulação 3D sombreada e geração de G-code GRBL com contrato MultiSuite e envio direto ao MultiCNC.
+
+[Abrir manual ilustrado em PDF (30 páginas)](docs/Manuals/Manual_do_Usuario_MakeRouter_0.1.0.0_PT-BR.pdf) · [Versão em texto](docs/Manuals/Manual_do_Usuario_MakeRouter_0.1.0.0_PT-BR.md)
 
 ```text
 MakeRouter (material + desenho + relevo + percursos + simulação) --G-code com zero virtual--> MultiCNC (CNC Router)

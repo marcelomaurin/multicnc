@@ -37,3 +37,39 @@ A versão é a do executável MultiCAD. O número do instalador da MultiSuite é
 - Inclui exercício guiado, solução de problemas, atalhos e comportamento dos campos ainda incompletos do processamento laser.
 
 [17 capturas completas](../../imgs/manual_multicnc_0_1_0_3/README.md) · [Guia do painel](../../src/app/README.md)
+
+## MakePCB
+
+[Abrir o manual ilustrado em português](Manual_do_Usuario_MakePCB_0.1.0.0_PT-BR.pdf) · [Versão em texto](Manual_do_Usuario_MakePCB_0.1.0.0_PT-BR.md)
+
+- Versão de referência: **MakePCB 0.1.0.0**, Windows x64.
+- Edição: **13/10/2026**.
+- Formato: PDF A4, **30 páginas**, **28 capítulos**, sumário, **6 figuras** e marcadores de navegação.
+- Conteúdo: fluxo de trabalho, interface, dimensões da placa, editor esquemático e biblioteca de símbolos, fios e redes (nets), conversão de esquema para placa, ligação pad a pad, galeria de componentes, componentes SMD e montagem na face inferior, editor de componentes (footprints do usuário), biblioteca pessoal, 4 vistas de inspeção (Normal, Mundo Real, Sem Componentes e Arte Final), traçado manual de trilhas, áreas de cobre e planos de terra, textos vetoriais, seleção múltipla e blocos, roteamento automático A*, verificação de regras de projeto (DRC), lista de materiais (BOM CSV), exportação Gerber RS-274X e Excellon, impressão 1:1 com calibração em DPI e repetição na folha, integração direta com LaserPCB e RouterPCB.
+- Inclui exercício guiado do oscilador 555 astável, resolução de problemas, atalhos de teclado e especificações técnicas.
+
+[Guia e galeria do MakePCB](../../makepcb/README.md) · [Capturas da interface](../../imgs/README.md#makepcb)
+
+## MakeRouter
+
+[Abrir o manual ilustrado em português](Manual_do_Usuario_MakeRouter_0.1.0.0_PT-BR.pdf) · [Versão em texto](Manual_do_Usuario_MakeRouter_0.1.0.0_PT-BR.md)
+
+- Versão de referência: **MakeRouter 0.1.0.0**, Windows x64.
+- Edição: **13/10/2026**.
+- Formato: PDF A4, **30 páginas**, **28 capítulos**, sumário, **5 figuras** e marcadores de navegação.
+- Conteúdo: fluxo de trabalho CAM 2.5D, interface e vistas ortogonais/isométrica, definição de matéria-prima (bloco) e 9 pontos de zero virtual, biblioteca e cadastro de ferramentas (topo reto, esférica, cônica/V-bit), parâmetros de usinagem (feed rate, plunge rate, spindle RPM, stepover, stepdown), estratégias de contorno (Profile interno/externo com abas de retenção - Tabs), estratégias de desbaste e cavidades (Pocket com ilhas e rampa em hélice), furação e furação profunda pica-pau (Peck Drilling com retração), gravação V-Carve e chanfros, simulação 3D sombreada e verificação volumétrica, validação de limites físicos e colisões de haste, pós-processamento e geração de G-code GRBL, envio e integração direta com o MultiCNC.
+- Inclui exercício guiado de usinagem de placa com rebaixo, solução de problemas, atalhos de teclado e especificações técnicas.
+
+[Guia do MakeRouter](../../makerouter/README.md) · [Capturas da interface](../../imgs/README.md#makerouter)
+
+## MultiSlicer
+
+[Abrir o manual ilustrado em português](Manual_do_Usuario_MultiSlicer_0.1.0.0_PT-BR.pdf) · [Versão em texto](Manual_do_Usuario_MultiSlicer_0.1.0.0_PT-BR.md)
+
+- Versão de referência: **MultiSlicer 0.1.0.0**, Windows x64.
+- Edição: **13/10/2026**.
+- Formato: PDF A4, **30 páginas**, **28 capítulos**, sumário, **5 figuras** e marcadores de navegação.
+- Conteúdo: fluxo de trabalho de fatiamento 3D FDM/FFF, interface e navegação na mesa virtual, importação de modelos STL (ASCII/binário), 3MF e integração com MultiCAD, conferência e reparo automático de malhas (não-manifold, normais invertidas), manipulação espacial (posição, escala, rotação, espelho), arranjo automático (auto-arrange) de lotes de peças, perfis de impressoras 3D integrados ao catálogo do MultiCNC e ajuste manual, configuração de filamentos (PLA, PETG, ABS, TPU), gestão térmica (bico, mesa, ventilação de peça), alturas de camada fixas e adaptativas (Cusp Height), perímetros/paredes e alinhamento de costura (Z-seam), superfícies sólidas de topo/fundo e anti-pillowing, padrões de preenchimento estrutural (Gyroid isotrópico, retilíneo), suportes automáticos e manuais (hastes pontuais e bloqueadores de exclusão), estratégias de adesão (saia/skirt, aba/brim e jangada/raft), controle de retração, Z-hop e anti-stringing, motor de fatiamento em segundo plano (não-bloqueante), inspeção da prévia 3D por camada com legenda de cores, estimativas de tempo e massa de filamento, projeto nativo .mslice, pós-processamento para firmwares Marlin e Klipper (M73, M486, Exclude Object, Arc Fitting G2/G3), contrato de metadados MultiSuite e envio direto ao MultiCNC com verificação de limites da mesa.
+- Inclui exercício guiado do suporte mecânico, guia de calibração de fluxo, diagnóstico de problemas e tabela de atalhos.
+
+[Guia do MultiSlicer](../../multislicer/README.md) · [Capturas da interface](../../imgs/README.md#multislicer)
