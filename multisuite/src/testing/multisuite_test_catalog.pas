@@ -67,6 +67,7 @@ function DefaultTestCatalog:TTestDefinitions;begin SetLength(Result,0);
  Add(Result,'MultiSuite','workspace validation','multisuite/tests/test_workspace_validation.lpr','multisuite/tests/test_workspace_validation');
  Add(Result,'MultiCNC','gcode trace','tests/test_gcode_trace.lpr','tests/test_gcode_trace');
  Add(Result,'MultiCNC','session','tests/test_session.lpr','tests/test_session');
+ Add(Result,'MultiCNC','Zero pelo bloco e espessura com folga','tests/test_zero_assist.lpr','tests/test_zero_assist');
  Add(Result,'MultiCNC','G-code do MultiSlicer no simulador Marlin','tests/test_multislicer_print.lpr','tests/test_multislicer_print');
 
 

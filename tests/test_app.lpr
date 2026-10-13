@@ -1,12 +1,12 @@
 program test_app;
 {$mode objfpc}{$H+}
-uses Interfaces, Forms, Controls, StdCtrls, ComCtrls, SysUtils, Classes, LCLType, mainform,
+uses Interfaces, Forms, Controls, StdCtrls, ComCtrls, Spin, multicnc_zeroassist_form, SysUtils, Classes, LCLType, mainform,
   multisuite_controls, multicnc_gcode_analyzer;
 var F: TMainForm; I, FirstMatch, SecondMatch: Integer;
   ConnectButton, StartButton, JogZ, PauseButton, StopButton: TSuiteButton;
   ProgramView, Console: TMemo; Search: TEdit; FindNext: TSuiteButton;
   Brand, Model, Protocol: TComboBox;
-  Lines: TStringList; FN: string; Key: Word; Env: TMachineEnvelope;
+  Lines: TStringList; FN: string; Key: Word; Env: TMachineEnvelope; ZA: TZeroAssistForm; T0: QWord; Msg: string; Raised: Boolean;
 procedure Check(Value: Boolean; const Msg: string);
 begin
   if not Value then raise Exception.Create(Msg);
@@ -85,6 +85,34 @@ begin
     StopButton.Click;
     F.OnDropFiles(F, [FN]);
     Check(Pos('X999', ProgramView.Text) > 0, 'Drop allowed after stop');
+    { zero pelo bloco (router): canto do bloco em X/Y, topo em Z, espessura com folga }
+    Lines.Text := 'G21' + LineEnding + 'G90' + LineEnding + 'G0 Z5' + LineEnding + 'M3 S10000' + LineEnding +
+      'G0 X12.5 Y8' + LineEnding + 'G1 Z-15 F200' + LineEnding + 'G1 X40 F800' + LineEnding + 'G1 Y30' + LineEnding +
+      'G0 Z5' + LineEnding + 'M5';
+    Lines.SaveToFile(FN);
+    F.OnDropFiles(F, [FN]);
+    Check(TSuiteButton(F.FindComponent('ZeroAssist')).Visible and TSuiteButton(F.FindComponent('ZeroAssist')).Enabled,
+      'zero-from-block assistant available for the router');
+    TSuiteButton(F.FindComponent('ZeroAssist')).Click;
+    ZA := nil;
+    for I := 0 to Screen.FormCount - 1 do
+      if Screen.Forms[I] is TZeroAssistForm then ZA := TZeroAssistForm(Screen.Forms[I]);
+    Check((ZA <> nil) and ZA.Block.Valid and (ZA.Block.X0 = 12.5) and (ZA.Block.Y0 = 8), 'block placed by the cut area');
+    T0 := GetTickCount64;
+    while not TSuiteButton(ZA.FindComponent('ZeroApplyXY')).Enabled and (GetTickCount64 - T0 < 5000) do
+    begin Application.ProcessMessages; Sleep(20); end;
+    TFloatSpinEdit(ZA.FindComponent('ZeroThickness')).Value := 16.5;
+    Check(not ZA.DepthOK(Msg) and (Pos('quebrar', Msg) > 0), 'cut of 15 mm in a 16.5 mm block (2 mm clearance) is refused');
+    Raised := False;
+    try ZA.ApplyXY; except Raised := True; end;
+    Check(Raised and (ZA.LastCommand = ''), 'zero not applied while the cut is too deep');
+    TFloatSpinEdit(ZA.FindComponent('ZeroThickness')).Value := 18;
+    Check(ZA.DepthOK(Msg), 'cut of 15 mm in an 18 mm block is allowed');
+    ZA.ApplyXY;
+    Check(ZA.LastCommand = 'G92 X12.5 Y8', 'XY zero from the block corner: ' + ZA.LastCommand);
+    ZA.ApplyZ;
+    Check(ZA.LastCommand = 'G92 Z0', 'Z zero at the block top: ' + ZA.LastCommand);
+    ZA.Close;
     { A renamed printer file must not start under the selected GRBL profile. }
     Lines.Text:='; disguised printer program'+LineEnding+'G21'+LineEnding+'M82'+LineEnding+'G1 X10 F500';
     Lines.SaveToFile(FN);F.OnDropFiles(F,[FN]);
@@ -125,7 +153,7 @@ begin
     TSuiteButton(F.FindComponent('ClearConsole')).Click;
     F.OnDropFiles(F, [FN]);
     Check(Pos('nao cabem no volume', Console.Text) > 0, 'oversized job warned');
-    WriteLn('MultiCNC GUI: OK (connection, search, UTF-8, shortcuts, file drop guards, console, GRBL compatibility warning, MultiSlicer printer jobs)');
+    WriteLn('MultiCNC GUI: OK (connection, search, UTF-8, shortcuts, file drop guards, console, GRBL compatibility warning, MultiSlicer printer jobs, zero from block and depth check)');
   finally
     F.Free;
     Lines.Free;
