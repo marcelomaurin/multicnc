@@ -688,7 +688,7 @@ begin
     if (FToolpaths = nil) or (FToolpaths.LayerCount = 0) then HelpText := 'Fatie para ver as camadas'
     else HelpText := 'Arraste para girar  |  Shift: deslocar  |  roda: zoom  |  F: enquadrar  |  camada: deslizante acima';
     Canvas.TextOut(90, ClientHeight - 22, HelpText);
-    DrawLegend;
+    if (FToolpaths <> nil) and (FToolpaths.LayerCount > 0) then DrawLegend;
     Exit;
   end;
   if (FScene = nil) or (FScene.Count = 0) then

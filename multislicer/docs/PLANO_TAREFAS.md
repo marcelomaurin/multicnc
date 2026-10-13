@@ -332,18 +332,29 @@ maquina Impressora 3D selecionada; simulacao executa ate o fim.
 
 ## Etapa 9 - Importacao, testes e limpeza
 
-- [ ] 9.1 Abrir STL e 3MF na tela; arrastar arquivo para a janela.
-- [ ] 9.2 Aviso de malha nao fechada, normais invertidas, peca fora da escala (ex.: polegadas).
-- [ ] 9.3 Receber malha exportada pelo MultiCAD (contexto da suite).
-- [ ] 9.4 Testes automatizados (`tests/`): transformacao e caixa envolvente, lay flat, cena com varios objetos,
+- [x] 9.1 Abrir STL e 3MF na tela; arrastar arquivo para a janela.
+- [x] 9.2 Aviso de malha nao fechada, normais invertidas, peca fora da escala (ex.: polegadas).
+- [x] 9.3 Receber malha exportada pelo MultiCAD (contexto da suite).
+- [x] 9.4 Testes automatizados (`tests/`): transformacao e caixa envolvente, lay flat, cena com varios objetos,
       deteccao de saliencia, geracao de suporte, brim, cabecalho/contrato, perfis JSON, regressao do
       `test_modern_slicer`.
-- [ ] 9.5 Registrar os testes no Centro de Testes da suite (`multisuite_test_catalog`).
-- [ ] 9.6 Remover `multislicer_engine.pas`, `multislicer_gcode.pas`, `multislicer_position.*`,
+- [x] 9.5 Registrar os testes no Centro de Testes da suite (`multisuite_test_catalog`).
+- [x] 9.6 Remover `multislicer_engine.pas`, `multislicer_gcode.pas`, `multislicer_position.*`,
       `multislicer_positionform.pas` e `multislicer_bedcanvas.pas` se nao forem mais usados.
-- [ ] 9.7 Atualizar `README.md`, `docs/ARCHITECTURE.md`, `docs/AI_GUIDE.md`, `docs/POSICIONAMENTO_3D.md`
+- [x] 9.7 Atualizar `README.md`, `docs/ARCHITECTURE.md`, `docs/AI_GUIDE.md`, `docs/POSICIONAMENTO_3D.md`
       e as capturas em `screenshots/`.
-- [ ] 9.8 Gerar `bin/multislicer.exe` e incluir no instalador.
+- [x] 9.8 Gerar `bin/multislicer.exe` e incluir no instalador.
+
+**Entregue (2026-10-13), versao 0.0.9.0.** Arrastar STL/3MF/.mslice para a janela; conferencia da malha
+(`multislicer_meshcheck`: malha aberta, nao manifold, normais invertidas corrigidas, peca em polegadas ou
+enorme) com botao Polegadas para mm; MultiCAD ja abre a peca no MultiSlicer pelo contexto da suite
+(`--file`); testes `test_meshcheck` e desempenho do suporte (`test_support`); Centro de Testes com todos os
+testes do MultiSlicer; removidos `multislicer_engine`, `multislicer_gcode`, `multislicer_layerpreview` e
+`src/layout` (o `test_locale_invariant` passou a usar o fatiador moderno); README, ARCHITECTURE,
+AI_GUIDE e POSICIONAMENTO_3D atualizados, capturas novas em `screenshots/`. O instalador (setup) e
+montado pelo processo de setup da suite com o `bin/multislicer.exe` atual.
+Correcao encontrada nas capturas: o fechamento das colunas de suporte com cantos redondos acumulava
+vertices e levava 3,6 s num T simples; com cantos vivos, 54 ms.
 
 **Aceite:** todos os testes passam; documentacao reflete o programa entregue.
 

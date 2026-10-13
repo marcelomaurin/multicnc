@@ -1,20 +1,16 @@
 # Posicionamento 3D
 
-Preparação dos modelos antes do slicing.
+Feito por `multislicer_scene` (núcleo, sem tela) e pela etapa **Modelo** da janela.
 
-Implementado no núcleo:
-- múltiplos modelos
-- posição X/Y/Z
-- rotação X/Y/Z
-- escala por eixo
-- centralização
-- volume da impressora X/Y/Z
-- margem e espaçamento
-- detecção inicial de colisão por bounding box
-- auto-arrange por linhas
-- transformação 3D dos vértices
+- várias peças na mesa; cada uma entra num lugar livre, apoiada em Z = 0;
+- mover (arrastar na vista ou campos X/Y), girar em X/Y/Z (campos ou +90), escalar por eixo
+  ou uniforme (% ou mm), espelhar;
+- **deitar na mesa**: automático (maior face plana) ou escolhendo a face na vista;
+- duplicar com N cópias, organizar a mesa, centralizar, travar peça;
+- desfazer/refazer (Ctrl+Z / Ctrl+Y) de posição, rotação, escala e espelho;
+- validação: peça fora do volume fica vermelha e reprova o trabalho;
+- **Polegadas para mm (x 25,4)** para arquivos exportados em polegadas;
+- a caixa envolvente é recalculada pela malha transformada (vale para qualquer rotação).
 
-A validação deve ocorrer antes do slicing.
-
-## Limitações atuais
-O bounding box considera corretamente a rotação Z para a ocupação XY, mas ainda não recalcula o AABB completo após rotações X/Y. Auto-arrange é simples e não otimiza área. Lay Flat automático ainda será implementado a partir das faces da malha.
+As hastes de apoio ficam presas à peça (seguem ao arrastar) e deixam de valer se a peça
+muda de forma (girar, escalar, espelhar).

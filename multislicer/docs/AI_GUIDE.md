@@ -4,26 +4,15 @@
 MultiSlicer prepara modelos 3D para impressao 3D.
 
 ## Estrutura atual
-- core/multislicer_types.pas: tipos.
-- core/multislicer_mesh.pas: malha (cresce em blocos).
-- core/multislicer_scene.pas: cena com varias pecas, transformacoes e malha unica para fatiar.
-- core/multislicer_engine.pas: motor de slicing.
-- core/multislicer_profile.pas: perfil base do pipeline.
-- core/multislicer_printers.pas / multislicer_materials.pas: perfis de impressora e filamento (prontos + JSON do usuario).
-- core/multislicer_machines.pas: catalogo por marca/modelo (volume, extrusora, limites de temperatura, nivelamento, velocidades, retracao, G-code inicial/final). O combo 'SavedEquipment' no topo le as impressoras 3D do cadastro do MultiCNC (multicnc_equipment) e completa o perfil; teste: tests/test_machines.
-- ui/multislicer_toolpath3d.pas: previa 3D das trajetorias (fitas por camada/papel, montadas sob demanda); a TSlicerView3D mostra no modo PreviewMode, a 2D (multislicer_view) fica como opcao.
-- core/multislicer_project.pas: projeto .mslice (cena + configuracoes da tela em JSON); a tela monta/le as configuracoes em ProjectSettingsJSON/ApplyProjectSettings.
-- core/multislicer_support.pas: suportes (saliencia, coluna, hastes, bloqueadores, interface).
-- core/multislicer_clip.pas: booleanas e offset de regioes com a Clipper2 (src/shared/clipper2).
-- core/multislicer_quality.pas: perfis de qualidade (Fino/Normal/Rascunho + JSON do usuario).
-- core/multislicer_userdata.pas: pasta de configuracao e leitura/gravacao JSON.
-- import/multislicer_stl.pas: importacao STL.
-- layout/: posicionamento, transformacao e arranjo 3D.
-- export/multislicer_gcode.pas: G-code.
-- ui/multislicer_view3d.pas: mesa em 3D (renderizador por software do MultiCAD, via multicad/src/core|kernel|ui no .lpi).
-- ui/multislicer_view.pas: previa de camadas 2D.
-- app/: aplicacao e posicionamento.
-- tests/test_layout3d.lpr.
+Ver docs/ARCHITECTURE.md (tabela por unidade). Pontos de entrada:
+- core/multislicer_pipeline.pas: TModernSlicer.Slice (unico motor; o antigo multislicer_engine foi removido).
+- core/multislicer_scene.pas: cena e transformacoes.
+- core/multislicer_project.pas: projeto .mslice; a tela monta/le as configuracoes em ProjectSettingsJSON/ApplyProjectSettings.
+- core/multislicer_meshcheck.pas: conferencia da malha ao abrir (OpenFile).
+- core/multislicer_machines.pas: catalogo por marca/modelo; o combo 'SavedEquipment' no topo le as impressoras 3D do cadastro do MultiCNC (multicnc_equipment).
+- ui/multislicer_view3d.pas + ui/multislicer_toolpath3d.pas: mesa 3D e previa das trajetorias (PreviewMode).
+- app/multislicer_main.pas: tela; GenerateProgram fatia numa TSliceThread (Esc/Cancelar).
+- tests/: test_modern_slicer, test_scene, test_support, test_machines, test_meshcheck, test_slicer_app.
 
 ## Responsabilidade
 Importar modelo, posicionar na mesa, aplicar transformacoes, definir perfil, fatiar e gerar G-code de impressao.

@@ -3,7 +3,7 @@ program test_slicer_app;
 uses {$IFDEF UNIX}cthreads,{$ENDIF} Interfaces, Forms, Classes, SysUtils, Math, Spin, StdCtrls, multislicer_main,
   multislicer_mesh, multislicer_pipeline, multislicer_stl, multislicer_types,
   multislicer_userdata, multislicer_materials, multislicer_scene, multicad_camera, multislicer_quality,
-  multicnc_types, multicnc_equipment, ExtCtrls, Controls;
+  multicnc_types, multicnc_equipment, ExtCtrls, Controls, multislicer_meshcheck;
 var F: TMultiSlicerForm; Mesh: TMesh; G: TStringList; A, B: TVec3; Bx: TBox3; Pt: TPoint; T0: QWord;
   FN2, FNBig: string; I, J: Integer; Tri: TTriangle; LFino, LNormal, LRasc: Integer; TFino, TNormal, TRasc: Double;
   QD: TQualityDef; PX, PY, PZ, PD, PX0: Double; NSup: Integer; Blk: TSceneBlocker;
@@ -395,6 +395,22 @@ begin
     DeleteFile(PDir + '_movido' + PathDelim + 'modelos' + PathDelim + 'barra.stl');
     DeleteFile(PDir + '_movido' + PathDelim + 'modelos' + PathDelim + 'cubo.stl');
     RemoveDir(PDir + '_movido' + PathDelim + 'modelos'); RemoveDir(PDir + '_movido');
+    { conferencia da malha ao abrir e arrastar arquivos (Etapa 9) }
+    F.NewProject;
+    Mesh.Clear; AddBox(Mesh, 0, 0, 0, 1, 0.5, 0.25);
+    for I := 0 to Mesh.Count - 1 do begin Tri := Mesh.Triangle(I); Bx.Min := Tri.B; Tri.B := Tri.C; Tri.C := Bx.Min; Mesh.SetTriangle(I, Tri); end;
+    TSTLImporter.SaveBinary(Mesh, FN + '_pol.stl');
+    F.DropFiles([FN + '_pol.stl', FN]);
+    DeleteFile(FN + '_pol.stl');
+    Check(F.Scene.Count = 1, 'dropped STL lands on the bed, other files ignored');
+    Check(F.LastMeshReport.Units = muTiny, 'tiny part flagged as inches');
+    Check(F.LastMeshReport.Volume < 0, 'inverted normals detected');
+    Check(F.Scene[0].Source.Triangle(0).B.X = Mesh.Triangle(0).C.X, 'inverted normals fixed on load');
+    Check(Pos('polegadas', TMemo(F.FindComponent('SliceOutput')).Text) > 0, 'inch warning in the log');
+    Check(Pos('Normais invertidas', TMemo(F.FindComponent('SliceOutput')).Text) > 0, 'normals fix in the log');
+    F.ConvertInches;
+    Check(SameValue(F.Scene[0].Size.X, 25.4, 1e-6) and SameValue(F.Scene[0].Size.Z, 6.35, 1e-6), 'inches to mm');
+    Check(F.ValidateJob, 'converted part validates');
     { equipamento do MultiCNC no topo: marca/modelo completam o perfil }
     EqBox := F.Equipment;
     Check((EqBox.Items.Count = 3) and (EqBox.Items[0] = 'Ajuste manual') and (EqBox.Items.IndexOf('Router da oficina') < 0),
@@ -421,7 +437,7 @@ begin
     Check(not F.HasMachine and (F.CurrentPrinter.Name = ReadLastChoice('printer')) and
       (ReadLastChoice('printer') <> 'Minha S1'), 'manual returns to the last printer profile chosen by hand');
     DeleteFile(FN2); DeleteFile(FNBig);
-    Writeln('MultiSlicer GUI: OK (suite UI, centering, validation, profiles, start/end G-code, persistence, 3D scene, picking, transform panel, undo, labels, quality profiles, supports, pillars, blockers, brim, raft, layers, export)');
+    Writeln('MultiSlicer GUI: OK (suite UI, centering, validation, profiles, start/end G-code, persistence, 3D scene, picking, transform panel, undo, labels, quality profiles, supports, pillars, blockers, brim, raft, layers, export, 3D preview, threaded slicing, project, mesh check, drag and drop, equipment)');
   finally F.Free; Mesh.Free; DeleteFile(ProfileDir + PathDelim + 'multislicer.json'); RemoveDir(ProfileDir + PathDelim + 'materials'); RemoveDir(ProfileDir + PathDelim + 'quality'); RemoveDir(ProfileDir); G.Free; DeleteFile(FN); DeleteFile(Output); DeleteFile(BadOutput); DeleteFile(EqFile); DeleteFile(EqFile + '.bak'); end;
   except on E: Exception do begin Writeln('FAIL: ', E.Message); Halt(1); end; end;
 end.

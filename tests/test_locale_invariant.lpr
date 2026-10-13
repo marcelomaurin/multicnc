@@ -5,8 +5,7 @@ program test_locale_invariant;
 uses
   Classes, SysUtils, multisuite_numfmt,
   multicam_types, multicam_job, multicam_gcode,
-  multislicer_types, multislicer_mesh, multislicer_stl, multislicer_engine,
-  multislicer_profile, multislicer_gcode,
+  multislicer_types, multislicer_mesh, multislicer_stl, multislicer_pipeline,
   makepcb_model, makepcb_library, makepcb_gerber,
   laserpcb_types, laserpcb_job, laserpcb_gcode, laserpcb_svg,
   multicnc_visualizer;
@@ -72,9 +71,9 @@ begin
 end;
 
 procedure TestMultiSlicer;
-var S: TStringList; M: TMesh; Layers: TList; Sl: TSlicer; I: Integer; FN: string;
+var S, G: TStringList; M: TMesh; Sl: TModernSlicer; St: TSliceSettings; FN: string;
 begin
-  S := TStringList.Create; M := TMesh.Create; Layers := TList.Create;
+  S := TStringList.Create; G := TStringList.Create; M := TMesh.Create;
   try
     S.Add('solid t');
     S.Add(' facet normal 0 0 1'); S.Add('  outer loop');
@@ -84,15 +83,19 @@ begin
     Check(TSTLImporter.LoadASCII(Dir + 'tri.stl', M), 'STL carregado');
     Check((M.Count = 1) and (Abs(M.Triangle(0).B.X - 10.5) < 1e-9) and (Abs(M.Triangle(0).B.Z - 2.5) < 1e-9),
       'STL leu coordenadas com ponto decimal');
-    Sl := TSlicer.Create;
-    try Sl.Slice(M, 0.5, Layers); finally Sl.Free; end;
-    Check(Layers.Count > 0, 'fatiou camadas');
+    { fatiador moderno (o mesmo do programa) sobre um bloco com medidas quebradas }
+    M.Clear;
+    AddBox(M, 100.25, 100.75, 0, 120.5, 115.125, 3.3);
+    St := DefaultSliceSettings;
+    St.LayerHeight := 0.15; St.FirstLayerHeight := 0.25;
+    Sl := TModernSlicer.Create;
+    try Sl.Slice(M, St, G); finally Sl.Free; end;
+    Check(G.Count > 100, 'fatiou e gerou G-code');
     FN := Dir + 'slice.gcode';
-    TSlicerGCode.ExportLayers(Layers, DefaultPrinterProfile, FN);
+    G.SaveToFile(FN);
     CheckNoDecimalComma(FN, 'MultiSlicer');
   finally
-    for I := 0 to Layers.Count - 1 do TObject(Layers[I]).Free;
-    Layers.Free; M.Free; S.Free;
+    M.Free; G.Free; S.Free;
   end;
 end;
 

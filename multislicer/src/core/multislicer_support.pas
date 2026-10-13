@@ -133,8 +133,11 @@ begin
     { fechamento: em superficie curva a coluna e uma pilha de aneis com frestas
       finas entre eles; junta tudo (como "support join distance" do Cura) e so
       depois desconta a peca com a folga XY }
-    if P.JoinDistance > 0 then Need := RegionOffset(RegionOffset(Need, P.JoinDistance / 2), -P.JoinDistance / 2);
-    S[I] := RegionDifference(Need, RegionOffset(Block, P.XYGap));
+    { cantos vivos (miter): o fechamento com cantos redondos acumulava
+      vertices camada a camada e cada offset ficava mais lento }
+    if P.JoinDistance > 0 then
+      Need := RegionOffsetMiter(RegionOffsetMiter(Need, P.JoinDistance / 2), -P.JoinDistance / 2);
+    S[I] := RegionSimplify(RegionDifference(Need, RegionOffset(Block, P.XYGap)), 0.01);
     { 3. bloqueadores }
     for K := 0 to High(P.Blockers) do
       with P.Blockers[K] do

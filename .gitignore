@@ -24,7 +24,6 @@ __pycache__/
 /multicam/tests/test_pcb_outside_heightmap
 /multicam/tests/test_pcb_segmented_heightmap
 /multicam/tests/test_profile
-/multislicer/tests/test_layout3d
 /tests/test_simulator
 /tests/test_streaming
 /tests/test_locale_invariant

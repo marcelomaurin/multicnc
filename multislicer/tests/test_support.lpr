@@ -110,7 +110,7 @@ begin
 end;
 
 var M: TMesh; S: TModernSlicer; St: TSliceSettings; G: TStringList; R: TSliceReport; T: TStats;
-  O: TPolygons2D; A, B: TPolygons2D; I: Integer; FirstModelZ: Double;
+  O: TPolygons2D; A, B: TPolygons2D; I: Integer; FirstModelZ: Double; T0: QWord;
 begin
   M := TMesh.Create; S := TModernSlicer.Create; G := TStringList.Create;
   try
@@ -225,6 +225,14 @@ begin
     I := Pos(';TYPE:Raft', G.Text);
     Check((I > 0) and (I < Pos(';TYPE:External perimeter', G.Text)), 'raft printed before the part');
 
+    { desempenho: T de 26 mm com suporte automatico (antes 3,6 s so no suporte:
+      o fechamento com cantos redondos acumulava vertices) }
+    M.Clear; AddBox(M, 104, 104, 0, 116, 116, 20); AddBox(M, 85, 104, 20, 135, 116, 26);
+    St := DefaultSliceSettings; St.Support := DefaultSupportParams; St.Support.Mode := spAuto;
+    T0 := GetTickCount64;
+    R := S.Slice(M, St, G);
+    Check((R.SupportPaths > 0) and (R.MSSupport < 1000), Format('support stays fast (%d ms)', [R.MSSupport]));
+    Writeln(Format('  suporte do T: %d ms (fatiamento %d ms)', [R.MSSupport, GetTickCount64 - T0]));
     Writeln('MultiSlicer suportes: OK (saliencia, coluna, folga XY/Z, interface, bloqueador, haste manual, tocando a mesa x toda parte, superficie curva, saia envolve suporte, aba, jangada)');
   finally
     M.Free; S.Free; G.Free;

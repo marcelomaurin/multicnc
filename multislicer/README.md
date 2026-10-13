@@ -2,12 +2,14 @@
 
 Fatiador para impressão 3D integrado ao ecossistema MultiCNC.
 
-> **Estado (12/10/2026, versão 0.0.7.0):** perfis de impressora e material,
-> cena com múltiplos modelos, posicionamento, qualidade, suportes e aderência,
-> prévia 3D por camada e fatiamento em segundo plano com progresso e cancelamento.
-> As entregas até a etapa 7 estão integradas ao executável `bin/multislicer.exe`.
-> O detalhamento e as próximas etapas estão em
-> [docs/PLANO_TAREFAS.md](docs/PLANO_TAREFAS.md).
+> **Estado (13/10/2026, versão 0.0.9.0):** perfis de impressora e material,
+> equipamento do MultiCNC no topo com catálogo por marca e modelo, cena com várias
+> peças, posicionamento, qualidade, suportes e aderência, prévia 3D por camada,
+> fatiamento em segundo plano com progresso e cancelamento, projeto `.mslice`,
+> conferência da malha ao abrir e arrastar arquivos para a janela.
+> O executável é `bin/multislicer.exe`. Pendente: o lado do MultiCNC
+> (reconhecer o G-code do MultiSlicer e selecionar a impressora 3D sozinho, etapa 8D).
+> Plano e histórico: [docs/PLANO_TAREFAS.md](docs/PLANO_TAREFAS.md).
 
 ## Capturas da interface
 
@@ -29,7 +31,11 @@ As capturas das entregas publicadas também estão em `screenshots`:
 |---|---|
 | ![MultiSlicer: qualidade e perfis](../screenshots/multislicer_qualidade.png) | ![MultiSlicer: suportes e aderência](../screenshots/multislicer_suporte.png) |
 
-[Modelo](../screenshots/multislicer_modelo.png) · [Mesa 3D](../screenshots/multislicer_mesa3d.png) · [Material](../screenshots/multislicer_material.png) · [Prévia](../screenshots/multislicer_previa.png)
+| Prévia 3D (0.0.9.0) | Projeto e saída |
+|---|---|
+| ![MultiSlicer: prévia 3D com suportes e saia](../screenshots/multislicer_previa3d.png) | ![MultiSlicer: etapa Saída com projeto .mslice](../screenshots/multislicer_projeto.png) |
+
+[Fatiando com progresso e Cancelar](../screenshots/multislicer_fatiando.png) · [Modelo](../screenshots/multislicer_modelo.png) · [Mesa 3D](../screenshots/multislicer_mesa3d.png) · [Material](../screenshots/multislicer_material.png) · [Prévia](../screenshots/multislicer_previa.png)
 
 [Índice completo das imagens da suíte](../imgs/README.md)
 
@@ -54,8 +60,27 @@ de movimento dentro da camada e as marcas de retração ainda estão previstos.
 |---|---|
 | ![Prévia 3D dos percursos e suportes](../imgs/ms_preview3d.png) | ![Camada isolada com preenchimento e suportes](../imgs/ms_preview3d_layer.png) |
 
+## Projeto, arquivos e envio ao MultiCNC (0.0.9.0)
+
+- **Abrir:** botão Abrir, Ctrl+O, linha de comando ou **arrastar** STL, 3MF ou `.mslice`
+  para a janela. Peças vindas do MultiCAD ("Abrir no MultiSlicer") entram pelo contexto
+  da suíte.
+- **Conferência da malha:** ao abrir, normais invertidas são corrigidas sozinhas; malha
+  aberta ou não manifold e peça muito pequena (provável polegada) ou enorme aparecem no
+  rodapé e no registro. **Polegadas para mm (x 25,4)** fica na etapa Modelo, em Escalar.
+- **Projeto `.mslice`** (etapa Saída, Ctrl+S): peças com posição, rotação, escala, espelho
+  e trava, hastes, bloqueadores, impressora, material, qualidade, suporte, aderência e
+  equipamento. O projeto aponta para os STL/3MF (caminho relativo e absoluto): a pasta
+  pode ser movida inteira. O título mostra o nome e `*` quando há alterações; o programa
+  pergunta antes de descartar.
+- **G-code:** nome sugerido pelo projeto. A primeira linha é
+  `; MultiSlicer -> MultiCNC (Impressora 3D)`, seguida das linhas `; MS-...` do contrato da
+  suíte (máquina `printer3d`, caixa das peças, impressora, material, temperaturas, tempo e
+  filamento) e do cabeçalho lido por OctoPrint/Moonraker.
+- **Abrir no MultiCNC** gera o G-code antes, se preciso, e abre o MultiCNC com ele.
+
 ## Fluxo
-STL/3MF -> malha -> orientação/escala -> camadas -> perímetros/infill/suportes -> preview -> G-code -> MultiCNC.
+STL/3MF -> conferência da malha -> cena (posição/escala/rotação) -> camadas -> paredes/topo-fundo/preenchimento/suportes/aderência -> prévia 3D -> G-code com contrato da suíte -> MultiCNC.
 
 ## Separação
 MultiSlicer prepara o trabalho. MultiCNC conecta e controla a impressora.

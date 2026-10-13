@@ -26,11 +26,11 @@ uses
   multislicer_3mf, multislicer_profile, multislicer_pipeline, multislicer_view,
   multislicer_printers, multislicer_materials, multislicer_userdata,
   multislicer_scene, multislicer_view3d, multislicer_toolpath3d, multicad_camera, multislicer_quality, multislicer_support,
-  multisuite_controls, multisuite_icons, multislicer_machines, multicnc_types, multicnc_equipment, fpjson, multislicer_project;
+  multisuite_controls, multisuite_icons, multislicer_machines, multicnc_types, multicnc_equipment, fpjson, multislicer_project, multislicer_meshcheck;
 
 const
   { manter igual ao VersionInfo do multislicer.lpi (revisao = etapa do PLANO_TAREFAS) }
-  MS_VERSION = '0.0.7.1';
+  MS_VERSION = '0.0.9.0';
   MS_STEP_COUNT = 7;
   MS_STEPS: array[0..MS_STEP_COUNT - 1] of string = ('1  Impressora', '2  Modelo',
     '3  Material', '4  Qualidade', '5  Suportes', '6  Previa', '7  Saida');
@@ -99,6 +99,7 @@ type
     FProjectFile: string;
     FDirty, FLoadingProject: Boolean;
     FAskSave: Boolean;
+    FLastMeshReport: TMeshReport;
     { equipamento do MultiCNC (combo no topo) }
     FHeader: TSuiteHeader;
     EquipmentBox: TComboBox;
@@ -175,6 +176,8 @@ type
     procedure PreviewOptionChange(Sender: TObject);
     procedure CancelSliceClick(Sender: TObject);
     procedure NewProjectClick(Sender: TObject);
+    procedure InchClick(Sender: TObject);
+    procedure FormDropFiles(Sender: TObject; const FileNames: array of string);
     procedure OpenProjectClick(Sender: TObject);
     procedure SaveProjectClick(Sender: TObject);
     procedure SaveProjectAsClick(Sender: TObject);
@@ -290,6 +293,11 @@ type
     property Slicing: Boolean read FSlicing;
     { projeto .mslice }
     procedure NewProject;
+    { arquivos arrastados para a janela: modelos entram na mesa, .mslice abre }
+    procedure DropFiles(const FileNames: array of string);
+    { converte as pecas selecionadas de polegadas para mm }
+    procedure ConvertInches;
+    property LastMeshReport: TMeshReport read FLastMeshReport;
     procedure OpenProject(const FN: string);
     procedure SaveProjectAs(const FN: string);
     property ProjectFile: string read FProjectFile;
@@ -473,6 +481,8 @@ begin
   CancelBtn.Hint := 'Parar o fatiamento (Esc)';
   CancelBtn.Visible := False;
   OnCloseQuery := @FormCloseQuery;
+  AllowDropFiles := True;
+  OnDropFiles := @FormDropFiles;
 
   Sidebar := TPanel.Create(Self);
   Sidebar.Parent := Self; Sidebar.Align := alLeft; Sidebar.Width := 214;
@@ -722,12 +732,16 @@ begin
   ScaleZP := TransformField(S, 'Z (%)', 'ScaleZP', 16, 846, 140, 1, 10000, 5, 1);
   SizeZ := TransformField(S, 'Z (mm)', 'SizeZ', 166, 846, 140, 0.01, 5000, 1, 2);
 
-  Section(S, 'ESPELHAR', 912);
-  B := Button(S, 'X', 16, 934, 92, sikMirrorH, @MirrorClick); B.Tag := 0;
-  B := Button(S, 'Y', 115, 934, 92, sikMirrorV, @MirrorClick); B.Tag := 1;
-  B := Button(S, 'Z', 214, 934, 92, sikMirrorV, @MirrorClick); B.Tag := 2;
+  B := Button(S, 'Polegadas para mm (x 25,4)', 16, 902, 290, sikGauge, @InchClick);
+  B.Name := 'InchToMM';
+  B.Hint := 'Para STL exportado em polegadas: multiplica a escala das pecas selecionadas por 25,4';
+
+  Section(S, 'ESPELHAR', 952);
+  B := Button(S, 'X', 16, 974, 92, sikMirrorH, @MirrorClick); B.Tag := 0;
+  B := Button(S, 'Y', 115, 974, 92, sikMirrorV, @MirrorClick); B.Tag := 1;
+  B := Button(S, 'Z', 214, 974, 92, sikMirrorV, @MirrorClick); B.Tag := 2;
   LabelAt(S, 'Os campos valem para a peca selecionada; girar 90, espelhar e deitar valem para todas as selecionadas. Desfazer vale para posicao, rotacao, escala e espelho.',
-    16, 980, 290, 76);
+    16, 1020, 290, 76);
 end;
 
 procedure TMultiSlicerForm.BuildMaterialPage(S: TScrollBox);
@@ -958,7 +972,7 @@ begin
   LabelAt(S, 'O G-code fica salvo no arquivo escolhido. Abrir no MultiCNC carrega o programa para imprimir; a conexao com a impressora e feita la.',
     16, 590, 290, 80);
   Section(S, 'PROJETO (.MSLICE)', 680);
-  Button(S, 'Novo', 16, 702, 140, sikFile, @NewProjectClick).Hint := 'Limpa a mesa e comeca um projeto novo';
+  Button(S, 'Novo', 16, 702, 140, sikNew, @NewProjectClick).Hint := 'Limpa a mesa e comeca um projeto novo';
   Button(S, 'Abrir...', 166, 702, 140, sikFolder, @OpenProjectClick).Hint := 'Abrir projeto .mslice (Ctrl+O tambem abre)';
   Button(S, 'Salvar', 16, 744, 140, sikSave, @SaveProjectClick).Hint := 'Salvar o projeto (Ctrl+S)';
   Button(S, 'Salvar como...', 166, 744, 140, sikSave, @SaveProjectAsClick);
@@ -1189,6 +1203,65 @@ begin
   UpdateTitle;
   Status.Caption := 'Projeto salvo: ' + FProjectFile;
   Log.Lines.Add('Projeto salvo: ' + FProjectFile);
+end;
+
+procedure TMultiSlicerForm.ConvertInches;
+var I, N: Integer; O: TSliceObject;
+begin
+  N := 0;
+  FScene.PushUndo; FUndoKey := '';
+  for I := 0 to FScene.Count - 1 do
+    if FScene[I].Selected or ((FScene.SelectedCount = 0) and (FScene.Count = 1)) then
+    begin
+      O := FScene[I];
+      O.ScaleX := O.ScaleX * INCH_TO_MM;
+      O.ScaleY := O.ScaleY * INCH_TO_MM;
+      O.ScaleZ := O.ScaleZ * INCH_TO_MM;
+      if not FScene.Inside(I) then FScene.CenterObject(I);
+      Inc(N);
+    end;
+  if N = 0 then begin Status.Caption := 'Selecione a peca a converter.'; Exit; end;
+  FScene.Touch;
+  LoadTransformEditor;
+  SceneChanged(Format('%d peca(s) convertida(s) de polegadas para mm (x 25,4).', [N]));
+end;
+
+procedure TMultiSlicerForm.InchClick(Sender: TObject);
+begin
+  ConvertInches;
+end;
+
+procedure TMultiSlicerForm.DropFiles(const FileNames: array of string);
+var I, N: Integer; Ext: string;
+begin
+  if FSlicing then Exit;
+  N := 0;
+  for I := 0 to High(FileNames) do
+  begin
+    Ext := LowerCase(ExtractFileExt(FileNames[I]));
+    try
+      if Ext = MSLICE_EXT then
+      begin
+        if ConfirmDiscard then OpenProject(FileNames[I]);
+        Exit;   { um projeto substitui a mesa inteira }
+      end
+      else if (Ext = '.stl') or (Ext = '.3mf') then
+      begin
+        OpenFile(FileNames[I]);
+        Inc(N);
+      end
+      else
+        Log.Lines.Add('Ignorado (nao e STL, 3MF nem .mslice): ' + FileNames[I]);
+    except
+      on E: Exception do ShowError(E);
+    end;
+  end;
+  if N > 0 then ShowStep(1);
+end;
+
+procedure TMultiSlicerForm.FormDropFiles(Sender: TObject; const FileNames: array of string);
+begin
+  DropFiles(FileNames);
 end;
 
 procedure TMultiSlicerForm.NewProjectClick(Sender: TObject);
@@ -2600,7 +2673,7 @@ end;
 { ---------------- modelo ---------------- }
 
 procedure TMultiSlicerForm.OpenFile(const FN: string);
-var Candidate: TMesh; OK: Boolean; O: TSliceObject;
+var Candidate: TMesh; OK, Fixed: Boolean; O: TSliceObject; Warn: string;
 begin
   if not FileExists(FN) then raise EInOutError.Create('Arquivo nao encontrado: ' + FN);
   Candidate := TMesh.Create;
@@ -2613,13 +2686,28 @@ begin
     end;
     if not OK or (Candidate.Count = 0) then
       raise Exception.Create('Modelo invalido ou sem triangulos: ' + FN);
+    { confere a malha: normais para dentro sao desviradas; casca aberta e
+      escala estranha viram aviso }
+    FLastMeshReport := CheckMesh(Candidate);
+    Fixed := NormalsInverted(FLastMeshReport);
+    if Fixed then FlipNormals(Candidate);
+    Warn := MeshReportText(FLastMeshReport);
     O := FScene.Add(Candidate, ChangeFileExt(ExtractFileName(FN), ''), ExpandFileName(FN));
     Candidate := nil;
     FScene.SelectOnly(FScene.IndexOf(O));
     SourceFile := ExpandFileName(FN);
-    if Log <> nil then Log.Lines.Add('Aberto: ' + SourceFile);
-    SceneChanged(Format('Aberto: %s (%d triangulos). Peca colocada na mesa.',
-      [ExtractFileName(FN), O.Source.Count]));
+    if Log <> nil then
+    begin
+      Log.Lines.Add('Aberto: ' + SourceFile);
+      if Fixed then Log.Lines.Add('Normais invertidas (faces viradas para dentro): corrigidas.');
+      if Warn <> '' then Log.Lines.Add('Aviso: ' + Warn);
+    end;
+    if Warn <> '' then
+      SceneChanged(Format('Aberto: %s. %s', [ExtractFileName(FN), Warn]))
+    else
+      SceneChanged(Format('Aberto: %s (%d triangulos). Peca colocada na mesa.',
+        [ExtractFileName(FN), O.Source.Count]));
+    if Warn <> '' then SetState('Confira a peca', clSuiteWarning);
   finally
     Candidate.Free;
   end;

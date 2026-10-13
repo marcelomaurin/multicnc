@@ -26,6 +26,9 @@ function RegionDifference(const A, B: TPolygons2D): TPolygons2D;
 function RegionIntersect(const A, B: TPolygons2D): TPolygons2D;
 { Delta > 0 cresce, < 0 encolhe (cantos redondos) }
 function RegionOffset(const P: TPolygons2D; Delta: Double): TPolygons2D;
+{ tira vertices quase alinhados (desvio < Tol mm): offsets repetidos nao
+  acumulam pontos }
+function RegionSimplify(const P: TPolygons2D; Tol: Double = 0.01): TPolygons2D;
 { offset com cantos vivos (paredes do fatiador, como o InsetLoops) }
 function RegionOffsetMiter(const P: TPolygons2D; Delta: Double; MiterLimit: Double = 3): TPolygons2D;
 { abertura morfologica: tira faixas mais finas que 2 * R }
@@ -147,6 +150,12 @@ begin
   SetLength(Result, K);
 end;
 
+function RegionSimplify(const P: TPolygons2D; Tol: Double): TPolygons2D;
+begin
+  if Length(P) = 0 then Exit(nil);
+  Result := FromClip(SimplifyPaths(ToClip(P), Tol, True, MS_CLIP_DECIMALS));
+end;
+
 function RegionOffsetMiter(const P: TPolygons2D; Delta, MiterLimit: Double): TPolygons2D;
 begin
   if Length(P) = 0 then Exit(nil);
@@ -156,7 +165,8 @@ end;
 
 function RegionOpen(const P: TPolygons2D; R: Double): TPolygons2D;
 begin
-  Result := RegionOffset(RegionOffset(P, -R), R);
+  { cantos vivos: so tira o que e mais fino que 2R, sem arredondar a regiao }
+  Result := RegionOffsetMiter(RegionOffsetMiter(P, -R), R);
 end;
 
 function RegionArea(const P: TPolygons2D): Double;
