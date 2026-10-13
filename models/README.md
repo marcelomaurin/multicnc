@@ -8,7 +8,7 @@ redistribuídos.
 Cada subpasta corresponde a um tipo de equipamento:
 
 - `printer3d/`: trajetórias de impressão para Marlin.
-- `cnc_router/`: contorno de usinagem para GRBL.
+- [`cnc_router/`](cnc_router/README.md): 12 programas GRBL para router, com catálogo visual, instruções e relatório de validação no MultiCNC.
 - `cnc_laser/`: gravação vetorial para GRBL Laser, com potência `S`.
 
 Os formatos são texto puro. Extensões `.gcode`, `.nc` e `.tap` são convenções

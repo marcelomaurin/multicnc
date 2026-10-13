@@ -1,0 +1,65 @@
+; MultiCNC - modelo de teste original - CC0-1.0
+; 09 - grade de seis copias
+; Referencia: MultiCNC 0.1.0.3 / GRBL 1.1 / unidades mm
+; Ver README.md antes de usar. Parametros sao demonstrativos.
+; Zero de trabalho: X0 Y0 no canto; Z0 na superficie.
+; Nao altera o zero salvo nem executa homing.
+M5
+G21 G17 G90 G94 G54
+G91.1
+G0 Z5
+M3 S8000
+G4 P2
+G0 Z5
+G0 X10 Y10
+G1 Z-0.3 F100
+G1 X25 Y10 F350
+G1 Y25
+G1 X10
+G1 Y10
+G0 Z5
+G0 Z5
+G0 X35 Y10
+G1 Z-0.3 F100
+G1 X50 Y10 F350
+G1 Y25
+G1 X35
+G1 Y10
+G0 Z5
+G0 Z5
+G0 X60 Y10
+G1 Z-0.3 F100
+G1 X75 Y10 F350
+G1 Y25
+G1 X60
+G1 Y10
+G0 Z5
+G0 Z5
+G0 X10 Y35
+G1 Z-0.3 F100
+G1 X25 Y35 F350
+G1 Y50
+G1 X10
+G1 Y35
+G0 Z5
+G0 Z5
+G0 X35 Y35
+G1 Z-0.3 F100
+G1 X50 Y35 F350
+G1 Y50
+G1 X35
+G1 Y35
+G0 Z5
+G0 Z5
+G0 X60 Y35
+G1 Z-0.3 F100
+G1 X75 Y35 F350
+G1 Y50
+G1 X60
+G1 Y35
+G0 Z5
+G90
+G0 Z5
+M5
+G0 X0 Y0
+M30
