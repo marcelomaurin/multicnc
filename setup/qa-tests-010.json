@@ -2,131 +2,6 @@
   "tests_executed": true,
   "tests": [
     {
-      "source": "tests/debug_parser.lpr",
-      "status": "passed",
-      "exit_code": 0
-    },
-    {
-      "source": "tests/test_connection_startup.lpr",
-      "status": "passed",
-      "exit_code": 0
-    },
-    {
-      "source": "tests/test_controller.lpr",
-      "status": "passed",
-      "exit_code": 0
-    },
-    {
-      "source": "tests/test_equipment.lpr",
-      "status": "passed",
-      "exit_code": 0
-    },
-    {
-      "source": "tests/test_gcode_compat.lpr",
-      "status": "passed",
-      "exit_code": 0
-    },
-    {
-      "source": "tests/test_gcode_trace.lpr",
-      "status": "passed",
-      "exit_code": 0
-    },
-    {
-      "source": "tests/test_grbl_legacy.lpr",
-      "status": "passed",
-      "exit_code": 0
-    },
-    {
-      "source": "tests/test_grbl_regressions.lpr",
-      "status": "passed",
-      "exit_code": 0
-    },
-    {
-      "source": "tests/test_joystick.lpr",
-      "status": "passed",
-      "exit_code": 0
-    },
-    {
-      "source": "tests/test_laser_profiles.lpr",
-      "status": "passed",
-      "exit_code": 0
-    },
-    {
-      "source": "tests/test_locale_invariant.lpr",
-      "status": "passed",
-      "exit_code": 0
-    },
-    {
-      "source": "tests/test_multicnc_tcp.lpr",
-      "status": "skipped",
-      "reason": "requires running SimuCNC TCP server"
-    },
-    {
-      "source": "tests/test_multislicer_print.lpr",
-      "status": "passed",
-      "exit_code": 0
-    },
-    {
-      "source": "tests/test_outline.lpr",
-      "status": "passed",
-      "exit_code": 0
-    },
-    {
-      "source": "tests/test_printer_temperatures.lpr",
-      "status": "passed",
-      "exit_code": 0
-    },
-    {
-      "source": "tests/test_router_profiles.lpr",
-      "status": "passed",
-      "exit_code": 0
-    },
-    {
-      "source": "tests/test_router_spindle.lpr",
-      "status": "passed",
-      "exit_code": 0
-    },
-    {
-      "source": "tests/test_serial_transport.lpr",
-      "status": "passed",
-      "exit_code": 0
-    },
-    {
-      "source": "tests/test_session.lpr",
-      "status": "passed",
-      "exit_code": 0
-    },
-    {
-      "source": "tests/test_shared_geometry.lpr",
-      "status": "passed",
-      "exit_code": 0
-    },
-    {
-      "source": "tests/test_shared_heightmap.lpr",
-      "status": "passed",
-      "exit_code": 0
-    },
-    {
-      "source": "tests/test_shared_zcompensation.lpr",
-      "status": "passed",
-      "exit_code": 0
-    },
-    {
-      "source": "tests/test_simu_temperature_control.lpr",
-      "status": "passed",
-      "exit_code": 0
-    },
-    {
-      "source": "tests/test_simulator.lpr",
-      "status": "passed",
-      "exit_code": 0
-    },
-    {
-      "source": "tests/test_streaming.lpr",
-      "status": "passed",
-      "exit_code": 0
-    },
-    {
       "source": "multisuite/tests/test_context.lpr",
       "status": "passed",
       "exit_code": 0
@@ -488,6 +363,136 @@
     },
     {
       "source": "routerpcb/tests/test_routerpcb.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/debug_parser.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_connection_startup.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_controller.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_equipment.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_gcode_compat.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_gcode_trace.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_grbl_legacy.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_grbl_regressions.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_joystick.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_laser_profiles.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_locale_invariant.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_multicnc_tcp.lpr",
+      "status": "skipped",
+      "reason": "requires running SimuCNC TCP server"
+    },
+    {
+      "source": "tests/test_multislicer_print.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_outline.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_printer_temperatures.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_router_profiles.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_router_spindle.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_serial_transport.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_session.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_shared_geometry.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_shared_heightmap.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_shared_zcompensation.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_simu_temperature_control.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_simulator.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_streaming.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_zero_assist.lpr",
       "status": "passed",
       "exit_code": 0
     }

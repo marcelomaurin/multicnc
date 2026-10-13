@@ -1,6 +1,6 @@
 {
   "version": "0.10",
-  "source_commit": "c1f546fe4ae00855ff7789672ebeea9267b53183",
+  "source_commit": "27e4b3714c9425207bd35ebf24ce82715d412589",
   "source_dirty": false,
   "os": "windows",
   "arch": "amd64",
@@ -8,7 +8,7 @@
   "fpc": "3.2.2",
   "lazarus": "4.6",
   "console_tests_executed": true,
-  "console_tests": 98,
+  "console_tests": 99,
   "files": [
     {
       "path": "documentation/docs/AI_TOOLS_GUIDE.md",
@@ -32,7 +32,7 @@
     },
     {
       "path": "documentation/docs/FLUXOS_IMPLEMENTADOS.md",
-      "sha256": "1ba942eabad31e3030cf2289037718467d3c4a619d56ed923e2fedbdd894bd99"
+      "sha256": "63681bdcaa43174a660ef400fab87bc117b1ba31edac7944bf5084fbcebb4e8f"
     },
     {
       "path": "documentation/docs/index.html",
@@ -88,7 +88,7 @@
     },
     {
       "path": "documentation/docs/SETUP_010.md",
-      "sha256": "255710da308f1a267391aae0f5a835c9c1a1773d9668340398404d5f8f81c777"
+      "sha256": "c4265dfaadf81e4a9170e10e91d5a357661a171ce16d84b38f2958d6ad521a8a"
     },
     {
       "path": "documentation/docs/SIMUCNC_COM0COM.md",
@@ -495,6 +495,14 @@
       "sha256": "fc0da42dc2a33b819c867f1f7c9a390dbea689a7ec86b25bdb81c4f9f663104e"
     },
     {
+      "path": "documentation/imgs/multicnc ajuste.webp",
+      "sha256": "1f34134f869b0d68dd17662f25d8f4fbcbf0a8a653f059a9971bcda4f55cc146"
+    },
+    {
+      "path": "documentation/imgs/multicnc ajuste2.webp",
+      "sha256": "5968569e4a4def4238c9fb2729ca59cdb1d66462a999ced6bfa20b1909778812"
+    },
+    {
       "path": "documentation/imgs/multicnc_novo_layout.png",
       "sha256": "0181ece24bab8216efad5796e19e6de6e3d57affd9db98a815820328d3ab800c"
     },
@@ -528,7 +536,7 @@
     },
     {
       "path": "documentation/imgs/README.md",
-      "sha256": "669614fb643b4223ffd5c03c215960eb95688e8e2fb15786a39b1d0e6b292ed3"
+      "sha256": "9599a4ef21a01877e71359ff18a9b57e131ddf7978aea41ff2332ffa20c78a6c"
     },
     {
       "path": "documentation/imgs/Routerpcb01.png",
@@ -940,7 +948,7 @@
     },
     {
       "path": "multicnc.exe",
-      "sha256": "02cebdd81e76c8e56bdf371d574c6023e27b82fe94b7ade631bc88a84b0036c0"
+      "sha256": "c9ace7edd3faef713580faa7cb51f317dd3f32d03ef754f50bf1daf813595c5c"
     },
     {
       "path": "multiphysics.exe",
@@ -956,7 +964,7 @@
     },
     {
       "path": "qa-tests.json",
-      "sha256": "d5120ef827eb726bf22851b70723a58dd4c8b9ce4dcce38dfcc8ad97e12207dc"
+      "sha256": "f02caf9c6c6fb96c77231f7935882cca695eb02cf48292dbee2f5ecd1d87f7b5"
     },
     {
       "path": "routerpcb.exe",
@@ -1197,6 +1205,10 @@
     {
       "path": "tests/multicnc/test_streaming.exe",
       "sha256": "37d92d4d566e32d1de8a7bfd8ce82eb4b04a4773e571fac35c0394c5348cdaef"
+    },
+    {
+      "path": "tests/multicnc/test_zero_assist.exe",
+      "sha256": "3faa1f39b4f1d3868d36a2e0b422a2634273a2f400fcc38d46a641ce4551a618"
     },
     {
       "path": "tests/multiphysics/test_actuator_scheduler.exe",
