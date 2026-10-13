@@ -29,8 +29,9 @@ Com um programa de router aberto, **Zero pelo bloco** abre uma janela ao lado (o
 3. **Z**: encoste a fresa no topo do bloco (folha de papel) e marque. A janela mostra o ponto zero Z (topo do bloco ou
    mesa, conforme `MS-DATUM`) e aplica.
 
-Onde o bloco fica no programa: pelo cabeçalho do MakeRouter (`MS-DATUM` + `MS-STOCK`); sem cabeçalho, o canto do bloco
-encosta no canto da área cortada. Ao abrir um programa com espessura no cabeçalho, o log já informa se o corte cabe.
+Onde o bloco fica no programa: pelo cabeçalho do MakeRouter (`MS-DATUM` + `MS-STOCK`); sem cabeçalho e com o corte
+todo em X/Y positivos, o zero é o canto inferior esquerdo do bloco ("X0 Y0 no canto", como os modelos de
+`models/cnc_router`); com coordenadas negativas, o canto do bloco encosta no canto da área cortada. Ao abrir um programa com espessura no cabeçalho, o log já informa se o corte cabe.
 Teste: `tests/test_zero_assist` (cálculo) e `tests/test_app` (janela, bloqueio por profundidade).
 
 ## STL para impressão

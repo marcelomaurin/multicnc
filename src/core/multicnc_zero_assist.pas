@@ -14,8 +14,10 @@ unit multicnc_zero_assist;
   Onde o bloco fica no programa:
   - cabecalho do contrato da suite (MakeRouter): "; MS-DATUM: XY=.." diz em
     que ponto do bloco esta o zero e "; MS-STOCK: W= H= T=" o tamanho;
-  - sem cabecalho: o canto inferior esquerdo do bloco encosta no canto
-    inferior esquerdo da area cortada (caixa dos movimentos de corte).
+  - sem cabecalho, corte todo em X/Y positivos: o zero e o canto inferior
+    esquerdo do bloco ("X0 Y0 no canto", o mais comum);
+  - sem cabecalho, com coordenadas negativas: o canto do bloco encosta no
+    canto da area cortada (caixa dos movimentos de corte).
 
   Aplica com G92 (o mesmo mecanismo do "Zero Workpiece"). Sem LCL. }
 
@@ -230,12 +232,27 @@ begin
   Result.Valid := True;
   Result.HasCut := True;
   Result.MinZ := CB.MinZ;
-  Result.X0 := CB.MinX; Result.Y0 := CB.MinY;
-  Result.W := CB.MaxX - CB.MinX; Result.H := CB.MaxY - CB.MinY;
   Result.Top := 0;
-  Result.Datum := Format('Sem dados do bloco no G-code: o canto inferior esquerdo do bloco fica no canto da area ' +
-    'cortada (X %s Y %s, %s x %s mm); Z0 no topo do bloco',
-    [FmtMM(CB.MinX), FmtMM(CB.MinY), FmtMM(Result.W), FmtMM(Result.H)]);
+  if (CB.MinX >= -1E-6) and (CB.MinY >= -1E-6) then
+  begin
+    { corte todo no quadrante positivo: o zero e o canto inferior esquerdo do
+      bloco (convencao mais comum: "X0 Y0 no canto") }
+    Result.X0 := 0; Result.Y0 := 0;
+    Result.W := CB.MaxX; Result.H := CB.MaxY;
+    Result.Datum := Format('Sem dados do bloco no G-code: o corte fica todo em X/Y positivos, entao o zero X/Y ' +
+      'e o canto inferior esquerdo do bloco (corte de X %s a %s, Y %s a %s); Z0 no topo do bloco',
+      [FmtMM(CB.MinX), FmtMM(CB.MaxX), FmtMM(CB.MinY), FmtMM(CB.MaxY)]);
+  end
+  else
+  begin
+    { coordenadas negativas (zero no meio da peca): o canto do bloco encosta
+      no canto da area cortada }
+    Result.X0 := CB.MinX; Result.Y0 := CB.MinY;
+    Result.W := CB.MaxX - CB.MinX; Result.H := CB.MaxY - CB.MinY;
+    Result.Datum := Format('Sem dados do bloco no G-code e corte com coordenadas negativas: o canto inferior ' +
+      'esquerdo do bloco fica no canto da area cortada (X %s Y %s, %s x %s mm); Z0 no topo do bloco',
+      [FmtMM(CB.MinX), FmtMM(CB.MinY), FmtMM(Result.W), FmtMM(Result.H)]);
+  end;
 end;
 
 procedure BlockPointInProgram(const B: TBlockPlacement; P: TBlockPoint; out PX, PY: Double);

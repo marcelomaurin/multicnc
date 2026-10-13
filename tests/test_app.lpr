@@ -97,7 +97,7 @@ begin
     ZA := nil;
     for I := 0 to Screen.FormCount - 1 do
       if Screen.Forms[I] is TZeroAssistForm then ZA := TZeroAssistForm(Screen.Forms[I]);
-    Check((ZA <> nil) and ZA.Block.Valid and (ZA.Block.X0 = 12.5) and (ZA.Block.Y0 = 8), 'block placed by the cut area');
+    Check((ZA <> nil) and ZA.Block.Valid and (ZA.Block.X0 = 0) and (ZA.Block.Y0 = 0), 'positive program: zero at the block corner');
     T0 := GetTickCount64;
     while not TSuiteButton(ZA.FindComponent('ZeroApplyXY')).Enabled and (GetTickCount64 - T0 < 5000) do
     begin Application.ProcessMessages; Sleep(20); end;
@@ -109,7 +109,7 @@ begin
     TFloatSpinEdit(ZA.FindComponent('ZeroThickness')).Value := 18;
     Check(ZA.DepthOK(Msg), 'cut of 15 mm in an 18 mm block is allowed');
     ZA.ApplyXY;
-    Check(ZA.LastCommand = 'G92 X12.5 Y8', 'XY zero from the block corner: ' + ZA.LastCommand);
+    Check(ZA.LastCommand = 'G92 X0 Y0', 'XY zero at the marked block corner: ' + ZA.LastCommand);
     ZA.ApplyZ;
     Check(ZA.LastCommand = 'G92 Z0', 'Z zero at the block top: ' + ZA.LastCommand);
     ZA.Close;

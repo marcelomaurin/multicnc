@@ -36,14 +36,20 @@ begin
     L.Text := 'G21' + LineEnding + 'G90' + LineEnding + 'G0 Z5' + LineEnding + 'G0 X12.5 Y8' + LineEnding +
       'G1 Z-1.5 F200' + LineEnding + 'G1 X40 F800' + LineEnding + 'G1 Y30' + LineEnding + 'G0 Z5' + LineEnding + 'G0 X0 Y0';
     B := BlockPlacement(L);
-    Check(B.Valid and not B.FromHeader and SameValue(B.X0, 12.5) and SameValue(B.Y0, 8) and
-      SameValue(B.W, 27.5) and SameValue(B.H, 22), 'sem cabecalho: caixa do corte (rapidos fora)');
+    Check(B.Valid and not B.FromHeader and SameValue(B.X0, 0) and SameValue(B.Y0, 0) and
+      SameValue(B.W, 40) and SameValue(B.H, 30), 'sem cabecalho, corte positivo: zero no canto do bloco (rapidos fora)');
+    { sem cabecalho, zero no meio da peca: bloco pela area cortada }
+    L.Text := 'G21' + LineEnding + 'G90' + LineEnding + 'G0 X-20 Y-10' + LineEnding + 'G1 Z-1 F100' + LineEnding +
+      'G1 X20 F500' + LineEnding + 'G1 Y10';
+    B := BlockPlacement(L);
+    Check(SameValue(B.X0, -20) and SameValue(B.Y0, -10) and SameValue(B.W, 40) and SameValue(B.H, 20),
+      'coordenadas negativas: bloco pela area cortada');
     BlockPointInProgram(B, bpCenter, PX, PY);
-    Check(SameValue(PX, 26.25) and SameValue(PY, 19), 'centro da area cortada');
+    Check(SameValue(PX, 0) and SameValue(PY, 0), 'centro da area cortada');
     { polegadas e incremental }
     L.Text := 'G20 G90' + LineEnding + 'G0 X1 Y2' + LineEnding + 'G91' + LineEnding + 'G1 X0.5 F10';
     B := BlockPlacement(L);
-    Check(B.Valid and SameValue(B.X0, 25.4, 1e-9) and SameValue(B.W, 12.7, 1e-9), 'G20/G91');
+    Check(B.Valid and SameValue(B.X0, 0) and SameValue(B.W, 38.1, 1e-9) and SameValue(B.MinZ, 0), 'G20/G91');
     { espessura: o corte nao pode passar da espessura menos 2 mm de folga }
     L.Text := '; MakeRouter -> MultiCNC (CNC Router)' + LineEnding + '; MS-CONTRACT: 1' + LineEnding +
       '; MS-DATUM: XY=BL Z=TOP' + LineEnding + '; MS-STOCK: W=100 H=50 T=18' + LineEnding +
