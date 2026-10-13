@@ -8,7 +8,7 @@ var F: TMultiSlicerForm; Mesh: TMesh; G: TStringList; A, B: TVec3; Bx: TBox3; Pt
   FN2, FNBig: string; I, J: Integer; Tri: TTriangle; LFino, LNormal, LRasc: Integer; TFino, TNormal, TRasc: Double;
   QD: TQualityDef; PX, PY, PZ, PD, PX0: Double; NSup: Integer; Blk: TSceneBlocker;
   FN, Output, BadOutput, ProfileDir: string; Mat: TMaterialDef; Raised: Boolean; Before: string;
-  EqFile: string; EqStore: TEquipmentStore; Eq: TEquipmentProfile; EqBox: TComboBox; IFS: TFormatSettings; Canc: TObject; Tm: TTimer;
+  EqFile: string; EqStore: TEquipmentStore; Eq: TEquipmentProfile; EqBox: TComboBox; IFS: TFormatSettings; PDir, PFile: string; St0: TTransformState; Canc: TObject; Tm: TTimer;
 procedure Check(OK: Boolean; const Msg: string);
 begin if not OK then raise Exception.Create(Msg); end;
 type
@@ -336,6 +336,65 @@ begin
     F.ShowStep(1);
     Check(not F.ViewControl3D.PreviewMode, 'model step shows the parts again');
     TComboBox(F.FindComponent('SupportMode')).ItemIndex := 0;
+    { projeto .mslice: salvar, limpar, abrir de novo (Etapa 8.5) }
+    F.AskSave := False;
+    PDir := IncludeTrailingPathDelimiter(GetTempDir) + 'ms_proj_' + IntToStr(GetProcessID);
+    ForceDirectories(PDir + PathDelim + 'modelos');
+    Mesh.Clear; AddBox(Mesh, 0, 0, 0, 30, 10, 15); TSTLImporter.SaveBinary(Mesh, PDir + PathDelim + 'modelos' + PathDelim + 'barra.stl');
+    Mesh.Clear; AddBox(Mesh, 0, 0, 0, 12, 12, 6); TSTLImporter.SaveBinary(Mesh, PDir + PathDelim + 'modelos' + PathDelim + 'cubo.stl');
+    F.NewProject;
+    Check((F.Scene.Count = 0) and not F.ProjectDirty, 'new project clears the bed');
+    F.OpenFile(PDir + PathDelim + 'modelos' + PathDelim + 'barra.stl');
+    F.OpenFile(PDir + PathDelim + 'modelos' + PathDelim + 'cubo.stl');
+    Check(F.ProjectDirty, 'opening a model marks the project changed');
+    F.Scene[1].RotZ := 30; F.Scene[1].MoveBy(-20, 15); F.Scene[1].Locked := True;
+    F.Scene.AddPillar(F.Scene[0], F.Scene[0].X, F.Scene[0].Y, 12, 4);
+    Blk.CX := 20; Blk.CY := 30; Blk.W := 10; Blk.D := 8; Blk.H := 5; F.Scene.AddBlocker(Blk);
+    St0 := F.Scene[1].GetState;
+    TComboBox(F.FindComponent('SupportMode')).ItemIndex := 2;
+    TComboBox(F.FindComponent('AdhesionType')).ItemIndex := 2;
+    TFloatSpinEdit(F.FindComponent('BrimWidth')).Value := 6;
+    TSpinEdit(F.FindComponent('HotendTemperature')).Value := 212;
+    TFloatSpinEdit(F.FindComponent('LayerHeight')).Value := 0.16;
+    PFile := PDir + PathDelim + 'suporte_teste.mslice';
+    F.SaveProjectAs(PFile);
+    Check(FileExists(PFile) and not F.ProjectDirty and (F.ProjectFile = ExpandFileName(PFile)), 'project saved');
+    Check(Pos('suporte_teste', F.Caption) > 0, 'project name in the caption');
+    G.LoadFromFile(PFile);
+    Check((Pos('"format" : "mslice"', G.Text) > 0) and (Pos('modelos' + PathDelim + 'barra.stl', G.Text) + Pos('modelos/barra.stl', G.Text) > 0),
+      'project JSON with relative model path');
+    F.NewProject;
+    TSpinEdit(F.FindComponent('HotendTemperature')).Value := 200;
+    TComboBox(F.FindComponent('AdhesionType')).ItemIndex := 1;
+    F.OpenProject(PFile);
+    Check(F.Scene.Count = 2, 'both parts back');
+    Check(SameValue(F.Scene[1].X, St0.X, 1e-6) and SameValue(F.Scene[1].Y, St0.Y, 1e-6) and
+      SameValue(F.Scene[1].RotZ, 30, 1e-6) and F.Scene[1].Locked, 'transform and lock restored');
+    Check((F.Scene.PillarCount = 1) and F.Scene.PillarAbs(0, PX, PY, PZ, PD) and SameValue(PZ, 12, 1e-6) and SameValue(PD, 4, 1e-6),
+      'pillar restored on its part');
+    Check((F.Scene.BlockerCount = 1) and SameValue(F.Scene.Blocker(0).W, 10, 1e-6), 'blocker restored');
+    Check((TComboBox(F.FindComponent('SupportMode')).ItemIndex = 2) and
+      (TComboBox(F.FindComponent('AdhesionType')).ItemIndex = 2) and
+      SameValue(TFloatSpinEdit(F.FindComponent('BrimWidth')).Value, 6, 1e-6), 'support and adhesion restored');
+    Check(TSpinEdit(F.FindComponent('HotendTemperature')).Value = 212, 'material temperature restored');
+    Check(SameValue(TFloatSpinEdit(F.FindComponent('LayerHeight')).Value, 0.16, 1e-6), 'quality restored');
+    Check(not F.ProjectDirty, 'freshly opened project is clean');
+    { pasta do projeto movida inteira: acha os modelos pelo caminho relativo }
+    RenameFile(PDir, PDir + '_movido');
+    F.NewProject;
+    F.OpenProject(PDir + '_movido' + PathDelim + 'suporte_teste.mslice');
+    Check(F.Scene.Count = 2, 'moved project folder still finds the models');
+    F.ExportProgram(Output); G.LoadFromFile(Output);
+    Check(G[0] = '; MultiSlicer -> MultiCNC (Impressora 3D)', 'G-code carries the suite contract');
+    TComboBox(F.FindComponent('SupportMode')).ItemIndex := 0;
+    TComboBox(F.FindComponent('AdhesionType')).ItemIndex := 1;
+    TSpinEdit(F.FindComponent('HotendTemperature')).Value := 200;
+    TFloatSpinEdit(F.FindComponent('LayerHeight')).Value := 0.2;
+    Check(F.ProjectDirty, 'changes after opening mark the project dirty');
+    DeleteFile(PDir + '_movido' + PathDelim + 'suporte_teste.mslice');
+    DeleteFile(PDir + '_movido' + PathDelim + 'modelos' + PathDelim + 'barra.stl');
+    DeleteFile(PDir + '_movido' + PathDelim + 'modelos' + PathDelim + 'cubo.stl');
+    RemoveDir(PDir + '_movido' + PathDelim + 'modelos'); RemoveDir(PDir + '_movido');
     { equipamento do MultiCNC no topo: marca/modelo completam o perfil }
     EqBox := F.Equipment;
     Check((EqBox.Items.Count = 3) and (EqBox.Items[0] = 'Ajuste manual') and (EqBox.Items.IndexOf('Router da oficina') < 0),

@@ -293,22 +293,30 @@ da camada e marcas de retracao na previa.
 
 ### 8A Contrato do G-code
 **Arq.:** `src/shared/multisuite_gcode_writer.pas`, `src/core/multislicer_pipeline.pas`.
-- [ ] 8.1 Aceitar `Machine = 'printer3d'` em `TSuiteGCodeHeader` / `SuiteParseHeader`
+- [x] 8.1 Aceitar `Machine = 'printer3d'` em `TSuiteGCodeHeader` / `SuiteParseHeader`
       (hoje so `router` e `laser`), mantendo compatibilidade.
-- [ ] 8.2 Cabecalho do MultiSlicer no contrato: origem `MultiSlicer`, maquina `printer3d`, titulo,
+- [x] 8.2 Cabecalho do MultiSlicer no contrato: origem `MultiSlicer`, maquina `printer3d`, titulo,
       impressora, material, temperaturas, tempo, filamento e caixa do trabalho;
       linha de identificacao `; MultiSlicer -> MultiCNC (Impressora 3D)`.
-- [ ] 8.3 Manter as linhas reconhecidas por OctoPrint/Moonraker (`;TIME:`, `;Filament used:`, `;FLAVOR:`).
+- [x] 8.3 Manter as linhas reconhecidas por OctoPrint/Moonraker (`;TIME:`, `;Filament used:`, `;FLAVOR:`).
 
 ### 8B Salvar
-- [ ] 8.4 Salvar G-code (`.gcode`) com nome sugerido pelo projeto.
-- [ ] 8.5 Projeto `.mslice` (JSON): objetos (arquivo, transformacao), hastes e bloqueadores, impressora,
+- [x] 8.4 Salvar G-code (`.gcode`) com nome sugerido pelo projeto.
+- [x] 8.5 Projeto `.mslice` (JSON): objetos (arquivo, transformacao), hastes e bloqueadores, impressora,
       material, qualidade, suporte, aderencia. Novo / Abrir / Salvar / Salvar como; aviso de alteracoes nao salvas.
 
 ### 8C Despacho
 **Arq.:** `src/app/multislicer_main.pas`.
-- [ ] 8.6 Botao **Abrir no MultiCNC**: `TSuiteLauncher.LaunchArtifact(Registry.Tool(Registry.Find(stiMultiCNC)), ...)`
+- [x] 8.6 Botao **Abrir no MultiCNC**: `TSuiteLauncher.LaunchArtifact(Registry.Tool(Registry.Find(stiMultiCNC)), ...)`
       com o G-code exportado (mesmo codigo do MakeRouter); exporta antes se necessario.
+
+**8A-8C entregues (2026-10-12), versao 0.0.7.1.** O `SuiteParseHeader` ja lia qualquer `MS-MACHINE`;
+o G-code comeca com `; MultiSlicer -> MultiCNC (Impressora 3D)`, `MS-CONTRACT`, `MS-MACHINE: printer3d`,
+`MS-BOUNDS` (caixa das pecas), `MS-PRINTER`, `MS-MATERIAL`, `MS-TEMP`, `MS-PRINT` (tempo, camadas,
+filamento) e segue com `;FLAVOR:`, `;TIME:`, `;Filament used:`. Projeto: `src/core/multislicer_project.pas`
+(modelos por caminho relativo ao projeto e absoluto; pasta movida inteira continua abrindo), botoes na
+etapa Saida, Ctrl+S / Ctrl+Shift+S / Ctrl+O, nome no titulo com `*` quando alterado, pergunta antes de
+descartar. G-code com o nome do projeto. Abrir no MultiCNC gera o G-code antes se preciso.
 
 ### 8D Alteracao no MultiCNC
 **Arq.:** `src/app/mainform.pas` (deteccao de origem do arquivo aberto).

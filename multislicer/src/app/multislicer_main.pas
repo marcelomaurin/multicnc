@@ -26,11 +26,11 @@ uses
   multislicer_3mf, multislicer_profile, multislicer_pipeline, multislicer_view,
   multislicer_printers, multislicer_materials, multislicer_userdata,
   multislicer_scene, multislicer_view3d, multislicer_toolpath3d, multicad_camera, multislicer_quality, multislicer_support,
-  multisuite_controls, multisuite_icons, multislicer_machines, multicnc_types, multicnc_equipment;
+  multisuite_controls, multisuite_icons, multislicer_machines, multicnc_types, multicnc_equipment, fpjson, multislicer_project;
 
 const
   { manter igual ao VersionInfo do multislicer.lpi (revisao = etapa do PLANO_TAREFAS) }
-  MS_VERSION = '0.0.7.0';
+  MS_VERSION = '0.0.7.1';
   MS_STEP_COUNT = 7;
   MS_STEPS: array[0..MS_STEP_COUNT - 1] of string = ('1  Impressora', '2  Modelo',
     '3  Material', '4  Qualidade', '5  Suportes', '6  Previa', '7  Saida');
@@ -95,6 +95,10 @@ type
     FRunning: TModernSlicer;
     SliceProgress: TProgressBar;
     CancelBtn: TSuiteButton;
+    { projeto .mslice }
+    FProjectFile: string;
+    FDirty, FLoadingProject: Boolean;
+    FAskSave: Boolean;
     { equipamento do MultiCNC (combo no topo) }
     FHeader: TSuiteHeader;
     EquipmentBox: TComboBox;
@@ -170,6 +174,14 @@ type
     procedure ReloadEquipment;
     procedure PreviewOptionChange(Sender: TObject);
     procedure CancelSliceClick(Sender: TObject);
+    procedure NewProjectClick(Sender: TObject);
+    procedure OpenProjectClick(Sender: TObject);
+    procedure SaveProjectClick(Sender: TObject);
+    procedure SaveProjectAsClick(Sender: TObject);
+    function ProjectSettingsJSON: TJSONObject;
+    procedure ApplyProjectSettings(O: TJSONObject);
+    function ConfirmDiscard: Boolean;
+    procedure UpdateTitle;
     procedure SetBusy(ABusy: Boolean);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure EquipmentChange(Sender: TObject);
@@ -276,6 +288,14 @@ type
     { pede para parar o fatiamento em andamento }
     procedure CancelSlicing;
     property Slicing: Boolean read FSlicing;
+    { projeto .mslice }
+    procedure NewProject;
+    procedure OpenProject(const FN: string);
+    procedure SaveProjectAs(const FN: string);
+    property ProjectFile: string read FProjectFile;
+    property ProjectDirty: Boolean read FDirty;
+    { False: nao pergunta se salva antes de descartar (testes) }
+    property AskSave: Boolean read FAskSave write FAskSave;
     property Equipment: TComboBox read EquipmentBox;
     property Machine: TMachineSpec read FMachine;
     property HasMachine: Boolean read FHasMachine;
@@ -566,6 +586,9 @@ begin
   ShowStep(1);
   SetState('Aguardando modelo', clSuiteWarning);
   RefreshModelInfo;
+  FAskSave := True;
+  FDirty := False;
+  UpdateTitle;
 end;
 
 destructor TMultiSlicerForm.Destroy;
@@ -934,6 +957,13 @@ begin
   Button(S, 'Abrir no MultiCNC', 16, 542, 290, sikSend, @SendClick);
   LabelAt(S, 'O G-code fica salvo no arquivo escolhido. Abrir no MultiCNC carrega o programa para imprimir; a conexao com a impressora e feita la.',
     16, 590, 290, 80);
+  Section(S, 'PROJETO (.MSLICE)', 680);
+  Button(S, 'Novo', 16, 702, 140, sikFile, @NewProjectClick).Hint := 'Limpa a mesa e comeca um projeto novo';
+  Button(S, 'Abrir...', 166, 702, 140, sikFolder, @OpenProjectClick).Hint := 'Abrir projeto .mslice (Ctrl+O tambem abre)';
+  Button(S, 'Salvar', 16, 744, 140, sikSave, @SaveProjectClick).Hint := 'Salvar o projeto (Ctrl+S)';
+  Button(S, 'Salvar como...', 166, 744, 140, sikSave, @SaveProjectAsClick);
+  LabelAt(S, 'O projeto guarda as pecas (aponta para os STL/3MF) com a posicao, as hastes, os bloqueadores, impressora, material, qualidade, suporte e aderencia.',
+    16, 790, 290, 80);
 end;
 
 { ---------------- estado e utilitarios ---------------- }
@@ -951,6 +981,280 @@ begin
   Status.Caption := E.Message;
   if Log <> nil then Log.Lines.Add('Erro: ' + E.Message);
   SetState('Verifique o trabalho', clSuiteDanger);
+end;
+
+{ ---------------- projeto .mslice ---------------- }
+
+procedure TMultiSlicerForm.UpdateTitle;
+var Base: string; K: Integer;
+begin
+  Base := Caption;
+  K := Pos(' - ', Base);
+  if K > 0 then Base := Copy(Base, 1, K - 1);
+  if FProjectFile <> '' then
+  begin
+    Caption := Base + ' - ' + ChangeFileExt(ExtractFileName(FProjectFile), '');
+    if FDirty then Caption := Caption + ' *';
+  end
+  else if FDirty and (FScene.Count > 0) then
+    Caption := Base + ' - sem nome *'
+  else
+    Caption := Base;
+end;
+
+function TMultiSlicerForm.ConfirmDiscard: Boolean;
+begin
+  Result := True;
+  if not FAskSave or not FDirty or (FScene.Count = 0) then Exit;
+  case MessageDlg('MultiSlicer', 'O projeto tem alteracoes nao salvas. Salvar antes?',
+    mtConfirmation, [mbYes, mbNo, mbCancel], 0) of
+    mrYes:
+      begin
+        SaveProjectClick(nil);
+        Result := not FDirty;    { cancelou o dialogo de salvar }
+      end;
+    mrNo: Result := True;
+  else
+    Result := False;
+  end;
+end;
+
+function TMultiSlicerForm.ProjectSettingsJSON: TJSONObject;
+var P, M, Q, Sup, Adh: TJSONObject;
+begin
+  Result := TJSONObject.Create;
+  if EquipmentBox.ItemIndex > 0 then Result.Add('equipment', EquipmentBox.Text)
+  else Result.Add('equipment', '');
+  P := PrinterToJSON(CurrentPrinter);
+  if (PrinterBox.ItemIndex >= 0) and (PrinterBox.ItemIndex <= High(FPrinters)) then
+    P.Add('profile', FPrinters[PrinterBox.ItemIndex].Name);
+  Result.Add('printer', P);
+  M := MaterialToJSON(CurrentMaterial);
+  if (MaterialBox.ItemIndex >= 0) and (MaterialBox.ItemIndex <= High(FMaterials)) then
+    M.Add('profile', FMaterials[MaterialBox.ItemIndex].Name);
+  Result.Add('material', M);
+  Q := QualityToJSON(CurrentQuality);
+  if (QualityBox.ItemIndex >= 0) and (QualityBox.ItemIndex <= High(FQualities)) then
+    Q.Add('profile', FQualities[QualityBox.ItemIndex].Name);
+  Q.Add('custom_mode', CustomPanel.Visible);
+  Result.Add('quality', Q);
+  Sup := TJSONObject.Create;
+  Sup.Add('mode', SupportModeBox.ItemIndex);
+  Sup.Add('where', SupportWhereBox.ItemIndex);
+  Sup.Add('angle', SupportAngle.Value);
+  Sup.Add('density', SupportDens.Value);
+  Sup.Add('xy_gap', SupportXY.Value);
+  Sup.Add('z_gap', SupportZ.Value);
+  Sup.Add('interface_layers', SupportIfc.Value);
+  Sup.Add('speed', SupportSpd.Value);
+  Sup.Add('pillar_diameter', PillarDia.Value);
+  Sup.Add('show_overhangs', ShowOverhangsBox.Checked);
+  Result.Add('support', Sup);
+  Adh := TJSONObject.Create;
+  Adh.Add('type', AdhesionTypeBox.ItemIndex);
+  Adh.Add('skirt_loops', SkirtLoops.Value);
+  Adh.Add('skirt_distance', SkirtDist.Value);
+  Adh.Add('brim_width', BrimWidthEd.Value);
+  Adh.Add('raft_margin', RaftMarginEd.Value);
+  Adh.Add('raft_gap', RaftGapEd.Value);
+  Result.Add('adhesion', Adh);
+end;
+
+procedure TMultiSlicerForm.ApplyProjectSettings(O: TJSONObject);
+var E: TJSONObject; K: Integer;
+  function Sub(const Key: string): TJSONObject;
+  begin
+    if O.Find(Key) is TJSONObject then Result := TJSONObject(O.Find(Key)) else Result := nil;
+  end;
+begin
+  { equipamento primeiro (troca o perfil de impressora), depois os valores
+    gravados no projeto, que prevalecem }
+  SelectEquipment(JStr(O, 'equipment', ''));
+  E := Sub('printer');
+  if E <> nil then
+  begin
+    if EquipmentBox.ItemIndex <= 0 then
+    begin
+      K := FindPrinter(FPrinters, JStr(E, 'profile', ''));
+      if K >= 0 then begin PrinterBox.ItemIndex := K; PrinterChange(nil); end;
+    end;
+    ApplyPrinter(PrinterFromJSON(E));
+  end;
+  E := Sub('material');
+  if E <> nil then
+  begin
+    K := FindMaterial(FMaterials, JStr(E, 'profile', ''));
+    if K >= 0 then begin MaterialBox.ItemIndex := K; MaterialChange(nil); end;
+    ApplyMaterial(MaterialFromJSON(E));
+  end;
+  E := Sub('quality');
+  if E <> nil then
+  begin
+    K := FindQuality(FQualities, JStr(E, 'profile', ''));
+    if K >= 0 then begin QualityBox.ItemIndex := K; QualityChange(nil); end;
+    ApplyQuality(QualityFromJSON(E));
+    ShowQualityMode(JBool(E, 'custom_mode', False));
+  end;
+  FUpdating := True;
+  try
+    E := Sub('support');
+    if E <> nil then
+    begin
+      SupportModeBox.ItemIndex := EnsureRange(JInt(E, 'mode', 0), 0, 2);
+      SupportWhereBox.ItemIndex := EnsureRange(JInt(E, 'where', 0), 0, 1);
+      SupportAngle.Value := JFloat(E, 'angle', 50);
+      SupportDens.Value := JInt(E, 'density', 15);
+      SupportXY.Value := JFloat(E, 'xy_gap', 0.7);
+      SupportZ.Value := JFloat(E, 'z_gap', 0.2);
+      SupportIfc.Value := JInt(E, 'interface_layers', 2);
+      SupportSpd.Value := JFloat(E, 'speed', 50);
+      PillarDia.Value := JFloat(E, 'pillar_diameter', 3);
+      ShowOverhangsBox.Checked := JBool(E, 'show_overhangs', False);
+    end;
+    E := Sub('adhesion');
+    if E <> nil then
+    begin
+      AdhesionTypeBox.ItemIndex := EnsureRange(JInt(E, 'type', 1), 0, 3);
+      SkirtLoops.Value := JInt(E, 'skirt_loops', 1);
+      SkirtDist.Value := JFloat(E, 'skirt_distance', 3);
+      BrimWidthEd.Value := JFloat(E, 'brim_width', 8);
+      RaftMarginEd.Value := JFloat(E, 'raft_margin', 3);
+      RaftGapEd.Value := JFloat(E, 'raft_gap', 0.2);
+    end;
+  finally
+    FUpdating := False;
+  end;
+  SyncRecommended;
+  RefreshSupportAids;
+end;
+
+procedure TMultiSlicerForm.NewProject;
+begin
+  if FSlicing then Exit;
+  FScene.Clear;
+  FScene.ClearHistory;
+  FProjectFile := '';
+  SourceFile := '';
+  SceneChanged('Projeto novo: abra um modelo STL ou 3MF.');
+  FDirty := False;
+  UpdateTitle;
+  RefreshModelInfo;
+  SetState('Aguardando modelo', clSuiteWarning);
+end;
+
+procedure TMultiSlicerForm.OpenProject(const FN: string);
+var Missing: TStringList; Sets: TJSONObject; Msg: string;
+begin
+  if FSlicing then Exit;
+  Missing := TStringList.Create;
+  FLoadingProject := True;
+  try
+    Sets := LoadProject(FN, FScene, Missing);
+    try
+      ApplyProjectSettings(Sets);
+    finally
+      Sets.Free;
+    end;
+    FProjectFile := ExpandFileName(FN);
+    if FScene.Count > 0 then SourceFile := FScene[0].SourceFile else SourceFile := '';
+    Msg := Format('Projeto aberto: %s (%d pecas).', [ExtractFileName(FN), FScene.Count]);
+    if Missing.Count > 0 then
+      Msg := Msg + ' Modelos nao encontrados: ' + StringReplace(Trim(Missing.Text), LineEnding, ', ', [rfReplaceAll]);
+    FScene.BedX := BedX.Value; FScene.BedY := BedY.Value; FScene.BedZ := BedZ.Value;
+    SceneChanged(Msg);
+    View3D.FitBed;
+    Log.Lines.Add(Msg);
+  finally
+    FLoadingProject := False;
+    Missing.Free;
+  end;
+  FDirty := False;
+  UpdateTitle;
+  RefreshModelInfo;
+end;
+
+procedure TMultiSlicerForm.SaveProjectAs(const FN: string);
+var Sets: TJSONObject; PName: string;
+begin
+  PName := FN;
+  if ExtractFileExt(PName) = '' then PName := PName + MSLICE_EXT;
+  Sets := ProjectSettingsJSON;
+  try
+    SaveProject(PName, FScene, Sets);
+  finally
+    Sets.Free;
+  end;
+  FProjectFile := ExpandFileName(PName);
+  FDirty := False;
+  UpdateTitle;
+  Status.Caption := 'Projeto salvo: ' + FProjectFile;
+  Log.Lines.Add('Projeto salvo: ' + FProjectFile);
+end;
+
+procedure TMultiSlicerForm.NewProjectClick(Sender: TObject);
+begin
+  if ConfirmDiscard then NewProject;
+end;
+
+procedure TMultiSlicerForm.OpenProjectClick(Sender: TObject);
+var D: TOpenDialog;
+begin
+  if not ConfirmDiscard then Exit;
+  D := TOpenDialog.Create(Self);
+  try
+    D.Filter := 'Projeto MultiSlicer (*.mslice)|*.mslice';
+    D.Options := [ofFileMustExist, ofEnableSizing];
+    if FProjectFile <> '' then D.InitialDir := ExtractFilePath(FProjectFile);
+    if D.Execute then
+    try
+      OpenProject(D.FileName);
+      ShowStep(1);
+    except
+      on E: Exception do ShowError(E);
+    end;
+  finally
+    D.Free;
+  end;
+end;
+
+procedure TMultiSlicerForm.SaveProjectClick(Sender: TObject);
+begin
+  if FProjectFile = '' then SaveProjectAsClick(Sender)
+  else
+    try
+      SaveProjectAs(FProjectFile);
+    except
+      on E: Exception do ShowError(E);
+    end;
+end;
+
+procedure TMultiSlicerForm.SaveProjectAsClick(Sender: TObject);
+var D: TSaveDialog;
+begin
+  D := TSaveDialog.Create(Self);
+  try
+    D.Filter := 'Projeto MultiSlicer (*.mslice)|*.mslice';
+    D.DefaultExt := 'mslice';
+    if FProjectFile <> '' then
+    begin
+      D.FileName := ExtractFileName(FProjectFile);
+      D.InitialDir := ExtractFilePath(FProjectFile);
+    end
+    else if SourceFile <> '' then
+    begin
+      D.FileName := ChangeFileExt(ExtractFileName(SourceFile), MSLICE_EXT);
+      D.InitialDir := ExtractFilePath(SourceFile);
+    end;
+    D.Options := [ofOverwritePrompt, ofPathMustExist, ofEnableSizing];
+    if D.Execute then
+    try
+      SaveProjectAs(D.FileName);
+    except
+      on E: Exception do ShowError(E);
+    end;
+  finally
+    D.Free;
+  end;
 end;
 
 procedure TMultiSlicerForm.HeaderResize(Sender: TObject);
@@ -1729,6 +2033,15 @@ end;
 
 procedure TMultiSlicerForm.FormKey(Sender: TObject; var Key: Word; Shift: TShiftState);
 begin
+  if (ssCtrl in Shift) and not FSlicing then
+  begin
+    if Key = VK_S then
+    begin
+      if ssShift in Shift then SaveProjectAsClick(nil) else SaveProjectClick(nil);
+      Key := 0; Exit;
+    end;
+    if Key = VK_O then begin OpenClick(nil); Key := 0; Exit; end;
+  end;
   if FSlicing and (Key = VK_ESCAPE) then
   begin
     CancelSlicing;
@@ -2243,6 +2556,11 @@ end;
 procedure TMultiSlicerForm.SettingsChanged(Sender: TObject);
 begin
   if FUpdating then Exit;
+  if not FLoadingProject and not FDirty then
+  begin
+    FDirty := True;
+    UpdateTitle;
+  end;
   if (InfillTrack <> nil) and ((Sender = InfillDensity) or (Sender = SkirtLoops) or (Sender = nil) or
     (Sender = AdhesionTypeBox) or (Sender = SupportModeBox)) then
     SyncRecommended;
@@ -2328,11 +2646,15 @@ var D: TOpenDialog;
 begin
   D := TOpenDialog.Create(Self);
   try
-    D.Filter := 'Modelos 3D (*.stl;*.3mf)|*.stl;*.3mf|STL|*.stl|3MF|*.3mf';
+    D.Filter := 'Modelos e projetos (*.stl;*.3mf;*.mslice)|*.stl;*.3mf;*.mslice|STL|*.stl|3MF|*.3mf|Projeto MultiSlicer|*.mslice';
     D.Options := [ofFileMustExist, ofEnableSizing];
     if D.Execute then
     try
-      OpenFile(D.FileName);
+      if SameText(ExtractFileExt(D.FileName), MSLICE_EXT) then
+      begin
+        if ConfirmDiscard then OpenProject(D.FileName);
+      end
+      else OpenFile(D.FileName);
       ShowStep(1);
     except
       on E: Exception do ShowError(E);
@@ -2637,6 +2959,11 @@ end;
 
 procedure TMultiSlicerForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
+  if not FSlicing then
+  begin
+    CanClose := ConfirmDiscard;
+    Exit;
+  end;
   { fechando no meio do fatiamento: cancela e fecha quando a thread parar }
   CanClose := not FSlicing;
   if FSlicing then
@@ -2717,8 +3044,17 @@ begin
   try
     D.Filter := 'G-code|*.gcode';
     D.DefaultExt := 'gcode';
-    D.FileName := ChangeFileExt(ExtractFileName(SourceFile), '.gcode');
-    if SourceFile <> '' then D.InitialDir := ExtractFilePath(SourceFile);
+    { nome sugerido: o do projeto; sem projeto, o do modelo }
+    if FProjectFile <> '' then
+    begin
+      D.FileName := ChangeFileExt(ExtractFileName(FProjectFile), '.gcode');
+      D.InitialDir := ExtractFilePath(FProjectFile);
+    end
+    else
+    begin
+      D.FileName := ChangeFileExt(ExtractFileName(SourceFile), '.gcode');
+      if SourceFile <> '' then D.InitialDir := ExtractFilePath(SourceFile);
+    end;
     D.Options := [ofOverwritePrompt, ofPathMustExist, ofEnableSizing];
     if D.Execute then
     try
@@ -2735,10 +3071,15 @@ end;
 procedure TMultiSlicerForm.SendClick(Sender: TObject);
 var Registry: TSuiteRegistry; Root, Err, Candidate: string; C: TSuiteContext; I: Integer;
 begin
-  if (FExportedFile = '') or not FileExists(FExportedFile) then
+  { sem arquivo gerado (ou desatualizado): gera antes, como o MakeRouter }
+  if (FExportedFile = '') or not FileExists(FExportedFile) or not Ready then
   begin
-    Status.Caption := 'Gere o G-code antes de abrir no MultiCNC.';
-    Exit;
+    ExportClick(nil);
+    if (FExportedFile = '') or not FileExists(FExportedFile) then
+    begin
+      Status.Caption := 'Gere o G-code antes de abrir no MultiCNC.';
+      Exit;
+    end;
   end;
   Registry := TSuiteRegistry.Create;
   try

@@ -4,7 +4,7 @@ program test_modern_slicer;
   topo/fundo solidos, gyroid, altura adaptativa, extrusao volumetrica,
   G-code Marlin/Klipper com M73, rotulos de objeto e arcos. }
 uses Classes, SysUtils, Math, multislicer_types, multislicer_mesh, multislicer_stl,
-  multislicer_pipeline, multislicer_infill, multisuite_geometry, multicnc_gcode_analyzer;
+  multislicer_pipeline, multislicer_infill, multisuite_geometry, multicnc_gcode_analyzer, multisuite_gcode_writer;
 
 procedure Check(Value: Boolean; const Msg: string);
 begin
@@ -68,6 +68,7 @@ var
   Slicer: TModernSlicer;
   S: TSliceSettings;
   Out, Warn: TStringList;
+  Hdr: TSuiteGCodeHeader; HB: TSuiteBounds;
   Rep: TSliceReport;
   Loops, Lines: TPolygons2D;
   Heights: TPolygon2D;
@@ -188,6 +189,18 @@ begin
         if Slicer.Layers[I].Paths[K].Role in [prSolidInfill, prSparseInfill] then
           Check(not PointInPolygon(Slicer.Layers[I].Paths[K].Points[0],
             [Pt(45, 45), Pt(55, 45), Pt(55, 55), Pt(45, 55)]), 'nada preenchido dentro do furo');
+    { contrato da suite: o MultiCNC reconhece impressora 3D e a caixa do trabalho }
+    S := DefaultSliceSettings;
+    S.Printer.Name := 'Creality Ender-3'; S.MaterialName := 'PLA';
+    Slicer.Slice(Mesh2, S, Out);
+    Check(Out[0] = '; MultiSlicer -> MultiCNC (Impressora 3D)', 'linha 1 do contrato');
+    Check(SuiteParseHeader(Out, Hdr, HB), 'contrato MS-CONTRACT');
+    Check((Hdr.Origin = 'MultiSlicer') and (Hdr.Machine = 'printer3d'), 'origem e maquina printer3d');
+    Check(HB.Valid and (HB.X0 > 30) and (HB.X1 < 70) and SameValue(HB.Z1, 8, 0.01), 'caixa do trabalho');
+    Check((Out.IndexOf('; MS-PRINTER: Creality Ender-3') >= 0) and (Out.IndexOf('; MS-MATERIAL: PLA') >= 0),
+      'impressora e material no cabecalho');
+    Check((Pos(';TIME:', Out.Text) > 0) and (Pos(';Filament used:', Out.Text) > 0) and
+      (Pos(';FLAVOR:Marlin', Out.Text) > 0), 'linhas do OctoPrint/Moonraker mantidas');
     WriteLn(Format('MultiSlicer moderno: OK (%d camadas, %.1f g, %d s, adaptativo %d vs %d)',
       [Rep.Layers, Rep.FilamentGrams, Round(Rep.EstimatedSeconds), NBox, NPyr]));
   finally
