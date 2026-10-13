@@ -2,13 +2,11 @@
 
 Fatiador para impressão 3D integrado ao ecossistema MultiCNC.
 
-> **Estado (13/10/2026, versão 0.0.9.0):** perfis de impressora e material,
-> equipamento do MultiCNC no topo com catálogo por marca e modelo, cena com várias
-> peças, posicionamento, qualidade, suportes e aderência, prévia 3D por camada,
-> fatiamento em segundo plano com progresso e cancelamento, projeto `.mslice`,
-> conferência da malha ao abrir e arrastar arquivos para a janela.
-> O executável é `bin/multislicer.exe`. Pendente: o lado do MultiCNC
-> (reconhecer o G-code do MultiSlicer e selecionar a impressora 3D sozinho, etapa 8D).
+> **Estado (13/10/2026, versão 0.1.0.0):** todas as etapas do plano entregues: perfis,
+> equipamento do MultiCNC com catálogo por marca e modelo, cena com várias peças, posicionamento,
+> qualidade, suportes e aderência, prévia 3D, fatiamento em segundo plano, projeto `.mslice`,
+> conferência da malha e envio ao MultiCNC, que reconhece o arquivo, seleciona a impressora 3D e
+> confere o volume (MultiCNC 0.1.0.4). Executáveis em `bin/`.
 > Plano e histórico: [docs/PLANO_TAREFAS.md](docs/PLANO_TAREFAS.md).
 
 ## Capturas da interface
@@ -77,7 +75,9 @@ de movimento dentro da camada e as marcas de retração ainda estão previstos.
   `; MultiSlicer -> MultiCNC (Impressora 3D)`, seguida das linhas `; MS-...` do contrato da
   suíte (máquina `printer3d`, caixa das peças, impressora, material, temperaturas, tempo e
   filamento) e do cabeçalho lido por OctoPrint/Moonraker.
-- **Abrir no MultiCNC** gera o G-code antes, se preciso, e abre o MultiCNC com ele.
+- **Abrir no MultiCNC** gera o G-code antes, se preciso, e abre o MultiCNC com ele. O MultiCNC
+  seleciona Impressora 3D (Marlin), mostra no log impressora, material, temperaturas, tempo e
+  filamento e avisa se as peças não cabem no volume do equipamento.
 
 ## Fluxo
 STL/3MF -> conferência da malha -> cena (posição/escala/rotação) -> camadas -> paredes/topo-fundo/preenchimento/suportes/aderência -> prévia 3D -> G-code com contrato da suíte -> MultiCNC.

@@ -199,6 +199,9 @@ begin
     Check(HB.Valid and (HB.X0 > 30) and (HB.X1 < 70) and SameValue(HB.Z1, 8, 0.01), 'caixa do trabalho');
     Check((Out.IndexOf('; MS-PRINTER: Creality Ender-3') >= 0) and (Out.IndexOf('; MS-MATERIAL: PLA') >= 0),
       'impressora e material no cabecalho');
+    Check((Hdr.Printer = 'Creality Ender-3') and (Hdr.Material = 'PLA') and (Hdr.HotendTemp > 150) and
+      (Hdr.FirstHotendTemp > 150) and (Hdr.Layers = Length(Slicer.Layers)) and (Hdr.PrintSeconds > 0) and
+      (Hdr.FilamentG > 0), 'MultiCNC le impressora, material, temperaturas, tempo e filamento');
     Check((Pos(';TIME:', Out.Text) > 0) and (Pos(';Filament used:', Out.Text) > 0) and
       (Pos(';FLAVOR:Marlin', Out.Text) > 0), 'linhas do OctoPrint/Moonraker mantidas');
     WriteLn(Format('MultiSlicer moderno: OK (%d camadas, %.1f g, %d s, adaptativo %d vs %d)',

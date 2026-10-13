@@ -1,6 +1,6 @@
 program test_app;
 {$mode objfpc}{$H+}
-uses Interfaces, Forms, Controls, StdCtrls, SysUtils, Classes, LCLType, mainform,
+uses Interfaces, Forms, Controls, StdCtrls, ComCtrls, SysUtils, Classes, LCLType, mainform,
   multisuite_controls, multicnc_gcode_analyzer;
 var F: TMainForm; I, FirstMatch, SecondMatch: Integer;
   ConnectButton, StartButton, JogZ, PauseButton, StopButton: TSuiteButton;
@@ -97,7 +97,35 @@ begin
     Check(Console.Text = '', 'Clear console');
     ConnectButton.Click;
     Check(not JogZ.Enabled, 'Disconnected again');
-    WriteLn('MultiCNC GUI: OK (connection, search, UTF-8, shortcuts, file drop guards, console and GRBL compatibility warning)');
+    { G-code do MultiSlicer: contrato da suite seleciona Impressora 3D e confere o volume }
+    Lines.Text := '; MultiSlicer -> MultiCNC (Impressora 3D)' + LineEnding +
+      '; MS-CONTRACT: 1' + LineEnding + '; MS-MACHINE: printer3d' + LineEnding +
+      '; MS-BOUNDS: X0=95 X1=125 Y0=100 Y1=120 Z0=0 Z1=26' + LineEnding +
+      '; MS-PRINTER: Creality Ender-3' + LineEnding + '; MS-MATERIAL: PLA' + LineEnding +
+      '; MS-TEMP: HOTEND=200 BED=60 FIRST_HOTEND=205 FIRST_BED=65' + LineEnding +
+      '; MS-PRINT: TIME=1490 LAYERS=130 FILAMENT_M=1.840 FILAMENT_G=5.49' + LineEnding +
+      ';FLAVOR:Marlin' + LineEnding + 'G21' + LineEnding + 'G90' + LineEnding + 'M83' + LineEnding +
+      'M104 S205' + LineEnding + 'G28' + LineEnding + 'G0 X100 Y100 Z0.2 F9000' + LineEnding + 'G1 X120 Y100 E1.2 F1800' +
+      LineEnding + 'G2 X125 Y105 I0 J5 E0.4' + LineEnding + 'M486 S-1' + LineEnding + 'M84 X Y E';
+    Lines.SaveToFile(FN);
+    TSuiteButton(F.FindComponent('ClearConsole')).Click;
+    F.OnDropFiles(F, [FN]);
+    Check(TComboBox(F.FindComponent('MachineType')).ItemIndex = 2, 'MultiSlicer G-code selects 3D Printer');
+    Check(Protocol.ItemIndex = 1, '3D Printer uses Marlin');
+    Check((Pos('Impressora 3D', Console.Text) > 0) and (Pos('Material: PLA', Console.Text) > 0) and
+      (Pos('bico 200 C', Console.Text) > 0) and (Pos('130 camadas', Console.Text) > 0), 'printer job summary in the log');
+    Check(Pos('Cabe no volume', Console.Text) > 0, 'job fits the printer volume');
+    Check(Pos('X120', ProgramView.Text) > 0, 'printer program loaded');
+    for I := 0 to F.ComponentCount - 1 do
+      if F.Components[I] is TStatusBar then
+        Check(Pos('Erros', TStatusBar(F.Components[I]).SimpleText) = 0,
+          'printer G-code analyzed without errors (M84 X Y E, F9000): ' + TStatusBar(F.Components[I]).SimpleText);
+    Lines[3] := '; MS-BOUNDS: X0=10 X1=400 Y0=10 Y1=120 Z0=0 Z1=26';
+    Lines.SaveToFile(FN);
+    TSuiteButton(F.FindComponent('ClearConsole')).Click;
+    F.OnDropFiles(F, [FN]);
+    Check(Pos('nao cabem no volume', Console.Text) > 0, 'oversized job warned');
+    WriteLn('MultiCNC GUI: OK (connection, search, UTF-8, shortcuts, file drop guards, console, GRBL compatibility warning, MultiSlicer printer jobs)');
   finally
     F.Free;
     Lines.Free;

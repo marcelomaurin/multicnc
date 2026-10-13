@@ -1809,6 +1809,16 @@ begin
     BaudCombo.Text := IntToStr(Prof.BaudRate);
     Session.SetWorkEnvelope(Prof.VolumeX, Prof.VolumeY, Prof.VolumeZ);
     Session.SetThermalLimits(Prof.MaxHotendTemp, Prof.MaxBedTemp);
+    { analise do G-code com os limites de uma impressora (volume da mesa e
+      deslocamentos de ate 300 mm/s), nao os de router (5000 mm/min) }
+    if not (Session.State in [ssRunning, ssPaused]) then
+    begin
+      Envelope := DefaultEnvelope(Prof.VolumeX, Prof.VolumeY, Prof.VolumeZ);
+      Envelope.MaxFeed := 18000;
+      Envelope.RapidFeed := 18000;
+      Envelope.Acceleration := 1000;
+      Envelope.RequireSpindleForCut := False;
+    end;
 
     SpConfigHotendTemp.MaxValue := Prof.MaxHotendTemp;
     if SpConfigHotendTemp.Value > Prof.MaxHotendTemp then
@@ -2524,7 +2534,7 @@ begin
     end;
     D.Options := [ofFileMustExist, ofEnableSizing];
     if not D.Execute then Exit;
-    LoadProgram(D.FileName);
+    OpenProgramFile(D.FileName);
   finally
     D.Free;
     UpdateControls;
@@ -2563,11 +2573,15 @@ end;
     (docs/CONTRATO_GCODE.md), o log mostra o ponto de zero, o material e a caixa;
   - "; LaserPCB -> MultiCNC (CNC Router)": furacao do LaserPCB -> CNC Router;
   - "; LaserArt" ou "; LaserPCB": laser. A potencia (S) e as passadas ja
-    estao no G-code, entao Pass count = 1 e override de velocidade desligado.
+    estao no G-code, entao Pass count = 1 e override de velocidade desligado;
+  - "; MultiSlicer -> MultiCNC (Impressora 3D)" ou "; MS-MACHINE: printer3d":
+    impressora 3D (Marlin). O log mostra impressora, material, temperaturas,
+    tempo e filamento, e avisa se a caixa das pecas nao cabe no volume do
+    equipamento selecionado.
   Nada e enviado a maquina: o usuario conecta e inicia normalmente. }
 procedure TMainForm.OpenProgramFile(const AFileName: string);
 type
-  TSuiteOrigin = (soNone, soLaser, soRouter);
+  TSuiteOrigin = (soNone, soLaser, soRouter, soPrinter);
 var
   SL: TStringList;
   I: Integer;
@@ -2584,8 +2598,15 @@ begin
     try
       SL.LoadFromFile(AFileName);
       HasContract := SuiteParseHeader(SL, H, HB);
+      if HasContract and SameText(H.Machine, 'printer3d') then Origin := soPrinter
+      else
       for I := 0 to Min(SL.Count, 40) - 1 do
-        if (Pos(';', SL[I]) = 1) and (Pos(' -> MultiCNC (CNC Router)', SL[I]) > 0) then
+        if (Pos(';', SL[I]) = 1) and (Pos(' -> MultiCNC (Impressora 3D)', SL[I]) > 0) then
+        begin
+          Origin := soPrinter;
+          Break;
+        end
+        else if (Pos(';', SL[I]) = 1) and (Pos(' -> MultiCNC (CNC Router)', SL[I]) > 0) then
         begin
           Origin := soRouter;
           Break;
@@ -2601,7 +2622,44 @@ begin
   finally
     SL.Free;
   end;
-  if (Origin <> soNone) and not Session.Connected then
+  if (Origin = soPrinter) and not Session.Connected then
+  begin
+    if MachineType.ItemIndex <> Ord(mtPrinter3D) then
+    begin
+      MachineType.ItemIndex := Ord(mtPrinter3D);
+      SelectionChanged(MachineType);   { seleciona Marlin e os baud de impressora }
+    end;
+    Log(Format('Programa do %s: maquina Impressora 3D.', [IfThen(H.Origin <> '', H.Origin, 'fatiador')]));
+  end;
+  if Origin = soPrinter then
+  begin
+    if (H.Printer <> '') or (H.Material <> '') then
+      Log(Format('Impressora: %s | Material: %s', [IfThen(H.Printer <> '', H.Printer, '-'),
+        IfThen(H.Material <> '', H.Material, '-')]));
+    if H.HotendTemp > 0 then
+      Log(Format('Temperaturas: bico %.0f C (1a camada %.0f C), mesa %.0f C (1a camada %.0f C).',
+        [H.HotendTemp, H.FirstHotendTemp, H.BedTemp, H.FirstBedTemp], InvariantFS));
+    if H.PrintSeconds > 0 then
+      Log(Format('Tempo estimado %d h %.2d min, %.0f camadas, filamento %.2f m / %.1f g.',
+        [Trunc(H.PrintSeconds / 3600), Trunc(H.PrintSeconds / 60) mod 60, H.Layers, H.FilamentM, H.FilamentG],
+        InvariantFS));
+    if HB.Valid then
+    begin
+      Log(Format('Caixa das pecas: X %.1f..%.1f  Y %.1f..%.1f  Z ate %.1f mm.',
+        [HB.X0, HB.X1, HB.Y0, HB.Y1, HB.Z1], InvariantFS));
+      { volume do equipamento selecionado (perfil de marca/modelo ou cadastro) }
+      if ((Session.EnvelopeX > 0) and ((HB.X0 < -0.01) or (HB.X1 > Session.EnvelopeX + 0.01))) or
+         ((Session.EnvelopeY > 0) and ((HB.Y0 < -0.01) or (HB.Y1 > Session.EnvelopeY + 0.01))) or
+         ((Session.EnvelopeZ > 0) and (HB.Z1 > Session.EnvelopeZ + 0.01)) then
+        Log(Format('ATENCAO: as pecas nao cabem no volume do equipamento (%.0f x %.0f x %.0f mm). ' +
+          'Confira a impressora selecionada ou refaca o fatiamento no MultiSlicer.',
+          [Session.EnvelopeX, Session.EnvelopeY, Session.EnvelopeZ], InvariantFS))
+      else if Session.EnvelopeX > 0 then
+        Log(Format('Cabe no volume do equipamento (%.0f x %.0f x %.0f mm).',
+          [Session.EnvelopeX, Session.EnvelopeY, Session.EnvelopeZ], InvariantFS));
+    end;
+  end;
+  if (Origin in [soLaser, soRouter]) and not Session.Connected then
   begin
     if Origin = soRouter then
     begin
@@ -2753,7 +2811,8 @@ begin
     Status.SimpleText := 'Stop the program before opening another file.';
     Exit;
   end;
-  LoadProgram(FileNames[0]);
+  { mesmo caminho do contexto da suite: reconhece a origem pelo cabecalho }
+  OpenProgramFile(FileNames[0]);
 end;
 
 procedure TMainForm.SearchChanged(Sender: TObject);

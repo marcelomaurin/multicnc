@@ -36,7 +36,7 @@ As **primeiras linhas** são comentários. A linha 1 identifica a origem e a má
 ```text
 ; MakeRouter -> MultiCNC (CNC Router)
 ; MS-CONTRACT: 1
-; MS-MACHINE: router            (router | laser)
+; MS-MACHINE: router            (router | laser | printer3d)
 ; MS-DATUM: XY=BL Z=TOP         (XY: BL BC BR ML C MR TL TC TR | Z: TOP TABLE)
 ; MS-STOCK: W=500 H=190 T=18
 ; MS-BOUNDS: X0=-3 X1=503 Y0=-3 Y1=193 Z0=-18.5 Z1=5
@@ -51,6 +51,23 @@ G21
   Frame e a conferência de curso.
 - Uma linha `; MS-...` desconhecida deve ser ignorada sem erro, para permitir evolução.
 
+### Impressora 3D (MultiSlicer)
+
+```
+; MultiSlicer -> MultiCNC (Impressora 3D)
+; MS-CONTRACT: 1
+; MS-MACHINE: printer3d
+; MS-BOUNDS: X0=85 X1=135 Y0=104 Y1=116 Z0=0 Z1=26      (caixa das pecas, sem a linha de purga)
+; MS-PRINTER: Creality Ender-3
+; MS-MATERIAL: PLA
+; MS-TEMP: HOTEND=200 BED=60 FIRST_HOTEND=205 FIRST_BED=60   (graus C)
+; MS-PRINT: TIME=1478 LAYERS=130 FILAMENT_M=1.814 FILAMENT_G=5.41
+;FLAVOR:Marlin / ;TIME: / ;Filament used:   (cabecalho lido por OctoPrint/Moonraker)
+```
+
+O G-code de impressora usa Marlin (M104/M109/M140/M190, M83, G2/G3 com E, M486, M73, M84 X Y E)
+e nao segue as regras de comandos do router (`SuiteCheckGCode` vale so para router).
+
 ## Estado por ferramenta
 
 | Ferramenta | Linha 1 | Zero | `MS-...` |
@@ -59,12 +76,19 @@ G21
 | LaserPCB (furação) | `; LaserPCB -> MultiCNC (CNC Router)` | coordenadas da mesa do laser | não |
 | LaserPCB / LaserArt | `; LaserPCB -> MultiCNC` / `; LaserArt -> MultiCNC` | mesa do laser | não |
 | MakeRouter | `; MakeRouter -> MultiCNC (CNC Router)` | 9 pontos do material, Z topo ou mesa | sim, desde o início |
+| MultiSlicer | `; MultiSlicer -> MultiCNC (Impressora 3D)` | mesa da impressora (G28) | sim (printer3d) |
 
 ## Trabalho no MultiCNC
 
 - [feito] `OpenProgramFile`: qualquer `; X -> MultiCNC (CNC Router)` seleciona CNC Router.
 - [feito] Lê `MS-DATUM`, `MS-STOCK` e `MS-BOUNDS` (`SuiteParseHeader`) e mostra no log o ponto
   de zero, o material e a caixa do trabalho.
+- [feito] `MS-MACHINE: printer3d` (ou a linha 1 do MultiSlicer) seleciona Impressora 3D / Marlin;
+  o log mostra impressora, material, temperaturas, tempo e filamento e avisa se a caixa nao cabe no
+  volume do equipamento. Abrir pelo botao ou arrastar o arquivo passa pelo mesmo reconhecimento.
+  Com impressora selecionada, a analise usa o volume da mesa e deslocamentos de ate 300 mm/s, e
+  aceita letras sem valor do Marlin (`M84 X Y E`, `G28 W`). Teste: `tests/test_app` e
+  `tests/test_multislicer_print` (G-code do fatiador ate o fim no simulador Marlin).
 
 Falta:
 - Mostrar o ponto de zero ("leve a ferramenta ao canto inferior esquerdo, no topo do

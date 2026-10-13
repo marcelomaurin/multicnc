@@ -10,10 +10,10 @@
   </General>
   <VersionInfo>
    <UseVersionInfo Value="True"/>
-   <MinorVersionNr Value="0"/>
-   <RevisionNr Value="9"/>
+   <MinorVersionNr Value="1"/>
+   <RevisionNr Value="0"/>
    <BuildNr Value="0"/>
-   <StringTable CompanyName="Maurinsoft" FileDescription="MultiSlicer" ProductName="MultiSlicer / MultiSuite" ProductVersion="0.0.9.0"/>
+   <StringTable CompanyName="Maurinsoft" FileDescription="MultiSlicer" ProductName="MultiSlicer / MultiSuite" ProductVersion="0.1.0.0"/>
   </VersionInfo>
   <BuildModes Count="1">
    <Item1 Name="Default" Default="True" />

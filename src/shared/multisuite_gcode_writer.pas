@@ -28,7 +28,7 @@ const
 type
   TSuiteGCodeHeader = record
     Origin: string;        { 'MakeRouter', 'RouterPCB' ... }
-    Machine: string;       { 'router' | 'laser' }
+    Machine: string;       { 'router' | 'laser' | 'printer3d' }
     DatumXY: string;       { BL BC BR ML C MR TL TC TR }
     DatumZ: string;        { TOP | TABLE }
     StockW, StockH, StockT: Double;
@@ -39,6 +39,10 @@ type
     StageName: string;
     Title: string;
     ZeroText: string;      { frase para o operador }
+    { impressora 3D (MultiSlicer): "; MS-PRINTER/MATERIAL/TEMP/PRINT" }
+    Printer, Material: string;
+    HotendTemp, BedTemp, FirstHotendTemp, FirstBedTemp: Double;
+    PrintSeconds, Layers, FilamentM, FilamentG: Double;
   end;
 
   TSuiteBounds = record
@@ -372,7 +376,20 @@ begin
     end
     else if Pos('; MS-BOUNDS:', L) = 1 then
       B.Valid := NumOf(L, 'X0', B.X0) and NumOf(L, 'X1', B.X1) and NumOf(L, 'Y0', B.Y0) and
-        NumOf(L, 'Y1', B.Y1) and NumOf(L, 'Z0', B.Z0) and NumOf(L, 'Z1', B.Z1);
+        NumOf(L, 'Y1', B.Y1) and NumOf(L, 'Z0', B.Z0) and NumOf(L, 'Z1', B.Z1)
+    else if Pos('; MS-PRINTER:', L) = 1 then H.Printer := Trim(Copy(L, 14, MaxInt))
+    else if Pos('; MS-MATERIAL:', L) = 1 then H.Material := Trim(Copy(L, 15, MaxInt))
+    else if Pos('; MS-TEMP:', L) = 1 then
+    begin
+      { espaco antes da chave: HOTEND nao casa dentro de FIRST_HOTEND }
+      NumOf(L, ' HOTEND', H.HotendTemp); NumOf(L, ' BED', H.BedTemp);
+      NumOf(L, ' FIRST_HOTEND', H.FirstHotendTemp); NumOf(L, ' FIRST_BED', H.FirstBedTemp);
+    end
+    else if Pos('; MS-PRINT:', L) = 1 then
+    begin
+      NumOf(L, ' TIME', H.PrintSeconds); NumOf(L, ' LAYERS', H.Layers);
+      NumOf(L, ' FILAMENT_M', H.FilamentM); NumOf(L, ' FILAMENT_G', H.FilamentG);
+    end;
   end;
 end;
 

@@ -30,7 +30,7 @@ uses
 
 const
   { manter igual ao VersionInfo do multislicer.lpi (revisao = etapa do PLANO_TAREFAS) }
-  MS_VERSION = '0.0.9.0';
+  MS_VERSION = '0.1.0.0';
   MS_STEP_COUNT = 7;
   MS_STEPS: array[0..MS_STEP_COUNT - 1] of string = ('1  Impressora', '2  Modelo',
     '3  Material', '4  Qualidade', '5  Suportes', '6  Previa', '7  Saida');

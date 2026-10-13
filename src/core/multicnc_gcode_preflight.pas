@@ -503,6 +503,10 @@ begin
           Inc(Q);
         end;
         P := Q;
+        { Marlin aceita letras sem valor em M-codes e homing/nivelamento
+          ("M84 X Y E", "G28 W", "G28 X Y"): nao e erro, so nao tem coordenada }
+        if (Num = '') and ((Line[1] = 'M') or (Copy(Line, 1, 3) = 'G28') or (Copy(Line, 1, 3) = 'G29')) then
+          Continue;
         if not InvFloat(Num, Value) then begin
           Inc(St.R.Errors);
           St.Warn(Format('palavra %s sem valor numerico valido', [Letter]));

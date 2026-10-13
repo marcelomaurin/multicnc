@@ -17,8 +17,8 @@
   <VersionInfo>
    <UseVersionInfo Value="True" />
    <MinorVersionNr Value="1" />
-   <BuildNr Value="3" />
-   <StringTable CompanyName="Maurinsoft" FileDescription="MultiCNC - Controle e execucao da maquina" ProductName="MultiSuite" ProductVersion="0.1.0.3" />
+   <BuildNr Value="4" />
+   <StringTable CompanyName="Maurinsoft" FileDescription="MultiCNC - Controle e execucao da maquina" ProductName="MultiSuite" ProductVersion="0.1.0.4" />
   </VersionInfo>
   <BuildModes Count="1">
    <Item1 Name="Default" Default="True" />

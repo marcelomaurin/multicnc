@@ -320,10 +320,20 @@ descartar. G-code com o nome do projeto. Abrir no MultiCNC gera o G-code antes s
 
 ### 8D Alteracao no MultiCNC
 **Arq.:** `src/app/mainform.pas` (deteccao de origem do arquivo aberto).
-- [ ] 8.7 Reconhecer `; MultiSlicer -> MultiCNC (Impressora 3D)` / `Machine = printer3d` e selecionar `mtPrinter3D`.
-- [ ] 8.8 Conferir a caixa do trabalho contra o volume do equipamento cadastrado; avisar se nao couber.
-- [ ] 8.9 Registrar no log: impressora, material, temperaturas, tempo e filamento.
-- [ ] 8.10 Testar com o simulador (SimuCNC) em modo impressora 3D.
+- [x] 8.7 Reconhecer `; MultiSlicer -> MultiCNC (Impressora 3D)` / `Machine = printer3d` e selecionar `mtPrinter3D`.
+- [x] 8.8 Conferir a caixa do trabalho contra o volume do equipamento cadastrado; avisar se nao couber.
+- [x] 8.9 Registrar no log: impressora, material, temperaturas, tempo e filamento.
+- [x] 8.10 Testar com o simulador (SimuCNC) em modo impressora 3D.
+
+**8D entregue (2026-10-13), MultiCNC 0.1.0.4 e MultiSlicer 0.1.0.0.** `SuiteParseHeader` le
+`MS-PRINTER/MATERIAL/TEMP/PRINT`; `OpenProgramFile` (tambem ao arrastar e no botao Abrir) seleciona
+Impressora 3D/Marlin, registra impressora, material, temperaturas, tempo e filamento e confere a caixa
+contra o volume do equipamento. Achados no teste real: o analisador do MultiCNC acusava erro em
+`M84 X Y E` (letra sem valor, valido no Marlin) e mais de 200 avisos de avanco porque usava limites de
+router (5000 mm/min) para impressora - corrigidos. Testes: `tests/test_app` (contrato, volume, analise sem
+erros) e `tests/test_multislicer_print` (G-code real do fatiador executado ate o fim no simulador Marlin).
+Os testes do MultiCNC que usam a sessao so compilam para Windows (Winsock2 e AISerial do repositorio
+CHATGPT); aqui foram rodados com Wine.
 
 **Aceite:** gerar no MultiSlicer, clicar em Abrir no MultiCNC: o MultiCNC abre com o programa carregado e
 maquina Impressora 3D selecionada; simulacao executa ate o fim.
