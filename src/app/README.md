@@ -10,6 +10,27 @@ Referência: executável `bin/multicnc.exe` **0.1.0.3**, Windows x64; documenta�
 conferida nas fontes do commit **687756e**, em **12/10/2026**. Alguns controles
 usam rótulos em inglês, preservados nas instruções abaixo.
 
+## Capturas da interface
+
+As imagens mostram o **MultiCNC 0.1.0.3**, referência do manual ilustrado,
+com exemplos demonstrativos de **12/10/2026**.
+
+![MultiCNC: programa G-code, jog manual, posição e controles de execução](../../imgs/manual_multicnc_0_1_0_3/01_programa.png)
+
+| Router: equipamento e conexão | Trajetória e análise |
+|---|---|
+| ![MultiCNC: perfil de router, porta serial e equipamentos salvos](../../imgs/manual_multicnc_0_1_0_3/02_router_config.png) | ![MultiCNC: prévia XY, limites, estimativa de tempo e análise do G-code](../../imgs/manual_multicnc_0_1_0_3/04_analise.png) |
+
+| Laser: prévia do trabalho | Impressão 3D: programa e temperaturas |
+|---|---|
+| ![MultiCNC: trajetória do laser e limites de análise](../../imgs/manual_multicnc_0_1_0_3/09_laser_previa.png) | ![MultiCNC: G-code de impressão e painel de temperaturas do bico e da mesa](../../imgs/manual_multicnc_0_1_0_3/11_impressora_painel.png) |
+
+| Console no simulador local | Acessórios e joystick |
+|---|---|
+| ![MultiCNC: comandos enviados e respostas no Console do simulador](../../imgs/manual_multicnc_0_1_0_3/05_console.png) | ![MultiCNC: detecção, mapeamento e ajustes do joystick](../../imgs/manual_multicnc_0_1_0_3/12_joystick.png) |
+
+[Ver as 17 capturas e suas descrições](../../imgs/manual_multicnc_0_1_0_3/README.md) · [Manual ilustrado em português (PDF)](../../docs/Manuals/Manual_do_Usuario_MultiCNC_0.1.0.3_PT-BR.pdf)
+
 ## Operação básica
 
 1. Abra **Config** e escolha **Machine**, marca, modelo e protocolo. Router e

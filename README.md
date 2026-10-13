@@ -2,9 +2,9 @@
 
 **Idiomas:** Português · [English](README_EN.md) · [Español](README_ES.md) · [Français](README_FR.md) · [Deutsch](README_DE.md) · [Русский](README_RU.md) · [中文](README_ZH.md) · [العربية](README_AR.md) · [हिन्दी](README_HI.md)
 
-## Download Windows — setup 008
+## Download Windows — setup 009
 
-[Baixar setup_multcnc_008.exe](setup/setup_multcnc_008.exe) · [Notas da versão 0.08](docs/SETUP_008.md) · [Instalação e compilação](installer/windows/README.md)
+[Baixar setup_multcnc_009.exe](setup/setup_multcnc_009.exe) · [Notas da versão 0.09](docs/SETUP_009.md) · [Instalação e compilação](installer/windows/README.md)
 
 O pacote Windows x64 inclui 13 aplicativos, os perfis de laser do MultiCNC, a configuração de Mesa compartilhada entre LaserArt/LaserPCB e a biblioteca de componentes do MakePCB disponível no LaserPCB. A bandeja `multisuite_tray.exe` abre as ferramentas instaladas e pode iniciar com o Windows. O setup apresenta capturas dos projetos durante a instalação.
 
@@ -152,6 +152,23 @@ python3 tools/verify_suite.py gui --run  # Lazarus/GTK2, Xvfb e xauth
 ## 1. MultiCNC — controle da máquina
 
 O **MultiCNC** é a aplicação voltada ao controle e operação de máquinas de fabricação digital.
+
+### Capturas da interface
+
+As imagens mostram o **MultiCNC 0.1.0.3**, referência do manual ilustrado,
+com exemplos demonstrativos de **12/10/2026**.
+
+![MultiCNC: programa G-code, jog manual, posição e controles de execução](imgs/manual_multicnc_0_1_0_3/01_programa.png)
+
+| Router: equipamento e conexão | Trajetória e análise |
+|---|---|
+| ![MultiCNC: perfil de router, porta serial e equipamentos salvos](imgs/manual_multicnc_0_1_0_3/02_router_config.png) | ![MultiCNC: prévia XY, limites, estimativa de tempo e análise do G-code](imgs/manual_multicnc_0_1_0_3/04_analise.png) |
+
+| Laser: prévia do trabalho | Impressão 3D: programa e temperaturas |
+|---|---|
+| ![MultiCNC: trajetória do laser e limites de análise](imgs/manual_multicnc_0_1_0_3/09_laser_previa.png) | ![MultiCNC: G-code de impressão e painel de temperaturas do bico e da mesa](imgs/manual_multicnc_0_1_0_3/11_impressora_painel.png) |
+
+[Ver as 17 capturas e suas descrições](imgs/manual_multicnc_0_1_0_3/README.md) · [Manual ilustrado em português (PDF)](docs/Manuals/Manual_do_Usuario_MultiCNC_0.1.0.3_PT-BR.pdf)
 
 Seu núcleo separa quatro conceitos: **tipo de máquina**, **protocolo/firmware**, **transporte** e **execução de G-code**.
 
