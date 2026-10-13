@@ -1,0 +1,106 @@
+{
+  "reference_version": "MultiCNC 0.1.0.3",
+  "protocol": "GRBL 1.1",
+  "units": "mm",
+  "analysis_envelope_mm": {
+    "x": [
+      0,
+      100
+    ],
+    "y": [
+      0,
+      80
+    ],
+    "z": [
+      -2,
+      10
+    ]
+  },
+  "license": "CC0-1.0",
+  "models": [
+    {
+      "file": "01_movimentacao_sem_corte.nc",
+      "title": "Movimentação sem corte",
+      "purpose": "Conferir eixos, envelope e deslocamentos G0; spindle desligado.",
+      "depth_mm": 0,
+      "spindle": false
+    },
+    {
+      "file": "02_quadrado_40x40.nc",
+      "title": "Quadrado em três passes",
+      "purpose": "Contorno de 40 × 40 mm no centro da ferramenta, com três passes Z.",
+      "depth_mm": 0.75,
+      "spindle": true
+    },
+    {
+      "file": "03_circulos_g2_g3.nc",
+      "title": "Círculos G2 e G3",
+      "purpose": "Três círculos com diâmetros de percurso 20, 30 e 40 mm, horário/anti-horário.",
+      "depth_mm": 0.3,
+      "spindle": true
+    },
+    {
+      "file": "04_furacao_quatro_pontos.nc",
+      "title": "Furação em quatro pontos",
+      "purpose": "Quatro mergulhos em etapas de 0,25 mm, com retração explícita; sem ciclos fixos.",
+      "depth_mm": 1,
+      "spindle": true
+    },
+    {
+      "file": "05_bolsao_ziguezague.nc",
+      "title": "Bolsão em zigue-zague",
+      "purpose": "Raster de 40 × 30 mm com espaçamento de 2 mm e contorno por nível.",
+      "depth_mm": 0.4,
+      "spindle": true
+    },
+    {
+      "file": "06_contorno_arredondado.nc",
+      "title": "Contorno arredondado",
+      "purpose": "Percurso de 80 × 50 mm, quatro cantos de raio 10 mm e dois passes.",
+      "depth_mm": 0.5,
+      "spindle": true
+    },
+    {
+      "file": "07_rampa_helicoidal.nc",
+      "title": "Rampa helicoidal",
+      "purpose": "Hélice de diâmetro de percurso 20 mm, quatro voltas e um círculo final.",
+      "depth_mm": 1,
+      "spindle": true
+    },
+    {
+      "file": "08_gravacao_multicnc.nc",
+      "title": "Gravação MULTICNC",
+      "purpose": "Texto de traço simples, altura de 10 mm; não depende de fontes instaladas.",
+      "depth_mm": 0.2,
+      "spindle": true
+    },
+    {
+      "file": "09_grade_seis_copias.nc",
+      "title": "Grade com seis cópias",
+      "purpose": "Seis quadrados de percurso 15 × 15 mm em grade 3 × 2.",
+      "depth_mm": 0.3,
+      "spindle": true
+    },
+    {
+      "file": "10_coordenadas_incrementais.nc",
+      "title": "Coordenadas incrementais",
+      "purpose": "Dois quadrados (40 e 15 mm) com G91 e retorno explícito a G90.",
+      "depth_mm": 0.25,
+      "spindle": true
+    },
+    {
+      "file": "11_superficie_ondulada_3d.nc",
+      "title": "Superfície ondulada 3D",
+      "purpose": "4.141 pontos XYZ em raster; teste de prévia, fila, progresso, pausa e retomada.",
+      "depth_mm": 0.7,
+      "spindle": true
+    },
+    {
+      "file": "12_placa_combinada.nc",
+      "title": "Placa combinada",
+      "purpose": "Furação, bolsão e contorno na mesma origem, com retrações entre operações.",
+      "depth_mm": 1,
+      "spindle": true
+    }
+  ]
+}
