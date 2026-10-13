@@ -1431,7 +1431,25 @@ var
   FI: Integer;
   Samples: array of TCadVec3;
   Caps, CavR: array of TCadSweepRegion;
-  Cav: TCadExtrudeDir;
+  Cav, CutDir: TCadExtrudeDir;
+
+  { ha material (caixa de algum corpo) alem do plano por Org, no sentido Dir? }
+  function MaterialAhead(const Org, Dir: TCadVec3): Boolean;
+  var BI, C: Integer; Bb: TCadBox3; Q: TCadVec3;
+  begin
+    Result := False;
+    for BI := 0 to FBodies.Count - 1 do
+    begin
+      Bb := Body(BI).Mesh.Bounds;
+      for C := 0 to 7 do
+      begin
+        if C and 1 = 0 then Q.X := Bb.Min.X else Q.X := Bb.Max.X;
+        if C and 2 = 0 then Q.Y := Bb.Min.Y else Q.Y := Bb.Max.Y;
+        if C and 4 = 0 then Q.Z := Bb.Min.Z else Q.Z := Bb.Max.Z;
+        if VDot(VSub(Q, Org), Dir) > 1E-6 then Exit(True);
+      end;
+    end;
+  end;
 
   function DirOf(const Dir: TCadExtrudeDir; Base: TCadVec3; out ADir: TCadVec3; out AErr: string): Boolean;
   var
@@ -1766,7 +1784,23 @@ begin
     D := VNeg(N)
   else
     D := N;
-  Tool := OneDir(X.Dir1, D, S0, X.Name, E);
+  { corte sem material no sentido escolhido (ex.: esboço no mesmo plano da
+    base, que sai pela normal): inverte sozinho se houver material do outro
+    lado, como a previa do SolidWorks sugere. So para Cego/Passante/Ate o
+    proximo, sem direcao 2, sem direcao de referencia e sem "inverter lado". }
+  CutDir := X.Dir1;
+  if X.IsCut and not X.UseDir2 and not X.FlipSide and (X.Dir1.DirRef = '') and
+    (X.Dir1.EndCond in [ecBlind, ecThroughAll, ecUpToNext]) and (FBodies.Count > 0) then
+  begin
+    if X.Dir1.Reverse then P := VNeg(D) else P := D;
+    if not MaterialAhead(VAdd(Fr.Origin, VScale(N, S0)), P) and
+      MaterialAhead(VAdd(Fr.Origin, VScale(N, S0)), VNeg(P)) then
+    begin
+      CutDir.Reverse := not CutDir.Reverse;
+      Warn := 'Direção do corte invertida automaticamente: não havia material no sentido escolhido';
+    end;
+  end;
+  Tool := OneDir(CutDir, D, S0, X.Name, E);
   if Tool = nil then begin X.SetState(fsError, E); Exit; end;
   { tampar extremidades: solido do contorno externo menos a cavidade interna
     encurtada pela espessura da tampa nas duas pontas }

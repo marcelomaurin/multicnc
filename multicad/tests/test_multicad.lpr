@@ -1375,6 +1375,19 @@ begin
     X2.FlipSide := False;
     RB.Rebuild;
     Check(Near(RB.TotalVolume, 36000, 1E-6), 'corte normal tira o quadrado');
+    { corte cego no mesmo plano da base: a normal aponta para fora do
+      material; o corte inverte sozinho e avisa }
+    X2.Suppressed := True;
+    S3 := RectSketch(D, 'plane:1', 10, 10, 20, 20);
+    X3 := D.AddExtrude(S3.Id, 4, True);
+    RB.Rebuild;
+    Check(Near(RB.TotalVolume, 40000 - 400 * 4, 1E-6) and (X3.State = fsWarning) and
+      (Pos('invertida automaticamente', X3.Message) > 0), 'corte do plano da base entra na peca: ' + X3.Message);
+    X3.Dir1.Reverse := True;
+    RB.Rebuild;
+    Check(Near(RB.TotalVolume, 40000 - 400 * 4, 1E-6) and (X3.State = fsOk), 'invertido a mao: sem aviso');
+    X3.Suppressed := True;
+    X2.Suppressed := False;
     { corte que nao toca }
     S3 := RectSketch(D, 'plane:1', 200, 0, 10, 10);
     X3 := D.AddExtrude(S3.Id, 5, True);
