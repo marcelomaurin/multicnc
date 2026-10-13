@@ -16,6 +16,24 @@ No MultiCNC, abertura por launcher, diálogo e drag/drop compartilham o mesmo fl
 
 A interface MultiCNC 0.1.0.3 conecta Serial ou TCP e também oferece Simulador local. Identifica GRBL, consulta estado/posição, trata inicialização Marlin, acompanha confirmações e oferece equipamentos salvos, Frame/Outline, controle térmico e joystick. A prévia não verifica colisões nem remoção de material. Consulte o [manual ilustrado](Manuals/Manual_do_Usuario_MultiCNC_0.1.0.3_PT-BR.pdf) e o [guia do painel](../src/app/README.md).
 
+## Zero do router pelo bloco (MultiCNC 0.1.0.5)
+
+Com um programa de router aberto, **Zero pelo bloco** abre uma janela ao lado (o jog continua na principal):
+
+1. **Espessura do bloco** (vem do `MS-STOCK` do MakeRouter ou é digitada) e folga mínima (2 mm ou mais). Se o corte
+   descer além de espessura menos folga, a janela não aplica o zero e o **Iniciar fica bloqueado** — a fresa passaria
+   do bloco e entraria na mesa.
+2. **X/Y**: leve a fresa ao canto do bloco (inferior esquerdo, outro canto ou o centro) e marque (posição atual ou
+   digitada). A janela mostra onde fica o ponto zero X/Y do G-code e aplica (`G92`). **Mostrar o zero** leva a fresa
+   até X0 Y0 na mesma altura; **Voltar ao ponto** retorna.
+3. **Z**: encoste a fresa no topo do bloco (folha de papel) e marque. A janela mostra o ponto zero Z (topo do bloco ou
+   mesa, conforme `MS-DATUM`) e aplica.
+
+Onde o bloco fica no programa: pelo cabeçalho do MakeRouter (`MS-DATUM` + `MS-STOCK`); sem cabeçalho e com o corte
+todo em X/Y positivos, o zero é o canto inferior esquerdo do bloco ("X0 Y0 no canto", como os modelos de
+`models/cnc_router`); com coordenadas negativas, o canto do bloco encosta no canto da área cortada. Ao abrir um programa com espessura no cabeçalho, o log já informa se o corte cabe.
+Teste: `tests/test_zero_assist` (cálculo) e `tests/test_app` (janela, bloqueio por profundidade).
+
 ## STL para impressão
 
 No MultiSlicer 0.0.7.0, selecione a impressora cadastrada no MultiCNC ou use Ajuste manual. Abra um STL/3MF, configure o perfil e clique em Fatiar. Acompanhe o progresso no rodapé; Cancelar interrompe o cálculo em segundo plano. Selecione a camada na prévia 3D para ver paredes, preenchimento e suportes. A exportação usa exatamente o resultado do pipeline da prévia. Alterar altura, temperatura, mesa ou qualquer configuração invalida o programa; exportar regenera o resultado.

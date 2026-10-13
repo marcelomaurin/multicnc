@@ -8,7 +8,8 @@ uses Classes, SysUtils, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls,
   Dialogs, Graphics, Spin, Math, StrUtils, LazUTF8, LCLType, multisuite_numfmt,
   multicnc_types, multicnc_session, multicnc_simulator, multicnc_gcode_analyzer, multicnc_laser_config,
   multicnc_printer_profiles, multicnc_router_profiles, multicnc_laser_profiles, multicnc_equipment, ailistserialdevices, multisuite_icons,
-  multisuite_controls, multisuite_gcode_writer, multicnc_preview, multicnc_accessories;
+  multisuite_controls, multisuite_gcode_writer, multicnc_preview, multicnc_accessories,
+  multicnc_zeroassist_form, multicnc_zero_assist;
 
 type
   TMainForm = class(TForm)
@@ -46,6 +47,8 @@ type
     SerialPanel, TCPPanel: TPanel;
     BtnConnect, BtnOpen, BtnFraming, BtnStart, BtnPause, BtnResume, BtnOutline, BtnStop,
       BtnHome, BtnSetHome, BtnPhysicalHome, BtnZero, BtnStatus, BtnUnlock, BtnSend: TSuiteButton;
+    BtnZeroAssist: TSuiteButton;
+    ZeroAssist: TZeroAssistForm;
       BtnGoTo: TSuiteButton;
     JogButtons: array[0..5] of TSuiteButton;
     StepSize: TFloatSpinEdit;
@@ -153,6 +156,8 @@ type
     procedure JogClick(Sender: TObject);
     procedure Tick(Sender: TObject);
     procedure Log(const AText: string);
+    procedure ZeroAssistClick(Sender: TObject);
+    function CheckBlockDepth(out Msg: string): Boolean;
     procedure UpdateControls;
     procedure UpdateMachineTypeLayout;
     function AskTargetPosition(var AX, AY, AZ: Double): Boolean;
@@ -252,7 +257,7 @@ var X, Y, Extra: Integer;
 begin
   if (ActionsBar = nil) or (BtnStop = nil) then Exit;
   X := 16; Y := 14;
-  Place(BtnOpen, 8); Place(BtnFraming, 8); Inc(X, 12);
+  Place(BtnOpen, 8); Place(BtnZeroAssist, 8); Place(BtnFraming, 8); Inc(X, 12);
   Place(BtnStart, 8); Place(BtnPause, 8); Place(BtnResume, 8);
   if Assigned(BtnOutline) and BtnOutline.Visible and
      (X + BtnOutline.Width + BtnStop.Width + 36 > ActionsBar.ClientWidth) then NextRow;
@@ -562,6 +567,12 @@ begin
   BtnFraming := ButtonAt(Actions, 'Frame (Test)', 0, 14, 128, @FramingClick);
   BtnFraming.Height := 38;
   BtnFraming.SetLook(sbsOutline, SuiteRGB(124, 58, 237), sikFrame);
+  BtnZeroAssist := ButtonAt(Actions, 'Zero pelo bloco', 0, 14, 158, @ZeroAssistClick);
+  BtnZeroAssist.Name := 'ZeroAssist';
+  BtnZeroAssist.Height := 38;
+  BtnZeroAssist.SetLook(sbsOutline, clSuiteSuccess, sikOrigin);
+  BtnZeroAssist.Hint := 'Router: informe a espessura do bloco, marque um canto do bloco (X/Y) e o topo (Z); o MultiCNC mostra e aplica o ponto zero do G-code e confere se o corte cabe na espessura (folga minima de 2 mm).';
+  BtnZeroAssist.ShowHint := True;
   BtnStart := ButtonAt(Actions, 'Start', 0, 14, 100, @CommandClick);
   BtnStart.Height := 38;
   BtnStart.SetLook(sbsSolid, clSuiteSuccess, sikPlay);
@@ -2035,6 +2046,40 @@ begin
   UpdateControls;
 end;
 
+{ Profundidade contra a espessura do bloco: a da janela Zero pelo bloco (se
+  aberta para este programa) ou a do cabecalho do G-code (MS-STOCK T). Sem
+  espessura conhecida nao ha o que conferir. }
+function TMainForm.CheckBlockDepth(out Msg: string): Boolean;
+var B: TBlockPlacement; D, A: Double;
+begin
+  Msg := '';
+  if (ZeroAssist <> nil) and (ZeroAssist.ProgramText = ProgramMemo.Lines.Text) then
+    Exit(ZeroAssist.DepthOK(Msg));
+  B := BlockPlacement(ProgramMemo.Lines);
+  Result := CheckCutDepth(B, B.Thickness, MIN_DEPTH_CLEARANCE, D, A, Msg) or (B.Thickness <= 0);
+end;
+
+{ Zero pelo bloco: janela nao modal (o jog continua na principal) }
+procedure TMainForm.ZeroAssistClick(Sender: TObject);
+begin
+  if Session.Count = 0 then
+  begin
+    Log('Abra um programa antes: o zero e calculado pelo inicio do corte.');
+    Exit;
+  end;
+  { mesmo programa: reabre a janela com a espessura e as marcacoes }
+  if (ZeroAssist <> nil) and (ZeroAssist.ProgramText = ProgramMemo.Lines.Text) then
+  begin
+    ZeroAssist.Show;
+    Exit;
+  end;
+  FreeAndNil(ZeroAssist);
+  ZeroAssist := TZeroAssistForm.CreateAssist(Self, Session, ProgramMemo.Lines, @Log);
+  if not ZeroAssist.Block.Valid then
+    Log('Zero pelo bloco: o programa nao tem movimento de corte (G1/G2/G3).');
+  ZeroAssist.Show;
+end;
+
 procedure TMainForm.Log(const AText: string);
 var Parts: TStringList; Stamp: string; I: Integer;
 begin
@@ -2201,6 +2246,7 @@ begin
   BtnConnect.Enabled := not Busy;
   BtnOpen.Enabled := not Busy;
   BtnFraming.Enabled := Session.Connected and Session.ControllerReady and not Busy and not Alarm and (Session.Count > 0);
+  BtnZeroAssist.Enabled := (Session.Count > 0) and not Busy;
   BtnStart.Enabled := Session.Connected and Session.ControllerReady and not Busy and not Alarm and (Session.Count > 0) and
     ((CommunicationMode.ItemIndex <> 2) or (Report.Errors = 0));
   BtnPause.Enabled := Session.State = ssRunning;
@@ -2338,6 +2384,7 @@ procedure TMainForm.UpdateMachineTypeLayout;
 begin
   { Barra de acoes: o enquadramento (framing) so existe no laser }
   BtnFraming.Visible := MachineType.ItemIndex = 1;
+  BtnZeroAssist.Visible := MachineType.ItemIndex = Ord(mtRouter);
   BtnOutline.Visible := MachineType.ItemIndex = Ord(mtLaser);
   LaserContainer.Visible := MachineType.ItemIndex = 1;
   GbLaserProfile.Visible := MachineType.ItemIndex = 1;
@@ -2589,6 +2636,9 @@ var
   HasContract: Boolean;
   H: TSuiteGCodeHeader;
   HB: TSuiteBounds;
+  Blk: TBlockPlacement;
+  DD, DA: Double;
+  DMsg: string;
 begin
   HasContract := False;
   if (AFileName = '') or not FileExists(AFileName) then Exit;
@@ -2679,6 +2729,18 @@ begin
         if HB.Valid then
           Log(Format('Caixa do trabalho (com a fresa): X %.1f..%.1f  Y %.1f..%.1f  Z %.1f..%.1f mm.',
             [HB.X0, HB.X1, HB.Y0, HB.Y1, HB.Z0, HB.Z1], InvariantFS));
+        if H.StockT > 0 then
+        begin
+          SL := TStringList.Create;
+          try
+            SL.LoadFromFile(AFileName);
+            Blk := BlockPlacement(SL);
+            if CheckCutDepth(Blk, Blk.Thickness, MIN_DEPTH_CLEARANCE, DD, DA, DMsg) then Log(DMsg)
+            else Log('ATENCAO: ' + DMsg + ' O inicio fica bloqueado.');
+          finally
+            SL.Free;
+          end;
+        end;
       end
       else
         Log('Programa de PCB (RouterPCB/LaserPCB): maquina CNC Router. Zere X/Y no canto da placa e Z na superficie do cobre.');
@@ -2935,7 +2997,7 @@ begin
 end;
 
 procedure TMainForm.CommandClick(Sender: TObject);
-var OK: Boolean; PosHome, Target: TMachinePosition; CompatibilityError: string;
+var OK: Boolean; PosHome, Target: TMachinePosition; CompatibilityError, DepthMsg: string;
 begin
   if Assigned(Accessories) then Accessories.Suspend;
   OK := False;
@@ -2949,6 +3011,16 @@ begin
     if Session.Count = 0 then
     begin
       Log('No program loaded.');
+      Exit;
+    end;
+    { router: o corte nao pode passar da espessura do bloco menos a folga
+      (minimo 2 mm) - a fresa entraria na mesa e quebraria }
+    if (MachineType.ItemIndex = Ord(mtRouter)) and not CheckBlockDepth(DepthMsg) then
+    begin
+      MessageDlg('Corte mais fundo que o bloco', DepthMsg + LineEnding + LineEnding +
+        'Inicio bloqueado. Ajuste a profundidade no programa ou informe a espessura correta em Zero pelo bloco.',
+        mtError, [mbOK], 0);
+      Log('Inicio bloqueado: ' + DepthMsg);
       Exit;
     end;
     if not Session.ValidateProgram(CompatibilityError) then begin
