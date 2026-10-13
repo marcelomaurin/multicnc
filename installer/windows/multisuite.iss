@@ -3,7 +3,7 @@
 #endif
 #include "..\..\dist\version.iss"
 #ifndef SetupSeq
-  #define SetupSeq "009"
+  #define SetupSeq "010"
 #endif
 #ifndef MyAppPublisher
   #define MyAppPublisher "Maurinsoft"
@@ -156,7 +156,7 @@ begin
     3: Caption := 'SimuCNC - Simulacao da maquina antes da fabricacao';
     4: Caption := 'LaserPCB - Placas, componentes compartilhados e preparacao a laser';
     5: Caption := 'LaserArt - Desenhos, vetores e gravacao a laser';
-    6: Caption := 'MultiSlicer 0.0.7.0 - Previa 3D e fatiamento para impressao';
+    6: Caption := 'MultiSlicer 0.1.0.0 - Previa 3D e fatiamento para impressao';
   end;
   ProjectCaption.Caption := Caption;
 end;

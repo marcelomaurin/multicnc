@@ -1,11 +1,11 @@
 param(
   [string]$Version = $env:VERSION,
-  [ValidatePattern('^\d{3}$')][string]$SetupSeq = '009',
+  [ValidatePattern('^\d{3}$')][string]$SetupSeq = '010',
   [switch]$AllowDirty,
   [switch]$SkipBinUpdate
 )
 $ErrorActionPreference = 'Stop'
-if (-not $Version) { $Version = '0.09' }
+if (-not $Version) { $Version = '0.10' }
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 Set-Location -LiteralPath $root
 $dist = Join-Path $root 'dist'
@@ -98,7 +98,12 @@ foreach ($target in $targets) {
 }
 $hash = (Get-FileHash -LiteralPath (Join-Path $dist "$name.exe") -Algorithm SHA256).Hash.ToLower()
 [IO.File]::WriteAllText((Join-Path $dist 'SHA256SUMS'), "$hash  $name.exe" + [Environment]::NewLine)
-Copy-Item -LiteralPath (Join-Path $dist 'SHA256SUMS') -Destination $setup -Force
+$checksumFile = Join-Path $setup 'SHA256SUMS'
+$previousChecksums = @()
+if (Test-Path -LiteralPath $checksumFile) {
+  $previousChecksums = @(Get-Content -LiteralPath $checksumFile | Where-Object { $_ -match '\S' -and $_ -notmatch ('  ' + [regex]::Escape($name + '.exe') + '$') })
+}
+@($previousChecksums; "$hash  $name.exe") | Set-Content -LiteralPath $checksumFile -Encoding ascii
 Copy-Item -LiteralPath (Join-Path $app 'build-manifest.json') -Destination (Join-Path $setup ('build-manifest-' + $SetupSeq + '.json')) -Force
 Copy-Item -LiteralPath (Join-Path $app 'qa-tests.json') -Destination (Join-Path $setup ('qa-tests-' + $SetupSeq + '.json')) -Force
 if ($blocked.Count) { throw "Setup gerado; executaveis de bin bloqueados: $($blocked -join ', ')" }

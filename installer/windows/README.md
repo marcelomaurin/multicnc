@@ -1,10 +1,10 @@
-# Instalador Windows MultiSuite 009
+# Instalador Windows MultiSuite 010
 
 Windows 64 bits, Git, Python 3.9+, Lazarus/Free Pascal 64 bits e Inno Setup 6 ou 7.
 
 ## Gerar
 
-    installer\windows\build_release.bat -Version 0.09 -SetupSeq 009
+    installer\windows\build_release.bat -Version 0.10 -SetupSeq 010
 
 O script procura as ferramentas nas pastas usuais. Os caminhos podem ser definidos
 por LAZBUILD, FPC, PYTHON e ISCC. MULTICNC_CHATGPT_DIR aponta para as dependencias
@@ -15,7 +15,7 @@ commit, acrescente -AllowDirty; o manifesto registra source_dirty=true.
 
 O build compila os 13 executaveis, executa os testes de console, inclui relatorio de testes e
 documentacao, valida a arquitetura amd64 e gera manifesto, relatorio e SHA256SUMS.
-Os executaveis atualizados ficam em bin. setup_multcnc_009.exe fica em setup e bin; a copia de staging
+Os executaveis atualizados ficam em bin. setup_multcnc_010.exe fica em setup e bin; a copia de staging
 e os logs ficam em dist. Feche os aplicativos da suite antes de substituir bin.
 
 ## Conteudo e inicializacao
@@ -50,15 +50,15 @@ Nao distribuir um instalador se o build falhar. Compilacao e testes de console
 nao substituem verificacao interativa da instalacao ou ensaio com hardware.
 Projetos e relatorios pertencem ao usuario, fora de Program Files.
 Publicar uma GitHub Release/tag continua uma etapa separada.
-## Setup 009
+## Setup 010
 
-[Instalador Windows x64](../../setup/setup_multcnc_009.exe) · [Notas e validação](../../docs/SETUP_009.md) · [Galeria de imagens](../../imgs/README.md)
+[Instalador Windows x64](../../setup/setup_multcnc_010.exe) · [Notas e validação](../../docs/SETUP_010.md) · [Galeria de imagens](../../imgs/README.md)
 
 | LaserPCB | LaserArt |
 |---|---|
 | ![Placas e camadas para laser](../../imgs/Laserpcb01.png) | ![Arte e vetores para laser](../../imgs/Laserart01.png) |
 
-## Documentação e DLL no setup 009
+## Documentação e DLL no setup 010
 
 O componente de documentação cria a pasta **Documentacao MultiSuite** na Área de
 Trabalho, com o índice offline e atalhos para os três manuais PDF. O conteúdo é
@@ -66,8 +66,19 @@ preparado por `tools/stage_documentation.py`, incluindo guias e imagens.
 
 `mcad_occt.dll` é obrigatória no staging e instalada ao lado de `multicad.exe`.
 O manifesto rejeita ausência ou arquitetura incorreta da DLL. O MultiSlicer
-incluído é 0.0.7.0; sua imagem de prévia 3D aparece durante a instalação.
+incluído é 0.1.0.0; sua imagem de prévia 3D aparece durante a instalação.
 
 Use `-SkipBinUpdate` para gerar o setup sem substituir os aplicativos de `bin`
 que estejam em uso. Essa opção mantém todos os aplicativos recompilados dentro
 do instalador e ainda salva o setup em `setup` e `bin`.
+
+## Conteúdo atualizado do setup 010
+
+Inclui MultiCAD 0.0.8.5, MultiSlicer 0.1.0.0, MultiCNC 0.1.0.4 e a DLL
+OpenCascade 7.6.3. Os 12 modelos de CNC Router ficam em
+`documentation/models/cnc_router`, acompanhados do catálogo, instruções e relatório.
+Os manuais PDF mantêm as versões de referência indicadas nas capas.
+
+Os pacotes ZIP de drivers guardados em `imgs` no repositório não são imagens de
+documentação e não são instalados automaticamente. Os hashes dos setups anteriores
+são preservados em `setup/SHA256SUMS`.

@@ -4,18 +4,21 @@ import argparse
 import html
 from pathlib import Path
 import shutil
+import xml.etree.ElementTree as ET
 
 
 def stage(repo, app, version):
     destination = app / "documentation"
     destination.mkdir(parents=True, exist_ok=True)
-    for name in ("docs", "imgs", "screenshots"):
+    slicer_version = ET.parse(repo / "multislicer/src/app/multislicer.lpi").find(".//VersionInfo/StringTable").attrib["ProductVersion"]
+    for name in ("docs", "imgs", "screenshots", "models"):
         source = repo / name
         if source.is_dir():
-            shutil.copytree(source, destination / name, dirs_exist_ok=True)
+            shutil.copytree(source, destination / name, dirs_exist_ok=True,
+                            ignore=shutil.ignore_patterns("*.zip") if name == "imgs" else None)
     shutil.copy2(repo / "README.md", destination / "README.md")
     for source in sorted(repo.glob("*/README.md")):
-        if source.parent.name in ("docs", "imgs", "screenshots", "setup", "dist", "bin"):
+        if source.parent.name in ("docs", "imgs", "screenshots", "setup", "dist", "bin", "models"):
             continue
         target = destination / source.relative_to(repo)
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -50,7 +53,7 @@ footer{border-top:1px solid #d5dfeb;margin-top:28px;padding-top:16px}code{backgr
 <h1>Documentação MultiSuite</h1>
 <p>Setup ''' + html.escape(version) + ''' · Windows 64 bits. Os manuais e as imagens desta página estão incluídos no computador e podem ser consultados sem conexão à internet.</p>
 <h2>Manuais do usuário</h2><ul class="manuals">''' + "\n".join(cards) + '''</ul>
-<h2>MultiSlicer 0.0.7.0: preparar uma impressão</h2>
+<h2>MultiSlicer @@SLICER_VERSION@@: preparar uma impressão</h2>
 <ol>
 <li>Selecione no topo a impressora cadastrada no MultiCNC ou use <strong>Ajuste manual</strong>. Confira as dimensões da mesa e o bico.</li>
 <li>Abra um modelo STL ou 3MF. Posicione, gire ou ajuste a escala na mesa.</li>
@@ -62,8 +65,12 @@ footer{border-top:1px solid #d5dfeb;margin-top:28px;padding-top:16px}code{backgr
 <figure><img src="../imgs/ms_preview3d.png" alt="Prévia 3D dos percursos do MultiSlicer com suportes"><figcaption>Trajetórias acumuladas com suportes.</figcaption></figure>
 <figure><img src="../imgs/ms_preview3d_layer.png" alt="Camada isolada com preenchimento e suportes"><figcaption>Inspeção de uma camada na prévia 3D.</figcaption></figure>
 <p><a href="../multislicer/README.md">Guia completo do MultiSlicer (texto)</a> · <a href="Manuals/README.md">Índice dos manuais (texto)</a> · <a href="../README.md">Visão geral da suíte (texto)</a></p>
+<h2>Modelos de teste para CNC Router</h2>
+<p>Os 12 programas GRBL de exemplo incluem quadrados, círculos, furação, bolsão, gravação e superfície 3D. Estão disponíveis na pasta <code>documentation/models/cnc_router</code> da instalação.</p>
+<p><a href="../models/cnc_router/README.md">Instruções de uso (texto)</a> · <a href="../models/cnc_router/previas.png">Catálogo visual dos modelos</a> · <a href="../models/cnc_router/relatorio_validacao.csv">Relatório de validação</a></p>
 <footer>A versão de referência de cada manual está indicada em seu nome e em sua capa. O número do setup é independente da versão de cada aplicativo.</footer>
 </main></html>'''
+    page = page.replace("@@SLICER_VERSION@@", html.escape(slicer_version))
     (destination / "docs/index.html").write_text(page, encoding="utf-8")
     print(f"Documentação offline: {len(pdfs)} manuais PDF, guias e imagens em {destination}")
 
