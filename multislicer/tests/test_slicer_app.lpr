@@ -3,8 +3,9 @@ program test_slicer_app;
 uses {$IFDEF UNIX}cthreads,{$ENDIF} Interfaces, Forms, Classes, SysUtils, Math, Spin, StdCtrls, multislicer_main,
   multislicer_mesh, multislicer_pipeline, multislicer_stl, multislicer_types,
   multislicer_userdata, multislicer_materials, multislicer_scene, multicad_camera, multislicer_quality,
-  multicnc_types, multicnc_equipment, ExtCtrls, Controls, multislicer_meshcheck;
-var F: TMultiSlicerForm; Mesh: TMesh; G: TStringList; A, B: TVec3; Bx: TBox3; Pt: TPoint; T0: QWord;
+  multicnc_types, multicnc_equipment, ExtCtrls, Controls, multislicer_meshcheck, fpjson, jsonparser;
+var SavedProject, ModelPath: TJSONData; RelativeModelPath: string;
+  F: TMultiSlicerForm; Mesh: TMesh; G: TStringList; A, B: TVec3; Bx: TBox3; Pt: TPoint; T0: QWord;
   FN2, FNBig: string; I, J: Integer; Tri: TTriangle; LFino, LNormal, LRasc: Integer; TFino, TNormal, TRasc: Double;
   QD: TQualityDef; PX, PY, PZ, PD, PX0: Double; NSup: Integer; Blk: TSceneBlocker;
   FN, Output, BadOutput, ProfileDir: string; Mat: TMaterialDef; Raised: Boolean; Before: string;
@@ -361,8 +362,18 @@ begin
     Check(FileExists(PFile) and not F.ProjectDirty and (F.ProjectFile = ExpandFileName(PFile)), 'project saved');
     Check(Pos('suporte_teste', F.Caption) > 0, 'project name in the caption');
     G.LoadFromFile(PFile);
-    Check((Pos('"format" : "mslice"', G.Text) > 0) and (Pos('modelos' + PathDelim + 'barra.stl', G.Text) + Pos('modelos/barra.stl', G.Text) > 0),
-      'project JSON with relative model path');
+    { JSON escapes Windows backslashes: validate the decoded relative path. }
+    SavedProject := GetJSON(G.Text);
+    try
+      Check(TJSONObject(SavedProject).Get('format', '') = 'mslice', 'project JSON format');
+      ModelPath := SavedProject.FindPath('scene.objects[0].file');
+      Check(Assigned(ModelPath), 'project JSON has a model path');
+      RelativeModelPath := ModelPath.AsString;
+      Check((RelativeModelPath = 'modelos' + PathDelim + 'barra.stl') or
+        (RelativeModelPath = 'modelos/barra.stl'), 'project JSON with relative model path');
+    finally
+      SavedProject.Free;
+    end;
     F.NewProject;
     TSpinEdit(F.FindComponent('HotendTemperature')).Value := 200;
     TComboBox(F.FindComponent('AdhesionType')).ItemIndex := 1;
