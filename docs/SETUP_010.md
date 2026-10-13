@@ -7,7 +7,7 @@ Edição de **13/10/2026**, para **Windows x64**.
 ## Aplicativos e DLL
 
 Inclui os 13 aplicativos da suíte compilados a partir dos fontes registrados,
-com **MultiSlicer 0.1.0.0**, **MultiCAD 0.0.8.5**, **MultiCNC 0.1.0.4** e
+com **MultiSlicer 0.1.0.0**, **MultiCAD 0.0.8.5**, **MultiCNC 0.1.0.5** e
 **LaserArt 0.02.1** (versão do arquivo Windows 0.2.0.1).
 
 O MultiSlicer inclui escolha do equipamento salvo no MultiCNC, prévia 3D por
@@ -41,6 +41,12 @@ A sequência de imagens durante a instalação inclui a prévia 3D do MultiSlice
 além das imagens dos demais aplicativos já presentes no setup anterior.
 
 ![Prévia 3D do MultiSlicer com suportes](../imgs/ms_preview3d.png)
+
+## Zero pelo bloco no MultiCNC 0.1.0.5
+
+O assistente de router permite marcar o canto do bloco e o topo do material,
+calcular o zero do programa e conferir a profundidade de corte com a folga
+mínima. Inclui reconhecimento de `MS-DATUM`/`MS-STOCK` e programas sem cabeçalho.
 
 ## Modelos de teste
 

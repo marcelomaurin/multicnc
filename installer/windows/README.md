@@ -74,7 +74,7 @@ do instalador e ainda salva o setup em `setup` e `bin`.
 
 ## Conteúdo atualizado do setup 010
 
-Inclui MultiCAD 0.0.8.5, MultiSlicer 0.1.0.0, MultiCNC 0.1.0.4 e a DLL
+Inclui MultiCAD 0.0.8.5, MultiSlicer 0.1.0.0, MultiCNC 0.1.0.5 e a DLL
 OpenCascade 7.6.3. Os 12 modelos de CNC Router ficam em
 `documentation/models/cnc_router`, acompanhados do catálogo, instruções e relatório.
 Os manuais PDF mantêm as versões de referência indicadas nas capas.

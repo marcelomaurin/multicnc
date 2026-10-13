@@ -4,6 +4,14 @@
 registram a interface no momento em que foram feitas; os recursos atuais estão nos
 respectivos guias. Os projetos e parâmetros mostrados são exemplos.
 
+## MultiCNC 0.1.0.5 — Zero pelo bloco
+
+| Espessura insuficiente | Espessura com folga |
+|---|---|
+| ![Zero pelo bloco: aviso de profundidade maior que a espessura disponível](multicnc%20ajuste.webp) | ![Zero pelo bloco: espessura e folga conferidas](multicnc%20ajuste2.webp) |
+
+[Fluxo do assistente](../docs/FLUXOS_IMPLEMENTADOS.md)
+
 ## MultiCNC 0.1.0.3 - manual do usuário
 
 [Manual ilustrado em português (PDF)](../docs/Manuals/Manual_do_Usuario_MultiCNC_0.1.0.3_PT-BR.pdf) · [Catálogo das 17 capturas](manual_multicnc_0_1_0_3/README.md)
