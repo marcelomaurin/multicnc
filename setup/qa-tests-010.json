@@ -1,0 +1,495 @@
+{
+  "tests_executed": true,
+  "tests": [
+    {
+      "source": "tests/debug_parser.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_connection_startup.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_controller.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_equipment.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_gcode_compat.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_gcode_trace.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_grbl_legacy.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_grbl_regressions.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_joystick.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_laser_profiles.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_locale_invariant.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_multicnc_tcp.lpr",
+      "status": "skipped",
+      "reason": "requires running SimuCNC TCP server"
+    },
+    {
+      "source": "tests/test_multislicer_print.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_outline.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_printer_temperatures.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_router_profiles.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_router_spindle.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_serial_transport.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_session.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_shared_geometry.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_shared_heightmap.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_shared_zcompensation.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_simu_temperature_control.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_simulator.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "tests/test_streaming.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multisuite/tests/test_context.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multisuite/tests/test_launcher_delivery.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multisuite/tests/test_launcher_paths.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multisuite/tests/test_registry.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multisuite/tests/test_runner.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multisuite/tests/test_workspace.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multisuite/tests/test_workspace_validation.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiphysics/tests/test_actuator_scheduler.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiphysics/tests/test_buoyancy.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiphysics/tests/test_cnc_cycle.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiphysics/tests/test_common_electronics.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiphysics/tests/test_degradation_faults.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiphysics/tests/test_digital_power.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiphysics/tests/test_electromagnetics.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiphysics/tests/test_energy_chemistry.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiphysics/tests/test_environment.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiphysics/tests/test_extended_models.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiphysics/tests/test_graph_runtime.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiphysics/tests/test_integration_suite.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiphysics/tests/test_machine_faults.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiphysics/tests/test_machine_xyz.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiphysics/tests/test_materials.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiphysics/tests/test_mcu.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiphysics/tests/test_mcu_stepper.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiphysics/tests/test_mechanics.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiphysics/tests/test_mna.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiphysics/tests/test_newton_ode.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiphysics/tests/test_physical_devices.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiphysics/tests/test_rigidbody.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiphysics/tests/test_runtime.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiphysics/tests/test_scheduler.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiphysics/tests/test_transient_nonlinear.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiphysics/tests/test_unified_merge.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multicam/tests/test_advanced_mechanical.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multicam/tests/test_collision.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multicam/tests/test_demo_pipeline.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multicam/tests/test_electronics_simulation.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multicam/tests/test_hsm.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multicam/tests/test_integrated_simulator.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multicam/tests/test_mechanical_cam.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multicam/tests/test_mechanical_setup.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multicam/tests/test_pcb_heightmap.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multicam/tests/test_pcb_outside_heightmap.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multicam/tests/test_pcb_segmented_heightmap.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multicam/tests/test_profile.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multicam/tests/test_real_physics.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multicam/tests/test_simulation.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multicam/tests/test_simulation_session.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "laserpcb/tests/test_alignment.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "laserpcb/tests/test_board.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "laserpcb/tests/test_drill.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "laserpcb/tests/test_job.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "laserpcb/tests/test_layout.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "laserpcb/tests/test_pipeline.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "laserpcb/tests/test_raster.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multislicer/tests/test_machines.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multislicer/tests/test_meshcheck.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multislicer/tests/test_modern_slicer.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multislicer/tests/test_scene.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multislicer/tests/test_support.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiassembly/tests/test_engineering.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multiassembly/tests/test_multiassembly.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multicad/tests/test_blend_sequence.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multicad/tests/test_log.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multicad/tests/test_multicad.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multicad/tests/test_parametric.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multicad/tests/test_sketch_pattern.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multicad/tests/test_sketch_text.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multicad/tests/test_sketch_trim.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "multicad/tests/test_smart_dimension.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "laserart/tests/test_calibration_matrix.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "makerouter/tests/test_makerouter.lpr",
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "source": "routerpcb/tests/test_routerpcb.lpr",
+      "status": "passed",
+      "exit_code": 0
+    }
+  ]
+}
