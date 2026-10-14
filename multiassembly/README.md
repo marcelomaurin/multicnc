@@ -24,3 +24,13 @@ Valores da demonstracao sao ilustrativos e nao devem ser usados como configuraca
 - **ERC eletromecânico**: drivers sem STEP/DIR/VMOT/motor, motores sem acionamento, sinais em portas de tipo errado, tensões incompatíveis, alimentação em curto com o terra, E-stop ausente ou desligado, componentes soltos e IDs inexistentes. O tipo da porta é inferido pelo nome quando o componente não declara portas.
 - **BOM** agrupada em CSV e JSON.
 - **Firmware a partir da cinemática**: passos/mm por fuso, correia ou relação direta, velocidade máxima pela rotação útil do motor e curso pela estrutura; gera `$100`–`$132` (Grbl/grblHAL) e o bloco `axes` do YAML do FluidNC.
+
+## Requisitos e plano de desenvolvimento
+
+O plano do MultiAssembly usa o SolidWorks como referência funcional e mantém o
+layout da MultiSuite. Define montagem 3D e relações, biblioteca de fixadores,
+rolamentos e motores DC/AC, listagem de peças e elaboração de manual de montagem
+ilustrado, com fases e critérios de aceite.
+
+Consulte [docs/TAREFA.md](docs/TAREFA.md). Os requisitos novos estão documentados
+para implementação; a interface atual continua sendo demonstrativa.
