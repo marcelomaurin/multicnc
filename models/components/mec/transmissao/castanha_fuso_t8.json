@@ -1,0 +1,26 @@
+{
+  "name": "Castanha Latão Fuso T8",
+  "model": "Brass Nut T8x8 Flange",
+  "category": "transmissao",
+  "kind": "ackFastenerNut",
+  "material": "Latão Especial",
+  "color": 13421619,
+  "size": {
+    "x": 22.0,
+    "y": 22.0,
+    "z": 15.0
+  },
+  "ports": [
+    {
+      "name": "ROSCA_T8",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "FLANGE",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Castanha de latão com flange para tração de fuso trapezoidal T8"
+}

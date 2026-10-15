@@ -18,6 +18,16 @@ function CheckGCodeCompatibility(const Line, ProtocolName: string;
 var U,Token: string; I,Start: Integer; Letter: Char; V: Double; FS: TFormatSettings;
 begin
   Result:=True;Reason:='';
+  if SameText(ProtocolName,'Marlin') then begin
+    U:=UpperCase(TGCodeStreamer.CleanLine(Line));
+    if (Pos('EXCLUDE_OBJECT',U)=1) or (Pos('SET_',U)=1) or
+      (Pos('PRINT_START',U)=1) or (Pos('PRINT_END',U)=1) or
+      (Pos(';FLAVOR:KLIPPER',UpperCase(Trim(Line)))=1) then begin
+      Reason:='G-code Klipper requer um destino Klipper; envio Marlin bloqueado';
+      Exit(False);
+    end;
+    Exit;
+  end;
   if not (SameText(ProtocolName,'GRBL') or SameText(ProtocolName,'grblHAL') or
     SameText(ProtocolName,'FluidNC')) then Exit;
   U:=UpperCase(TGCodeStreamer.CleanLine(Line));

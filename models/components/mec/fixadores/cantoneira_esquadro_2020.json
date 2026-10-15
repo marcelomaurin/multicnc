@@ -1,0 +1,26 @@
+{
+  "name": "Cantoneira L 90° 2020",
+  "model": "Cast Bracket 2020",
+  "category": "fixadores",
+  "kind": "ackMechanicalPart",
+  "material": "Alumínio Fundido",
+  "color": 10526880,
+  "size": {
+    "x": 20.0,
+    "y": 20.0,
+    "z": 20.0
+  },
+  "ports": [
+    {
+      "name": "FACE_A",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "FACE_B",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Suporte de canto fundido 90 graus para união de perfis 2020"
+}

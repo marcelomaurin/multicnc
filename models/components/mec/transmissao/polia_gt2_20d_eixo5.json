@@ -1,0 +1,26 @@
+{
+  "name": "Polia GT2 20 Dentes Eixo 5mm",
+  "model": "GT2-20T-W6-B5",
+  "category": "transmissao",
+  "kind": "ackPulley",
+  "material": "Alumínio Usinado",
+  "color": 13158600,
+  "size": {
+    "x": 16.0,
+    "y": 16.0,
+    "z": 16.0
+  },
+  "ports": [
+    {
+      "name": "FURO_5MM",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "DENTES",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Polia dentada GT2 passo 2mm, 20 dentes para eixo de 5mm (NEMA 17)"
+}

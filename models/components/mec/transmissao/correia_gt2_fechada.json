@@ -1,0 +1,21 @@
+{
+  "name": "Correia Dentada GT2 Aberta 6mm",
+  "model": "GT2-6mm Neoprene",
+  "category": "transmissao",
+  "kind": "ackBelt",
+  "material": "Borracha com Fibra de Vidro",
+  "color": 2105376,
+  "size": {
+    "x": 6.0,
+    "y": 2.0,
+    "z": 500.0
+  },
+  "ports": [
+    {
+      "name": "DENTES",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Correia sincronizada GT2 passo 2mm largura 6mm"
+}

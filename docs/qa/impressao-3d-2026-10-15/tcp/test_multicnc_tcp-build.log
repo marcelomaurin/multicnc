@@ -1,0 +1,8 @@
+Free Pascal Compiler version 3.2.2 [2025/11/08] for x86_64
+Copyright (c) 1993-2021 by Florian Klaempfl and others
+Target OS: Win64 for x64
+Compiling D:\projetos\maurinsoft\multicnc\tests\test_multicnc_tcp.lpr
+Compiling .\src\app\multicnc_session.pas
+Compiling .\src\core\multicnc_machine.pas
+Linking C:\Users\mmaurin\Documents\Codex\2026-10-14\si\work\qa_completion\print-tcp\test_multicnc_tcp.exe
+1984 lines compiled, 1.4 sec, 626032 bytes code, 37892 bytes data

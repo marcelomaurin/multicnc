@@ -55,3 +55,10 @@ jobs:
         shell: bash
         run: |
           python3 tools/verify_suite.py gui --run
+      - name: Impressao completa via TCP no SimuCNC
+        run: xvfb-run -a python3 tools/verify_print_tcp.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: print-tcp-evidence
+          path: /tmp/multicnc-build/print-tcp/

@@ -1,0 +1,26 @@
+{
+  "name": "Mancal Pedestal KP08",
+  "model": "KP08 Eixo 8mm",
+  "category": "rolamentos_mancais",
+  "kind": "ackBearing",
+  "material": "Liga de Zinco",
+  "color": 9868950,
+  "size": {
+    "x": 55.0,
+    "y": 13.0,
+    "z": 29.0
+  },
+  "ports": [
+    {
+      "name": "FURO_EIXO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "BASE_FIXACAO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Mancal com rolamento autoalinhante tipo pedestal para fuso T8"
+}

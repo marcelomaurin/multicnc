@@ -1,0 +1,159 @@
+Free Pascal Compiler version 3.2.2 [2025/11/08] for x86_64
+Copyright (c) 1993-2021 by Florian Klaempfl and others
+Target OS: Win64 for x64
+Compiling D:\projetos\maurinsoft\multicnc\multislicer\tests\test_fdm_catalog.lpr
+Compiling .\src\shared\multisuite_fdm_catalog.pas
+Compiling .\multislicer\src\core\multislicer_machines.pas
+Compiling .\multislicer\src\core\multislicer_pipeline.pas
+Compiling .\multislicer\src\core\multislicer_types.pas
+Compiling .\multislicer\src\core\multislicer_mesh.pas
+Compiling .\multislicer\src\core\multislicer_infill.pas
+Compiling .\src\shared\multisuite_geometry.pas
+multisuite_geometry.pas(141,19) Warning: function result variable of a managed type does not seem to be initialized
+multisuite_geometry.pas(148,19) Warning: function result variable of a managed type does not seem to be initialized
+multisuite_geometry.pas(196,19) Warning: function result variable of a managed type does not seem to be initialized
+multisuite_geometry.pas(455,19) Warning: function result variable of a managed type does not seem to be initialized
+generics.collections.pas(1186,20) Note: Call to subroutine "function TEnumerable<System.Int64>.GetEnumerator:TEnumerator$1<SYSTEM.Int64>;" marked as inline is not inlined
+generics.collections.pas(1186,20) Note: Call to subroutine "function TEnumerable<System.LongInt>.GetEnumerator:TEnumerator$1<SYSTEM.LongInt>;" marked as inline is not inlined
+generics.collections.pas(1186,20) Note: Call to subroutine "function TEnumerable<multisuite_geometry.TPair<System.Int64,System.LongInt>>.GetEnumerator:TEnumerator$1<MULTISUITE_GEOMETRY.TPair$2<SYSTEM.Int64,SYSTEM.LongInt>>;" marked as inline is not inlined
+generics.dictionaries.inc(191,92) Warning: Constructing a class "TCustomDictionaryEnumerator$4$crc96297555" with abstract method "DoMoveNext"
+generics.dictionaries.inc(191,92) Warning: Constructing a class "TCustomDictionaryEnumerator$4$crc96297555" with abstract method "GetCurrent"
+generics.dictionaries.inc(191,92) Warning: Constructing a class "TCustomDictionaryEnumerator$4$crc6DB3EF2B" with abstract method "DoMoveNext"
+generics.dictionaries.inc(191,92) Warning: Constructing a class "TCustomDictionaryEnumerator$4$crc6DB3EF2B" with abstract method "GetCurrent"
+generics.collections.pas(144,52) Note: Private type "TCustomPointersEnumerator$2<SYSTEM.Int64,MULTISUITE_GEOMETRY.TCustomList$1$crc713F463B.PT>.T" never used
+generics.collections.pas(144,52) Note: Private type "TCustomPointersEnumerator$2<SYSTEM.LongInt,MULTISUITE_GEOMETRY.TCustomList$1$crc9F312717.PT>.T" never used
+generics.collections.pas(144,52) Note: Private type "TCustomPointersEnumerator$2<MULTISUITE_GEOMETRY.TPair$2<SYSTEM.Int64,SYSTEM.LongInt>,MULTISUITE_GEOMETRY.TCustomList$1$crc5FB05E9A.PT>.T" never used
+Compiling .\multislicer\src\core\multislicer_clip.pas
+Compiling .\src\shared\clipper2\Clipper.pas
+Compiling .\src\shared\clipper2\Clipper.Core.pas
+Clipper.Core.pas(431,13) Note: Call to subroutine "function Point64(const X:Int64;const Y:Int64):<record type>;" marked as inline is not inlined
+Clipper.Core.pas(472,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(473,16) Note: Call to subroutine "function Point64(const X:Int64;const Y:Int64):<record type>;" marked as inline is not inlined
+Clipper.Core.pas(474,16) Note: Call to subroutine "function Point64(const X:Int64;const Y:Int64):<record type>;" marked as inline is not inlined
+Clipper.Core.pas(475,16) Note: Call to subroutine "function Point64(const X:Int64;const Y:Int64):<record type>;" marked as inline is not inlined
+Clipper.Core.pas(476,16) Note: Call to subroutine "function Point64(const X:Int64;const Y:Int64):<record type>;" marked as inline is not inlined
+Clipper.Core.pas(509,13) Note: Call to subroutine "function PointD(const X:Double;const Y:Double):<record type>;" marked as inline is not inlined
+Clipper.Core.pas(536,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(537,16) Note: Call to subroutine "function PointD(const X:Double;const Y:Double):<record type>;" marked as inline is not inlined
+Clipper.Core.pas(538,16) Note: Call to subroutine "function PointD(const X:Double;const Y:Double):<record type>;" marked as inline is not inlined
+Clipper.Core.pas(539,16) Note: Call to subroutine "function PointD(const X:Double;const Y:Double):<record type>;" marked as inline is not inlined
+Clipper.Core.pas(540,16) Note: Call to subroutine "function PointD(const X:Double;const Y:Double):<record type>;" marked as inline is not inlined
+Clipper.Core.pas(821,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(842,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(920,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(939,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(966,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(993,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(1012,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(1025,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(1035,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(1051,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(1067,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(1083,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(1101,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(1123,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(1143,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(1163,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(1183,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(1203,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(1224,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(1241,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(1255,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(1265,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(1276,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(1284,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(1295,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(1306,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(1317,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(1333,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(1395,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(1468,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(2613,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Core.pas(2651,19) Warning: function result variable of a managed type does not seem to be initialized
+Writing Resource String Table file: Clipper.Core.rsj
+Compiling .\src\shared\clipper2\Clipper.Engine.pas
+Clipper.Engine.pas(848,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.Engine.pas(1983,11) Note: Call to subroutine "procedure TClipperBase.CheckJoinLeft(e:PActive;const pt:TPoint64;checkCurrX:Boolean=`FALSE`);" marked as inline is not inlined
+Clipper.Engine.pas(1995,9) Note: Call to subroutine "procedure TClipperBase.PushHorz(e:PActive);" marked as inline is not inlined
+Clipper.Engine.pas(1999,11) Note: Call to subroutine "procedure TClipperBase.CheckJoinRight(e:PActive;const pt:TPoint64;checkCurrX:Boolean=`FALSE`);" marked as inline is not inlined
+Clipper.Engine.pas(2007,7) Note: Call to subroutine "procedure TClipperBase.PushHorz(e:PActive);" marked as inline is not inlined
+Clipper.Engine.pas(2097,10) Note: Call to subroutine "function PtsReallyClose(const pt1:TPoint64;const pt2:TPoint64):Boolean;" marked as inline is not inlined
+Clipper.Engine.pas(2097,10) Note: Call to subroutine "function PtsReallyClose(const pt1:TPoint64;const pt2:TPoint64):Boolean;" marked as inline is not inlined
+Clipper.Engine.pas(2097,10) Note: Call to subroutine "function PtsReallyClose(const pt1:TPoint64;const pt2:TPoint64):Boolean;" marked as inline is not inlined
+Clipper.Engine.pas(2119,14) Note: Call to subroutine "function PtsReallyClose(const pt1:TPoint64;const pt2:TPoint64):Boolean;" marked as inline is not inlined
+Clipper.Engine.pas(2119,14) Note: Call to subroutine "function PtsReallyClose(const pt1:TPoint64;const pt2:TPoint64):Boolean;" marked as inline is not inlined
+Clipper.Engine.pas(2119,14) Note: Call to subroutine "function PtsReallyClose(const pt1:TPoint64;const pt2:TPoint64):Boolean;" marked as inline is not inlined
+Clipper.Engine.pas(2569,3) Note: Local variable "op" is assigned but never used
+Clipper.Engine.pas(2569,7) Note: Local variable "op2" not used
+Clipper.Engine.pas(284,28) Hint: Parameter "usingPolytree" not used
+Clipper.Engine.pas(3815,26) Hint: Variable "openPaths" of a managed type does not seem to be initialized
+Clipper.Engine.pas(3928,40) Hint: Local variable "dummy" of a managed type does not seem to be initialized
+Clipper.Engine.pas(4192,44) Hint: Local variable "solOpen" of a managed type does not seem to be initialized
+Clipper.Engine.pas(4192,35) Hint: Local variable "solClosed" of a managed type does not seem to be initialized
+Writing Resource String Table file: Clipper.Engine.rsj
+Compiling .\src\shared\clipper2\Clipper.Offset.pas
+Clipper.Offset.pas(443,7) Note: Call to subroutine "procedure TClipperOffset.UpdateSolution;" marked as inline is not inlined
+Clipper.Offset.pas(549,5) Note: Call to subroutine "procedure TClipperOffset.AddPoint(const pt:TPoint64);" marked as inline is not inlined
+Clipper.Offset.pas(576,5) Note: Call to subroutine "procedure TClipperOffset.AddPoint(const pt:TPoint64);" marked as inline is not inlined
+Clipper.Offset.pas(143,3) Note: Local variable "InvTwoPi" not used
+Writing Resource String Table file: Clipper.Offset.rsj
+Compiling .\src\shared\clipper2\Clipper.RectClip.pas
+Clipper.RectClip.pas(740,11) Note: Call to subroutine "function TRectClip64.Add(const pt:TPoint64;startNewPath:Boolean=`FALSE`):^TOutPt2;" marked as inline is not inlined
+Clipper.RectClip.pas(740,11) Note: Call to subroutine "function TRectClip64.Add(const pt:TPoint64;startNewPath:Boolean=`FALSE`):^TOutPt2;" marked as inline is not inlined
+Clipper.RectClip.pas(762,11) Note: Call to subroutine "function TRectClip64.Add(const pt:TPoint64;startNewPath:Boolean=`FALSE`):^TOutPt2;" marked as inline is not inlined
+Clipper.RectClip.pas(762,11) Note: Call to subroutine "function TRectClip64.Add(const pt:TPoint64;startNewPath:Boolean=`FALSE`):^TOutPt2;" marked as inline is not inlined
+Clipper.RectClip.pas(773,9) Note: Call to subroutine "function TRectClip64.Add(const pt:TPoint64;startNewPath:Boolean=`FALSE`):^TOutPt2;" marked as inline is not inlined
+Clipper.RectClip.pas(790,9) Note: Call to subroutine "function TRectClip64.Add(const pt:TPoint64;startNewPath:Boolean=`FALSE`):^TOutPt2;" marked as inline is not inlined
+Clipper.RectClip.pas(841,9) Note: Call to subroutine "function TRectClip64.Add(const pt:TPoint64;startNewPath:Boolean=`FALSE`):^TOutPt2;" marked as inline is not inlined
+Clipper.RectClip.pas(841,9) Note: Call to subroutine "function TRectClip64.Add(const pt:TPoint64;startNewPath:Boolean=`FALSE`):^TOutPt2;" marked as inline is not inlined
+Clipper.RectClip.pas(847,7) Note: Call to subroutine "function TRectClip64.Add(const pt:TPoint64;startNewPath:Boolean=`FALSE`):^TOutPt2;" marked as inline is not inlined
+Clipper.RectClip.pas(847,7) Note: Call to subroutine "function TRectClip64.Add(const pt:TPoint64;startNewPath:Boolean=`FALSE`):^TOutPt2;" marked as inline is not inlined
+Compiling .\src\shared\clipper2\Clipper.Minkowski.pas
+Clipper.Minkowski.pas(71,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.pas(205,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.pas(219,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.pas(564,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.pas(578,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.pas(592,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.pas(605,19) Warning: function result variable of a managed type does not seem to be initialized
+Clipper.pas(651,3) Note: Local variable "spaces" is assigned but never used
+Clipper.pas(946,19) Warning: function result variable of a managed type does not seem to be initialized
+multislicer_infill.pas(139,19) Warning: function result variable of a managed type does not seem to be initialized
+Compiling .\multislicer\src\core\multislicer_support.pas
+Compiling .\src\shared\multisuite_arcfit.pas
+Compiling .\multislicer\src\core\multislicer_profile.pas
+Compiling .\src\shared\multisuite_print_audit.pas
+Compiling .\multislicer\src\core\multislicer_template_limits.pas
+multislicer_pipeline.pas(330,19) Warning: function result variable of a managed type does not seem to be initialized
+multislicer_pipeline.pas(1089,18) Warning: function result variable of a managed type does not seem to be initialized
+Compiling .\multislicer\src\core\multislicer_printers.pas
+multislicer_printers.pas(10,5) Warning: Comment level 2 found
+multislicer_printers.pas(10,16) Warning: Comment level 2 found
+multislicer_printers.pas(10,30) Warning: Comment level 2 found
+multislicer_printers.pas(10,53) Warning: Comment level 2 found
+multislicer_printers.pas(11,5) Warning: Comment level 2 found
+multislicer_printers.pas(11,13) Warning: Comment level 2 found
+multislicer_printers.pas(11,21) Warning: Comment level 2 found
+multislicer_printers.pas(11,29) Warning: Comment level 2 found
+Compiling .\multislicer\src\core\multislicer_userdata.pas
+multislicer_printers.pas(99,19) Warning: function result variable of a managed type does not seem to be initialized
+Compiling .\src\core\multicnc_printer_profiles.pas
+multicnc_printer_profiles.pas(60,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(70,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(80,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(90,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(100,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(112,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(122,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(132,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(144,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(154,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(164,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(176,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(186,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(196,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(208,5) Warning: Some fields coming after "Notes" were not initialized
+Linking C:\Users\mmaurin\Documents\Codex\2026-10-14\si\work\qa_selected\test_fdm_catalog\test_fdm_catalog.exe
+14552 lines compiled, 1.8 sec, 372464 bytes code, 36452 bytes data
+78 warning(s) issued
+43 note(s) issued

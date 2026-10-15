@@ -1,0 +1,26 @@
+{
+  "name": "Rolamento 608ZZ",
+  "model": "608-2Z 8x22x7mm",
+  "category": "rolamentos_mancais",
+  "kind": "ackBearing",
+  "material": "Aço Cromo SAE 52100",
+  "color": 11184810,
+  "size": {
+    "x": 22.0,
+    "y": 22.0,
+    "z": 7.0
+  },
+  "ports": [
+    {
+      "name": "FURO_8MM",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "EXTERNO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Rolamento radial de esferas com dupla blindagem metálica 8x22x7"
+}

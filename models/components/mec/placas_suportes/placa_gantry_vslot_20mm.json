@@ -1,0 +1,26 @@
+{
+  "name": "Placa Gantry V-Slot 65x65mm",
+  "model": "Universal Gantry Plate 20mm",
+  "category": "placas_suportes",
+  "kind": "ackMechanicalPart",
+  "material": "Alumínio 6061 Anodizado Preto",
+  "color": 2500134,
+  "size": {
+    "x": 65.0,
+    "y": 65.0,
+    "z": 3.17
+  },
+  "ports": [
+    {
+      "name": "ROLDANAS",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "CORREIA",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Chapa de montagem para carro linear com roldanas de V-Slot"
+}

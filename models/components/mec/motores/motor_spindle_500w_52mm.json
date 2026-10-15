@@ -1,0 +1,26 @@
+{
+  "name": "Spindle DC 500W ER11",
+  "model": "Spindle 500W 52mm 48V",
+  "category": "motores",
+  "kind": "ackSpindle",
+  "material": "Aço / Alumínio",
+  "color": 5592405,
+  "size": {
+    "x": 52.0,
+    "y": 52.0,
+    "z": 175.0
+  },
+  "ports": [
+    {
+      "name": "PINCA_ER11",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "POWER_IN",
+      "kind": "apkPower",
+      "voltage": 48.0
+    }
+  ],
+  "description": "Motor Spindle 500W refrigerado a ar com pinça ER11"
+}

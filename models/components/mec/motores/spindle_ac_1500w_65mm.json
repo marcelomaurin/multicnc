@@ -1,0 +1,36 @@
+{
+  "name": "Spindle AC Trifásico 1.5kW",
+  "model": "GDZ-65-1.5 24000RPM",
+  "category": "motores",
+  "kind": "ackSpindle",
+  "material": "Aço Inox / Alumínio",
+  "color": 7829367,
+  "size": {
+    "x": 65.0,
+    "y": 65.0,
+    "z": 205.0
+  },
+  "ports": [
+    {
+      "name": "PINCA_ER11",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "U",
+      "kind": "apkPower",
+      "voltage": 220.0
+    },
+    {
+      "name": "V",
+      "kind": "apkPower",
+      "voltage": 220.0
+    },
+    {
+      "name": "W",
+      "kind": "apkPower",
+      "voltage": 220.0
+    }
+  ],
+  "description": "Spindle industrial de alta precisão 24.000 RPM para inversor de frequência VFD"
+}

@@ -1,0 +1,21 @@
+{
+  "name": "Spoilboard MDF 300x180mm",
+  "model": "MDF Sacrificial Board",
+  "category": "mesas_bases",
+  "kind": "ackMechanicalPart",
+  "material": "MDF Alta Densidade",
+  "color": 9145227,
+  "size": {
+    "x": 300.0,
+    "y": 180.0,
+    "z": 12.0
+  },
+  "ports": [
+    {
+      "name": "TOPO_MDF",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Tábua de sacrifício em MDF retificado para fresamento sem danificar a mesa"
+}

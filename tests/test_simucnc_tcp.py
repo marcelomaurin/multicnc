@@ -1,8 +1,17 @@
 """Integration test against the actual SimuCNC TCP server (no printer required)."""
-import socket, subprocess, time
+import socket, subprocess, time, sys, os
 from pathlib import Path
-exe=Path(__file__).resolve().parents[1]/'src/simucnc/SimuCNC.exe'
-startup=subprocess.STARTUPINFO(); startup.dwFlags|=subprocess.STARTF_USESHOWWINDOW; startup.wShowWindow=0
+exe=Path(os.environ.get('SIMUCNC_TEST_SERVER', str(Path(__file__).resolve().parents[1]/'src/simucnc/SimuCNC.exe')))
+startup=None
+if os.name == 'nt':
+    startup=subprocess.STARTUPINFO()
+    startup.dwFlags|=subprocess.STARTF_USESHOWWINDOW
+    startup.wShowWindow=0
+try:
+    with socket.create_connection(('127.0.0.1',9000),timeout=.2):
+        raise RuntimeError('Port 9000 already in use; refusing to test another server')
+except (ConnectionRefusedError, TimeoutError):
+    pass
 p=subprocess.Popen([str(exe),'-tcp','-grbl'],startupinfo=startup)
 def read_until(s, token):
     data=b''
@@ -45,9 +54,9 @@ try:
         s.sendall(b'M114\n')
         assert b'X:0' in read_until(s,b'X:0')
     time.sleep(.3)
-    client=Path(__file__).resolve().parent/'lib/test_multicnc_tcp.exe'
+    client=Path(sys.argv[1]) if len(sys.argv)>1 else Path(__file__).resolve().parent/'lib/test_multicnc_tcp.exe'
     assert client.exists(), 'Compile tests/test_multicnc_tcp.lpr first'
-    subprocess.run([str(client)], check=True, timeout=25)
+    subprocess.run([str(client), *sys.argv[2:]], check=True, timeout=200)
     print('PASS: startup, fragmented command, CRLF, batch, movement, temperature, disconnect/reconnect')
 finally:
     p.terminate(); p.wait(timeout=5)

@@ -117,7 +117,7 @@ procedure TMarlinProtocol.HandleLine(const ALine: string);
 var L: string;
 begin
   L := LowerCase(ALine);
-  if Copy(L, 1, 2) = 'ok' then
+  if (L = 'ok') or (Copy(L, 1, 3) = 'ok ') then
   begin
     Inc(FAcks);
     { "ok" pode trazer temperaturas: "ok T:200.0 /200.0 B:60.0 /60.0" }

@@ -1,0 +1,21 @@
+{
+  "name": "Guia Linear MGN12H 300mm",
+  "model": "MGN12H",
+  "category": "guias_fusos",
+  "kind": "ackLinearGuide",
+  "material": "Aço Rolamento",
+  "color": 13158600,
+  "size": {
+    "x": 12.0,
+    "y": 8.0,
+    "z": 300.0
+  },
+  "ports": [
+    {
+      "name": "TRILHO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Trilho de guia linear miniatura MGN12 com 300mm"
+}

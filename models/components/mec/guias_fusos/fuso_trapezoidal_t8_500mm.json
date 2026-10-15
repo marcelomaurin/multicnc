@@ -1,0 +1,21 @@
+{
+  "name": "Fuso Trapezoidal T8 500mm",
+  "model": "Fuso T8 Passo 8mm",
+  "category": "guias_fusos",
+  "kind": "ackLeadScrew",
+  "material": "Aço Inox 304",
+  "color": 14474460,
+  "size": {
+    "x": 8.0,
+    "y": 8.0,
+    "z": 500.0
+  },
+  "ports": [
+    {
+      "name": "FUSO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Fuso de avanço trapezoidal T8x8 500mm"
+}

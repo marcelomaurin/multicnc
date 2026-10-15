@@ -1,0 +1,21 @@
+{
+  "name": "Porca M3 Travante",
+  "model": "DIN 985 M3",
+  "category": "fixadores",
+  "kind": "ackFastenerNut",
+  "material": "Aço Zincado / Nylon",
+  "color": 12500670,
+  "size": {
+    "x": 6.0,
+    "y": 6.0,
+    "z": 4.0
+  },
+  "ports": [
+    {
+      "name": "FURO_ROSCA",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Porca autotravante com inserto de nylon M3"
+}

@@ -1,0 +1,7 @@
+Free Pascal Compiler version 3.2.2 [2025/11/08] for x86_64
+Copyright (c) 1993-2021 by Florian Klaempfl and others
+Target OS: Win64 for x64
+Compiling D:\projetos\maurinsoft\multicnc\multislicer\tests\test_print_safety.lpr
+Compiling .\multislicer\src\core\multislicer_materials.pas
+Linking C:\Users\mmaurin\Documents\Codex\2026-10-14\si\work\qa_selected\test_print_safety\test_print_safety.exe
+374 lines compiled, 1.2 sec, 527488 bytes code, 35684 bytes data

@@ -1,0 +1,31 @@
+{
+  "name": "Motor DC 775 24V",
+  "model": "RS-775 12000 RPM",
+  "category": "motores",
+  "kind": "ackMotor",
+  "material": "Aço / Cobre",
+  "color": 4473924,
+  "size": {
+    "x": 42.0,
+    "y": 42.0,
+    "z": 66.0
+  },
+  "ports": [
+    {
+      "name": "SHAFT",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "VCC",
+      "kind": "apkPower",
+      "voltage": 24.0
+    },
+    {
+      "name": "GND",
+      "kind": "apkGround",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Motor DC escovado 775 rolamentado de alta rotação"
+}

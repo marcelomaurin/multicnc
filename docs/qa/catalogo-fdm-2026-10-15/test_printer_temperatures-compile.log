@@ -1,0 +1,50 @@
+Free Pascal Compiler version 3.2.2 [2025/11/08] for x86_64
+Copyright (c) 1993-2021 by Florian Klaempfl and others
+Target OS: Win64 for x64
+Compiling D:\projetos\maurinsoft\multicnc\tests\test_printer_temperatures.lpr
+Compiling .\src\shared\multisuite_numfmt.pas
+Compiling .\src\core\multicnc_types.pas
+Compiling .\src\core\multicnc_interfaces.pas
+Compiling .\src\transports\multicnc_simulator.pas
+Compiling .\src\core\multicnc_protocol_base.pas
+Compiling .\src\protocols\multicnc_marlin.pas
+Compiling .\src\core\multicnc_machine.pas
+Compiling .\src\core\multicnc_safety.pas
+Compiling .\src\core\multicnc_printer_profiles.pas
+Compiling .\src\shared\multisuite_fdm_catalog.pas
+multicnc_printer_profiles.pas(60,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(70,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(80,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(90,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(100,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(112,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(122,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(132,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(144,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(154,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(164,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(176,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(186,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(196,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(208,5) Warning: Some fields coming after "Notes" were not initialized
+Compiling .\src\core\multicnc_gcode_compat.pas
+Compiling .\src\core\multicnc_streamer.pas
+Compiling .\src\app\multicnc_session.pas
+Compiling .\src\core\multicnc_gcode_analyzer.pas
+Compiling .\src\core\multicnc_gcode_preflight.pas
+multicnc_gcode_preflight.pas(449,45) Note: Local variable "HasMotionWord" is assigned but never used
+Compiling .\src\core\multicnc_laser_config.pas
+multicnc_laser_config.pas(120,12) Note: Local variable "SVal" is assigned but never used
+Compiling .\src\transports\multicnc_chatgpt_serial.pas
+Compiling D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AISerial\aiserial.pas
+aiserial.pas(238,43) Warning: Symbol "SendATCommand" is deprecated: "Use WriteText/Poll"
+Compiling .\src\transports\multicnc_tcp_transport.pas
+Compiling .\src\protocols\multicnc_grbl.pas
+Compiling .\src\protocols\multicnc_grbl_status.pas
+Compiling .\src\protocols\multicnc_realtime.pas
+Compiling .\src\shared\multisuite_print_audit.pas
+Compiling .\src\core\multicnc_outline.pas
+Linking C:\Users\mmaurin\Documents\Codex\2026-10-14\si\work\qa_selected\test_printer_temperatures\test_printer_temperatures.exe
+7007 lines compiled, 1.0 sec, 403600 bytes code, 19988 bytes data
+16 warning(s) issued
+2 note(s) issued

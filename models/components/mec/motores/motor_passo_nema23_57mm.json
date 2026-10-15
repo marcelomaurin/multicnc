@@ -1,0 +1,41 @@
+{
+  "name": "Motor de Passo NEMA 23",
+  "model": "23HS8430 3.0A 76mm",
+  "category": "motores",
+  "kind": "ackMotor",
+  "material": "Aço / Alumínio",
+  "color": 2500134,
+  "size": {
+    "x": 57.0,
+    "y": 57.0,
+    "z": 76.0
+  },
+  "ports": [
+    {
+      "name": "SHAFT",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "A+",
+      "kind": "apkStep",
+      "voltage": 24.0
+    },
+    {
+      "name": "A-",
+      "kind": "apkStep",
+      "voltage": 24.0
+    },
+    {
+      "name": "B+",
+      "kind": "apkStep",
+      "voltage": 24.0
+    },
+    {
+      "name": "B-",
+      "kind": "apkStep",
+      "voltage": 24.0
+    }
+  ],
+  "description": "Motor de passo NEMA 23 de alto torque 1.9Nm para Router e Fresadoras"
+}

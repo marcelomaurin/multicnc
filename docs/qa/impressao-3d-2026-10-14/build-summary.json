@@ -1,0 +1,14 @@
+{
+  "target": "x86_64-win64",
+  "compiler": "Free Pascal 3.2.2",
+  "applications": {
+    "multislicer": "compiled",
+    "multicnc": "compiled"
+  },
+  "gui_tests": {
+    "test_slicer_app": "passed",
+    "test_app": "passed"
+  },
+  "physical_test": "not run",
+  "installer": "not built"
+}

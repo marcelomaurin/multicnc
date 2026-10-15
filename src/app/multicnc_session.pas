@@ -42,6 +42,14 @@ type
     FFileName: string;
     FOnLog: TTransportDataEvent;
     FLastError: string;
+    FTrace: TFileStream;
+    FTraceName, FTraceError: string;
+    FRequestedFeed, FRequestedFan, FUnitScale: Double;
+    function GetWaitingForReply:Boolean;
+    procedure Trace(const Direction, Data: string);
+    procedure TraceSend(const Data: string);
+    procedure TraceReceive(const Data: string);
+  private
     FErrorBase, FAlarmBase: Integer;
     FLastPoll: QWord;
     FLastTempQuery: QWord;
@@ -54,6 +62,7 @@ type
     FMarlinReadyAt: QWord;
     FMarlinHandshakeSent: Boolean;
     FEnvelopeX, FEnvelopeY, FEnvelopeZ: Double;
+    FMaxPrintHotend, FMaxPrintBed: Double;
     FJoystickMotion: Boolean;
     FJoystickCancelSent: Boolean;
     FRouterSpindleMaxRPM: Integer;
@@ -124,6 +133,12 @@ type
     { Curso util por eixo (mm), aplicado ao jog; 0 = desconhecido. }
     procedure SetWorkEnvelope(X, Y, Z: Double);
     procedure SetThermalLimits(AMaxHotend, AMaxBed: Integer);
+    procedure SaveSessionLog(const FileName: string);
+    property RequestedFeed:Double read FRequestedFeed; { mm/min; -1 unknown, not measured speed }
+    property RequestedFan:Double read FRequestedFan; { percent; -1 unknown, fan 0 only }
+    property WaitingForReply:Boolean read GetWaitingForReply;
+    property SessionLogFile: string read FTraceName;
+    property SessionLogError: string read FTraceError;
     property Connected: Boolean read GetConnected;
     property ControllerReady: Boolean read GetControllerReady;
     property FirmwareDescription:string read GetFirmwareDescription;
@@ -154,11 +169,13 @@ type
 
 implementation
 
-uses multicnc_streamer, multicnc_outline, multisuite_numfmt, multicnc_gcode_compat;
+uses Math, multicnc_protocol_base, multisuite_print_audit, multicnc_streamer, multicnc_outline, multisuite_numfmt, multicnc_gcode_compat;
 
 constructor TSimulationSession.Create;
 begin
   inherited Create;
+  FRequestedFeed:=-1;FRequestedFan:=-1;FUnitScale:=1;
+  FMaxPrintHotend := 260; FMaxPrintBed := 110;
   FLines := TStringList.Create;
   FLoadedLines := TStringList.Create;
   FOriginalLines := TStringList.Create;
@@ -177,11 +194,73 @@ begin
   FLines.Free;
   FLoadedLines.Free;
   FOriginalLines.Free;
+  FTrace.Free;
   inherited Destroy;
 end;
 
 { Marlin nao envia posicao sozinho: depois de cada movimento manual pede um
   M114 (enfileirado, sai apos o "ok" do movimento) para atualizar o DRO. }
+procedure TSimulationSession.Trace(const Direction, Data: string);
+var S:RawByteString; ID:TGUID;
+begin
+  if FTraceError<>'' then Exit;
+  try
+    if not Assigned(FTrace) then begin
+      CreateGUID(ID);
+      FTraceName:=IncludeTrailingPathDelimiter(GetTempDir)+'multicnc-'+GUIDToString(ID)+'.log';
+      FTrace:=TFileStream.Create(FTraceName,fmCreate);
+    end;
+    S:=FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz',Now)+' '+Direction+' '+
+      StringReplace(StringReplace(Data,#13,'<CR>',[rfReplaceAll]),#10,'<LF>',[rfReplaceAll])+LineEnding;
+    if Length(S)>0 then FTrace.WriteBuffer(S[1],Length(S));
+  except
+    on E:Exception do begin
+      FTraceError:='Falha ao gravar log integral: '+E.Message;
+      if Assigned(FOnLog) then FOnLog(FTraceError);
+    end;
+  end;
+end;
+
+function TSimulationSession.GetWaitingForReply:Boolean;
+begin Result:=Assigned(FMachine) and (FMachine.InFlightLines>0);end;
+
+procedure TSimulationSession.TraceSend(const Data:string);
+var U:string; Code,V,P:Double;
+begin
+  Trace('TX',Data);
+  U:=UpperCase(TGCodeStreamer.CleanLine(Data));
+  if U='' then Exit;
+  if (U[1]='G') and ValueAfter(U,'G',Code) then begin
+    if Code=20 then FUnitScale:=25.4 else if Code=21 then FUnitScale:=1;
+    if ((Code=0) or (Code=1) or (Code=2) or (Code=3)) and ValueAfter(U,'F',V) and
+      (V>0) and not IsInfinite(V) and not IsNan(V) then FRequestedFeed:=V*FUnitScale;
+  end;
+  if (U[1]='M') and ValueAfter(U,'M',Code) and ((Code=106) or (Code=107)) then begin
+    if ValueAfter(U,'P',P) and (P<>0) then Exit;
+    if Code=107 then FRequestedFan:=0
+    else begin
+      if not ValueAfter(U,'S',V) then V:=255;
+      if (V>=0) and (V<=255) then FRequestedFan:=V*100/255;
+    end;
+  end;
+end;
+
+procedure TSimulationSession.TraceReceive(const Data:string);
+begin Trace('RX',Data);end;
+
+procedure TSimulationSession.SaveSessionLog(const FileName:string);
+var Dest:TFileStream; Saved:Int64;
+begin
+  if FTraceError<>'' then raise Exception.Create(FTraceError);
+  if not Assigned(FTrace) then raise Exception.Create('Nenhuma sessao registrada');
+  if SameText(ExpandFileName(FileName),ExpandFileName(FTraceName)) then Exit;
+  Dest:=TFileStream.Create(FileName,fmCreate);
+  Saved:=FTrace.Position;
+  try
+    FTrace.Position:=0; Dest.CopyFrom(FTrace,FTrace.Size);
+  finally FTrace.Position:=Saved;Dest.Free;end;
+end;
+
 procedure TSimulationSession.RequestPositionAfterMotion;
 begin
   if (FProtocolKind = pkMarlin) and Assigned(FMachine) then
@@ -191,6 +270,7 @@ end;
 function TSimulationSession.Fail(const Reason: string): Boolean;
 begin
   FLastError := Reason;
+  Trace('ERROR',Reason);
   Result := False;
 end;
 
@@ -206,6 +286,7 @@ end;
 
 procedure TSimulationSession.Diag(const AText: string);
 begin
+  Trace('INFO',AText);
   if Assigned(FOnLog) then FOnLog('[MultiCNC] ' + AText);
 end;
 
@@ -311,6 +392,7 @@ end;
 
 procedure TSimulationSession.ReleaseConnection;
 begin
+  FRequestedFeed:=-1;FRequestedFan:=-1;FUnitScale:=1;
   FJoystickMotion:=False;
   FJoystickFault:=False;
   FJoystickCancelSent:=False;
@@ -379,6 +461,10 @@ begin
   FMachine := TMultiCNCMachine.Create(Kind, FTransport, Protocol);
   FMachine.SetWorkEnvelope(FEnvelopeX, FEnvelopeY, FEnvelopeZ);
   FMachine.OnData := @Receive;
+  FMachine.OnSend := @TraceSend;
+  FMachine.OnReceive := @TraceReceive;
+  Trace('CONNECT',Format('tipo=%d protocolo=%d transporte=%s volume=%gx%gx%g',
+    [Ord(Kind),Ord(ProtocolKind),FTransport.GetName,FEnvelopeX,FEnvelopeY,FEnvelopeZ]));
   FErrorBase := 0;
   FAlarmBase := 0;
   FLastError := '';
@@ -506,6 +592,8 @@ end;
 
 procedure TSimulationSession.SetThermalLimits(AMaxHotend, AMaxBed: Integer);
 begin
+  if AMaxHotend > 0 then FMaxPrintHotend := AMaxHotend;
+  if AMaxBed > 0 then FMaxPrintBed := AMaxBed;
   if Assigned(FMachine) then FMachine.SetThermalLimits(AMaxHotend, AMaxBed);
 end;
 
@@ -604,7 +692,17 @@ end;
 function TSimulationSession.ValidateProgram(out Reason: string): Boolean;
 begin
   Reason:='';Result:=True;
-  if FProtocolKind=pkGRBL then Result:=CheckProgramCompatibility(FOriginalLines,'GRBL',Reason);
+  if FProtocolKind=pkGRBL then Result:=CheckProgramCompatibility(FOriginalLines,'GRBL',Reason)
+  else Result:=CheckProgramCompatibility(FOriginalLines,'Marlin',Reason);
+  if Result and (FMachineKind=mtPrinter3D) and (FProtocolKind=pkMarlin) then begin
+    Result:=AuditPrintProgram(FOriginalLines,FMaxPrintHotend,FMaxPrintBed,Reason);
+    if Result and FBounds.HasMotion and
+      (((FEnvelopeX>0) and ((FBounds.MinX < -0.001) or (FBounds.MaxX>FEnvelopeX+0.001))) or
+       ((FEnvelopeY>0) and ((FBounds.MinY < -0.001) or (FBounds.MaxY>FEnvelopeY+0.001))) or
+       ((FEnvelopeZ>0) and ((FBounds.MinZ < -0.001) or (FBounds.MaxZ>FEnvelopeZ+0.001)))) then begin
+      Reason:='Trajetoria fora do volume da impressora selecionada';Result:=False;
+    end;
+  end;
 end;
 
 function TSimulationSession.Start: Boolean;
@@ -654,6 +752,10 @@ begin
   FAlarmBase := FMachine.AlarmCount;
   FLastError := '';
   FState := ssRunning;
+  Trace('START',ExtractFileName(FFileName));
+  for I:=0 to FOriginalLines.Count-1 do
+    if (Pos('; MS-PRINTER:',FOriginalLines[I])=1) or (Pos('; MS-MATERIAL:',FOriginalLines[I])=1) then
+      Trace('PROFILE',FOriginalLines[I]);
   FeedJob;
   Result := FState in [ssRunning, ssDone];
 end;
@@ -674,6 +776,7 @@ begin
     FLastError := 'Erro da controladora: ' + FMachine.LastError;
     if FMachine.FirstControllerError<>'' then
       FLastError:='Erro da controladora: '+FMachine.FirstControllerError;
+    Trace('ERROR',FLastError);
   end;
 end;
 
@@ -710,11 +813,14 @@ begin
     end
     else
     begin
-      if not FFinishing and (FMachineKind in [mtRouter, mtLaser]) then
+      if not FFinishing and ((FMachineKind in [mtRouter, mtLaser]) or
+        ((FMachineKind = mtPrinter3D) and (FProtocolKind = pkMarlin))) then
       begin
         { M5 fica depois dos movimentos; no GRBL, sincroniza com o planner.
           EOF sozinho nao desliga o spindle. Nao concluir antes do "ok". }
-        FinishCommands := 'M5';
+        if (FMachineKind = mtPrinter3D) and (FProtocolKind = pkMarlin) then
+          FinishCommands := 'M400'
+        else FinishCommands := 'M5';
         if (FMachineKind = mtLaser) and FLaserSettings.AirAssist and
            (Trim(FLaserSettings.AirAssistOffCmd) <> '') then
           FinishCommands := FinishCommands + LineEnding + Trim(FLaserSettings.AirAssistOffCmd);
@@ -730,6 +836,7 @@ begin
         if (FState <> ssRunning) or (FMachine.PendingLines > 0) then Exit;
       end;
       FState := ssDone;
+      Trace('DONE','Comandos confirmados; barreira final concluida');
     end;
   end;
 end;
@@ -739,11 +846,15 @@ var Now64: QWord;
 begin
   if not Assigned(FTransport) then Exit;
   FTransport.Poll;
+  FMachine.CheckCommunicationTimeout(GetTickCount64);
+  CheckFirmwareFaults;
   if not FTransport.IsConnected then begin
     if FTransportObject is TChatGPTSerialTransport then begin
       FLastError := TChatGPTSerialTransport(FTransportObject).LastError;
       if FLastError <> '' then Diag(FLastError);
     end;
+    FMachine.ClearQueue;
+    if FLastError = '' then FLastError := 'Conexao perdida; verifique a maquina antes de reiniciar';
     FState := ssError; Exit;
   end;
   CheckControllerSilence(GetTickCount64);
@@ -781,7 +892,7 @@ begin
 
     if not FMarlinHandshakeSent then
     begin
-      FMarlinHandshakeSent := FTransport.Send('M115' + #10);
+      FMarlinHandshakeSent := FMachine.SendGCode('M115');
       FLastTempQuery := Now64;
       Exit;
     end;
@@ -803,6 +914,7 @@ begin
     FLastError := 'Connection lost while program was running';
     Exit;
   end;
+  FMachine.CheckCommunicationTimeout(GetTickCount64);
   if FState = ssRunning then FeedJob else CheckFirmwareFaults;
 end;
 

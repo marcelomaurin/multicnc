@@ -1,0 +1,21 @@
+{
+  "name": "Fuso de Esferas SFU1204 300mm",
+  "model": "SFU1204-C7",
+  "category": "guias_fusos",
+  "kind": "ackLeadScrew",
+  "material": "Aço GCr15 Temperado",
+  "color": 15132390,
+  "size": {
+    "x": 12.0,
+    "y": 12.0,
+    "z": 300.0
+  },
+  "ports": [
+    {
+      "name": "FUSO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Fuso de esferas recirculantes de precisão SFU1204 passo 4mm"
+}

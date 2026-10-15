@@ -1,0 +1,21 @@
+{
+  "name": "Rolamento 6205",
+  "model": "6205-2RS 25x52x15mm",
+  "category": "rolamentos_mancais",
+  "kind": "ackBearing",
+  "material": "Aço Cromo",
+  "color": 11184810,
+  "size": {
+    "x": 52.0,
+    "y": 52.0,
+    "z": 15.0
+  },
+  "ports": [
+    {
+      "name": "FURO_25MM",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Rolamento para eixos principais de máquinas pesadas"
+}

@@ -1,0 +1,41 @@
+{
+  "name": "Driver de Passo TB6600 4A",
+  "model": "TB6600 Microstep 9-42V 4A",
+  "category": "eletronica",
+  "kind": "ackDriver",
+  "material": "Gabinete Alumínio / Plástico",
+  "color": 1579032,
+  "size": {
+    "x": 96.0,
+    "y": 56.0,
+    "z": 33.0
+  },
+  "ports": [
+    {
+      "name": "ENA+",
+      "kind": "apkEnable",
+      "voltage": 5.0
+    },
+    {
+      "name": "DIR+",
+      "kind": "apkDir",
+      "voltage": 5.0
+    },
+    {
+      "name": "PUL+",
+      "kind": "apkStep",
+      "voltage": 5.0
+    },
+    {
+      "name": "VCC",
+      "kind": "apkPower",
+      "voltage": 24.0
+    },
+    {
+      "name": "GND",
+      "kind": "apkGround",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Driver profissional para motores NEMA 23 com controle de micropasso até 32x"
+}

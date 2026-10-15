@@ -1,0 +1,26 @@
+{
+  "name": "Motor de Passo NEMA 34",
+  "model": "34HS1456 5.6A 115mm",
+  "category": "motores",
+  "kind": "ackMotor",
+  "material": "Aço / Alumínio",
+  "color": 2105376,
+  "size": {
+    "x": 86.0,
+    "y": 86.0,
+    "z": 115.0
+  },
+  "ports": [
+    {
+      "name": "SHAFT",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "COILS",
+      "kind": "apkStep",
+      "voltage": 48.0
+    }
+  ],
+  "description": "Motor de passo industrial NEMA 34 com torque de 8.5Nm"
+}

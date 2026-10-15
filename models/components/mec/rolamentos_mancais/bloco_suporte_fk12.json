@@ -1,0 +1,21 @@
+{
+  "name": "Bloco Mancal FK12 Fixo",
+  "model": "FK12 para SFU1605",
+  "category": "rolamentos_mancais",
+  "kind": "ackBearing",
+  "material": "Aço Carbono Usinado",
+  "color": 3158064,
+  "size": {
+    "x": 60.0,
+    "y": 25.0,
+    "z": 35.0
+  },
+  "ports": [
+    {
+      "name": "FURO_FUSO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Suporte do lado fixo com rolamento de contato angular para fusos de esferas"
+}

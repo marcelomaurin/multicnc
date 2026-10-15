@@ -1,0 +1,31 @@
+{
+  "name": "Fim de Curso Microswitch",
+  "model": "KW12-3 Alavanca Roldana",
+  "category": "eletronica",
+  "kind": "ackEndStop",
+  "material": "Baquelite / Metal",
+  "color": 2105376,
+  "size": {
+    "x": 20.0,
+    "y": 10.0,
+    "z": 6.0
+  },
+  "ports": [
+    {
+      "name": "COM",
+      "kind": "apkDigitalInput",
+      "voltage": 5.0
+    },
+    {
+      "name": "NO",
+      "kind": "apkDigitalInput",
+      "voltage": 5.0
+    },
+    {
+      "name": "NC",
+      "kind": "apkDigitalInput",
+      "voltage": 5.0
+    }
+  ],
+  "description": "Chave microswitch de limite mecânico com roldana"
+}

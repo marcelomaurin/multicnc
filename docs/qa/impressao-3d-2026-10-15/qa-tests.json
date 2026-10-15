@@ -1,0 +1,272 @@
+{
+  "tests_executed": true,
+  "tests": [
+    {
+      "source": "multislicer/tests/test_machines.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multislicer-test_machines.log"
+    },
+    {
+      "source": "multislicer/tests/test_meshcheck.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multislicer-test_meshcheck.log"
+    },
+    {
+      "source": "multislicer/tests/test_modern_slicer.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multislicer-test_modern_slicer.log"
+    },
+    {
+      "source": "multislicer/tests/test_print_safety.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multislicer-test_print_safety.log"
+    },
+    {
+      "source": "multislicer/tests/test_scene.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multislicer-test_scene.log"
+    },
+    {
+      "source": "multislicer/tests/test_support.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multislicer-test_support.log"
+    },
+    {
+      "source": "tests/debug_parser.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multicnc-debug_parser.log"
+    },
+    {
+      "source": "tests/test_connection_startup.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multicnc-test_connection_startup.log"
+    },
+    {
+      "source": "tests/test_controller.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multicnc-test_controller.log"
+    },
+    {
+      "source": "tests/test_equipment.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multicnc-test_equipment.log"
+    },
+    {
+      "source": "tests/test_gcode_compat.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multicnc-test_gcode_compat.log"
+    },
+    {
+      "source": "tests/test_gcode_trace.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multicnc-test_gcode_trace.log"
+    },
+    {
+      "source": "tests/test_grbl_legacy.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multicnc-test_grbl_legacy.log"
+    },
+    {
+      "source": "tests/test_grbl_regressions.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "note": "Repeated after final targeted changes",
+      "evidence": "logs/multicnc-test_grbl_regressions.log"
+    },
+    {
+      "source": "tests/test_joystick.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multicnc-test_joystick.log"
+    },
+    {
+      "source": "tests/test_laser_profiles.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multicnc-test_laser_profiles.log"
+    },
+    {
+      "source": "tests/test_locale_invariant.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multicnc-test_locale_invariant.log"
+    },
+    {
+      "source": "tests/test_multicnc_tcp.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "kind": "real-tcp-integration",
+      "evidence": "tcp/run.log"
+    },
+    {
+      "source": "tests/test_multislicer_print.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multicnc-test_multislicer_print.log"
+    },
+    {
+      "source": "tests/test_outline.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multicnc-test_outline.log"
+    },
+    {
+      "source": "tests/test_printer_temperatures.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multicnc-test_printer_temperatures.log"
+    },
+    {
+      "source": "tests/test_router_profiles.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multicnc-test_router_profiles.log"
+    },
+    {
+      "source": "tests/test_router_spindle.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multicnc-test_router_spindle.log"
+    },
+    {
+      "source": "tests/test_serial_transport.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multicnc-test_serial_transport.log"
+    },
+    {
+      "source": "tests/test_session.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "note": "Repeated after final targeted changes",
+      "evidence": "logs/multicnc-test_session.log"
+    },
+    {
+      "source": "tests/test_shared_geometry.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multicnc-test_shared_geometry.log"
+    },
+    {
+      "source": "tests/test_shared_heightmap.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multicnc-test_shared_heightmap.log"
+    },
+    {
+      "source": "tests/test_shared_zcompensation.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multicnc-test_shared_zcompensation.log"
+    },
+    {
+      "source": "tests/test_simu_temperature_control.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multicnc-test_simu_temperature_control.log"
+    },
+    {
+      "source": "tests/test_simulator.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multicnc-test_simulator.log"
+    },
+    {
+      "source": "tests/test_streaming.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "note": "Repeated after final targeted changes",
+      "evidence": "logs/multicnc-test_streaming.log"
+    },
+    {
+      "source": "tests/test_zero_assist.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/multicnc-test_zero_assist.log"
+    },
+    {
+      "source": "laserpcb/tests/test_alignment.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/laserpcb-test_alignment.log"
+    },
+    {
+      "source": "laserpcb/tests/test_board.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/laserpcb-test_board.log"
+    },
+    {
+      "source": "laserpcb/tests/test_drill.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/laserpcb-test_drill.log"
+    },
+    {
+      "source": "laserpcb/tests/test_job.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/laserpcb-test_job.log"
+    },
+    {
+      "source": "laserpcb/tests/test_layout.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/laserpcb-test_layout.log"
+    },
+    {
+      "source": "laserpcb/tests/test_pipeline.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/laserpcb-test_pipeline.log"
+    },
+    {
+      "source": "laserpcb/tests/test_raster.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/laserpcb-test_raster.log"
+    },
+    {
+      "source": "makerouter/tests/test_makerouter.lpr",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/makerouter-test_makerouter.log"
+    },
+    {
+      "source": "multislicer/tests/test_slicer_app.lpr",
+      "kind": "gui",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/test_slicer_app-run.log"
+    },
+    {
+      "source": "tests/test_app.lpr",
+      "kind": "gui",
+      "status": "passed",
+      "exit_code": 0,
+      "evidence": "logs/test_app-run.log"
+    }
+  ],
+  "date": "2026-10-15",
+  "summary": {
+    "regression_passed": 39,
+    "gui_passed": 2,
+    "tcp_passed": 1,
+    "failed": 0
+  },
+  "physical_tests": "not performed",
+  "remote_ci": "configured, not executed"
+}

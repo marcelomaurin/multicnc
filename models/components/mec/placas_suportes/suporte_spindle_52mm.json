@@ -1,0 +1,26 @@
+{
+  "name": "Suporte Spindle 52mm Alumínio",
+  "model": "Clamp Mount 52mm",
+  "category": "placas_suportes",
+  "kind": "ackMechanicalPart",
+  "material": "Alumínio Fundido e Usinado",
+  "color": 11842740,
+  "size": {
+    "x": 90.0,
+    "y": 40.0,
+    "z": 60.0
+  },
+  "ports": [
+    {
+      "name": "ABRACADEIRA_52MM",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "FIXACAO_EIXO_Z",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Abraçadeira de montagem de alta precisão para motor spindle de 52mm"
+}

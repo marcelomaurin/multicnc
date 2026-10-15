@@ -1,0 +1,26 @@
+{
+  "name": "Perfil Alumínio 2020 V-Slot 500mm",
+  "model": "V-Slot 2020",
+  "category": "perfis",
+  "kind": "ackMechanicalPart",
+  "material": "Alumínio 6063-T5",
+  "color": 13684944,
+  "size": {
+    "x": 20.0,
+    "y": 20.0,
+    "z": 500.0
+  },
+  "ports": [
+    {
+      "name": "SLOT_TOP",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "SLOT_BOTTOM",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Perfil estrutural V-Slot 20x20mm com 500mm de comprimento"
+}

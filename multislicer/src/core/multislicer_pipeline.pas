@@ -68,6 +68,9 @@ type
     // Etapa 2 (perfis de impressora e material)
     FirstLayerHotendTemp, FirstLayerBedTemp: Integer; // 0 = igual as demais camadas
     FanPercent: Integer;             // 0..100; 0 = ventoinha desligada
+    MaxVolumetricFlow: Double;       // mm3/s, material + hotend calibrados
+    MaxPrintSpeed, MaxTravelSpeed, MaxZSpeed: Double; // mm/s
+    MaxHotendTemp, MaxBedTemp: Integer;
     FlowPercent: Double;             // multiplicador de extrusao (100 = nominal)
     HeatedBed: Boolean;              // False = sem M140/M190
     StartGCode, EndGCode: string;    // vazio = bloco padrao; aceita {variaveis}
@@ -156,7 +159,7 @@ procedure AddBox(M: TMesh; X0, Y0, Z0, X1, Y1, Z1: Double);
 
 implementation
 
-uses multislicer_profile;
+uses multislicer_profile, multisuite_print_audit, multislicer_template_limits;
 
 function DefaultSliceSettings: TSliceSettings;
 begin
@@ -193,6 +196,9 @@ begin
   Result.FirstLayerHotendTemp := 0;
   Result.FirstLayerBedTemp := 0;
   Result.FanPercent := 100;
+  Result.MaxVolumetricFlow := 8; // ponto de partida; calibrar por material/hotend
+  Result.MaxPrintSpeed := 150; Result.MaxTravelSpeed := 200; Result.MaxZSpeed := 5;
+  Result.MaxHotendTemp := 260; Result.MaxBedTemp := 110;
   Result.FlowPercent := 100;
   Result.HeatedBed := True;
   Result.StartGCode := '';
@@ -264,9 +270,51 @@ begin
   Quad(X0,Y1,Z0, X0,Y0,Z0, X0,Y0,Z1, X0,Y1,Z1);
 end;
 
+procedure Positive(V: Double; const Name: string);
+begin
+  if IsNan(V) or IsInfinite(V) or (V <= 0) then
+    raise Exception.Create(Name + ': informe um numero finito maior que zero');
+end;
+
+procedure ValidateSliceSettings(const S: TSliceSettings);
+begin
+  Positive(S.Printer.FilamentDiameter, 'Diametro do filamento');
+  Positive(S.Printer.Nozzle, 'Bico');
+  Positive(S.Printer.BedX, 'Mesa X'); Positive(S.Printer.BedY, 'Mesa Y');
+  Positive(S.Printer.MaxZ, 'Altura util');
+  Positive(S.LayerHeight, 'Altura de camada'); Positive(S.FirstLayerHeight, 'Primeira camada');
+  Positive(S.LineWidth, 'Largura de linha'); Positive(S.FlowPercent, 'Fluxo');
+  Positive(S.MaxVolumetricFlow, 'Vazao maxima');
+  Positive(S.MaxPrintSpeed, 'Limite de impressao'); Positive(S.MaxTravelSpeed, 'Limite de viagem');
+  Positive(S.MaxZSpeed, 'Limite Z');
+  Positive(S.WallSpeed, 'Parede'); Positive(S.OuterWallSpeed, 'Parede externa');
+  Positive(S.InfillSpeed, 'Preenchimento'); Positive(S.FirstLayerSpeed, 'Velocidade inicial');
+  Positive(S.TravelSpeed, 'Viagem'); Positive(S.RetractSpeed, 'Velocidade de retracao');
+  if IsNan(S.RetractLength) or IsInfinite(S.RetractLength) or (S.RetractLength < 0) or
+     IsNan(S.ZHop) or IsInfinite(S.ZHop) or (S.ZHop < 0) then
+    raise Exception.Create('Retracao e Z-hop devem ser finitos e nao negativos');
+  if IsNan(S.Support.Speed) or IsInfinite(S.Support.Speed) or (S.Support.Speed < 0) then
+    raise Exception.Create('Velocidade de suporte invalida');
+  if S.Adaptive then begin
+    Positive(S.AdaptiveMin, 'Camada minima'); Positive(S.AdaptiveMax, 'Camada maxima');
+    if S.AdaptiveMin > S.AdaptiveMax then raise Exception.Create('Faixa adaptativa invalida');
+  end;
+  if (Max(S.LayerHeight, S.FirstLayerHeight) > S.LineWidth) or
+    (S.Adaptive and (S.AdaptiveMax > S.LineWidth)) then
+    raise Exception.Create('Altura de camada maior que a largura do cordao');
+  if (S.Printer.HotendTemp <= 0) or (FirstHotend(S) <= 0) or
+    (Max(S.Printer.HotendTemp, FirstHotend(S)) > S.MaxHotendTemp) then
+    raise Exception.Create('Temperatura do bico fora dos limites do perfil');
+  if S.HeatedBed and ((S.Printer.BedTemp < 0) or (FirstBed(S) < 0) or
+    (Max(S.Printer.BedTemp, FirstBed(S)) > S.MaxBedTemp)) then
+    raise Exception.Create('Temperatura da mesa fora dos limites do perfil');
+end;
+
 class function TModernSlicer.ExtrusionPerMM(Width, Height, FilamentDiameter: Double): Double;
 var Area: Double;
 begin
+  Positive(Width, 'Largura'); Positive(Height, 'Altura'); Positive(FilamentDiameter, 'Filamento');
+  if Height > Width then raise Exception.Create('Altura maior que largura do cordao');
   // cordao com laterais arredondadas (modelo Slic3r/PrusaSlicer)
   Area := (Width - Height) * Height + Pi * Sqr(Height / 2);
   Result := Area / (Pi * Sqr(FilamentDiameter / 2));
@@ -813,9 +861,11 @@ end;
 
 procedure TGCodeWriter.SetF(Speed: Double; var L: string);
 begin
-  if Abs(Speed * 60 - F) > 0.5 then begin
-    L := L + ' F' + IntToStr(Round(Speed * 60));
-    F := Speed * 60;
+  Positive(Speed, 'Velocidade');
+  if Speed * 60 < 1 then raise Exception.Create('Avanco abaixo da resolucao de 1 mm/min');
+  if Abs(Floor(Speed * 60) - F) > 0.5 then begin
+    L := L + ' F' + IntToStr(Floor(Speed * 60));
+    F := Floor(Speed * 60);
   end;
 end;
 
@@ -841,9 +891,9 @@ begin
   if Known and (D < 1e-6) then Exit;
   if Known and (D >= S.RetractMinTravel) and not InsideRegion(TX, TY) then Retract;
   L := 'G0 X' + N(TX) + ' Y' + N(TY);
-  SetF(S.TravelSpeed, L);
+  SetF(Min(S.TravelSpeed, S.MaxTravelSpeed), L);
   Out.Add(L);
-  Seconds := Seconds + D / S.TravelSpeed;
+  Seconds := Seconds + D / Min(S.TravelSpeed, S.MaxTravelSpeed);
   X := TX; Y := TY; Known := True;
 end;
 
@@ -879,14 +929,17 @@ begin
   Inc(Retractions);
   F := S.RetractSpeed * 60;
   Seconds := Seconds + S.RetractLength / S.RetractSpeed;
-  if S.ZHop > 0 then Out.Add('G0 Z' + N(Z + S.ZHop));
+  if S.ZHop > 0 then begin
+    Out.Add('G0 Z' + N(Min(S.Printer.MaxZ, Z + S.ZHop)) + ' F' + IntToStr(Floor(S.MaxZSpeed * 60)));
+    F := Floor(S.MaxZSpeed * 60);
+  end;
   Retracted := True;
 end;
 
 procedure TGCodeWriter.Unretract;
 begin
   if not Retracted then Exit;
-  if S.ZHop > 0 then Out.Add('G0 Z' + N(Z));
+  if S.ZHop > 0 then Out.Add('G0 Z' + N(Z) + ' F' + IntToStr(Floor(S.MaxZSpeed * 60)));
   Out.Add('G1 E' + N(S.RetractLength, 5) + ' F' + IntToStr(Round(S.RetractSpeed * 60)));
   F := S.RetractSpeed * 60;
   Seconds := Seconds + S.RetractLength / S.RetractSpeed;
@@ -896,8 +949,9 @@ end;
 procedure TGCodeWriter.MoveZ(TZ: Double);
 var L: string;
 begin
+  if (TZ < 0) or (TZ > S.Printer.MaxZ) then raise Exception.Create('Movimento Z fora do volume');
   L := 'G0 Z' + N(TZ);
-  SetF(S.TravelSpeed, L);
+  SetF(S.MaxZSpeed, L);
   Out.Add(L);
   Z := TZ;
 end;
@@ -911,6 +965,7 @@ end;
 
 function TModernSlicer.Slice(Mesh: TMesh; const S: TSliceSettings; Output: TStrings): TSliceReport;
 var
+  AuditReason: string;
   Heights: TPolygon2D;
   I, K, P: Integer;
   W: TGCodeWriter;
@@ -978,6 +1033,8 @@ var
       else
         Speed := S.InfillSpeed;
       end;
+      Speed := Min(Speed, S.MaxPrintSpeed);
+      Speed := Min(Speed, S.MaxVolumetricFlow / (EPM * Pi * Sqr(S.Printer.FilamentDiameter / 2)));
       case Path.Role of
         prSkirt, prBrim: Body.Add(';TYPE:Skirt/Brim');
         prOuterWall: Body.Add(';TYPE:External perimeter');
@@ -1031,8 +1088,10 @@ var
 begin
   FillChar(Result, SizeOf(Result), 0);
   Result.Warnings := '';
+  Output.Clear;
   FSettings := S;
   if FSettings.LineWidth <= 0 then FSettings.LineWidth := FSettings.Printer.Nozzle * 1.125;
+  ValidateSliceSettings(FSettings);
   SetLength(FLayers, 0);
   if Mesh.Count = 0 then Exit;
   Heights := ComputeLayerHeights(Mesh, FSettings);
@@ -1081,9 +1140,17 @@ begin
         MinX := Min(MinX, FLayers[I].Loops[K][P].X); MaxX := Max(MaxX, FLayers[I].Loops[K][P].X);
         MinY := Min(MinY, FLayers[I].Loops[K][P].Y); MaxY := Max(MaxY, FLayers[I].Loops[K][P].Y);
       end;
+  for I := 0 to High(FLayers) do
+    for K := 0 to High(FLayers[I].Paths) do
+      for P := 0 to High(FLayers[I].Paths[K].Points) do begin
+        TX := FLayers[I].Paths[K].Points[P].X; TY := FLayers[I].Paths[K].Points[P].Y;
+        MinX := Min(MinX, TX); MaxX := Max(MaxX, TX);
+        MinY := Min(MinY, TY); MaxY := Max(MaxY, TY);
+      end;
   if (MinX < 0) or (MinY < 0) or (MaxX > S.Printer.BedX) or (MaxY > S.Printer.BedY) or
-    (Result.MaxZ > S.Printer.MaxZ) then
-    Result.Warnings := Result.Warnings + 'Modelo fora do volume de impressao; ';
+    (Result.MinZ < 0) or (Result.MaxZ > S.Printer.MaxZ) or
+    ((Length(FLayers) > 0) and (FLayers[High(FLayers)].Z > S.Printer.MaxZ)) then
+    raise Exception.Create('Trajetoria fora do volume de impressao (inclui saia, suporte e brim)');
 
   AF := DefaultArcFitOptions;
   AF.Tolerance := 0.05; // resolucao usual de arc welders para FDM
@@ -1131,7 +1198,7 @@ begin
       W.Retract;
       W.MoveZ(FLayers[I].Z);
       EPM := ExtrusionPerMM(FSettings.LineWidth, FLayers[I].Height, S.Printer.FilamentDiameter);
-      if S.FlowPercent > 0 then EPM := EPM * S.FlowPercent / 100;
+      EPM := EPM * S.FlowPercent / 100;
       if NObj <= 1 then begin
         LabelStart(0);
         EmitList(FLayers[I].Paths);
@@ -1227,6 +1294,11 @@ begin
       Output.Add(Format('SET_PRINT_STATS_INFO TOTAL_LAYER=%d', [Result.Layers]));
     end else
       Output.Add(Format('M486 T%d', [Max(1, NObj)]));
+    if S.Flavor = sfMarlin then begin
+      Output.Add('M200 D0 ; E em comprimento de filamento');
+      Output.Add('M220 S100');
+      Output.Add('M221 S100');
+    end;
     Output.Add('G21');
     Output.Add('G90');
     Output.Add('M83 ; extrusao relativa');
@@ -1234,6 +1306,8 @@ begin
       Output.Add('; --- G-code inicial do perfil da impressora ---');
       Output.Text := Output.Text + ExpandGCodeTemplate(S.StartGCode, S);
       Output.Add('; --- fim do G-code inicial ---');
+      Output.Add('G21');
+      Output.Add('G90');
       Output.Add('M83 ; extrusao relativa');
     end else begin
       if S.HeatedBed then Output.Add(Format('M140 S%d', [FirstBed(S)]));
@@ -1261,16 +1335,18 @@ begin
         Inc(K);
       end;
     Output.AddStrings(Body);
+    Output.Add('M400 ; aguarda movimentos antes do encerramento');
     Output.Add('M73 P100 R0');
     if S.Flavor = sfMarlin then Output.Add('M486 S-1');
     Output.Add('M107');
     if Trim(S.EndGCode) <> '' then begin
       Output.Add('; --- G-code final do perfil da impressora ---');
-      Output.Text := Output.Text + ExpandGCodeTemplate(S.EndGCode, S);
+      Output.Text := Output.Text + ExpandGCodeTemplate(StringReplace(S.EndGCode, '{park_z}',
+        W.N(Min(S.Printer.MaxZ, W.Z + 10)), [rfReplaceAll, rfIgnoreCase]), S);
       Output.Add('; --- fim do G-code final ---');
     end else begin
       Output.Add('G91');
-      Output.Add('G0 Z5');
+      Output.Add('G0 Z' + W.N(Max(0, Min(5, S.Printer.MaxZ - W.Z))) + ' F' + IntToStr(Floor(S.MaxZSpeed * 60)));
       Output.Add('G90');
       Output.Add('M104 S0');
       Output.Add('M140 S0');
@@ -1279,6 +1355,18 @@ begin
   finally
     Body.Free;
     W.Free;
+  end;
+  try
+    LimitPrintTemplates(Output, S.Printer.BedX, S.Printer.BedY, S.Printer.MaxZ,
+      S.MaxPrintSpeed, S.MaxTravelSpeed, S.MaxZSpeed, S.RetractSpeed,
+      S.MaxVolumetricFlow, S.Printer.FilamentDiameter);
+  except
+    Output.Clear;
+    raise;
+  end;
+  if not AuditPrintProgram(Output, S.MaxHotendTemp, S.MaxBedTemp, AuditReason) then begin
+    Output.Clear;
+    raise Exception.Create(AuditReason);
   end;
   Result.MSGCode := GetTickCount64 - T0;
 end;

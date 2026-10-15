@@ -1,0 +1,21 @@
+{
+  "name": "Fuso de Esferas SFU1605 450mm",
+  "model": "SFU1605-C7",
+  "category": "guias_fusos",
+  "kind": "ackLeadScrew",
+  "material": "Aço GCr15 Temperado",
+  "color": 15132390,
+  "size": {
+    "x": 16.0,
+    "y": 16.0,
+    "z": 450.0
+  },
+  "ports": [
+    {
+      "name": "FUSO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Fuso de esferas recirculantes SFU1605 passo 5mm para CNC Router"
+}

@@ -1,0 +1,21 @@
+{
+  "name": "Porca T-Nut M5 Martelo",
+  "model": "Drop-in T-Nut M5 Slot 6",
+  "category": "fixadores",
+  "kind": "ackFastenerNut",
+  "material": "Aço Niquelado",
+  "color": 11842740,
+  "size": {
+    "x": 10.0,
+    "y": 6.0,
+    "z": 4.5
+  },
+  "ports": [
+    {
+      "name": "ROSCA",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Porca martelo tipo gota para inserção no rasgo do perfil de alumínio"
+}

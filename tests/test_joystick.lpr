@@ -95,7 +95,7 @@ begin
       Check((Loaded.ZPlus=ajLB) and (Loaded.ZMinus=ajLT) and Loaded.InvertX and (Loaded.DeviceID='two'),'Persistent custom model mapping');
       Settings.XAxis:=-7; Settings.ZPlus:=900; Settings.DeadZone:=1; Settings.Feed:=Infinity;
       ValidateJoystickSettings(Settings);
-      Check((Settings.XAxis=0) and (Settings.ZPlus=34) and (Settings.DeadZone=0.8) and (Settings.Feed=500),'Corrupt settings bounded');
+      Check((Settings.XAxis=0) and (Settings.ZPlus=34) and (Abs(Settings.DeadZone-0.8)<1e-12) and (Settings.Feed=500),'Corrupt settings bounded');
       Gate.OnJog:=@Sink.Jog; Gate.OnCancel:=@Sink.Cancel;
       Input:=Default(TAIJoystickState); Input.Connected:=True; Input.DeviceID:='one'; Input.Axes[0]:=1;
       Update(True,True,True,True,1000); Check(Sink.Jogs=0,'Held input at startup never moves');

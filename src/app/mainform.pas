@@ -1817,7 +1817,7 @@ var
 begin
   if FindPrinterProfile(PrinterBrandCombo.Text, PrinterModelCombo.Text, Prof) then
   begin
-    BaudCombo.Text := IntToStr(Prof.BaudRate);
+    if Prof.BaudRate>0 then BaudCombo.Text := IntToStr(Prof.BaudRate) else BaudCombo.Text:='';
     Session.SetWorkEnvelope(Prof.VolumeX, Prof.VolumeY, Prof.VolumeZ);
     Session.SetThermalLimits(Prof.MaxHotendTemp, Prof.MaxBedTemp);
     { analise do G-code com os limites de uma impressora (volume da mesa e
@@ -1864,6 +1864,9 @@ begin
        Prof.BaudRate, Prof.Firmware,
        Prof.MaxHotendTemp, Prof.MaxBedTemp, BedStr,
        Prof.FilamentDiameter, Prof.Notes]);
+    if Prof.CatalogOnly then PrinterSpecsLabel.Caption:=PrinterProfileSummary(Prof)+LineEnding+
+      Format('Bico/mesa: %d / %d C | Fonte conferida: %s',[Prof.MaxHotendTemp,Prof.MaxBedTemp,Prof.VerifiedOn])+
+      LineEnding+Prof.Notes+LineEnding+Prof.SourceURL;
     Log(Format('3D Printer profile applied: %s %s (Table: %.0fx%.0fx%.0f mm, Baud: %d, MaxHotend: %d C, MaxBed: %d C)',
       [Prof.Brand, Prof.Model, Prof.VolumeX, Prof.VolumeY, Prof.VolumeZ, Prof.BaudRate, Prof.MaxHotendTemp, Prof.MaxBedTemp]));
   end
@@ -2101,8 +2104,8 @@ begin
 end;
 
 procedure TMainForm.UpdateControls;
-const StateNames: array[TSessionState] of string = ('Disconnected', 'Ready',
-  'Running', 'Paused', 'Program completed', 'Stopped', 'Error');
+const StateNames: array[TSessionState] of string = ('Desconectado', 'Pronto',
+  'Executando', 'Pausado', 'Finalizado', 'Interrompido', 'Falhou');
 var
   Busy, Manual, Alarm: Boolean; I: Integer; P, H: TMachinePosition; Info: string;
   T: TPrinterTemperatures; HRealStr, BRealStr, HStat: string;
@@ -2177,8 +2180,13 @@ begin
       else
         HStat := 'Heaters Standby / Off';
 
-      LblNozzleTemp.Caption := Format('Real: %s  |  Config: %.0f C', [HRealStr, 1.0 * SpConfigHotendTemp.Value], InvariantFS);
-      LblBedTemp.Caption := Format('Real: %s  |  Config: %.0f C', [BRealStr, 1.0 * SpConfigBedTemp.Value], InvariantFS);
+      LblNozzleTemp.Caption := Format('Real: %s  |  Alvo: %.0f C', [HRealStr, T.HotendTarget], InvariantFS);
+      LblBedTemp.Caption := Format('Real: %s  |  Alvo: %.0f C', [BRealStr, T.BedTarget], InvariantFS);
+      if ((T.HotendTarget > 0) and (T.HotendActual < T.HotendTarget - 2)) or
+         ((T.BedTarget > 0) and (T.BedActual < T.BedTarget - 2)) then begin
+        HStat := 'Aquecendo | ' + HStat;
+        if Session.State = ssRunning then StateLabel.Caption := 'Aquecendo / executando';
+      end;
       LblHeaterStatus.Caption := HStat;
 
       LblConfigRealTemps.Caption := Format('Live Equipment Readings: Nozzle: %s (Target: %.0f C) | Bed: %s (Target: %.0f C)',
@@ -2280,7 +2288,16 @@ begin
   Progress.Max := Session.Count;
   if Progress.Max = 0 then Progress.Max := 1;
   Progress.Position := Session.Completed;
-  ProgressLabel.Caption := Format('%d / %d commands confirmed', [Session.Completed, Session.Count]);
+  ProgressLabel.Caption := Format('%d / %d confirmados (%.0f%%)',
+    [Session.Completed, Session.Count, 100.0*Session.Completed/Max(1,Session.Count)], InvariantFS);
+  if Session.Connected and (MachineType.ItemIndex=Ord(mtPrinter3D)) then begin
+    if Session.RequestedFeed>=0 then ProgressLabel.Caption:=ProgressLabel.Caption+
+      Format(' | Avanco sol.: %.1f mm/s',[Session.RequestedFeed/60],InvariantFS);
+    if Session.RequestedFan>=0 then ProgressLabel.Caption:=ProgressLabel.Caption+
+      Format(' | Vent. 0 sol.: %.0f%%',[Session.RequestedFan],InvariantFS);
+    if (Session.State=ssRunning) and (StateLabel.Caption='Executando') and Session.WaitingForReply then
+      StateLabel.Caption:='Executando | aguardando resposta';
+  end;
 
   { Program and Work Area Info }
   if Session.Count > 0 then
@@ -2499,8 +2516,14 @@ begin
 end;
 
 procedure TMainForm.ConnectClick(Sender: TObject);
-var Endpoint: string; Baud, PortNumber: Integer; Simulator: TSimulatorTransport;
+var Endpoint: string; Baud, PortNumber: Integer; Simulator: TSimulatorTransport; Printer:TPrinterProfile;
 begin
+  if not Session.Connected and (MachineType.ItemIndex=Ord(mtPrinter3D)) and
+    (CommunicationMode.ItemIndex<>2) and
+    FindPrinterProfile(PrinterBrandCombo.Text,PrinterModelCombo.Text,Printer) and Printer.CatalogOnly then begin
+    Log('Catalogo dimensional: conexao direta ainda nao integrada. Use '+Printer.Workflow+'.');
+    Exit;
+  end;
   if Assigned(Accessories) then Accessories.Suspend;
   if not Session.Connected and (CommunicationMode.ItemIndex = 2) then begin
     Simulator := TSimulatorTransport.Create;
@@ -2934,7 +2957,8 @@ begin
     D.Options := [ofOverwritePrompt, ofPathMustExist, ofEnableSizing];
     if D.Execute then
       try
-        MemoLog.Lines.SaveToFile(D.FileName);
+        if Session.SessionLogFile<>'' then Session.SaveSessionLog(D.FileName)
+        else MemoLog.Lines.SaveToFile(D.FileName);
         Status.SimpleText := 'Log saved: ' + D.FileName;
       except
         on E: Exception do MessageDlg('Failed to save log', E.Message, mtError, [mbOK], 0);

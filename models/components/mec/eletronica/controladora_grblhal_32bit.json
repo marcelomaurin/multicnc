@@ -1,0 +1,56 @@
+{
+  "name": "Controladora CNC GrblHAL 32-bit",
+  "model": "GrblHAL Cortex-M4 5-Axis",
+  "category": "eletronica",
+  "kind": "ackController",
+  "material": "Placa FR4 / Conectores",
+  "color": 32896,
+  "size": {
+    "x": 100.0,
+    "y": 70.0,
+    "z": 20.0
+  },
+  "ports": [
+    {
+      "name": "STEP_X",
+      "kind": "apkStep",
+      "voltage": 3.3
+    },
+    {
+      "name": "DIR_X",
+      "kind": "apkDir",
+      "voltage": 3.3
+    },
+    {
+      "name": "STEP_Y",
+      "kind": "apkStep",
+      "voltage": 3.3
+    },
+    {
+      "name": "DIR_Y",
+      "kind": "apkDir",
+      "voltage": 3.3
+    },
+    {
+      "name": "STEP_Z",
+      "kind": "apkStep",
+      "voltage": 3.3
+    },
+    {
+      "name": "DIR_Z",
+      "kind": "apkDir",
+      "voltage": 3.3
+    },
+    {
+      "name": "SPINDLE_PWM",
+      "kind": "apkPWM",
+      "voltage": 5.0
+    },
+    {
+      "name": "POWER_24V",
+      "kind": "apkPower",
+      "voltage": 24.0
+    }
+  ],
+  "description": "Placa controladora CNC de 32 bits rodando firmware GrblHAL"
+}

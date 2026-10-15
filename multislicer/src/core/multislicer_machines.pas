@@ -23,7 +23,7 @@ unit multislicer_machines;
 
 interface
 
-uses Classes, SysUtils, Math, StrUtils, multislicer_pipeline, multislicer_printers;
+uses Classes, SysUtils, Math, StrUtils, multislicer_pipeline, multislicer_printers, multisuite_fdm_catalog;
 
 type
   TMachineSpec = record
@@ -40,6 +40,7 @@ type
     PrintSpeed, MaxSpeed: Double;    { mm/s: recomendada e limite }
     RetractLen, RetractSpeed: Double;
     Source: string;
+    VendorWorkflow:string;
   end;
   TMachineSpecs = array of TMachineSpec;
 
@@ -81,6 +82,7 @@ begin
 end;
 
 procedure BuildCatalog;
+var I:Integer;M:TFDMModel;
 begin
   if Length(Catalog) > 0 then Exit;
   { Creality }
@@ -122,6 +124,12 @@ begin
   { Artillery }
   Add('Artillery', 'Sidewinder X2', 300, 300, 400, ekDirect, 240, 130, 'G28', 'M420 S1', 'sensor de toque (malha salva)',
     60, 150, 0.8, 35, 'Ficha Artillery / clevercreations; Cura artillery_sidewinder_x1');
+  for I:=0 to FDM_MODEL_COUNT-1 do begin
+    M:=FDM_MODELS[I];
+    Add(M.Brand,M.Model,M.X,M.Y,M.Z,ekDirect,M.MaxHotend,M.MaxBed,'','','perfil oficial',
+      50,M.MaxSpeed,0,0,M.SourceURL);
+    Catalog[High(Catalog)].VendorWorkflow:=M.Workflow;
+  end;
 end;
 
 function MachineCatalog: TMachineSpecs;
@@ -160,6 +168,12 @@ begin
   B := NormalizeMachineText(ABrand);
   M := NormalizeMachineText(AModel);
   if M = '' then Exit;
+  for I:=0 to High(Catalog) do begin
+    CB:=NormalizeMachineText(Catalog[I].Brand);CM:=NormalizeMachineText(Catalog[I].Model);
+    BrandOk:=(B='') or (Pos(B,CB)>0) or (Pos(CB,B)>0);
+    if BrandOk and ((M=CM) or (M=CB+CM) or
+      (StringReplace(CM,'original','',[])=StringReplace(M,'original','',[]))) then Exit(I);
+  end;
   BestLen := 0;
   for I := 0 to High(Catalog) do
   begin
@@ -168,6 +182,11 @@ begin
     { a marca pode vir vazia, abreviada ("Prusa") ou repetida dentro do modelo }
     BrandOk := (B = '') or (Pos(B, CB) > 0) or (Pos(CB, B) > 0) or (Pos(B, CM) > 0);
     if not BrandOk then Continue;
+    if Catalog[I].VendorWorkflow<>'' then begin
+      if (M=CM+'combo') or (M=CB+CM+'combo') or
+        ((Pos('prusa',CB)>0) and (M=StringReplace(CM,'originalprusa','',[]))) then Exit(I);
+      Continue; { Never treat an unknown new variant as the base model. }
+    end;
     Joined := CB + CM;
     if (M = CM) or (B + M = Joined) then Exit(I);
     { "Prusa MK4" ou "i3 MK3S+" contra "Original Prusa MK4": tira o "original" }
@@ -202,6 +221,7 @@ var
   Probe: Boolean;
   Y0, Y1, EPer: Double;
 begin
+  if M.VendorWorkflow<>'' then Exit('');
   L := TStringList.Create;
   try
     Probe := (M.Leveling = 'G29') or (M.Leveling = 'G80');
@@ -239,13 +259,14 @@ end;
 
 function MachineEndGCode(const M: TMachineSpec): string;
 begin
+  if M.VendorWorkflow<>'' then Exit('');
   Result :=
     'M104 S0' + LineEnding +
     IfThen(M.HeatedBed, 'M140 S0' + LineEnding, '') +
     'G91' + LineEnding +
     'G1 E-' + Num(IfThen(M.Extruder = ekBowden, 2, 1)) + ' F2700' + LineEnding +
-    'G1 Z10 F3000' + LineEnding +
     'G90' + LineEnding +
+    'G1 Z{park_z} F3000' + LineEnding +
     'G1 X0 Y{bed_y} F3000' + LineEnding +
     'M106 S0' + LineEnding +
     'M84 X Y E';
@@ -254,11 +275,14 @@ end;
 function MachinePrinterDef(const M: TMachineSpec; const AName: string; WorkX, WorkY, WorkZ: Double): TPrinterDef;
 begin
   Result := Default(TPrinterDef);
+  Result.VendorWorkflow:=M.VendorWorkflow;Result.SourceURL:=M.Source;
   Result.Name := AName;
   if Result.Name = '' then Result.Name := M.Brand + ' ' + M.Model;
   if WorkX > 0 then Result.BedX := WorkX else Result.BedX := M.BedX;
   if WorkY > 0 then Result.BedY := WorkY else Result.BedY := M.BedY;
   if WorkZ > 0 then Result.BedZ := WorkZ else Result.BedZ := M.BedZ;
+  Result.MaxPrintSpeed := IfThen(M.MaxSpeed>0,M.MaxSpeed,150); Result.MaxTravelSpeed := IfThen(M.MaxSpeed>0,M.MaxSpeed,200); Result.MaxZSpeed := 5;
+  Result.MaxHotendTemp := Floor(M.MaxHotend); Result.MaxBedTemp := Floor(M.MaxBed);
   Result.Nozzle := M.Nozzle;
   Result.FilamentDiameter := M.FilamentDia;
   Result.Flavor := M.Flavor;

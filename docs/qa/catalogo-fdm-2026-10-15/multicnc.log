@@ -1,0 +1,174 @@
+Hint: (11030) Start of reading config file C:\lazarus\fpc\3.2.2\bin\i386-win32\fpc.cfg
+Hint: (11031) End of reading config file C:\lazarus\fpc\3.2.2\bin\i386-win32\fpc.cfg
+Hint: (11030) Start of reading config file C:\Users\mmaurin\Documents\Codex\2026-10-14\si\work\gui\deps.cfg
+Hint: (11031) End of reading config file C:\Users\mmaurin\Documents\Codex\2026-10-14\si\work\gui\deps.cfg
+Free Pascal Compiler version 3.2.2 [2025/11/08] for x86_64
+Copyright (c) 1993-2021 by Florian Klaempfl and others
+(1002) Target OS: Win64 for x64
+(3104) Compiling multicnc.lpr
+(3104) Compiling mainform.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\shared\multisuite_numfmt.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\core\multicnc_types.pas
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_types.pas(54,18) Hint: (5060) Function result variable does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_types.pas(59,18) Hint: (5060) Function result variable does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_types.pas(113,18) Hint: (5060) Function result variable does not seem to be initialized
+(3104) Compiling multicnc_session.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\core\multicnc_interfaces.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\core\multicnc_machine.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\core\multicnc_safety.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\core\multicnc_printer_profiles.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\shared\multisuite_fdm_catalog.pas
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_printer_profiles.pas(60,5) Warning: (3177) Some fields coming after "Notes" were not initialized
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_printer_profiles.pas(70,5) Warning: (3177) Some fields coming after "Notes" were not initialized
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_printer_profiles.pas(80,5) Warning: (3177) Some fields coming after "Notes" were not initialized
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_printer_profiles.pas(90,5) Warning: (3177) Some fields coming after "Notes" were not initialized
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_printer_profiles.pas(100,5) Warning: (3177) Some fields coming after "Notes" were not initialized
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_printer_profiles.pas(112,5) Warning: (3177) Some fields coming after "Notes" were not initialized
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_printer_profiles.pas(122,5) Warning: (3177) Some fields coming after "Notes" were not initialized
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_printer_profiles.pas(132,5) Warning: (3177) Some fields coming after "Notes" were not initialized
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_printer_profiles.pas(144,5) Warning: (3177) Some fields coming after "Notes" were not initialized
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_printer_profiles.pas(154,5) Warning: (3177) Some fields coming after "Notes" were not initialized
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_printer_profiles.pas(164,5) Warning: (3177) Some fields coming after "Notes" were not initialized
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_printer_profiles.pas(176,5) Warning: (3177) Some fields coming after "Notes" were not initialized
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_printer_profiles.pas(186,5) Warning: (3177) Some fields coming after "Notes" were not initialized
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_printer_profiles.pas(196,5) Warning: (3177) Some fields coming after "Notes" were not initialized
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_printer_profiles.pas(208,5) Warning: (3177) Some fields coming after "Notes" were not initialized
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\core\multicnc_gcode_compat.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\core\multicnc_streamer.pas
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_machine.pas(174,25) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_machine.pas(277,21) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_machine.pas(509,19) Hint: (4055) Conversion between ordinals and pointers is not portable
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\core\multicnc_gcode_analyzer.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\core\multicnc_gcode_preflight.pas
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_gcode_preflight.pas(245,14) Hint: (5091) Local variable "V" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_gcode_preflight.pas(449,45) Note: (5027) Local variable "HasMotionWord" is assigned but never used
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\core\multicnc_laser_config.pas
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_laser_config.pas(120,12) Note: (5027) Local variable "SVal" is assigned but never used
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\transports\multicnc_simulator.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\core\multicnc_protocol_base.pas
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_protocol_base.pas(52,35) Hint: (5024) Parameter "AType" not used
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_protocol_base.pas(57,47) Hint: (5024) Parameter "ATemp" not used
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_protocol_base.pas(58,44) Hint: (5024) Parameter "ATemp" not used
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\transports\multicnc_chatgpt_serial.pas
+(3104) Compiling D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AISerial\aiserial.pas
+D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AISerial\aiserial.pas(169,18) Hint: (5057) Local variable "Buffer" does not seem to be initialized
+D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AISerial\aiserial.pas(191,20) Hint: (5057) Local variable "Buffer" does not seem to be initialized
+D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AISerial\aiserial.pas(238,43) Warning: (5066) Symbol "SendATCommand" is deprecated: "Use WriteText/Poll"
+D:\projetos\maurinsoft\multicnc\src\transports\multicnc_chatgpt_serial.pas(27,29) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\transports\multicnc_chatgpt_serial.pas(28,32) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\transports\multicnc_chatgpt_serial.pas(29,29) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\transports\multicnc_chatgpt_serial.pas(129,17) Hint: (5057) Local variable "DCB" does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\transports\multicnc_chatgpt_serial.pas(138,22) Hint: (5057) Local variable "Timeouts" does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\transports\multicnc_chatgpt_serial.pas(176,61) Hint: (5057) Local variable "Written" does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\transports\multicnc_chatgpt_serial.pas(209,42) Hint: (5057) Local variable "Errors" does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\transports\multicnc_chatgpt_serial.pas(216,36) Hint: (5057) Local variable "Buffer" does not seem to be initialized
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\transports\multicnc_tcp_transport.pas
+D:\projetos\maurinsoft\multicnc\src\transports\multicnc_tcp_transport.pas(33,34) Hint: (5057) Local variable "W" does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\transports\multicnc_tcp_transport.pas(53,13) Hint: (5057) Local variable "A" does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\transports\multicnc_tcp_transport.pas(65,18) Hint: (5057) Local variable "Ready" does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\transports\multicnc_tcp_transport.pas(66,19) Hint: (5057) Local variable "Failed" does not seem to be initialized
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\protocols\multicnc_grbl.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\protocols\multicnc_grbl_status.pas
+D:\projetos\maurinsoft\multicnc\src\protocols\multicnc_grbl_status.pas(116,13) Hint: (5057) Local variable "V" does not seem to be initialized
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\protocols\multicnc_realtime.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\protocols\multicnc_marlin.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\shared\multisuite_print_audit.pas
+D:\projetos\maurinsoft\multicnc\src\shared\multisuite_print_audit.pas(27,17) Hint: (5057) Local variable "Has" does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\multisuite_print_audit.pas(27,43) Hint: (5057) Local variable "V" does not seem to be initialized
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\core\multicnc_outline.pas
+D:\projetos\maurinsoft\multicnc\src\app\multicnc_session.pas(72,24) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\multicnc_session.pas(14,3) Hint: (5023) Unit "multicnc_simulator" not used in multicnc_session
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\core\multicnc_router_profiles.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\core\multicnc_laser_profiles.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\core\multicnc_equipment.pas
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_equipment.pas(154,23) Hint: (5091) Local variable "Loaded" of a managed type does not seem to be initialized
+(3104) Compiling D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AISerial\ailistserialdevices.pas
+(3104) Compiling D:\projetos\maurinsoft\CHATGPT\pacote\AI\aibase.pas
+D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AISerial\ailistserialdevices.pas(387,15) Hint: (5057) Local variable "Buf" does not seem to be initialized
+D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AISerial\ailistserialdevices.pas(448,26) Hint: (5057) Local variable "PortName" does not seem to be initialized
+D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AISerial\ailistserialdevices.pas(463,25) Hint: (5057) Local variable "InstBuf" does not seem to be initialized
+D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AISerial\ailistserialdevices.pas(153,34) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AISerial\ailistserialdevices.pas(1015,5) Note: (5025) Local variable "DevNameLower" not used
+D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AISerial\ailistserialdevices.pas(161,39) Hint: (5024) Parameter "ADetected" not used
+D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AISerial\ailistserialdevices.pas(1202,23) Hint: (5091) Local variable "Detected" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AISerial\ailistserialdevices.pas(1213,28) Hint: (5091) Local variable "ActiveDevices" of a managed type does not seem to be initialized
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_icons.pas
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_icons.pas(114,14) Hint: (5091) Local variable "A" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_icons.pas(159,16) Hint: (5091) Local variable "Pts" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_icons.pas(185,16) Hint: (5091) Local variable "Pts" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_icons.pas(201,16) Hint: (5091) Local variable "Pts" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_icons.pas(233,16) Hint: (5091) Local variable "Pts" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_icons.pas(260,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_icons.pas(377,22) Hint: (5091) Local variable "Pts" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_icons.pas(868,22) Hint: (5091) Local variable "CovFill" of a managed type does not seem to be initialized
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_controls.pas
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_controls.pas(354,5) Warning: (6018) unreachable code
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_controls.pas(502,7) Warning: (6018) unreachable code
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_controls.pas(550,5) Warning: (6018) unreachable code
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\shared\multisuite_gcode_writer.pas
+(3104) Compiling multicnc_preview.pas
+(3104) Compiling multicnc_accessories.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\third_party\chatgpt\AIJoystick\aijoystick.pas
+D:\projetos\maurinsoft\multicnc\third_party\chatgpt\AIJoystick\aijoystick.pas(140,15) Hint: (5057) Local variable "J" does not seem to be initialized
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\core\multicnc_joystick.pas
+D:\projetos\maurinsoft\multicnc\src\app\multicnc_accessories.pas(32,23) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\multicnc_accessories.pas(31,24) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\multicnc_accessories.pas(30,23) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\multicnc_accessories.pas(28,20) Hint: (5024) Parameter "Sender" not used
+(3104) Compiling multicnc_zeroassist_form.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\core\multicnc_zero_assist.pas
+D:\projetos\maurinsoft\multicnc\src\app\multicnc_zeroassist_form.pas(59,25) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\multicnc_zeroassist_form.pas(68,30) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\multicnc_zeroassist_form.pas(60,26) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\multicnc_zeroassist_form.pas(64,25) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\multicnc_zeroassist_form.pas(61,28) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\multicnc_zeroassist_form.pas(65,27) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\multicnc_zeroassist_form.pas(62,29) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\multicnc_zeroassist_form.pas(63,25) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\multicnc_zeroassist_form.pas(66,25) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\multicnc_zeroassist_form.pas(67,26) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(136,28) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(137,29) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(124,33) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(125,36) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(126,34) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(128,33) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(127,36) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(174,35) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(166,33) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(167,33) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(168,34) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(169,34) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(178,34) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(179,34) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(180,35) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(175,35) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(176,35) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(177,33) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(182,31) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(183,34) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(170,33) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(159,31) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(149,36) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(151,28) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(152,25) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(30,28) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(31,37) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(32,35) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(147,25) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(143,29) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(142,27) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(144,28) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(145,29) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(155,28) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(154,28) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(157,20) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(164,31) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\app\mainform.pas(165,23) Hint: (5024) Parameter "Sender" not used
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\shared\multisuite_context.pas
+(9022) Compiling resource D:\projetos\maurinsoft\multicnc\src\app\lib\x86_64-win64\multicnc.obj
+(9015) Linking D:\projetos\maurinsoft\multicnc\src\app\multicnc.exe
+(1008) 16056 lines compiled, 2.3 sec, 2059488 bytes code, 137412 bytes data
+(1021) 20 warning(s) issued
+(1022) 101 hint(s) issued
+(1023) 3 note(s) issued

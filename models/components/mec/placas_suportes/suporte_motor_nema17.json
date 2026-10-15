@@ -1,0 +1,26 @@
+{
+  "name": "Suporte L Motor NEMA 17",
+  "model": "NEMA 17 Bracket 90°",
+  "category": "placas_suportes",
+  "kind": "ackMechanicalPart",
+  "material": "Aço Carbono Pintura Eletrostática",
+  "color": 3158064,
+  "size": {
+    "x": 50.0,
+    "y": 50.0,
+    "z": 42.0
+  },
+  "ports": [
+    {
+      "name": "FACE_MOTOR",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "BASE_FIXACAO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Suporte metálico angular de 90° para fixação de motores NEMA 17"
+}

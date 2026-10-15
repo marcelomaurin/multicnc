@@ -1,0 +1,21 @@
+{
+  "name": "Guia Linear HGR15 500mm",
+  "model": "HGR15",
+  "category": "guias_fusos",
+  "kind": "ackLinearGuide",
+  "material": "Aço Carbono Temperado",
+  "color": 12105912,
+  "size": {
+    "x": 15.0,
+    "y": 15.0,
+    "z": 500.0
+  },
+  "ports": [
+    {
+      "name": "TRILHO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Guia linear industrial de alta carga HGR15 com 500mm"
+}

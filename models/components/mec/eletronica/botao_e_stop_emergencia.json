@@ -1,0 +1,26 @@
+{
+  "name": "Botão Parada de Emergência E-Stop",
+  "model": "LAY37-11ZS Cogumelo",
+  "category": "eletronica",
+  "kind": "ackEStop",
+  "material": "Policarbonato Vermelho / Amarelo",
+  "color": 255,
+  "size": {
+    "x": 40.0,
+    "y": 40.0,
+    "z": 70.0
+  },
+  "ports": [
+    {
+      "name": "NC_1",
+      "kind": "apkDigitalInput",
+      "voltage": 24.0
+    },
+    {
+      "name": "NC_2",
+      "kind": "apkDigitalInput",
+      "voltage": 24.0
+    }
+  ],
+  "description": "Botão de parada de emergência tipo cogumelo com trava giratória"
+}

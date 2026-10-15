@@ -1,0 +1,21 @@
+{
+  "name": "Rolamento Linear LM8UU",
+  "model": "LM8UU 8x15x24mm",
+  "category": "rolamentos_mancais",
+  "kind": "ackBearing",
+  "material": "Aço Carbono / Esferas",
+  "color": 12500670,
+  "size": {
+    "x": 15.0,
+    "y": 15.0,
+    "z": 24.0
+  },
+  "ports": [
+    {
+      "name": "EIXO_8MM",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Rolamento linear de esferas recirculantes para eixos retificados 8mm"
+}

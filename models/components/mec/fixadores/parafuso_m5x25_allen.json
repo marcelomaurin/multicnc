@@ -1,0 +1,21 @@
+{
+  "name": "Parafuso M5x25 Allen",
+  "model": "ISO 7380 M5x25",
+  "category": "fixadores",
+  "kind": "ackFastenerScrew",
+  "material": "Aço Classe 10.9 Preto",
+  "color": 2105376,
+  "size": {
+    "x": 8.5,
+    "y": 8.5,
+    "z": 25.0
+  },
+  "ports": [
+    {
+      "name": "ROSCA",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Parafuso M5x25 para placas gantry e roldanas"
+}

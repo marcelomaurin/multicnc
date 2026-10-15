@@ -1,0 +1,14 @@
+{
+  "tests": [
+    {
+      "source": "tests/test_simucnc_server.lpr",
+      "build_exit_code": 0
+    },
+    {
+      "source": "tests/test_multicnc_tcp.lpr",
+      "build_exit_code": 0
+    }
+  ],
+  "status": "passed",
+  "exit_code": 0
+}

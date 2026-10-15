@@ -1,0 +1,21 @@
+{
+  "name": "Polia GT2 20 Dentes Eixo 8mm",
+  "model": "GT2-20T-W6-B8",
+  "category": "transmissao",
+  "kind": "ackPulley",
+  "material": "Alumínio Usinado",
+  "color": 13158600,
+  "size": {
+    "x": 16.0,
+    "y": 16.0,
+    "z": 16.0
+  },
+  "ports": [
+    {
+      "name": "FURO_8MM",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Polia dentada GT2 para eixos de 8mm"
+}

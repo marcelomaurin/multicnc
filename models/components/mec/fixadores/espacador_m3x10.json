@@ -1,0 +1,21 @@
+{
+  "name": "Espaçador M3x10",
+  "model": "Espaçador Cilíndrico M3",
+  "category": "fixadores",
+  "kind": "ackPinSpacer",
+  "material": "Latão",
+  "color": 13421619,
+  "size": {
+    "x": 6.0,
+    "y": 6.0,
+    "z": 10.0
+  },
+  "ports": [
+    {
+      "name": "FURO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Espaçador cilíndrico de latão M3 comprimento 10mm"
+}

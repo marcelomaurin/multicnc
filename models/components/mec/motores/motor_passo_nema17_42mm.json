@@ -1,0 +1,41 @@
+{
+  "name": "Motor de Passo NEMA 17",
+  "model": "17HS4401 1.7A 40mm",
+  "category": "motores",
+  "kind": "ackMotor",
+  "material": "Aço / Alumínio",
+  "color": 3158064,
+  "size": {
+    "x": 42.0,
+    "y": 42.0,
+    "z": 40.0
+  },
+  "ports": [
+    {
+      "name": "SHAFT",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "A+",
+      "kind": "apkStep",
+      "voltage": 12.0
+    },
+    {
+      "name": "A-",
+      "kind": "apkStep",
+      "voltage": 12.0
+    },
+    {
+      "name": "B+",
+      "kind": "apkStep",
+      "voltage": 12.0
+    },
+    {
+      "name": "B-",
+      "kind": "apkStep",
+      "voltage": 12.0
+    }
+  ],
+  "description": "Motor de passo híbrido 1.8° NEMA 17 torque 40N.cm"
+}

@@ -39,6 +39,7 @@ type
     FQueue: TStringList;      { linhas aguardando espaco no buffer }
     FInFlight: TList;         { tamanho (bytes) de cada linha sem "ok" }
     FInFlightBytes: Integer;
+    FLastActivity: QWord;
     FPumping: Boolean;
     FFeedPaused, FWaitingReset: Boolean;
     FHasControllerReply: Boolean;
@@ -47,6 +48,7 @@ type
     FLastError: string;
     FFirstControllerError: string;
     FOnData: TTransportDataEvent;
+    FOnSend, FOnReceive: TTransportDataEvent;
     procedure TransportData(const AData: string);
     procedure TransportState(AConnected: Boolean);
     procedure ReleaseInFlight(ACount: Integer);
@@ -94,6 +96,7 @@ type
     { Descarta o que ainda nao foi enviado (o que ja esta na controladora
       continua sendo executado). }
     procedure ClearQueue;
+    procedure CheckCommunicationTimeout(ANow: QWord);
     procedure ResetControllerError;
     function QueuedLines: Integer;
     function InFlightLines: Integer;
@@ -106,6 +109,8 @@ type
     property LastError: string read FLastError;
     property FirstControllerError: string read FFirstControllerError;
     property OnData: TTransportDataEvent read FOnData write FOnData;
+    property OnSend: TTransportDataEvent read FOnSend write FOnSend;
+    property OnReceive: TTransportDataEvent read FOnReceive write FOnReceive;
   end;
 
 implementation
@@ -176,11 +181,18 @@ end;
 procedure TMultiCNCMachine.TransportData(const AData: string);
 var Acks, Errors: Integer; S: TMachineState; P: TMachinePosition; Temps: TPrinterTemperatures;
 begin
+  if Assigned(FOnReceive) then FOnReceive(AData);
   if Assigned(FProtocol) then
   begin
+    if AData <> '' then FLastActivity := GetTickCount64;
     FProtocol.ProcessIncoming(AData);
     if FProtocol.TakeResetDetected then
     begin
+      if (FQueue.Count > 0) or (FInFlight.Count > 0) then begin
+        Inc(FErrorCount);
+        FLastError := 'Controladora reiniciou com comandos pendentes; trabalho interrompido';
+        FFirstControllerError := FLastError;
+      end;
       ClearPending; { a controladora descartou tudo o que estava pendente }
       FWaitingReset := False;
       FFeedPaused := False;
@@ -218,6 +230,21 @@ begin
   if Assigned(FOnData) then FOnData(AData);
 end;
 
+procedure TMultiCNCMachine.CheckCommunicationTimeout(ANow: QWord);
+begin
+  { busy/temperature reports keep a heating command alive. Do not replay
+    an unacknowledged motion after a silent controller or connection loss. }
+  if not SameText(FProtocol.GetName, 'Marlin') or (FInFlight.Count = 0) then Exit;
+  if (ANow >= FLastActivity) and (ANow - FLastActivity >= 120000) then begin
+    Inc(FErrorCount);
+    FLastError := 'Marlin sem resposta por 120 s; trabalho interrompido, verifique a maquina';
+    FFirstControllerError := FLastError;
+    ClearPending;
+    FFeedPaused := True;
+    FState := msError;
+  end;
+end;
+
 procedure TMultiCNCMachine.TransportState(AConnected: Boolean);
 begin
   if not AConnected then
@@ -249,6 +276,8 @@ begin
       { Registra antes de enviar: o "ok" pode chegar durante o Send. }
       FInFlight.Add(Pointer(PtrInt(Len)));
       Inc(FInFlightBytes, Len);
+      FLastActivity := GetTickCount64;
+      if Assigned(FOnSend) then FOnSend(Line + #10);
       if not FTransport.Send(Line + #10) then
       begin
         ClearPending;
@@ -308,6 +337,7 @@ end;
 
 function TMultiCNCMachine.SendRealtime(const ACommand: string): Boolean;
 begin
+  if Assigned(FOnSend) then FOnSend(ACommand);
   Result := Assigned(FTransport) and FTransport.IsConnected and (ACommand <> '') and
     FTransport.Send(ACommand);
   if not Result then FLastError := 'Failed to send real-time command';
@@ -438,8 +468,9 @@ begin
   if not Assigned(FProtocol) then Exit(Reject('Sem protocolo'));
   C := FProtocol.BuildPauseCommand;
   { Vazio: pausa no host (o chamador para de enviar linhas). }
-  FFeedPaused := SameText(FProtocol.GetName, 'GRBL');
-  { GRBL: bloqueia antes do Send, inclusive callbacks sincronos. }
+  FFeedPaused := True;
+  { Stop the host queue for every protocol, including Marlin lookahead.
+    Already accepted planner moves may finish; this is not emergency stop. }
   if C = '' then Result := Assigned(FTransport) and FTransport.IsConnected
   else Result := SendRealtime(C);
   if not Result then FFeedPaused := False;
@@ -477,10 +508,13 @@ begin
   begin
     FInFlight.Add(Pointer(PtrInt(Length(Trim(C)) + 1)));
     Inc(FInFlightBytes, Length(Trim(C)) + 1);
+    if Assigned(FOnSend) then FOnSend(Trim(C) + #10);
     Result := FTransport.Send(Trim(C) + #10);
   end
-  else
+  else begin
+    if Assigned(FOnSend) then FOnSend(C);
     Result := FTransport.Send(C);
+  end;
   if not Result then Exit(Reject('Failed to send stop command'));
   Off := FProtocol.BuildSafeOffCommands(FMachineType);
   if Off <> '' then EnqueueLines(Off, False);

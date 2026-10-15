@@ -266,6 +266,7 @@ begin
   L := Trim(Line);
   if L = '' then Exit;
   Low := LowerCase(L);
+  if not (FState in [stRunning, stPaused]) then Exit;
   if (Low = 'ok') or (Copy(Low, 1, 3) = 'ok ') then begin
     FLastResponse := L;
     if FIgnoreNextOk then begin
@@ -284,19 +285,26 @@ begin
     N := StrToIntDef(Trim(Copy(L, P, MaxInt)), -1);
     if (FMode = smMarlinChecksum) and (N >= FMarlinBase) then begin
       Index := N - FMarlinBase;
-      if Index < FLines.Count then FNext := Index;
+      if (Index >= FLines.Count) or (Index >= FNext) or (Index < FAcked) then begin
+        FLastResponse := 'Resend fora da linha pendente: ' + L;
+        Inc(FErrors); FState := stError; Exit;
+      end;
+      FNext := Index;
       FAcked := Index;
       SetLength(FInFlight, 0);
       SetLength(FInFlightIdx, 0);
       FInFlightBytes := 0;
       FIgnoreNextOk := True; // o 'ok' que acompanha o pedido de resend
+    end else begin
+      FLastResponse := 'Resend invalido: ' + L;
+      Inc(FErrors); FState := stError;
     end;
   end else if (Copy(Low, 1, 6) = 'error:') and (FMode = smMarlinChecksum) and
     ((Pos('checksum', Low) > 0) or (Pos('line number', Low) > 0) or
      (Pos('no line number', Low) > 0)) then begin
     // Erro de transmissao do Marlin: sera seguido de Resend:, nao conta.
     FLastResponse := L;
-  end else if (Copy(Low, 1, 6) = 'error:') or (Copy(Low, 1, 6) = 'alarm:') then begin
+  end else if (Copy(Low, 1, 6) = 'error:') or (Copy(Low, 1, 6) = 'alarm:') or (Low = '!!') or (Low = 'start') then begin
     FLastResponse := L;
     Inc(FErrors);
     Index := -1;
@@ -305,7 +313,7 @@ begin
     end;
     if Assigned(FOnError) then
       if Index >= 0 then FOnError(Index, FLines[Index], L) else FOnError(-1, '', L);
-    if FStopOnError or (Copy(Low, 1, 6) = 'alarm:') then
+    if FStopOnError or (Copy(Low, 1, 6) = 'alarm:') or (Low = '!!') or (Low = 'start') then
       FState := stError
     else if FAcked >= FLines.Count then
       FState := stDone

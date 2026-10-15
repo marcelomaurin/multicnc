@@ -1,0 +1,21 @@
+{
+  "name": "Porca M4 Travante",
+  "model": "DIN 985 M4",
+  "category": "fixadores",
+  "kind": "ackFastenerNut",
+  "material": "Aço Zincado / Nylon",
+  "color": 12500670,
+  "size": {
+    "x": 7.0,
+    "y": 7.0,
+    "z": 5.0
+  },
+  "ports": [
+    {
+      "name": "FURO_ROSCA",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Porca autotravante M4"
+}

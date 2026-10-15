@@ -1,0 +1,26 @@
+{
+  "name": "Perfil Alumínio 2040 V-Slot 400mm",
+  "model": "V-Slot 2040",
+  "category": "perfis",
+  "kind": "ackMechanicalPart",
+  "material": "Alumínio 6063-T5",
+  "color": 13684944,
+  "size": {
+    "x": 20.0,
+    "y": 40.0,
+    "z": 400.0
+  },
+  "ports": [
+    {
+      "name": "SLOT_FACE_A",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "SLOT_FACE_B",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Perfil estrutural V-Slot 20x40mm com 400mm de comprimento para eixos de alta rigidez"
+}

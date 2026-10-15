@@ -1,0 +1,21 @@
+{
+  "name": "Parafuso M3x10 Allen",
+  "model": "DIN 912 M3x10",
+  "category": "fixadores",
+  "kind": "ackFastenerScrew",
+  "material": "Aço Inox A2",
+  "color": 10526880,
+  "size": {
+    "x": 5.5,
+    "y": 5.5,
+    "z": 10.0
+  },
+  "ports": [
+    {
+      "name": "ROSCA",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Parafuso cabeça cilíndrica com sextavado interno M3x10"
+}

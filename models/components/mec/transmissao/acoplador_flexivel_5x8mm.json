@@ -1,0 +1,26 @@
+{
+  "name": "Acoplador Flexível 5x8mm",
+  "model": "Coupler D19L25 5x8mm",
+  "category": "transmissao",
+  "kind": "ackMechanicalPart",
+  "material": "Alumínio Anodizado",
+  "color": 12500670,
+  "size": {
+    "x": 19.0,
+    "y": 19.0,
+    "z": 25.0
+  },
+  "ports": [
+    {
+      "name": "ENTRADA_5MM",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "SAIDA_8MM",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Acoplamento flexível helicoidal para ligação motor de passo e fuso T8"
+}

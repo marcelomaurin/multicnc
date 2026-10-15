@@ -1,0 +1,41 @@
+{
+  "name": "Fonte Chaveada 24V 15A 360W",
+  "model": "S-360-24",
+  "category": "eletronica",
+  "kind": "ackPowerSupply",
+  "material": "Gabinete Metálico Perfurado",
+  "color": 12500670,
+  "size": {
+    "x": 215.0,
+    "y": 115.0,
+    "z": 50.0
+  },
+  "ports": [
+    {
+      "name": "AC_L",
+      "kind": "apkPower",
+      "voltage": 220.0
+    },
+    {
+      "name": "AC_N",
+      "kind": "apkPower",
+      "voltage": 220.0
+    },
+    {
+      "name": "GND_EARTH",
+      "kind": "apkGround",
+      "voltage": 0.0
+    },
+    {
+      "name": "+24V",
+      "kind": "apkPower",
+      "voltage": 24.0
+    },
+    {
+      "name": "0V_GND",
+      "kind": "apkGround",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Fonte de alimentação chaveada 24V 15A estabilizada para CNC"
+}

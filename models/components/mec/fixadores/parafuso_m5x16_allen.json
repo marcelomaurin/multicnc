@@ -1,0 +1,21 @@
+{
+  "name": "Parafuso M5x16 Allen",
+  "model": "ISO 7380 M5x16 Abaulado",
+  "category": "fixadores",
+  "kind": "ackFastenerScrew",
+  "material": "Aço Classe 10.9 Preto",
+  "color": 2105376,
+  "size": {
+    "x": 8.5,
+    "y": 8.5,
+    "z": 16.0
+  },
+  "ports": [
+    {
+      "name": "ROSCA",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Parafuso cabeça abaulada M5x16 para montagem em perfis V-Slot"
+}

@@ -1,0 +1,21 @@
+{
+  "name": "Mesa de Alumínio 220x220mm",
+  "model": "Bed Plate 220x220x3mm",
+  "category": "mesas_bases",
+  "kind": "ackMechanicalPart",
+  "material": "Alumínio Retificado",
+  "color": 13684944,
+  "size": {
+    "x": 220.0,
+    "y": 220.0,
+    "z": 3.0
+  },
+  "ports": [
+    {
+      "name": "BASE_SUPERIOR",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Chapa de alumínio plano para cama de impressoras 3D e mesas de gravação"
+}

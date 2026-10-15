@@ -1,0 +1,21 @@
+{
+  "name": "Mancal Flange KFL08",
+  "model": "KFL08 Eixo 8mm",
+  "category": "rolamentos_mancais",
+  "kind": "ackBearing",
+  "material": "Liga de Zinco",
+  "color": 9868950,
+  "size": {
+    "x": 48.0,
+    "y": 12.0,
+    "z": 27.0
+  },
+  "ports": [
+    {
+      "name": "FURO_EIXO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Mancal com flange losangular 2 furos para fuso T8"
+}

@@ -1,0 +1,355 @@
+{
+  "base_commit": "903bd19a272c4cfd83414fc962eb690dc7b66286",
+  "branch": "fila",
+  "date": "2026-10-15",
+  "implementation": "local changes; not committed or pushed",
+  "target": "x86_64-win64",
+  "compiler": "Free Pascal 3.2.2",
+  "tests": {
+    "regression_passed": 39,
+    "gui_passed": 2,
+    "tcp_passed": 1,
+    "failed": 0
+  },
+  "physical_ender3": "not performed",
+  "remote_ci": "configured, not executed",
+  "hash_semantics": "SHA-256 of local file bytes; Git newline conversion changes text hashes",
+  "files": {
+    ".github/workflows/suite-ci.yml": {
+      "bytes": 2174,
+      "sha256": "15d5181d77836a99b165b494976fc2979ff05e6b5aa5a93d9a463eb4fc2a1bcc"
+    },
+    "bin/SimuCNC.exe": {
+      "bytes": 27497818,
+      "sha256": "e778bd0ae3fcbe0abe2a8491d0058a6780daaf8e4f9cda804c3cc96a4b2a91d6"
+    },
+    "bin/multicnc.exe": {
+      "bytes": 29531637,
+      "sha256": "7fd52ae168fad572ba60fa5149414d95982fd66d615429518f4cd8f496748b04"
+    },
+    "bin/multislicer.exe": {
+      "bytes": 31226576,
+      "sha256": "138b66e5c87d40a9d769f75077754e8168af09961cb1c9a60daa9d2a72f95cbc"
+    },
+    "docs/IMPRESSAO_3D_VALIDACAO.md": {
+      "bytes": 9453,
+      "sha256": "4c4d0d38c465996250b1ed344792e67e652ca21ebb811adcfde355ade839fdb9"
+    },
+    "docs/PLANO_CORRECAO_IMPRESSAO_3D.md": {
+      "bytes": 25108,
+      "sha256": "1da15e1bf388b3c12d0175b6547cfb834a64a07e0fffeecd2c93382d81f0af76"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/laserpcb-test_alignment.log": {
+      "bytes": 15,
+      "sha256": "d80ee22593a31a5d58f03b6e24d3b997ac0a7ade2defefdf09dd91576e514b71"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/laserpcb-test_board.log": {
+      "bytes": 84,
+      "sha256": "9d7b70a9a1eae81502595be96c76aab7e8d67e00dff997db48c413dda7a6b193"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/laserpcb-test_drill.log": {
+      "bytes": 72,
+      "sha256": "eace6c314bdfdbadf2ae044019237c3e87f748281b688ca7df689c7d9fbf0ec1"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/laserpcb-test_job.log": {
+      "bytes": 18,
+      "sha256": "9e43fa5add0f41fc3c9c3d390653d8da23b5e6df21b90bfb0abc5b0b039b973c"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/laserpcb-test_layout.log": {
+      "bytes": 18,
+      "sha256": "a487209524a57e2b8f961500f330e5072cc506c4434495b9d79a28256d75569a"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/laserpcb-test_pipeline.log": {
+      "bytes": 101,
+      "sha256": "1e335cc5326065fcc554e309b7680b757a841f0b795f038abf81cef7e640f969"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/laserpcb-test_raster.log": {
+      "bytes": 77,
+      "sha256": "745a6b9df580c77b39ff32d932e0e0378740185b88418f9ccb42d32ac5fbfb03"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/makerouter-test_makerouter.log": {
+      "bytes": 117,
+      "sha256": "11c7ffd56efc1bd8a0c653d32755c8ed8a965e37336090044ceeab993866b010"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multicnc-build.log": {
+      "bytes": 17284,
+      "sha256": "336f2faecd06790e62f84a8e0c14e65d0ad9077672018d21652c287dad8f767d"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multicnc-debug_parser.log": {
+      "bytes": 49,
+      "sha256": "904e42477ccd5055b0870f524986c2c608e2c0ad6c15a6f09f1615b22d3bd3fd"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_connection_startup.log": {
+      "bytes": 91,
+      "sha256": "62e5e2bfaf1ecfc6f7f522122833340d7e2882abad7c659cd17b60576c89fa72"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_controller.log": {
+      "bytes": 109,
+      "sha256": "11f9ef9ff68b33d09c0438da1836892d2dd0e6b0aa2ea6c4bd2b4afd32ac2cfb"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_equipment.log": {
+      "bytes": 14,
+      "sha256": "a91796f5e24d1aa4d3e13a3cfeaf6a7d520aa6ff674823dbe2ea81e8df3edbda"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_gcode_compat.log": {
+      "bytes": 57,
+      "sha256": "3273580fd11146f0f19d1a40b519705437f65cbde73a4714adee5b6dc981f1dc"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_gcode_trace.log": {
+      "bytes": 72,
+      "sha256": "26c2a8486b163e6696e949f26d2e1a719715199bea8c59184c308391255b8d12"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_grbl_legacy.log": {
+      "bytes": 36,
+      "sha256": "5a04eef7aa66473d69cfca8070e7ebe76c72c09791e12ac79180385c4609acfc"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_grbl_regressions.log": {
+      "bytes": 64,
+      "sha256": "6e308829a42e4956a7c9fcc359ae1e31aa831bd7ef8b1de2524aa4bdb8dc77db"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_joystick.log": {
+      "bytes": 78,
+      "sha256": "8b20c247c6512598b6af16cdc9f800039da5f79df629fb47e84ede88310f7a21"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_laser_profiles.log": {
+      "bytes": 34,
+      "sha256": "20c3e29eaf5a3d694f15a054be985917e0204f9b4367c5d06868d02c943d0814"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_locale_invariant.log": {
+      "bytes": 68,
+      "sha256": "2bf84c9a1f804d28e7de6f2e753cb41a7ade8e3b69756f25c8d019a273275e59"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_multislicer_print.log": {
+      "bytes": 92,
+      "sha256": "7688c0c26e5f43142c6503efa59a14fef4a6825a2c1d01d920d35da11e32c1ee"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_outline.log": {
+      "bytes": 99,
+      "sha256": "23f89d8e2aa2953467b55bc6e84081a620aa592231109471fe57b4e5a89c1937"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_printer_temperatures.log": {
+      "bytes": 134,
+      "sha256": "22d45df73885ae767b7349f430bf5018c6039d2234b1c4473520b63d27095e1e"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_router_profiles.log": {
+      "bytes": 41,
+      "sha256": "7219e87a49d1498ecc79e0d6c2a69a862b3f3fbcc3ed6e70ef37eb214b4f60bb"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_router_spindle.log": {
+      "bytes": 70,
+      "sha256": "30e671e1f2f8295388b5a272b1abd4677a9cbec9ce4a4e86e9b320e813157bc1"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_serial_transport.log": {
+      "bytes": 91,
+      "sha256": "bd96182acfd9ca93bd9ac49704de5978549b9c158bdc55a074987185bd5b01c4"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_session.log": {
+      "bytes": 75,
+      "sha256": "550e7f0a1584402b4cf717068bfcedcf1182b4fed744c9486677e907184f3c8b"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_shared_geometry.log": {
+      "bytes": 71,
+      "sha256": "1c5dd585013c06be83457a22e42a4403faa5f44a446bc2e315db1db417fc1a6f"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_shared_heightmap.log": {
+      "bytes": 23,
+      "sha256": "f33456c29802778f2266281c44356cc2da1638ccc12bc3b9b0100d4484968c72"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_shared_zcompensation.log": {
+      "bytes": 20,
+      "sha256": "8abf18190d804238184bb0b3c449cd5ba3ab05d8f43fbc2ec3922f0ba615bc2f"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_simu_temperature_control.log": {
+      "bytes": 101,
+      "sha256": "6763662df5a680899d1dafa3e94e5bf0ab267b78066fdf82be7cc276ca87c47a"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_simulator.log": {
+      "bytes": 24,
+      "sha256": "7f505e2b751a27c4ed36d9fab69a930215febb40dfe1f1ec72d5ae4bdbbe452f"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_streaming.log": {
+      "bytes": 69,
+      "sha256": "15e51ea1afb7e60123947f5a8e8c3930f29d1866788a8f3dd890f3193b5f7cf5"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_zero_assist.log": {
+      "bytes": 140,
+      "sha256": "72bf573367c1963cc85ccc7fc5108a9ea0ede60e086515c314bd76df76be0cb0"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multislicer-build.log": {
+      "bytes": 71881,
+      "sha256": "10b22ab4ad18aa006a0e14111a8eb511fffa81d25b733c2a1fb482a28e5e15af"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multislicer-test_machines.log": {
+      "bytes": 95,
+      "sha256": "643b3da4e0237d2c862f6c97329f2743c7b3959ae7d6f035c420262efa419d44"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multislicer-test_meshcheck.log": {
+      "bytes": 94,
+      "sha256": "00c545d4996990b713a559bda09aeca8d4646e7f574d35c951081336235bbc11"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multislicer-test_modern_slicer.log": {
+      "bytes": 74,
+      "sha256": "219ba00eb0a6f619610ba121207e5f4b8f45054c6355c826a004785799230d94"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multislicer-test_print_safety.log": {
+      "bytes": 83,
+      "sha256": "9ea84c2198631f58eeaefefd6147bccec66a5a923b001eb9cd19ba023bda433a"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multislicer-test_scene.log": {
+      "bytes": 189,
+      "sha256": "4de351e0de998e3cfa28ed5226b3fb75e96553be0e774cba19c0e99fc8266bf5"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/multislicer-test_support.log": {
+      "bytes": 379,
+      "sha256": "9064fee832f15cf9820714e525da011f4ecc13b24e881fadc927f9e0e5d91559"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/simucnc-build.log": {
+      "bytes": 8534,
+      "sha256": "a1d94c80a10340617de81dae419b5dfec49f9ca30692c3c78378612bb5babcfb"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/test_app-build.log": {
+      "bytes": 17497,
+      "sha256": "9c15ab7f5c8739a8e4a600a181b25f666e4660f47179377a71e8e5518e05f092"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/test_app-run.log": {
+      "bytes": 171,
+      "sha256": "82dc9ed0a6e8e79555dc7b82914f4107a66771c3a4db7841542fd6147c3987af"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/test_slicer_app-build.log": {
+      "bytes": 72030,
+      "sha256": "6a64f0d9199c079b73dc1619d44ca0b054b2c88bca680601a56aae6874a25ca3"
+    },
+    "docs/qa/impressao-3d-2026-10-15/logs/test_slicer_app-run.log": {
+      "bytes": 670,
+      "sha256": "7a4cfc676c047b7f647e8a40b56ac2e627c5aede2255ce3d02ba2d783cfa2ec9"
+    },
+    "docs/qa/impressao-3d-2026-10-15/qa-tests.json": {
+      "bytes": 7724,
+      "sha256": "869cfe8758471b384094df3553142b0d31a5827f1926f3632f738c0027c2f92a"
+    },
+    "docs/qa/impressao-3d-2026-10-15/tcp/print.gcode": {
+      "bytes": 2935,
+      "sha256": "7823be7045a6abc7714ebc08aa0b48fa3382e855498f7da55c1f35e95e984630"
+    },
+    "docs/qa/impressao-3d-2026-10-15/tcp/result.json": {
+      "bytes": 250,
+      "sha256": "be8d80145bed45d2deca759868598bc373be4798d0be6e34722993f0651b1f9c"
+    },
+    "docs/qa/impressao-3d-2026-10-15/tcp/run.log": {
+      "bytes": 216,
+      "sha256": "f02fd787b4c77b48134ea5ec42db215dd61d2516c3fc8e296f0b189a1b397a17"
+    },
+    "docs/qa/impressao-3d-2026-10-15/tcp/session.log": {
+      "bytes": 10568,
+      "sha256": "c58f484f4242d14e3f98a181c60f2b27c8ab0f50db22c97d5c033d3b34141d7c"
+    },
+    "docs/qa/impressao-3d-2026-10-15/tcp/test_multicnc_tcp-build.log": {
+      "bytes": 472,
+      "sha256": "1c9d4ad9e302425fb5512020efae8fc83eb9dde96310f866a7fae3255231a5bf"
+    },
+    "docs/qa/impressao-3d-2026-10-15/tcp/test_simucnc_server-build.log": {
+      "bytes": 531,
+      "sha256": "10030edf79744012973feb6d7eb8aae3cb5819ccba62911ca0e6b24337d9b39c"
+    },
+    "multislicer/src/app/multislicer_main.pas": {
+      "bytes": 120407,
+      "sha256": "43266da738ed8a78c674ec8d6a16de633f49496970ce7ba7a67b2acb1ebb44a1"
+    },
+    "multislicer/src/core/multislicer_machines.pas": {
+      "bytes": 11151,
+      "sha256": "aba724e71a085f53ab9192a7822bd9fd72eab36fc6d64b1106bcb3d59cddef1b"
+    },
+    "multislicer/src/core/multislicer_materials.pas": {
+      "bytes": 6820,
+      "sha256": "ca857f31b04d8804fe2ac14d9133e75354941c271b94b6b3adb9f03cd8ac24e9"
+    },
+    "multislicer/src/core/multislicer_pipeline.pas": {
+      "bytes": 54483,
+      "sha256": "34c01bde453be0cfc2c47b922a85e8b4ac845a7d26b4dc33bcd8e76a50202bc0"
+    },
+    "multislicer/src/core/multislicer_printers.pas": {
+      "bytes": 7918,
+      "sha256": "8bb7dcfa26501bb29d678d33586846c0455ae139a05f3639ba15fdfe7f5b3244"
+    },
+    "multislicer/src/core/multislicer_template_limits.pas": {
+      "bytes": 6789,
+      "sha256": "542ff36327d6671377f540de4ecb080aa33a21f06c3ab41db52fe65bc2ad4b60"
+    },
+    "multislicer/tests/test_print_safety.lpr": {
+      "bytes": 6226,
+      "sha256": "cebab7a7d79d68b7aa8896818a8527b4e312ddc863fea6c0ff0c72513f1f0aef"
+    },
+    "multislicer/tests/test_slicer_app.lpr": {
+      "bytes": 30590,
+      "sha256": "92f482251bb5823c6a9a00791ed9a9d48c501cc4ff6bc1847e7479462e297dee"
+    },
+    "src/app/mainform.pas": {
+      "bytes": 131440,
+      "sha256": "f3bb15e632e052dd1ed218260010b763676cc0177733a4630de7c2613321b5b8"
+    },
+    "src/app/multicnc_session.pas": {
+      "bytes": 49181,
+      "sha256": "12647cf366810fa16c6986949b39d227cba80ab1c5ff117a7870a000be4d6471"
+    },
+    "src/core/multicnc_gcode_compat.pas": {
+      "bytes": 2803,
+      "sha256": "3da90a7d316c088a6ed962d390e792bbdf4c976fa6b8edb18a146a5430e6044e"
+    },
+    "src/core/multicnc_machine.pas": {
+      "bytes": 23974,
+      "sha256": "e265b09faaffdaf6b7c6ccd28d1b1aa66849e9d9e6cdc033a538cdaa9abb5329"
+    },
+    "src/core/multicnc_streamer.pas": {
+      "bytes": 10762,
+      "sha256": "e2af97cf7328dc944205394599bcebf2901c0876220f55917fa9fb814f8e47f6"
+    },
+    "src/protocols/multicnc_marlin.pas": {
+      "bytes": 7954,
+      "sha256": "eaaf6244d7e48c8f665101e5722e98066c8555a7a6db638c2fd65ef5f4af5998"
+    },
+    "src/shared/multisuite_print_audit.pas": {
+      "bytes": 4521,
+      "sha256": "637521b8da3b72a836602721b547eb8ef21c2c573511cf740c7b4e44a3fa1ea6"
+    },
+    "src/simucnc/simuform.pas": {
+      "bytes": 43020,
+      "sha256": "c28fdb6bd2ec6ebcdcd4efb5ec02d0fe3c65aaa2ec4d7e6e6a8630571f1932f6"
+    },
+    "tests/run_tcp_tests.ps1": {
+      "bytes": 604,
+      "sha256": "2cf096a6ad5dcbd41bfddb17eb6193e3d407253841c63a441d652d12d145057c"
+    },
+    "tests/test_controller.lpr": {
+      "bytes": 12759,
+      "sha256": "722f71935d5adbe94dc8f4dd358bd18aa9462b33b5aa7d6111fa1da783f67fe1"
+    },
+    "tests/test_joystick.lpr": {
+      "bytes": 12017,
+      "sha256": "44b1529d4778b9b5c370ab8d0bd2ceea342efbcf5145daa503cd44f9ef4aa15a"
+    },
+    "tests/test_multicnc_tcp.lpr": {
+      "bytes": 4072,
+      "sha256": "68c547950b9fda72bc016ad5c9f456d6ee7f2f7ab63f5c3a0ace2c4d057d0e5c"
+    },
+    "tests/test_multislicer_print.lpr": {
+      "bytes": 3306,
+      "sha256": "3f0d3222c6e61bd6a042d03c2b0444b31d3efe36d4f986307e37da50cb48eba7"
+    },
+    "tests/test_simucnc_server.lpr": {
+      "bytes": 405,
+      "sha256": "379de966221f32ba3e33471a645688409c4d22a2f000d1e0a4175b260423896f"
+    },
+    "tests/test_simucnc_tcp.py": {
+      "bytes": 2601,
+      "sha256": "a41b16b747c16f3083af2bfb79d28b8247d3a930dca27ef48bc86be8fe0e8f32"
+    },
+    "tests/test_streaming.lpr": {
+      "bytes": 28550,
+      "sha256": "bc83444657333dc59e3f1ec5870f63f1f5b47319300d6e021bf764cdab04e7c5"
+    },
+    "tools/verify_print_tcp.py": {
+      "bytes": 2569,
+      "sha256": "ccf133a2bdbc7af9f38d8cc00934eac87ee6c336bc15dbd8a209cc48adb0cccf"
+    }
+  }
+}

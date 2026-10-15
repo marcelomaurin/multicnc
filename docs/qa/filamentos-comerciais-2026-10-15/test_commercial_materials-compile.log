@@ -1,0 +1,8 @@
+Free Pascal Compiler version 3.2.2 [2025/11/08] for x86_64
+Copyright (c) 1993-2021 by Florian Klaempfl and others
+Target OS: Win64 for x64
+Compiling D:\projetos\maurinsoft\multicnc\multislicer\tests\test_commercial_materials.lpr
+Compiling .\multislicer\src\core\multislicer_materials.pas
+Compiling .\multislicer\src\core\multislicer_userdata.pas
+Linking C:\Users\mmaurin\Documents\Codex\2026-10-14\si\work\qa_selected\test_commercial_materials\test_commercial_materials.exe
+482 lines compiled, 0.4 sec, 329504 bytes code, 16468 bytes data

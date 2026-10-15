@@ -1,0 +1,21 @@
+{
+  "name": "Arruela M5 Lisa",
+  "model": "DIN 125 M5",
+  "category": "fixadores",
+  "kind": "ackFastenerWasher",
+  "material": "Aço Inox",
+  "color": 13158600,
+  "size": {
+    "x": 10.0,
+    "y": 10.0,
+    "z": 1.0
+  },
+  "ports": [
+    {
+      "name": "FURO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Arruela lisa M5 diâmetro externo 10mm"
+}
