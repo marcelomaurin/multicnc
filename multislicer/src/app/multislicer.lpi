@@ -11,9 +11,9 @@
   <VersionInfo>
    <UseVersionInfo Value="True"/>
    <MinorVersionNr Value="1"/>
-   <RevisionNr Value="0"/>
+   <RevisionNr Value="1"/>
    <BuildNr Value="0"/>
-   <StringTable CompanyName="Maurinsoft" FileDescription="MultiSlicer" ProductName="MultiSlicer / MultiSuite" ProductVersion="0.1.0.0"/>
+   <StringTable CompanyName="Maurinsoft" FileDescription="MultiSlicer" ProductName="MultiSlicer / MultiSuite" ProductVersion="0.1.0.1"/>
   </VersionInfo>
   <BuildModes Count="1">
    <Item1 Name="Default" Default="True" />

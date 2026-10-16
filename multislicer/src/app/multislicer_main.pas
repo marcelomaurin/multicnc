@@ -26,11 +26,11 @@ uses
   multislicer_3mf, multislicer_profile, multislicer_pipeline, multislicer_view,
   multislicer_printers, multislicer_materials, multislicer_userdata,
   multislicer_scene, multislicer_view3d, multislicer_toolpath3d, multicad_camera, multislicer_quality, multislicer_support,
-  multisuite_controls, multisuite_icons, multislicer_machines, multicnc_types, multicnc_equipment, fpjson, multislicer_project, multislicer_meshcheck;
+  multisuite_controls, multisuite_icons, multislicer_machines, multicnc_types, multicnc_equipment, fpjson, multislicer_project, multislicer_meshcheck, multislicer_filaments;
 
 const
   { manter igual ao VersionInfo do multislicer.lpi (revisao = etapa do PLANO_TAREFAS) }
-  MS_VERSION = '0.1.0.0';
+  MS_VERSION = '0.1.0.1';
   MS_STEP_COUNT = 7;
   MS_STEPS: array[0..MS_STEP_COUNT - 1] of string = ('1  Impressora', '2  Modelo',
     '3  Material', '4  Qualidade', '5  Suportes', '6  Previa', '7  Saida');
@@ -84,6 +84,8 @@ type
     Log: TMemo;
     { impressora }
     FPrinters: TPrinterDefs;
+    PrinterBrandBox, PrinterModelBox: TComboBox;
+    CreatePrinterProfileBtn: TSuiteButton;
     PrinterBox, FlavorChoice, ExtruderChoice: TComboBox;
     BedX, BedY, BedZ, Nozzle, FilamentDia: TFloatSpinEdit;
     HeatedBedBox: TCheckBox;
@@ -112,6 +114,7 @@ type
     PrinterDeleteBtn: TSuiteButton;
     { material }
     FMaterials: TMaterialDefs;
+    FilamentKindBox, FilamentBrandBox, FilamentModelBox: TComboBox;
     MaterialBox: TComboBox;
     HotendFirst, Hotend, BedFirst, BedTemp, FanPct, FanLayer: TSpinEdit;
     Density, Flow, RetractLen, RetractSpd, Cost: TFloatSpinEdit;
@@ -164,6 +167,12 @@ type
     procedure NavClick(Sender: TObject);
     procedure OpenClick(Sender: TObject);
     procedure CenterClick(Sender: TObject);
+    procedure PrinterBrandChange(Sender: TObject);
+    procedure PrinterModelChange(Sender: TObject);
+    procedure CreatePrinterProfileClick(Sender: TObject);
+    procedure FilamentKindChange(Sender: TObject);
+    procedure FilamentBrandChange(Sender: TObject);
+    procedure FilamentModelChange(Sender: TObject);
     procedure PrinterChange(Sender: TObject);
     procedure ExtruderChange(Sender: TObject);
     procedure MaterialChange(Sender: TObject);
@@ -428,6 +437,7 @@ var
   Page: TTabSheet;
   Scroll: TScrollBox;
   I: Integer;
+  LastBrand, LastModel, LastKind, InfillStr: string;
 begin
   inherited CreateNew(AOwner, 1);
   Caption := 'MultiSlicer ' + MS_VERSION + ' • MultiSuite';
@@ -577,6 +587,58 @@ begin
   ReloadMaterials(ReadLastChoice('material'));
   if MaterialBox.ItemIndex < 0 then MaterialBox.ItemIndex := 0;
   MaterialChange(nil);
+
+  { Inicializa marcas e modelos de impressora }
+  if PrinterBrandBox <> nil then
+  begin
+    GetMachineBrands(PrinterBrandBox.Items);
+    LastBrand := ReadLastChoice('printer_brand');
+    LastModel := ReadLastChoice('printer_model');
+    if (LastBrand <> '') and (PrinterBrandBox.Items.IndexOf(LastBrand) >= 0) then
+      PrinterBrandBox.ItemIndex := PrinterBrandBox.Items.IndexOf(LastBrand)
+    else if PrinterBrandBox.Items.Count > 0 then
+      PrinterBrandBox.ItemIndex := 0;
+
+    if PrinterBrandBox.ItemIndex >= 0 then
+    begin
+      GetMachineModels(PrinterBrandBox.Text, PrinterModelBox.Items);
+      if (LastModel <> '') and (PrinterModelBox.Items.IndexOf(LastModel) >= 0) then
+        PrinterModelBox.ItemIndex := PrinterModelBox.Items.IndexOf(LastModel)
+      else if PrinterModelBox.Items.Count > 0 then
+        PrinterModelBox.ItemIndex := 0;
+    end;
+  end;
+
+  { Inicializa tipos, marcas e modelos de filamento }
+  if FilamentKindBox <> nil then
+  begin
+    GetFilamentKinds(FilamentKindBox.Items);
+    LastKind := ReadLastChoice('filament_kind');
+    LastBrand := ReadLastChoice('filament_brand');
+    LastModel := ReadLastChoice('filament_model');
+    if (LastKind <> '') and (FilamentKindBox.Items.IndexOf(LastKind) >= 0) then
+      FilamentKindBox.ItemIndex := FilamentKindBox.Items.IndexOf(LastKind)
+    else if FilamentKindBox.Items.Count > 0 then
+      FilamentKindBox.ItemIndex := 0;
+
+    if FilamentKindBox.ItemIndex >= 0 then
+    begin
+      GetFilamentBrands(FilamentKindBox.Text, FilamentBrandBox.Items);
+      if (LastBrand <> '') and (FilamentBrandBox.Items.IndexOf(LastBrand) >= 0) then
+        FilamentBrandBox.ItemIndex := FilamentBrandBox.Items.IndexOf(LastBrand)
+      else if FilamentBrandBox.Items.Count > 0 then
+        FilamentBrandBox.ItemIndex := 0;
+
+      if FilamentBrandBox.ItemIndex >= 0 then
+      begin
+        GetFilamentModels(FilamentKindBox.Text, FilamentBrandBox.Text, FilamentModelBox.Items);
+        if (LastModel <> '') and (FilamentModelBox.Items.IndexOf(LastModel) >= 0) then
+          FilamentModelBox.ItemIndex := FilamentModelBox.Items.IndexOf(LastModel)
+        else if FilamentModelBox.Items.Count > 0 then
+          FilamentModelBox.ItemIndex := 0;
+      end;
+    end;
+  end;
   ReloadEquipment;
   SelectEquipment(ReadLastChoice('equipment'));
   ReloadQualities(ReadLastChoice('quality'));
@@ -589,6 +651,13 @@ begin
     AdhesionTypeBox.ItemIndex := EnsureRange(StrToIntDef(ReadLastChoice('adhesion_type'), 1), 0, 3);
   finally
     FUpdating := False;
+  end;
+  InfillStr := ReadLastChoice('infill_percent');
+  if InfillStr <> '' then
+  begin
+    InfillDensity.Value := EnsureRange(StrToIntDef(InfillStr, 20), 0, 100);
+    InfillTrack.Position := InfillDensity.Value;
+    InfillLabel.Caption := IntToStr(InfillDensity.Value) + '%';
   end;
   SyncRecommended;
   RefreshSupportAids;
@@ -619,45 +688,57 @@ begin
     16, 48, 290, 40);
   EquipmentNote.ShowHint := True;
   EquipmentNote.Name := 'EquipmentNote';
-  PrinterBox := Combo(S, 'Perfil de impressora', 92);
+
+  Section(S, 'MARCA E MODELO', 92);
+  PrinterBrandBox := Combo(S, 'Marca da impressora', 114);
+  PrinterBrandBox.Name := 'PrinterBrandBox';
+  PrinterBrandBox.OnChange := @PrinterBrandChange;
+  PrinterModelBox := Combo(S, 'Modelo', 170);
+  PrinterModelBox.Name := 'PrinterModelBox';
+  PrinterModelBox.OnChange := @PrinterModelChange;
+  CreatePrinterProfileBtn := Button(S, 'Criar perfil a partir do modelo...', 16, 226, 290, sikNew, @CreatePrinterProfileClick);
+  CreatePrinterProfileBtn.Name := 'CreatePrinterProfileBtn';
+
+  Section(S, 'PERFIL DE IMPRESSORA', 270);
+  PrinterBox := Combo(S, 'Perfil cadastrado', 292);
   PrinterBox.OnChange := @PrinterChange;
-  PrinterNote := LabelAt(S, '', 16, 146, 290, 20);
-  Button(S, 'Salvar...', 16, 168, 140, sikSave, @SavePrinterClick);
-  PrinterDeleteBtn := Button(S, 'Excluir', 166, 168, 140, sikTrash, @DeletePrinterClick);
-  FlavorChoice := Combo(S, 'Firmware', 214);
+  PrinterNote := LabelAt(S, '', 16, 346, 290, 20);
+  Button(S, 'Salvar...', 16, 368, 140, sikSave, @SavePrinterClick);
+  PrinterDeleteBtn := Button(S, 'Excluir', 166, 368, 140, sikTrash, @DeletePrinterClick);
+  FlavorChoice := Combo(S, 'Firmware', 414);
   FlavorChoice.Items.Add('Marlin'); FlavorChoice.Items.Add('Klipper');
   FlavorChoice.ItemIndex := 0;
   FlavorChoice.OnChange := @SettingsChanged;
-  ExtruderChoice := Combo(S, 'Extrusora', 272);
+  ExtruderChoice := Combo(S, 'Extrusora', 472);
   for K := Low(TExtruderKind) to High(TExtruderKind) do ExtruderChoice.Items.Add(EXTRUDER_NAMES[K]);
   ExtruderChoice.ItemIndex := 0;
   ExtruderChoice.Name := 'Extruder';
   ExtruderChoice.OnChange := @ExtruderChange;
-  BedX := FloatField(S, 'Mesa X (mm)', 'BedX', 220, 10, 2000, 1, 1, 330);
-  BedY := FloatField(S, 'Mesa Y (mm)', 'BedY', 220, 10, 2000, 1, 1, 386);
-  BedZ := FloatField(S, 'Altura maxima Z (mm)', 'BedZ', 250, 10, 2000, 1, 1, 442);
-  Nozzle := FloatField(S, 'Diametro do bico (mm)', 'Nozzle', 0.4, 0.1, 2, 0.05, 2, 498);
-  FilamentDia := FloatField(S, 'Diametro do filamento (mm)', 'FilamentDiameter', 1.75, 1, 3.5, 0.05, 2, 554);
-  HeatedBedBox := Check(S, 'Mesa aquecida', 612);
+  BedX := FloatField(S, 'Mesa X (mm)', 'BedX', 220, 10, 2000, 1, 1, 530);
+  BedY := FloatField(S, 'Mesa Y (mm)', 'BedY', 220, 10, 2000, 1, 1, 586);
+  BedZ := FloatField(S, 'Altura maxima Z (mm)', 'BedZ', 250, 10, 2000, 1, 1, 642);
+  Nozzle := FloatField(S, 'Diametro do bico (mm)', 'Nozzle', 0.4, 0.1, 2, 0.05, 2, 698);
+  FilamentDia := FloatField(S, 'Diametro do filamento (mm)', 'FilamentDiameter', 1.75, 1, 3.5, 0.05, 2, 754);
+  HeatedBedBox := Check(S, 'Mesa aquecida', 812);
   HeatedBedBox.Checked := True;
-  Section(S, 'G-CODE INICIAL', 650);
+  Section(S, 'G-CODE INICIAL', 850);
   StartMemo := TMemo.Create(Self);
   StartMemo.Parent := S; StartMemo.Name := 'StartGCode';
-  StartMemo.SetBounds(16, 672, 290, 170);
+  StartMemo.SetBounds(16, 872, 290, 170);
   StartMemo.ScrollBars := ssAutoBoth; StartMemo.WordWrap := False;
   StartMemo.Font.Name := 'Courier New'; StartMemo.Font.Size := 9;
   StartMemo.Clear;
   StartMemo.OnChange := @SettingsChanged;
-  Section(S, 'G-CODE FINAL', 852);
+  Section(S, 'G-CODE FINAL', 1052);
   EndMemo := TMemo.Create(Self);
   EndMemo.Parent := S; EndMemo.Name := 'EndGCode';
-  EndMemo.SetBounds(16, 874, 290, 130);
+  EndMemo.SetBounds(16, 1074, 290, 130);
   EndMemo.ScrollBars := ssAutoBoth; EndMemo.WordWrap := False;
   EndMemo.Font.Name := 'Courier New'; EndMemo.Font.Size := 9;
   EndMemo.Clear;
   EndMemo.OnChange := @SettingsChanged;
   LabelAt(S, 'Vazio = bloco padrao (aquece, G28, espera). Variaveis: {first_layer_bed_temp} {first_layer_hotend_temp} {bed_temp} {hotend_temp} {bed_x} {bed_y} {bed_z} {fan_speed}.',
-    16, 1012, 290, 76);
+    16, 1212, 290, 76);
 end;
 
 function TMultiSlicerForm.TransformField(AParent: TWinControl; const AText, AName: string;
@@ -746,29 +827,41 @@ end;
 
 procedure TMultiSlicerForm.BuildMaterialPage(S: TScrollBox);
 begin
-  MaterialBox := Combo(S, 'Filamento', 52);
+  Section(S, 'FILAMENTO POR MARCA E MODELO', 44);
+  FilamentKindBox := Combo(S, 'Tipo (Polimero)', 66);
+  FilamentKindBox.Name := 'FilamentKindBox';
+  FilamentKindBox.OnChange := @FilamentKindChange;
+  FilamentBrandBox := Combo(S, 'Marca do filamento', 124);
+  FilamentBrandBox.Name := 'FilamentBrandBox';
+  FilamentBrandBox.OnChange := @FilamentBrandChange;
+  FilamentModelBox := Combo(S, 'Modelo comercial', 182);
+  FilamentModelBox.Name := 'FilamentModelBox';
+  FilamentModelBox.OnChange := @FilamentModelChange;
+
+  Section(S, 'PERFIL DE MATERIAL', 240);
+  MaterialBox := Combo(S, 'Perfil salvo', 262);
   MaterialBox.OnChange := @MaterialChange;
-  MaterialNote := LabelAt(S, '', 16, 106, 290, 20);
-  Button(S, 'Salvar...', 16, 128, 140, sikSave, @SaveMaterialClick);
-  MaterialDeleteBtn := Button(S, 'Excluir', 166, 128, 140, sikTrash, @DeleteMaterialClick);
-  MaterialNotes := LabelAt(S, '', 16, 170, 290, 58);
-  Section(S, 'TEMPERATURAS', 234);
-  HotendFirst := IntField(S, 'Bico na 1a camada (C)', 'HotendFirstLayer', 205, 0, 400, 256);
-  Hotend := IntField(S, 'Bico nas demais camadas (C)', 'HotendTemperature', 200, 0, 400, 312);
-  BedFirst := IntField(S, 'Mesa na 1a camada (C)', 'BedFirstLayer', 60, 0, 150, 368);
-  BedTemp := IntField(S, 'Mesa nas demais camadas (C)', 'BedTemperature', 60, 0, 150, 424);
-  Section(S, 'VENTOINHA', 490);
-  FanPct := IntField(S, 'Ventoinha da peca (%)', 'FanPercent', 100, 0, 100, 512);
-  FanLayer := IntField(S, 'Liga a partir da camada', 'FanFromLayer', 2, 1, 50, 568);
-  Section(S, 'EXTRUSAO', 634);
-  Flow := FloatField(S, 'Fluxo (%)', 'FlowPercent', 100, 50, 150, 1, 0, 656);
-  RetractLen := FloatField(S, 'Retracao (mm)', 'RetractLength', 5, 0, 15, 0.1, 1, 712);
-  RetractSpd := FloatField(S, 'Velocidade de retracao (mm/s)', 'RetractSpeed', 45, 5, 150, 1, 0, 768);
-  Section(S, 'PESO E CUSTO', 834);
-  Density := FloatField(S, 'Densidade (g/cm3)', 'FilamentDensity', 1.24, 0.5, 3, 0.01, 2, 856);
-  Cost := FloatField(S, 'Preco do carretel (R$ por kg)', 'CostPerKg', 120, 0, 10000, 5, 2, 912);
+  MaterialNote := LabelAt(S, '', 16, 316, 290, 20);
+  Button(S, 'Salvar...', 16, 338, 140, sikSave, @SaveMaterialClick);
+  MaterialDeleteBtn := Button(S, 'Excluir', 166, 338, 140, sikTrash, @DeleteMaterialClick);
+  MaterialNotes := LabelAt(S, '', 16, 380, 290, 58);
+  Section(S, 'TEMPERATURAS', 446);
+  HotendFirst := IntField(S, 'Bico na 1a camada (C)', 'HotendFirstLayer', 205, 0, 400, 468);
+  Hotend := IntField(S, 'Bico nas demais camadas (C)', 'HotendTemperature', 200, 0, 400, 524);
+  BedFirst := IntField(S, 'Mesa na 1a camada (C)', 'BedFirstLayer', 60, 0, 150, 580);
+  BedTemp := IntField(S, 'Mesa nas demais camadas (C)', 'BedTemperature', 60, 0, 150, 636);
+  Section(S, 'VENTOINHA', 702);
+  FanPct := IntField(S, 'Ventoinha da peca (%)', 'FanPercent', 100, 0, 100, 724);
+  FanLayer := IntField(S, 'Liga a partir da camada', 'FanFromLayer', 2, 1, 50, 780);
+  Section(S, 'EXTRUSAO', 846);
+  Flow := FloatField(S, 'Fluxo (%)', 'FlowPercent', 100, 50, 150, 1, 0, 868);
+  RetractLen := FloatField(S, 'Retracao (mm)', 'RetractLength', 5, 0, 15, 0.1, 1, 924);
+  RetractSpd := FloatField(S, 'Velocidade de retracao (mm/s)', 'RetractSpeed', 45, 5, 150, 1, 0, 980);
+  Section(S, 'PESO E CUSTO', 1046);
+  Density := FloatField(S, 'Densidade (g/cm3)', 'FilamentDensity', 1.24, 0.5, 3, 0.01, 2, 1068);
+  Cost := FloatField(S, 'Preco do carretel (R$ por kg)', 'CostPerKg', 120, 0, 10000, 5, 2, 1124);
   LabelAt(S, 'A retracao vem do material conforme a extrusora da impressora (Bowden ou direta). Confira a faixa de temperatura no carretel.',
-    16, 974, 290, 60);
+    16, 1186, 290, 60);
 end;
 
 procedure TMultiSlicerForm.BuildQualityPage(S: TScrollBox);
@@ -2249,6 +2342,7 @@ begin
   if FUpdating then Exit;
   InfillLabel.Caption := IntToStr(InfillTrack.Position) + '%';
   InfillDensity.Value := InfillTrack.Position;
+  WriteLastChoice('infill_percent', IntToStr(InfillTrack.Position));
 end;
 
 procedure TMultiSlicerForm.AdhesionClick(Sender: TObject);
@@ -2512,13 +2606,206 @@ begin
   end;
 end;
 
+procedure TMultiSlicerForm.PrinterBrandChange(Sender: TObject);
+var
+  Brand: string;
+begin
+  if FUpdating or (PrinterBrandBox = nil) or (PrinterModelBox = nil) then Exit;
+  Brand := PrinterBrandBox.Text;
+  FUpdating := True;
+  try
+    GetMachineModels(Brand, PrinterModelBox.Items);
+    if PrinterModelBox.Items.Count > 0 then
+      PrinterModelBox.ItemIndex := 0
+    else
+      PrinterModelBox.ItemIndex := -1;
+  finally
+    FUpdating := False;
+  end;
+  if PrinterModelBox.ItemIndex >= 0 then
+    PrinterModelChange(Sender);
+end;
+
+procedure TMultiSlicerForm.PrinterModelChange(Sender: TObject);
+var
+  Brand, Model: string;
+  Idx: Integer;
+  Spec: TMachineSpec;
+  P: TPrinterDef;
+begin
+  if FUpdating or (PrinterBrandBox = nil) or (PrinterModelBox = nil) then Exit;
+  Brand := PrinterBrandBox.Text;
+  Model := PrinterModelBox.Text;
+  if Model = '' then Exit;
+
+  Idx := FindMachine(Brand, Model);
+  if Idx >= 0 then
+  begin
+    Spec := MachineCatalog[Idx];
+    P := MachinePrinterDef(Spec, Spec.Brand + ' ' + Spec.Model, 0, 0, 0);
+    ApplyPrinter(P);
+    if Sender <> nil then
+    begin
+      WriteLastChoice('printer_brand', Brand);
+      WriteLastChoice('printer_model', Model);
+    end;
+    Idx := FindPrinter(FPrinters, P.Name);
+    if Idx >= 0 then
+    begin
+      FUpdating := True;
+      try
+        PrinterBox.ItemIndex := Idx;
+      finally
+        FUpdating := False;
+      end;
+    end;
+    SettingsChanged(Sender);
+  end;
+end;
+
+procedure TMultiSlicerForm.CreatePrinterProfileClick(Sender: TObject);
+var
+  P: TPrinterDef;
+  AName: string;
+begin
+  P := CurrentPrinter;
+  if (PrinterBrandBox <> nil) and (PrinterModelBox <> nil) and
+     (PrinterBrandBox.Text <> '') and (PrinterModelBox.Text <> '') then
+    AName := PrinterBrandBox.Text + ' ' + PrinterModelBox.Text
+  else
+    AName := P.Name;
+
+  if not InputQuery('Criar perfil de impressora', 'Nome do perfil:', AName) then Exit;
+  AName := Trim(AName);
+  if AName = '' then Exit;
+  P.Name := AName;
+  try
+    SavePrinter(P);
+    ReloadPrinters(AName);
+    WriteLastChoice('printer', AName);
+    if (PrinterBrandBox <> nil) and (PrinterBrandBox.Text <> '') then
+      WriteLastChoice('printer_brand', PrinterBrandBox.Text);
+    if (PrinterModelBox <> nil) and (PrinterModelBox.Text <> '') then
+      WriteLastChoice('printer_model', PrinterModelBox.Text);
+    RefreshProfileNotes;
+    Status.Caption := 'Perfil criado a partir do modelo: ' + AName;
+  except
+    on E: Exception do ShowError(E);
+  end;
+end;
+
+procedure TMultiSlicerForm.FilamentKindChange(Sender: TObject);
+var
+  Kind, CurBrand: string;
+begin
+  if FUpdating or (FilamentKindBox = nil) or (FilamentBrandBox = nil) then Exit;
+  Kind := FilamentKindBox.Text;
+  CurBrand := FilamentBrandBox.Text;
+  FUpdating := True;
+  try
+    GetFilamentBrands(Kind, FilamentBrandBox.Items);
+    if (CurBrand <> '') and (FilamentBrandBox.Items.IndexOf(CurBrand) >= 0) then
+      FilamentBrandBox.ItemIndex := FilamentBrandBox.Items.IndexOf(CurBrand)
+    else if FilamentBrandBox.Items.Count > 0 then
+      FilamentBrandBox.ItemIndex := 0
+    else
+      FilamentBrandBox.ItemIndex := -1;
+  finally
+    FUpdating := False;
+  end;
+  if FilamentBrandBox.ItemIndex >= 0 then
+    FilamentBrandChange(Sender);
+end;
+
+procedure TMultiSlicerForm.FilamentBrandChange(Sender: TObject);
+var
+  Kind, Brand, CurModel: string;
+begin
+  if FUpdating or (FilamentKindBox = nil) or (FilamentBrandBox = nil) or (FilamentModelBox = nil) then Exit;
+  Kind := FilamentKindBox.Text;
+  Brand := FilamentBrandBox.Text;
+  CurModel := FilamentModelBox.Text;
+  FUpdating := True;
+  try
+    GetFilamentModels(Kind, Brand, FilamentModelBox.Items);
+    if (CurModel <> '') and (FilamentModelBox.Items.IndexOf(CurModel) >= 0) then
+      FilamentModelBox.ItemIndex := FilamentModelBox.Items.IndexOf(CurModel)
+    else if FilamentModelBox.Items.Count > 0 then
+      FilamentModelBox.ItemIndex := 0
+    else
+      FilamentModelBox.ItemIndex := -1;
+  finally
+    FUpdating := False;
+  end;
+  if FilamentModelBox.ItemIndex >= 0 then
+    FilamentModelChange(Sender);
+end;
+
+procedure TMultiSlicerForm.FilamentModelChange(Sender: TObject);
+var
+  Kind, Brand, Model: string;
+  Spec: TFilamentSpec;
+begin
+  if FUpdating or (FilamentKindBox = nil) or (FilamentBrandBox = nil) or (FilamentModelBox = nil) then Exit;
+  Kind := FilamentKindBox.Text;
+  Brand := FilamentBrandBox.Text;
+  Model := FilamentModelBox.Text;
+  if (Model = '') or not FindFilament(Kind, Brand, Model, Spec) then Exit;
+
+  FUpdating := True;
+  try
+    HotendFirst.Value := Spec.HotendFirst;
+    Hotend.Value := Spec.Hotend;
+    BedFirst.Value := Spec.BedFirst;
+    BedTemp.Value := Spec.Bed;
+    FanPct.Value := Spec.FanPercent;
+    FanLayer.Value := Spec.FanFromLayer;
+    Density.Value := Spec.Density;
+    Flow.Value := Spec.FlowPercent;
+    if (ExtruderChoice <> nil) and (ExtruderChoice.ItemIndex = Ord(ekDirect)) then
+      RetractLen.Value := Spec.RetractDirect
+    else
+      RetractLen.Value := Spec.RetractBowden;
+    RetractSpd.Value := Spec.RetractSpeed;
+    if Spec.CostPerKg > 0 then Cost.Value := Spec.CostPerKg;
+    MaterialNotes.Caption := Spec.Notes;
+  finally
+    FUpdating := False;
+  end;
+
+  if Sender <> nil then
+  begin
+    WriteLastChoice('filament_kind', Kind);
+    WriteLastChoice('filament_brand', Brand);
+    WriteLastChoice('filament_model', Model);
+  end;
+
+  SettingsChanged(Sender);
+end;
+
 procedure TMultiSlicerForm.PrinterChange(Sender: TObject);
-var K: Integer;
+var K, M: Integer;
 begin
   if FUpdating then Exit;
   K := PrinterBox.ItemIndex;
   if (K < 0) or (K > High(FPrinters)) then Exit;
   ApplyPrinter(FPrinters[K]);
+  { Atualiza Marca e Modelo se corresponder a uma maquina do catalogo }
+  M := FindMachine('', FPrinters[K].Name);
+  if (M >= 0) and (PrinterBrandBox <> nil) and (PrinterModelBox <> nil) then
+  begin
+    FUpdating := True;
+    try
+      PrinterBrandBox.ItemIndex := PrinterBrandBox.Items.IndexOf(MachineCatalog[M].Brand);
+      if PrinterBrandBox.ItemIndex >= 0 then
+      begin
+        GetMachineModels(MachineCatalog[M].Brand, PrinterModelBox.Items);
+        PrinterModelBox.ItemIndex := PrinterModelBox.Items.IndexOf(MachineCatalog[M].Model);
+      end;
+    finally
+      FUpdating := False;
+    end;
+  end;
   { a retracao depende da extrusora: reaplica a do material atual }
   if (MaterialBox <> nil) and (MaterialBox.ItemIndex >= 0) and (MaterialBox.ItemIndex <= High(FMaterials)) then
     ExtruderChange(nil);
@@ -2636,7 +2923,11 @@ begin
   end;
   if (InfillTrack <> nil) and ((Sender = InfillDensity) or (Sender = SkirtLoops) or (Sender = nil) or
     (Sender = AdhesionTypeBox) or (Sender = SupportModeBox)) then
+  begin
     SyncRecommended;
+    if Sender = InfillDensity then
+      WriteLastChoice('infill_percent', IntToStr(InfillDensity.Value));
+  end;
   if Sender = HeatedBedBox then
   begin
     BedFirst.Enabled := HeatedBedBox.Checked;

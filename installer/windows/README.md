@@ -15,7 +15,7 @@ commit, acrescente -AllowDirty; o manifesto registra source_dirty=true.
 
 O build compila os 13 executaveis, executa os testes de console, inclui relatorio de testes e
 documentacao, valida a arquitetura amd64 e gera manifesto, relatorio e SHA256SUMS.
-Os executaveis atualizados ficam em bin. setup_multcnc_010.exe fica em setup e bin; a copia de staging
+Os executaveis atualizados ficam em bin. setup_multcnc_011.exe fica em setup e bin; a copia de staging
 e os logs ficam em dist. Feche os aplicativos da suite antes de substituir bin.
 
 ## Conteudo e inicializacao
@@ -52,7 +52,7 @@ Projetos e relatorios pertencem ao usuario, fora de Program Files.
 Publicar uma GitHub Release/tag continua uma etapa separada.
 ## Setup 010
 
-[Instalador Windows x64](../../setup/setup_multcnc_010.exe) · [Notas e validação](../../docs/SETUP_010.md) · [Galeria de imagens](../../imgs/README.md)
+[Instalador Windows x64](../../setup/setup_multcnc_011.exe) · [Notas e validação](../../docs/SETUP_011.md) · [Galeria de imagens](../../imgs/README.md)
 
 | LaserPCB | LaserArt |
 |---|---|

@@ -44,6 +44,8 @@ type
   TMachineSpecs = array of TMachineSpec;
 
 function MachineCatalog: TMachineSpecs;
+procedure GetMachineBrands(AList: TStrings);
+procedure GetMachineModels(const ABrand: string; AList: TStrings);
 { procura por marca + modelo (sem diferenca de maiusculas, espacos ou hifens);
   aceita modelo com sufixo ("Ender-3 V2 Neo" acha "Ender-3 V2"). -1 = nao achou }
 function FindMachine(const ABrand, AModel: string): Integer;
@@ -128,6 +130,27 @@ function MachineCatalog: TMachineSpecs;
 begin
   BuildCatalog;
   Result := Copy(Catalog);
+end;
+
+procedure GetMachineBrands(AList: TStrings);
+var I: Integer;
+begin
+  BuildCatalog;
+  AList.Clear;
+  for I := 0 to High(Catalog) do
+    if AList.IndexOf(Catalog[I].Brand) < 0 then
+      AList.Add(Catalog[I].Brand);
+end;
+
+procedure GetMachineModels(const ABrand: string; AList: TStrings);
+var I: Integer;
+begin
+  BuildCatalog;
+  AList.Clear;
+  for I := 0 to High(Catalog) do
+    if (ABrand = '') or SameText(Catalog[I].Brand, ABrand) then
+      if AList.IndexOf(Catalog[I].Model) < 0 then
+        AList.Add(Catalog[I].Model);
 end;
 
 function NormalizeMachineText(const S: string): string;
