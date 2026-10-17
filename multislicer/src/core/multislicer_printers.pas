@@ -23,6 +23,7 @@ type
   TPrinterDef = record
     Name: string;
     BedX, BedY, BedZ: Double;
+    PrintStartZ: Double; // degrau inicial absoluto, mm
     Nozzle, FilamentDiameter: Double;
     Flavor: TSlicerFlavor;
     Extruder: TExtruderKind;
@@ -78,6 +79,7 @@ function Def(const AName: string; X, Y, Z: Double; AFlavor: TSlicerFlavor;
 begin
   Result.Name := AName;
   Result.BedX := X; Result.BedY := Y; Result.BedZ := Z;
+  Result.PrintStartZ := 0;
   Result.Nozzle := 0.4; Result.FilamentDiameter := 1.75;
   Result.Flavor := AFlavor;
   Result.Extruder := AExtruder;
@@ -108,6 +110,7 @@ begin
   Result.Add('bed_x', P.BedX);
   Result.Add('bed_y', P.BedY);
   Result.Add('bed_z', P.BedZ);
+  Result.Add('print_start_z', P.PrintStartZ);
   Result.Add('nozzle', P.Nozzle);
   Result.Add('filament_diameter', P.FilamentDiameter);
   Result.Add('firmware', FlavorName(P.Flavor));
@@ -124,6 +127,7 @@ begin
   Result.BedX := EnsureRange(JFloat(O, 'bed_x', 220), 10, 2000);
   Result.BedY := EnsureRange(JFloat(O, 'bed_y', 220), 10, 2000);
   Result.BedZ := EnsureRange(JFloat(O, 'bed_z', 250), 10, 2000);
+  Result.PrintStartZ := EnsureRange(JFloat(O, 'print_start_z', 0), 0, Result.BedZ - 0.01);
   Result.Nozzle := EnsureRange(JFloat(O, 'nozzle', 0.4), 0.1, 2);
   Result.FilamentDiameter := EnsureRange(JFloat(O, 'filament_diameter', 1.75), 1, 3.5);
   if SameText(JStr(O, 'firmware', 'marlin'), 'klipper') then Result.Flavor := sfKlipper;
@@ -189,7 +193,7 @@ end;
 function SamePrinter(const A, B: TPrinterDef): Boolean;
 begin
   Result := SameValue(A.BedX, B.BedX) and SameValue(A.BedY, B.BedY) and SameValue(A.BedZ, B.BedZ) and
-    SameValue(A.Nozzle, B.Nozzle) and SameValue(A.FilamentDiameter, B.FilamentDiameter) and
+    SameValue(A.PrintStartZ, B.PrintStartZ) and SameValue(A.Nozzle, B.Nozzle) and SameValue(A.FilamentDiameter, B.FilamentDiameter) and
     (A.Flavor = B.Flavor) and (A.Extruder = B.Extruder) and (A.HeatedBed = B.HeatedBed) and
     (Trim(A.StartGCode) = Trim(B.StartGCode)) and (Trim(A.EndGCode) = Trim(B.EndGCode));
 end;
