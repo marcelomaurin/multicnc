@@ -3,8 +3,9 @@
 Manual técnico oficial do fatiador 3D para manufatura aditiva FDM/FFF do ecossistema **MultiSuite**.
 
 - **Versão do Aplicativo:** 0.1.0.0 (Windows x64)
-- **Edição da Documentação:** 13 de outubro de 2026
+- **Edição da Documentação:** 17 de outubro de 2026 (adendo do degrau inicial Z)
 - **Desenvolvedor:** MaurinSoft / MultiSuite
+- **Nota:** o PDF 0.1.0.0 permanece na edição anterior; as instruções do degrau inicial Z estão atualizadas nesta versão em texto.
 - **Documento PDF Oficial:** [`Manual_do_Usuario_MultiSlicer_0.1.0.0_PT-BR.pdf`](Manual_do_Usuario_MultiSlicer_0.1.0.0_PT-BR.pdf) (A4, 30 páginas, sumário, marcadores e capturas de tela)
 
 ---
@@ -17,7 +18,7 @@ Manual técnico oficial do fatiador 3D para manufatura aditiva FDM/FFF do ecossi
 4. [Conferência e Reparo Automático de Malhas](#04-conferência-e-reparo-automático-de-malhas)
 5. [Manipulação de Peças: Posição, Escala e Giro](#05-manipulação-de-peças-posição-escala-e-giro)
 6. [Arranjo Automático e Cena com Múltiplas Peças](#06-arranjo-automático-e-cena-com-múltiplas-peças)
-7. [Equipamentos e Perfis de Impressoras 3D](#07-equipamentos-e-perfis-de-impressoras-3d)
+7. [Equipamentos e Perfis de Impressoras 3D — Degrau inicial Z](#07-equipamentos-e-perfis-de-impressoras-3d--degrau-inicial-z)
 8. [Configuração de Filamentos e Materiais](#08-configuração-de-filamentos-e-materiais)
 9. [Gestão Térmica e Refrigeração](#09-gestão-térmica-e-refrigeração)
 10. [Qualidade e Alturas de Camada](#10-qualidade-e-alturas-de-camada)
@@ -67,6 +68,32 @@ A interface do MultiSlicer é organizada em um fluxo de abas lineares:
 - **Botão Direito do Mouse:** Rotação orbital;
 - **Shift + Botão Direito:** Panorâmica (Pan);
 - **Roda do Mouse (Scroll):** Zoom dinâmico.
+
+---
+
+## 07. Equipamentos e Perfis de Impressoras 3D — Degrau inicial Z
+
+Na **etapa 1 — Impressora**, configure **Degrau inicial Z (mm)** para equipamentos em que a superfície de impressão se encontre acima do zero físico, ou nos quais o início do trabalho requeira um deslocamento vertical positivo conhecido. O parâmetro é específico do **perfil da impressora**, separado da altura de camada, e tem valor padrão **0,00 mm**.
+
+### Configuração passo a passo
+
+1. Selecione a marca/modelo ou perfil manual da impressora.
+2. Confira as dimensões **Mesa X**, **Mesa Y** e **Altura máxima Z**.
+3. Preencha **Degrau inicial Z (mm)** com o valor físico requerido, por exemplo **3,00**.
+4. Salve o perfil em **Salvar...**. O valor é persistido como `print_start_z`; perfis antigos sem esse campo assumem zero.
+5. Fatie novamente e confira na prévia e no G-code o Z da primeira camada; só envie ao MultiCNC após verificar o referencial do equipamento e a superfície real.
+
+**Exemplo:** modelo com altura da primeira camada de **0,20 mm** e degrau de **3,00 mm**. Sem raft, a primeira camada de deposição começa em **Z=3,20 mm**. As alturas subsequentes são deslocadas por +3,00 mm, sem alterar distância entre camadas, geometria fatiada ou quantidade de extrusão. Com raft, o mesmo deslocamento é aplicado ao conjunto de camadas, incluindo sua base.
+
+O G-code recebe o metadado `; MS-PRINT-START-Z: 3.00`; os comandos de Z da impressão e os comentários de camadas já incluem o deslocamento. A altura disponível é reduzida pelo degrau: uma peça de 100 mm, com degrau de 3 mm, exige pelo menos 103 mm de curso útil de impressão.
+
+### Cuidados e limitações
+
+- **Não confunda com Z-offset de calibração do bico.** O degrau não altera homing, malha de nivelamento nem configuração do firmware.
+- Se a mesa real estiver em Z=0 e não houver plataforma correspondente em Z=3, imprimir em Z=3 mm depositará material no ar.
+- Revise G-code inicial personalizado: comandos de purga, `G92 Z...`, outros offsets ou movimentos absolutos anteriores às camadas **não são corrigidos automaticamente** por este parâmetro.
+- Faça um teste supervisionado com movimento sem extrusão, seguido de primeira camada, antes de produzir peças completas.
+- A implementação foi publicada no código-fonte; o processo de compilação e testes físicos deste recurso ainda necessita validação.
 
 ---
 
