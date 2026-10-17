@@ -390,14 +390,14 @@ logo apos a 2 para ja permitir imprimir pela Ender-3 com o posicionamento simple
 
 ---
 
-## Extensão — degrau inicial Z (17/10/2026)
+## Extensão — elevação da superfície da mesa (17/10/2026)
 
 **Requisito:** algumas impressoras exigem imprimir em `Z = zero + degrau`. O parâmetro de perfil `PrintStartZ` (`print_start_z` no JSON) desloca verticalmente os percursos já fatiados. A referência do zero físico permanece inalterada. Valor padrão: 0 mm.
 
 ### Implementação registrada
 
 - [x] `multislicer_printers.pas`: campo no registro, leitura/gravação de JSON, comparação de perfis, padrão zero.
-- [x] `multislicer_main.pas`: campo **Degrau inicial Z (mm)** na etapa Impressora, carregamento, edição, persistência no perfil e transmissão ao `TSliceSettings`.
+- [x] `multislicer_main.pas`: campo **Elevação da superfície da mesa em relação ao Z=0 (mm)** na etapa Impressora, carregamento, edição, persistência no perfil e transmissão ao `TSliceSettings`.
 - [x] `multislicer_pipeline.pas`: deslocamento de Z aplicado após o cálculo de camadas/raft, saída G-code e metadado `MS-PRINT-START-Z`; aviso quando altura do trabalho + degrau excede o limite do equipamento.
 
 ### Testes e ajustes pendentes
@@ -425,3 +425,5 @@ Em uma máquina configurada para uma elevação física de 3 mm, com camada inic
 - [x] Aplicação direta na cena, com histórico de undo único por operação, Ctrl+Z e Ctrl+Y.
 - [ ] Compilar, testar alterações proporcionais e por eixo, salvar/reabrir projeto e verificar atualização de prévia e G-code.
 - [ ] Avaliar a usabilidade visual do formulário em Windows/Linux e resoluções menores.
+
+**Nota sobre a elevação da mesa:** este ajuste desloca apenas os movimentos Z da impressão; não cria degrau de plástico, não gera camadas adicionais e não consome filamento para preencher o espaço. Configure somente quando o zero da controladora estiver abaixo da superfície física de impressão. Se o firmware, homing ou Z-offset já corrigirem essa distância, deixe o parâmetro em 0 mm para evitar compensação duplicada.
