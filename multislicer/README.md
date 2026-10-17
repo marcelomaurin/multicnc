@@ -81,6 +81,19 @@ de movimento dentro da camada e as marcas de retração ainda estão previstos.
   seleciona Impressora 3D (Marlin), mostra no log impressora, material, temperaturas, tempo e
   filamento e avisa se as peças não cabem no volume do equipamento.
 
+## Degrau inicial Z da impressora (novo parâmetro)
+
+Na etapa **1 Impressora**, o campo **Degrau inicial Z (mm)** permite deslocar o trabalho inteiro para cima em relação ao zero da máquina. O valor é armazenado no perfil da impressora (JSON: `print_start_z`) e é **0,00 mm** para perfis existentes que não possuam o campo.
+
+- Exemplo: degrau de **3,00 mm**, primeira camada de **0,20 mm**: o primeiro percurso da peça será emitido em **Z=3,20 mm** (sem raft); as demais camadas também recebem **+3,00 mm**.
+- A geometria original, a altura de camada, a extrusão por milímetro e o espaçamento dos suportes não mudam. Quando há raft, o deslocamento é aplicado depois da sua construção, abrangendo todas as camadas.
+- O G-code inclui `; MS-PRINT-START-Z: 3.00`, os comentários `;Z:` e os movimentos em Z já deslocados. O limite de altura disponível diminui pelo mesmo valor.
+- Defina o campo no perfil da impressora, salve o perfil e refaça o fatiamento. O valor não modifica o firmware e não substitui Z-offset de calibração, homing ou nivelamento da mesa.
+
+**Atenção à segurança:** utilize um valor positivo apenas quando o referencial de impressão exigir uma elevação física correspondente. Sem apoio na altura indicada, a extrusão ocorrerá no ar. G-code inicial personalizado que altere o zero (`G92 Z...`), use offsets ou execute purga na superfície original deve ser revisado separadamente; o degrau altera os movimentos de impressão gerados pelo fatiador, não corrige automaticamente comandos Z escritos pelo usuário.
+
+**Estado:** implementação de código publicada na branch `fila`; compilação, prévia gráfica, serialização completa de projetos e ensaio em impressora física ainda exigem validação. Não interpretar esta descrição como certificação de funcionamento real.
+
 ## Fluxo
 STL/3MF -> conferência da malha -> cena (posição/escala/rotação) -> camadas -> paredes/topo-fundo/preenchimento/suportes/aderência -> prévia 3D -> G-code com contrato da suíte -> MultiCNC.
 
