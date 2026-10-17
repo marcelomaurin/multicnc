@@ -387,3 +387,31 @@ vertices e levava 3,6 s num T simples; com cantos vivos, 54 ms.
 
 As etapas 2 e 3 podem andar em paralelo depois da 1. A etapa 8A/8C/8D pode ser antecipada
 logo apos a 2 para ja permitir imprimir pela Ender-3 com o posicionamento simples.
+
+---
+
+## Extensão — degrau inicial Z (17/10/2026)
+
+**Requisito:** algumas impressoras exigem imprimir em `Z = zero + degrau`. O parâmetro de perfil `PrintStartZ` (`print_start_z` no JSON) desloca verticalmente os percursos já fatiados. A referência do zero físico permanece inalterada. Valor padrão: 0 mm.
+
+### Implementação registrada
+
+- [x] `multislicer_printers.pas`: campo no registro, leitura/gravação de JSON, comparação de perfis, padrão zero.
+- [x] `multislicer_main.pas`: campo **Degrau inicial Z (mm)** na etapa Impressora, carregamento, edição, persistência no perfil e transmissão ao `TSliceSettings`.
+- [x] `multislicer_pipeline.pas`: deslocamento de Z aplicado após o cálculo de camadas/raft, saída G-code e metadado `MS-PRINT-START-Z`; aviso quando altura do trabalho + degrau excede o limite do equipamento.
+
+### Testes e ajustes pendentes
+
+- [ ] Compilar os projetos MultiSlicer e testes FPC/Lazarus em Windows e Linux.
+- [ ] Confirmar que a prévia e a exportação exibem o mesmo Z final, inclusive com raft e suportes.
+- [ ] Testar regressão com `PrintStartZ=0` (mesmo G-code anterior) e com 3 mm (primeira camada 0,20 mm → 3,20 mm).
+- [ ] Testar leitura de perfis JSON antigos sem a chave e salvar/reabrir perfis novos.
+- [ ] Auditar persistência no projeto `.mslice` e perfis originados do catálogo/equipamentos MultiCNC, para não perder o degrau após troca de máquina.
+- [ ] Revisar validação do envelope Z final em todas as etapas e conferir `MS-BOUNDS` também nos casos com raft.
+- [ ] Verificar G-code de partida personalizado, purga, skirt e movimentos antes da primeira camada; orientar sobre offsets e a referência física.
+- [ ] Validar o comportamento em impressora real supervisionada.
+- [ ] Atualizar manuais ilustrados após confirmar a UI.
+
+### Critério de aceite
+
+Em uma máquina configurada para uma elevação física de 3 mm, com camada inicial de 0,20 mm, o G-code de impressão deve começar a depositar a peça em Z=3,20 mm; todas as outras camadas devem manter sua distância relativa; perfis antigos precisam continuar com degrau zero. **Não marcar validado em máquina** sem evidência física.
