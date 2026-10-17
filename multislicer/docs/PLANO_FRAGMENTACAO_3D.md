@@ -77,3 +77,16 @@ Dividir uma malha STL/3MF maior que o volume útil de impressão em componentes 
 - Não sobrescrever automaticamente `peca.stl`; usar nomes sequenciais e verificar colisões de arquivos.
 - A fragmentação deve ser opcional e acionada pelo usuário, mesmo quando o programa detectar tamanho excedente; alertas e prévia devem ser informativos.
 - Este documento não significa que a fragmentação ou exportação STL das partes esteja implementada.
+
+## Implementação inicial — 17/10/2026
+
+- [x] `multislicer/src/core/multislicer_fragment.pas`: primeiro algoritmo de corte de triângulos por plano ortogonal, tentativa de fechamento de contornos e escrita de STL binário.
+- [x] `multislicer/src/app/multislicer_main.pas`: botão **Fragmentar e exportar STL...** na etapa Modelo, diálogo de eixo X/Y/Z e coordenada de corte, seleção de diretório e arquivos `_parte01.stl`/`_parte02.stl`, inclusão de duas partes editáveis na cena, preservação da peça original.
+- [ ] Validar montagem de faces recortadas em malhas complexas, laços com furos, bordas não-manifold e verificações topológicas antes de rotular o STL como imprimível.
+- [ ] Compilar com FPC/Lazarus e executar testes reais de STL importado/exportado.
+- [ ] Prover prévia de corte antes da confirmação.
+- [ ] Implementar divisão automática em mais de duas partes segundo volume útil e margens.
+- [ ] Integrar undo/redo estrutural da inclusão/exclusão de partes; por ora, criação de fragmentos limpa o histórico de undo de transformações anterior.
+- [ ] Preservar transformações relativas em manifesto e integrar plenamente à gravação `.mslice`.
+
+**Limite funcional:** esta entrega inicial cria duas partes por um plano escolhido e mantém o modelo original. Não é a implementação completa de FRAG-001 a FRAG-010 e não deve ser usada em produção antes dos testes de malha fechada e fatiamento.
