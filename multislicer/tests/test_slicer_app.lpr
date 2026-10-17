@@ -3,7 +3,7 @@ program test_slicer_app;
 uses {$IFDEF UNIX}cthreads,{$ENDIF} Interfaces, Forms, Graphics, Classes, SysUtils, Math, Spin, StdCtrls, multislicer_main,
   multisuite_gcode_writer, multislicer_mesh, multislicer_pipeline, multislicer_stl, multislicer_types,
   multislicer_userdata, multislicer_materials, multislicer_scene, multicad_camera, multislicer_quality,
-  multicnc_types, multicnc_equipment, ExtCtrls, Controls, multislicer_meshcheck, fpjson, jsonparser;
+  multicnc_types, multicnc_equipment, ExtCtrls, Controls, ComCtrls, multislicer_meshcheck, fpjson, jsonparser;
 var Header:TSuiteGCodeHeader; PrintBounds:TSuiteBounds;
   MaterialPreview: TBitmap;
   SavedProject, ModelPath: TJSONData; RelativeModelPath: string;
@@ -11,7 +11,7 @@ var Header:TSuiteGCodeHeader; PrintBounds:TSuiteBounds;
   FN2, FNBig: string; I, J: Integer; Tri: TTriangle; LFino, LNormal, LRasc: Integer; TFino, TNormal, TRasc: Double;
   QD: TQualityDef; PX, PY, PZ, PD, PX0: Double; NSup: Integer; Blk: TSceneBlocker;
   FN, Output, BadOutput, ProfileDir: string; Mat: TMaterialDef; Raised: Boolean; Before: string;
-  EqFile: string; EqStore: TEquipmentStore; Eq: TEquipmentProfile; EqBox: TComboBox; IFS: TFormatSettings; PDir, PFile: string; St0: TTransformState; Canc: TObject; Tm: TTimer;
+  EqFile: string; EqStore: TEquipmentStore; Eq: TEquipmentProfile; EqBox, PBrand, PModel, FKind, FBrand, FModel: TComboBox; InfEd: TSpinEdit; InfTr: TTrackBar; IFS: TFormatSettings; PDir, PFile: string; St0: TTransformState; Canc: TObject; Tm: TTimer;
 procedure Check(OK: Boolean; const Msg: string);
 begin if not OK then raise Exception.Create(Msg); end;
 type
@@ -518,6 +518,60 @@ begin
       finally MaterialPreview.Free; end;
     end;
     DeleteFile(FN2); DeleteFile(FNBig);
+    { Teste Etapa 1: Marca e modelo de impressora }
+    PBrand := TComboBox(F.FindComponent('PrinterBrandBox'));
+    PModel := TComboBox(F.FindComponent('PrinterModelBox'));
+    Check((PBrand <> nil) and (PModel <> nil), 'printer brand and model combos exist');
+    Check(PBrand.Items.IndexOf('Creality') >= 0, 'Creality in printer brands');
+    PBrand.ItemIndex := PBrand.Items.IndexOf('Creality');
+    PBrand.OnChange(PBrand);
+    Check(PModel.Items.IndexOf('Ender-3 S1') >= 0, 'Ender-3 S1 in Creality models');
+    PModel.ItemIndex := PModel.Items.IndexOf('Ender-3 S1');
+    PModel.OnChange(PModel);
+    Check(SameValue(TFloatSpinEdit(F.FindComponent('BedZ')).Value, 270, 1e-6), 'Ender-3 S1 has 270 mm Z');
+    Check(ReadLastChoice('printer_brand') = 'Creality', 'saved printer brand choice');
+    Check(ReadLastChoice('printer_model') = 'Ender-3 S1', 'saved printer model choice');
+
+    { Teste Etapa 3: Tipo, marca e modelo de filamento com temperaturas de bico e mesa }
+    FKind := TComboBox(F.FindComponent('FilamentKindBox'));
+    FBrand := TComboBox(F.FindComponent('FilamentBrandBox'));
+    FModel := TComboBox(F.FindComponent('FilamentModelBox'));
+    Check((FKind <> nil) and (FBrand <> nil) and (FModel <> nil), 'filament combos exist');
+    Check(FKind.Items.IndexOf('PLA') >= 0, 'PLA in filament kinds');
+    FKind.ItemIndex := FKind.Items.IndexOf('PLA');
+    FKind.OnChange(FKind);
+    Check(FBrand.Items.IndexOf('Voolt3D') >= 0, 'Voolt3D in PLA brands');
+    FBrand.ItemIndex := FBrand.Items.IndexOf('Voolt3D');
+    FBrand.OnChange(FBrand);
+    Check(FModel.Items.IndexOf('PLA High Speed') >= 0, 'PLA High Speed in Voolt3D models');
+    FModel.ItemIndex := FModel.Items.IndexOf('PLA High Speed');
+    FModel.OnChange(FModel);
+    Check(TSpinEdit(F.FindComponent('HotendFirstLayer')).Value = 215, 'Voolt3D PLA High Speed first layer hotend 215');
+    Check(TSpinEdit(F.FindComponent('HotendTemperature')).Value = 210, 'Voolt3D PLA High Speed hotend 210');
+    Check(TSpinEdit(F.FindComponent('BedFirstLayer')).Value = 60, 'Voolt3D PLA High Speed bed 60');
+    Check(ReadLastChoice('filament_kind') = 'PLA', 'saved filament kind');
+    Check(ReadLastChoice('filament_brand') = 'Voolt3D', 'saved filament brand');
+    Check(ReadLastChoice('filament_model') = 'PLA High Speed', 'saved filament model');
+
+    { Teste com ABS e 3D Fila }
+    FKind.ItemIndex := FKind.Items.IndexOf('ABS');
+    FKind.OnChange(FKind);
+    Check(FBrand.Items.IndexOf('3D Fila') >= 0, '3D Fila in ABS brands');
+    FBrand.ItemIndex := FBrand.Items.IndexOf('3D Fila');
+    FBrand.OnChange(FBrand);
+    Check(FModel.Items.IndexOf('ABS Alta Fluidez') >= 0, 'ABS Alta Fluidez in 3D Fila');
+    FModel.ItemIndex := FModel.Items.IndexOf('ABS Alta Fluidez');
+    FModel.OnChange(FModel);
+    Check(TSpinEdit(F.FindComponent('HotendFirstLayer')).Value = 245, '3D Fila ABS Alta Fluidez hotend 245');
+    Check(TSpinEdit(F.FindComponent('BedFirstLayer')).Value = 110, '3D Fila ABS Alta Fluidez bed 110');
+
+    { Teste Etapa 4: Preenchimento salvo e modificado }
+    InfEd := TSpinEdit(F.FindComponent('InfillDensity'));
+    Check(InfEd <> nil, 'infill spin edit exists');
+    InfEd.Value := 35;
+    InfEd.OnChange(InfEd);
+    Check(ReadLastChoice('infill_percent') = '35', 'infill saved to multislicer.json');
+
     Writeln('MultiSlicer GUI: OK (suite UI, centering, validation, profiles, start/end G-code, persistence, 3D scene, picking, transform panel, undo, labels, quality profiles, supports, pillars, blockers, brim, raft, layers, export, 3D preview, threaded slicing, project, mesh check, drag and drop, equipment)');
   finally F.Free; Mesh.Free; DeleteFile(ProfileDir + PathDelim + 'multislicer.json'); RemoveDir(ProfileDir + PathDelim + 'materials'); RemoveDir(ProfileDir + PathDelim + 'quality'); RemoveDir(ProfileDir); G.Free; DeleteFile(FN); DeleteFile(Output); DeleteFile(BadOutput); DeleteFile(EqFile); DeleteFile(EqFile + '.bak'); end;
   except on E: Exception do begin Writeln('FAIL: ', E.Message); Halt(1); end; end;

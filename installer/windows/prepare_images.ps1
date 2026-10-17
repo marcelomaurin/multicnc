@@ -1,4 +1,4 @@
-param([string]$OutputDirectory, [string]$Version = '0.10')
+param([string]$OutputDirectory, [string]$Version = '0.11')
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))

@@ -26,11 +26,11 @@ uses
   multislicer_3mf, multislicer_profile, multislicer_pipeline, multislicer_view,
   multislicer_printers, multislicer_materials, multislicer_userdata,
   multislicer_scene, multislicer_view3d, multislicer_toolpath3d, multicad_camera, multislicer_quality, multislicer_support,
-  multisuite_controls, multisuite_icons, multislicer_machines, multicnc_types, multicnc_equipment, fpjson, multislicer_project, multislicer_meshcheck;
+  multisuite_controls, multisuite_icons, multislicer_machines, multicnc_types, multicnc_equipment, fpjson, multislicer_project, multislicer_meshcheck, multislicer_filaments, multislicer_fragment;
 
 const
   { manter igual ao VersionInfo do multislicer.lpi (revisao = etapa do PLANO_TAREFAS) }
-  MS_VERSION = '0.1.0.0';
+  MS_VERSION = '0.1.0.1';
   MS_STEP_COUNT = 7;
   MS_STEPS: array[0..MS_STEP_COUNT - 1] of string = ('1  Impressora', '2  Modelo',
     '3  Material', '4  Qualidade', '5  Suportes', '6  Previa', '7  Saida');
@@ -84,8 +84,10 @@ type
     Log: TMemo;
     { impressora }
     FPrinters: TPrinterDefs;
+    PrinterBrandBox, PrinterModelBox: TComboBox;
+    CreatePrinterProfileBtn: TSuiteButton;
     PrinterBox, FlavorChoice, ExtruderChoice: TComboBox;
-    BedX, BedY, BedZ, Nozzle, FilamentDia: TFloatSpinEdit;
+    BedX, BedY, BedZ, PrintStartZ, Nozzle, FilamentDia: TFloatSpinEdit;
     HeatedBedBox: TCheckBox;
     StartMemo, EndMemo: TMemo;
     PrinterNote: TLabel;
@@ -116,6 +118,7 @@ type
     MaterialBox, MaterialKindBox: TComboBox;
     FActiveMaterial: TMaterialDef;
     MaterialSourceBtn: TSuiteButton;
+    FilamentKindBox, FilamentBrandBox, FilamentModelBox: TComboBox;
     HotendFirst, Hotend, BedFirst, BedTemp, FanPct, FanLayer: TSpinEdit;
     Density, Flow, MaxFlow, RetractLen, RetractSpd, Cost: TFloatSpinEdit;
     LimitPrint, LimitTravel, LimitZ: TFloatSpinEdit;
@@ -169,6 +172,12 @@ type
     procedure NavClick(Sender: TObject);
     procedure OpenClick(Sender: TObject);
     procedure CenterClick(Sender: TObject);
+    procedure PrinterBrandChange(Sender: TObject);
+    procedure PrinterModelChange(Sender: TObject);
+    procedure CreatePrinterProfileClick(Sender: TObject);
+    procedure FilamentKindChange(Sender: TObject);
+    procedure FilamentBrandChange(Sender: TObject);
+    procedure FilamentModelChange(Sender: TObject);
     procedure PrinterChange(Sender: TObject);
     procedure ExtruderChange(Sender: TObject);
     procedure MaterialChange(Sender: TObject);
@@ -241,6 +250,8 @@ type
     procedure ShowQualityMode(Custom: Boolean);
     procedure SyncRecommended;
     procedure TransformChange(Sender: TObject);
+    procedure TransformDialogClick(Sender: TObject);
+    procedure FragmentClick(Sender: TObject);
     procedure Rotate90Click(Sender: TObject);
     procedure MirrorClick(Sender: TObject);
     procedure LayFlatClick(Sender: TObject);
@@ -435,6 +446,7 @@ var
   Page: TTabSheet;
   Scroll: TScrollBox;
   I: Integer;
+  LastBrand, LastModel, LastKind, InfillStr: string;
 begin
   inherited CreateNew(AOwner, 1);
   Caption := 'MultiSlicer ' + MS_VERSION + ' • MultiSuite';
@@ -584,6 +596,58 @@ begin
   ReloadMaterials(ReadLastChoice('material'));
   if MaterialBox.ItemIndex < 0 then MaterialBox.ItemIndex := 0;
   MaterialChange(nil);
+
+  { Inicializa marcas e modelos de impressora }
+  if PrinterBrandBox <> nil then
+  begin
+    GetMachineBrands(PrinterBrandBox.Items);
+    LastBrand := ReadLastChoice('printer_brand');
+    LastModel := ReadLastChoice('printer_model');
+    if (LastBrand <> '') and (PrinterBrandBox.Items.IndexOf(LastBrand) >= 0) then
+      PrinterBrandBox.ItemIndex := PrinterBrandBox.Items.IndexOf(LastBrand)
+    else if PrinterBrandBox.Items.Count > 0 then
+      PrinterBrandBox.ItemIndex := 0;
+
+    if PrinterBrandBox.ItemIndex >= 0 then
+    begin
+      GetMachineModels(PrinterBrandBox.Text, PrinterModelBox.Items);
+      if (LastModel <> '') and (PrinterModelBox.Items.IndexOf(LastModel) >= 0) then
+        PrinterModelBox.ItemIndex := PrinterModelBox.Items.IndexOf(LastModel)
+      else if PrinterModelBox.Items.Count > 0 then
+        PrinterModelBox.ItemIndex := 0;
+    end;
+  end;
+
+  { Inicializa tipos, marcas e modelos de filamento }
+  if FilamentKindBox <> nil then
+  begin
+    GetFilamentKinds(FilamentKindBox.Items);
+    LastKind := ReadLastChoice('filament_kind');
+    LastBrand := ReadLastChoice('filament_brand');
+    LastModel := ReadLastChoice('filament_model');
+    if (LastKind <> '') and (FilamentKindBox.Items.IndexOf(LastKind) >= 0) then
+      FilamentKindBox.ItemIndex := FilamentKindBox.Items.IndexOf(LastKind)
+    else if FilamentKindBox.Items.Count > 0 then
+      FilamentKindBox.ItemIndex := 0;
+
+    if FilamentKindBox.ItemIndex >= 0 then
+    begin
+      GetFilamentBrands(FilamentKindBox.Text, FilamentBrandBox.Items);
+      if (LastBrand <> '') and (FilamentBrandBox.Items.IndexOf(LastBrand) >= 0) then
+        FilamentBrandBox.ItemIndex := FilamentBrandBox.Items.IndexOf(LastBrand)
+      else if FilamentBrandBox.Items.Count > 0 then
+        FilamentBrandBox.ItemIndex := 0;
+
+      if FilamentBrandBox.ItemIndex >= 0 then
+      begin
+        GetFilamentModels(FilamentKindBox.Text, FilamentBrandBox.Text, FilamentModelBox.Items);
+        if (LastModel <> '') and (FilamentModelBox.Items.IndexOf(LastModel) >= 0) then
+          FilamentModelBox.ItemIndex := FilamentModelBox.Items.IndexOf(LastModel)
+        else if FilamentModelBox.Items.Count > 0 then
+          FilamentModelBox.ItemIndex := 0;
+      end;
+    end;
+  end;
   ReloadEquipment;
   SelectEquipment(ReadLastChoice('equipment'));
   ReloadQualities(ReadLastChoice('quality'));
@@ -596,6 +660,13 @@ begin
     AdhesionTypeBox.ItemIndex := EnsureRange(StrToIntDef(ReadLastChoice('adhesion_type'), 1), 0, 3);
   finally
     FUpdating := False;
+  end;
+  InfillStr := ReadLastChoice('infill_percent');
+  if InfillStr <> '' then
+  begin
+    InfillDensity.Value := EnsureRange(StrToIntDef(InfillStr, 20), 0, 100);
+    InfillTrack.Position := InfillDensity.Value;
+    InfillLabel.Caption := IntToStr(InfillDensity.Value) + '%';
   end;
   SyncRecommended;
   RefreshSupportAids;
@@ -626,51 +697,64 @@ begin
     16, 48, 290, 40);
   EquipmentNote.ShowHint := True;
   EquipmentNote.Name := 'EquipmentNote';
-  PrinterBox := Combo(S, 'Perfil de impressora', 92);
+
+  Section(S, 'MARCA E MODELO', 92);
+  PrinterBrandBox := Combo(S, 'Marca da impressora', 114);
+  PrinterBrandBox.Name := 'PrinterBrandBox';
+  PrinterBrandBox.OnChange := @PrinterBrandChange;
+  PrinterModelBox := Combo(S, 'Modelo', 170);
+  PrinterModelBox.Name := 'PrinterModelBox';
+  PrinterModelBox.OnChange := @PrinterModelChange;
+  CreatePrinterProfileBtn := Button(S, 'Criar perfil a partir do modelo...', 16, 226, 290, sikNew, @CreatePrinterProfileClick);
+  CreatePrinterProfileBtn.Name := 'CreatePrinterProfileBtn';
+
+  Section(S, 'PERFIL DE IMPRESSORA', 270);
+  PrinterBox := Combo(S, 'Perfil cadastrado', 292);
   PrinterBox.OnChange := @PrinterChange;
-  PrinterNote := LabelAt(S, '', 16, 146, 290, 20);
-  Button(S, 'Salvar...', 16, 168, 140, sikSave, @SavePrinterClick);
-  PrinterDeleteBtn := Button(S, 'Excluir', 166, 168, 140, sikTrash, @DeletePrinterClick);
-  FlavorChoice := Combo(S, 'Firmware', 214);
+  PrinterNote := LabelAt(S, '', 16, 346, 290, 20);
+  Button(S, 'Salvar...', 16, 368, 140, sikSave, @SavePrinterClick);
+  PrinterDeleteBtn := Button(S, 'Excluir', 166, 368, 140, sikTrash, @DeletePrinterClick);
+  FlavorChoice := Combo(S, 'Firmware', 414);
   FlavorChoice.Items.Add('Marlin'); FlavorChoice.Items.Add('Klipper');
   FlavorChoice.ItemIndex := 0;
   FlavorChoice.OnChange := @SettingsChanged;
-  ExtruderChoice := Combo(S, 'Extrusora', 272);
+  ExtruderChoice := Combo(S, 'Extrusora', 472);
   for K := Low(TExtruderKind) to High(TExtruderKind) do ExtruderChoice.Items.Add(EXTRUDER_NAMES[K]);
   ExtruderChoice.ItemIndex := 0;
   ExtruderChoice.Name := 'Extruder';
   ExtruderChoice.OnChange := @ExtruderChange;
-  BedX := FloatField(S, 'Mesa X (mm)', 'BedX', 220, 10, 2000, 1, 1, 330);
-  BedY := FloatField(S, 'Mesa Y (mm)', 'BedY', 220, 10, 2000, 1, 1, 386);
-  BedZ := FloatField(S, 'Altura maxima Z (mm)', 'BedZ', 250, 10, 2000, 1, 1, 442);
-  Nozzle := FloatField(S, 'Diametro do bico (mm)', 'Nozzle', 0.4, 0.1, 2, 0.05, 2, 498);
-  FilamentDia := FloatField(S, 'Diametro do filamento (mm)', 'FilamentDiameter', 1.75, 1, 3.5, 0.05, 2, 554);
-  HeatedBedBox := Check(S, 'Mesa aquecida', 612);
+  BedX := FloatField(S, 'Mesa X (mm)', 'BedX', 220, 10, 2000, 1, 1, 530);
+  BedY := FloatField(S, 'Mesa Y (mm)', 'BedY', 220, 10, 2000, 1, 1, 586);
+  BedZ := FloatField(S, 'Altura maxima Z (mm)', 'BedZ', 250, 10, 2000, 1, 1, 642);
+  Nozzle := FloatField(S, 'Diametro do bico (mm)', 'Nozzle', 0.4, 0.1, 2, 0.05, 2, 698);
+  FilamentDia := FloatField(S, 'Diametro do filamento (mm)', 'FilamentDiameter', 1.75, 1, 3.5, 0.05, 2, 754);
+  PrintStartZ := FloatField(S, 'Degrau inicial Z (mm)', 'PrintStartZ', 0, 0, 100, 0.1, 2, 810);
+  HeatedBedBox := Check(S, 'Mesa aquecida', 868);
   HeatedBedBox.Checked := True;
-  Section(S, 'G-CODE INICIAL', 650);
+  Section(S, 'G-CODE INICIAL', 906);
   StartMemo := TMemo.Create(Self);
   StartMemo.Parent := S; StartMemo.Name := 'StartGCode';
-  StartMemo.SetBounds(16, 672, 290, 170);
+  StartMemo.SetBounds(16, 928, 290, 170);
   StartMemo.ScrollBars := ssAutoBoth; StartMemo.WordWrap := False;
   StartMemo.Font.Name := 'Courier New'; StartMemo.Font.Size := 9;
   StartMemo.Clear;
   StartMemo.OnChange := @SettingsChanged;
-  Section(S, 'G-CODE FINAL', 852);
+  Section(S, 'G-CODE FINAL', 1108);
   EndMemo := TMemo.Create(Self);
   EndMemo.Parent := S; EndMemo.Name := 'EndGCode';
-  EndMemo.SetBounds(16, 874, 290, 130);
+  EndMemo.SetBounds(16, 1130, 290, 130);
   EndMemo.ScrollBars := ssAutoBoth; EndMemo.WordWrap := False;
   EndMemo.Font.Name := 'Courier New'; EndMemo.Font.Size := 9;
   EndMemo.Clear;
   EndMemo.OnChange := @SettingsChanged;
   LabelAt(S, 'Vazio = bloco padrao (aquece, G28, espera). Variaveis: {first_layer_bed_temp} {first_layer_hotend_temp} {bed_temp} {hotend_temp} {bed_x} {bed_y} {bed_z} {fan_speed}.',
-    16, 1012, 290, 76);
-  Section(S, 'LIMITES DO EQUIPAMENTO', 1100);
-  LimitPrint := FloatField(S, 'Impressao maxima (mm/s)', 'MaxPrintSpeed', 150, 1, 1000, 5, 1, 1122);
-  LimitTravel := FloatField(S, 'Viagem maxima (mm/s)', 'MaxTravelSpeed', 200, 1, 1000, 5, 1, 1178);
-  LimitZ := FloatField(S, 'Eixo Z maximo (mm/s)', 'MaxZSpeed', 5, 0.1, 100, 0.5, 1, 1234);
-  LimitHotend := IntField(S, 'Limite do bico (C)', 'MaxHotendTemp', 260, 1, 400, 1290);
-  LimitBed := IntField(S, 'Limite da mesa (C)', 'MaxBedTemp', 110, 0, 150, 1346);
+    16, 1268, 290, 76);
+  Section(S, 'LIMITES DO EQUIPAMENTO', 1360);
+  LimitPrint := FloatField(S, 'Impressao maxima (mm/s)', 'MaxPrintSpeed', 150, 1, 1000, 5, 1, 1382);
+  LimitTravel := FloatField(S, 'Viagem maxima (mm/s)', 'MaxTravelSpeed', 200, 1, 1000, 5, 1, 1438);
+  LimitZ := FloatField(S, 'Eixo Z maximo (mm/s)', 'MaxZSpeed', 5, 0.1, 100, 0.5, 1, 1494);
+  LimitHotend := IntField(S, 'Limite do bico (C)', 'MaxHotendTemp', 260, 1, 400, 1550);
+  LimitBed := IntField(S, 'Limite da mesa (C)', 'MaxBedTemp', 110, 0, 150, 1606);
 end;
 
 function TMultiSlicerForm.TransformField(AParent: TWinControl; const AText, AName: string;
@@ -708,6 +792,8 @@ begin
   LockBox.SetBounds(166, 278, 140, 24);
   LockBox.Caption := 'Travar peca';
   LockBox.OnChange := @LockClick;
+  Button(S, 'Fragmentar e exportar STL...', 16, 1142, 290, sikCopy, @FragmentClick).Hint :=
+    'Dividir no eixo X, Y ou Z; cria duas partes STL separadas sem apagar a original';
   Button(S, 'Organizar mesa', 16, 314, 290, sikWand, @ArrangeClick).Hint := 'Distribui as pecas destravadas a partir do centro';
   UndoBtn := Button(S, 'Desfazer', 16, 356, 140, sikUndo, @UndoClick);
   UndoBtn.Hint := 'Ctrl+Z';
@@ -733,6 +819,8 @@ begin
     'Clique depois na face da peca que deve ficar apoiada na mesa';
 
   Section(S, 'ESCALAR', 686);
+  Button(S, 'Transformar dimensoes...', 16, 1098, 290, sikGauge, @TransformDialogClick).Hint :=
+    'Formulario de escala, com escolha de eixos. Aplique e use Ctrl+Z para desfazer';
   UniformBox := TCheckBox.Create(Self);
   UniformBox.Parent := S; UniformBox.Name := 'UniformScale';
   UniformBox.SetBounds(16, 706, 290, 24);
@@ -759,39 +847,51 @@ end;
 
 procedure TMultiSlicerForm.BuildMaterialPage(S: TScrollBox);
 begin
-  MaterialKindBox := Combo(S, 'Material', 52);
+  Section(S, 'FILAMENTO POR MARCA E MODELO', 44);
+  FilamentKindBox := Combo(S, 'Tipo (Polimero)', 66);
+  FilamentKindBox.Name := 'FilamentKindBox';
+  FilamentKindBox.OnChange := @FilamentKindChange;
+  FilamentBrandBox := Combo(S, 'Marca do filamento', 124);
+  FilamentBrandBox.Name := 'FilamentBrandBox';
+  FilamentBrandBox.OnChange := @FilamentBrandChange;
+  FilamentModelBox := Combo(S, 'Modelo comercial', 182);
+  FilamentModelBox.Name := 'FilamentModelBox';
+  FilamentModelBox.OnChange := @FilamentModelChange;
+
+  Section(S, 'PERFIL DE MATERIAL', 240);
+  MaterialKindBox := Combo(S, 'Material', 262);
   MaterialKindBox.Name := 'MaterialKind';
   MaterialKindBox.Items.CommaText := 'PLA,PETG,ABS,ASA,TPU,Outro';
   MaterialKindBox.ItemIndex := 0;
   MaterialKindBox.OnChange := @MaterialKindChange;
-  MaterialBox := Combo(S, 'Marca / linha (opcional)', 108);
+  MaterialBox := Combo(S, 'Marca / linha (opcional)', 318);
   MaterialBox.Name := 'CommercialFilament';
   MaterialBox.OnChange := @MaterialChange;
-  MaterialNote := LabelAt(S, '', 16, 162, 290, 20);
-  Button(S, 'Salvar...', 16, 184, 140, sikSave, @SaveMaterialClick);
-  MaterialDeleteBtn := Button(S, 'Excluir', 166, 184, 140, sikTrash, @DeleteMaterialClick);
-  MaterialNotes := LabelAt(S, '', 16, 226, 290, 120);
+  MaterialNote := LabelAt(S, '', 16, 372, 290, 20);
+  Button(S, 'Salvar...', 16, 394, 140, sikSave, @SaveMaterialClick);
+  MaterialDeleteBtn := Button(S, 'Excluir', 166, 394, 140, sikTrash, @DeleteMaterialClick);
+  MaterialNotes := LabelAt(S, '', 16, 436, 290, 120);
   MaterialNotes.Name := 'MaterialRecommendation';
-  MaterialSourceBtn := Button(S, 'Fonte do fabricante', 16, 352, 290, sikFile, @MaterialSourceClick);
+  MaterialSourceBtn := Button(S, 'Fonte do fabricante', 16, 562, 290, sikFile, @MaterialSourceClick);
   MaterialSourceBtn.Name := 'MaterialSource';
-  Section(S, 'TEMPERATURAS', 394);
-  HotendFirst := IntField(S, 'Bico na 1a camada (C)', 'HotendFirstLayer', 205, 0, 400, 416);
-  Hotend := IntField(S, 'Bico nas demais camadas (C)', 'HotendTemperature', 200, 0, 400, 472);
-  BedFirst := IntField(S, 'Mesa na 1a camada (C)', 'BedFirstLayer', 60, 0, 150, 528);
-  BedTemp := IntField(S, 'Mesa nas demais camadas (C)', 'BedTemperature', 60, 0, 150, 584);
-  Section(S, 'VENTOINHA', 650);
-  FanPct := IntField(S, 'Ventoinha da peca (%)', 'FanPercent', 100, 0, 100, 672);
-  FanLayer := IntField(S, 'Liga a partir da camada', 'FanFromLayer', 2, 1, 50, 728);
-  Section(S, 'EXTRUSAO', 794);
-  Flow := FloatField(S, 'Fluxo (%)', 'FlowPercent', 100, 50, 150, 1, 0, 816);
-  RetractLen := FloatField(S, 'Retracao (mm)', 'RetractLength', 5, 0, 15, 0.1, 1, 872);
-  RetractSpd := FloatField(S, 'Velocidade de retracao (mm/s)', 'RetractSpeed', 45, 5, 150, 1, 0, 928);
-  MaxFlow := FloatField(S, 'Vazao maxima do hotend (mm3/s)', 'MaxVolumetricFlow', 8, 0.1, 100, 0.5, 1, 994);
-  Section(S, 'PESO E CUSTO', 1060);
-  Density := FloatField(S, 'Densidade (g/cm3)', 'FilamentDensity', 1.24, 0.5, 3, 0.01, 2, 1082);
-  Cost := FloatField(S, 'Preco do carretel (R$ por kg)', 'CostPerKg', 120, 0, 10000, 5, 2, 1138);
+  Section(S, 'TEMPERATURAS', 604);
+  HotendFirst := IntField(S, 'Bico na 1a camada (C)', 'HotendFirstLayer', 205, 0, 400, 626);
+  Hotend := IntField(S, 'Bico nas demais camadas (C)', 'HotendTemperature', 200, 0, 400, 682);
+  BedFirst := IntField(S, 'Mesa na 1a camada (C)', 'BedFirstLayer', 60, 0, 150, 738);
+  BedTemp := IntField(S, 'Mesa nas demais camadas (C)', 'BedTemperature', 60, 0, 150, 794);
+  Section(S, 'VENTOINHA', 860);
+  FanPct := IntField(S, 'Ventoinha da peca (%)', 'FanPercent', 100, 0, 100, 882);
+  FanLayer := IntField(S, 'Liga a partir da camada', 'FanFromLayer', 2, 1, 50, 938);
+  Section(S, 'EXTRUSAO', 1004);
+  Flow := FloatField(S, 'Fluxo (%)', 'FlowPercent', 100, 50, 150, 1, 0, 1026);
+  RetractLen := FloatField(S, 'Retracao (mm)', 'RetractLength', 5, 0, 15, 0.1, 1, 1082);
+  RetractSpd := FloatField(S, 'Velocidade de retracao (mm/s)', 'RetractSpeed', 45, 5, 150, 1, 0, 1138);
+  MaxFlow := FloatField(S, 'Vazao maxima do hotend (mm3/s)', 'MaxVolumetricFlow', 8, 0.1, 100, 0.5, 1, 1204);
+  Section(S, 'PESO E CUSTO', 1270);
+  Density := FloatField(S, 'Densidade (g/cm3)', 'FilamentDensity', 1.24, 0.5, 3, 0.01, 2, 1292);
+  Cost := FloatField(S, 'Preco do carretel (R$ por kg)', 'CostPerKg', 120, 0, 10000, 5, 2, 1348);
   LabelAt(S, 'A retracao vem do material conforme a extrusora da impressora (Bowden ou direta). Confira a faixa de temperatura no carretel.',
-    16, 1200, 290, 60);
+    16, 1410, 290, 60);
 end;
 
 procedure TMultiSlicerForm.BuildQualityPage(S: TScrollBox);
@@ -1869,6 +1969,233 @@ begin
   SceneChanged('');
 end;
 
+procedure TMultiSlicerForm.FragmentClick(Sender: TObject);
+var
+  O: TSliceObject;
+  D: TForm;
+  AxisChoice: TComboBox;
+  CutField: TFloatSpinEdit;
+  L: TLabel;
+  OKBtn,CancelBtn: TButton;
+  Box: TBox3;
+  Lo,Hi,Cut: Double;
+  Axis: Integer;
+  Base,Dir,File1,File2,Reason: string;
+  M1,M2: TMesh;
+begin
+  if FSlicing then Exit;
+  O:=TargetObject;
+  if O=nil then begin
+    MessageDlg('Fragmentar peca','Selecione uma peca.',mtInformation,[mbOK],0);
+    Exit;
+  end;
+  if O.Locked then begin
+    MessageDlg('Fragmentar peca','Destrave a peca para fragmentar.',mtInformation,[mbOK],0);
+    Exit;
+  end;
+  Box:=O.WorldBox;
+  D:=TForm.Create(Self);
+  try
+    D.Caption:='Fragmentar peca - corte em plano';
+    D.Position:=poScreenCenter;D.BorderStyle:=bsDialog;
+    D.ClientWidth:=400;D.ClientHeight:=215;
+    L:=TLabel.Create(D);L.Parent:=D;L.Caption:='Eixo de corte';L.SetBounds(15,17,160,19);
+    AxisChoice:=TComboBox.Create(D);AxisChoice.Parent:=D;AxisChoice.SetBounds(15,39,145,28);
+    AxisChoice.Style:=csDropDownList;
+    AxisChoice.Items.Add('X');AxisChoice.Items.Add('Y');AxisChoice.Items.Add('Z');
+    AxisChoice.ItemIndex:=0;
+    L:=TLabel.Create(D);L.Parent:=D;L.Caption:='Posicao de corte (mm, coordenada da mesa)';L.SetBounds(15,79,365,20);
+    CutField:=TFloatSpinEdit.Create(D);CutField.Parent:=D;CutField.SetBounds(15,102,145,28);
+    CutField.DecimalPlaces:=2;CutField.MinValue:=-100000;CutField.MaxValue:=100000;
+    CutField.Value:=(Box.Min.X+Box.Max.X)/2;
+    L:=TLabel.Create(D);L.Parent:=D;L.WordWrap:=True;
+    L.Caption:='Gera duas partes STL fechadas quando a malha permitir. A peca original permanece na cena.';
+    L.SetBounds(174,39,210,92);
+    OKBtn:=TButton.Create(D);OKBtn.Parent:=D;OKBtn.Caption:='Gerar partes';
+    OKBtn.ModalResult:=mrOk;OKBtn.Default:=True;OKBtn.SetBounds(193,172,112,30);
+    CancelBtn:=TButton.Create(D);CancelBtn.Parent:=D;CancelBtn.Caption:='Cancelar';
+    CancelBtn.ModalResult:=mrCancel;CancelBtn.Cancel:=True;CancelBtn.SetBounds(316,172,78,30);
+    if D.ShowModal<>mrOk then Exit;
+    Axis:=AxisChoice.ItemIndex;Cut:=CutField.Value;
+  finally D.Free;end;
+  case Axis of
+    0:begin Lo:=Box.Min.X;Hi:=Box.Max.X;end;
+    1:begin Lo:=Box.Min.Y;Hi:=Box.Max.Y;end;
+  else begin Lo:=Box.Min.Z;Hi:=Box.Max.Z;end;end;
+  if (Cut<=Lo+1e-5)or(Cut>=Hi-1e-5) then begin
+    MessageDlg('Fragmentar peca','Plano deve ficar dentro dos limites da peca.',mtWarning,[mbOK],0);
+    Exit;
+  end;
+  Dir:='';
+  if not SelectDirectory('Salvar os fragmentos STL','',Dir) then Exit;
+  Base:=ChangeFileExt(ExtractFileName(O.Name),'');
+  if Base='' then Base:='peca';
+  File1:=IncludeTrailingPathDelimiter(Dir)+Base+'_parte01.stl';
+  File2:=IncludeTrailingPathDelimiter(Dir)+Base+'_parte02.stl';
+  if FileExists(File1)or FileExists(File2) then
+    if MessageDlg('Fragmentar peca','Os arquivos de partes ja existem. Sobrescrever?',
+      mtConfirmation,[mbYes,mbNo],0)<>mrYes then Exit;
+  M1:=nil;M2:=nil;
+  if not SplitMeshAxis(O.WorldMesh,Axis,Cut,M1,M2,Reason) then begin
+    MessageDlg('Fragmentar peca','Falha no corte: '+Reason,mtError,[mbOK],0);
+    Exit;
+  end;
+  try
+    SaveBinarySTL(M1,File1);
+    SaveBinarySTL(M2,File2);
+    { O original permanece: o historico atual so abrange transformacoes,
+      nao a inclusao ou remocao de malhas. }
+    FScene.Add(M1,Base+'_parte01',File1);M1:=nil;
+    FScene.Add(M2,Base+'_parte02',File2);M2:=nil;
+    FScene.ClearHistory;
+    FUndoKey:='';
+    SceneChanged('Partes STL exportadas e adicionadas. Original preservado; remova-o manualmente quando desejar.');
+    MessageDlg('Fragmentar peca',
+      'Foram exportados dois STL. As partes podem ser movidas e transformadas antes de fatiar.'+
+      LineEnding+'A criacao das partes nao pode ser desfeita por Ctrl+Z nesta versao.',
+      mtInformation,[mbOK],0);
+  finally M1.Free;M2.Free;end;
+end;
+
+procedure TMultiSlicerForm.TransformDialogClick(Sender: TObject);
+var
+  D: TForm;
+  Mode: TRadioGroup;
+  UniformBoxDlg: TCheckBox;
+  Axes: array[0..2] of TCheckBox;
+  PercentFields, DimFields: array[0..2] of TFloatSpinEdit;
+  Info: TLabel;
+  ApplyBtn, CancelBtn: TButton;
+  O: TSliceObject;
+  Sz: TVec3;
+  Factors: array[0..2] of Double;
+  Dimensions: array[0..2] of Double;
+  I, FirstAxis: Integer;
+  Factor: Double;
+  AxisNames: array[0..2] of string = ('X', 'Y', 'Z');
+begin
+  O := TargetObject;
+  if O = nil then
+  begin
+    MessageDlg('Transformar dimensoes', 'Selecione uma peca na lista ou na mesa 3D.',
+      mtInformation, [mbOK], 0);
+    Exit;
+  end;
+  if O.Locked then
+  begin
+    MessageDlg('Transformar dimensoes', 'Destrave a peca antes de transforma-la.',
+      mtInformation, [mbOK], 0);
+    Exit;
+  end;
+  Sz := O.Size;
+  Dimensions[0] := Sz.X;
+  Dimensions[1] := Sz.Y;
+  Dimensions[2] := Sz.Z;
+  D := TForm.Create(Self);
+  try
+    D.Caption := 'Transformar peca - escala e dimensoes';
+    D.Position := poScreenCenter;
+    D.BorderStyle := bsDialog;
+    D.ClientWidth := 495;
+    D.ClientHeight := 374;
+    Mode := TRadioGroup.Create(D);
+    Mode.Parent := D;
+    Mode.Caption := 'Aplicar valores em';
+    Mode.SetBounds(16, 12, 463, 77);
+    Mode.Items.Add('Percentual sobre o tamanho atual (200% = dobro)');
+    Mode.Items.Add('Dimensao final em milimetros');
+    Mode.ItemIndex := 0;
+    UniformBoxDlg := TCheckBox.Create(D);
+    UniformBoxDlg.Parent := D;
+    UniformBoxDlg.Caption := 'Escala proporcional nos eixos selecionados';
+    UniformBoxDlg.SetBounds(18, 99, 450, 24);
+    UniformBoxDlg.Checked := True;
+    Info := TLabel.Create(D);
+    Info.Parent := D;
+    Info.Caption := 'Marque os eixos a alterar. Em proporcional, o primeiro eixo marcado define o fator comum.';
+    Info.SetBounds(18, 126, 455, 36);
+    Info.WordWrap := True;
+    for I := 0 to 2 do
+    begin
+      Axes[I] := TCheckBox.Create(D);
+      Axes[I].Parent := D;
+      Axes[I].Caption := AxisNames[I];
+      Axes[I].SetBounds(20, 167 + I * 51, 48, 25);
+      Axes[I].Checked := True;
+      PercentFields[I] := TFloatSpinEdit.Create(D);
+      PercentFields[I].Parent := D;
+      PercentFields[I].SetBounds(85, 164 + I * 51, 105, 28);
+      PercentFields[I].MinValue := 0.01;
+      PercentFields[I].MaxValue := 10000;
+      PercentFields[I].DecimalPlaces := 2;
+      PercentFields[I].Increment := 5;
+      PercentFields[I].Value := 100;
+      DimFields[I] := TFloatSpinEdit.Create(D);
+      DimFields[I].Parent := D;
+      DimFields[I].SetBounds(211, 164 + I * 51, 112, 28);
+      DimFields[I].MinValue := 0.01;
+      DimFields[I].MaxValue := 100000;
+      DimFields[I].DecimalPlaces := 2;
+      DimFields[I].Increment := 1;
+      DimFields[I].Value := Max(0.01, Dimensions[I]);
+    end;
+    with TLabel.Create(D) do begin Parent := D; Caption := 'Percentual (%)'; SetBounds(85, 146, 112, 18); end;
+    with TLabel.Create(D) do begin Parent := D; Caption := 'Dimensao (mm)'; SetBounds(211, 146, 112, 18); end;
+    with TLabel.Create(D) do begin Parent := D; Caption := Format('Atual: X %.2f  Y %.2f  Z %.2f mm', [Sz.X, Sz.Y, Sz.Z]); SetBounds(332, 187, 155, 60); WordWrap := True; end;
+    ApplyBtn := TButton.Create(D);
+    ApplyBtn.Parent := D;
+    ApplyBtn.Caption := 'Aplicar e visualizar';
+    ApplyBtn.SetBounds(271, 335, 133, 28);
+    ApplyBtn.ModalResult := mrOk;
+    ApplyBtn.Default := True;
+    CancelBtn := TButton.Create(D);
+    CancelBtn.Parent := D;
+    CancelBtn.Caption := 'Cancelar';
+    CancelBtn.SetBounds(412, 335, 70, 28);
+    CancelBtn.ModalResult := mrCancel;
+    CancelBtn.Cancel := True;
+    if D.ShowModal <> mrOk then Exit;
+    FirstAxis := -1;
+    for I := 0 to 2 do if Axes[I].Checked then begin FirstAxis := I; Break; end;
+    if FirstAxis < 0 then
+    begin
+      MessageDlg('Transformar dimensoes', 'Nenhum eixo selecionado. A peca nao foi alterada.',
+        mtInformation, [mbOK], 0);
+      Exit;
+    end;
+    for I := 0 to 2 do
+    begin
+      Factors[I] := 1;
+      if Axes[I].Checked then
+      begin
+        if Mode.ItemIndex = 0 then Factors[I] := PercentFields[I].Value / 100
+        else if Dimensions[I] > 1e-9 then Factors[I] := DimFields[I].Value / Dimensions[I]
+        else raise Exception.Create('Dimensao atual igual a zero no eixo ' + AxisNames[I]);
+      end;
+    end;
+    if UniformBoxDlg.Checked then
+    begin
+      Factor := Factors[FirstAxis];
+      for I := 0 to 2 do
+        if Axes[I].Checked then Factors[I] := Factor;
+    end;
+    if (Abs(Factors[0] - 1) < 1e-9) and
+       (Abs(Factors[1] - 1) < 1e-9) and
+       (Abs(Factors[2] - 1) < 1e-9) then Exit;
+    { Um unico passo de undo para toda a transformacao. }
+    FScene.PushUndo;
+    FUndoKey := '';
+    O.ScaleX := O.ScaleX * Factors[0];
+    O.ScaleY := O.ScaleY * Factors[1];
+    O.ScaleZ := O.ScaleZ * Factors[2];
+    FScene.Touch;
+    LoadTransformEditor;
+    SceneChanged('Escala aplicada. Confira a mesa 3D; Ctrl+Z desfaz e Ctrl+Y refaz.');
+  finally
+    D.Free;
+  end;
+end;
+
 procedure TMultiSlicerForm.Rotate90Click(Sender: TObject);
 var I, N: Integer;
 begin
@@ -2292,6 +2619,7 @@ begin
   if FUpdating then Exit;
   InfillLabel.Caption := IntToStr(InfillTrack.Position) + '%';
   InfillDensity.Value := InfillTrack.Position;
+  WriteLastChoice('infill_percent', IntToStr(InfillTrack.Position));
 end;
 
 procedure TMultiSlicerForm.AdhesionClick(Sender: TObject);
@@ -2384,6 +2712,7 @@ begin
   if (PrinterBox.ItemIndex >= 0) and (PrinterBox.ItemIndex <= High(FPrinters)) then
     Result.Name := FPrinters[PrinterBox.ItemIndex].Name;
   Result.BedX := BedX.Value; Result.BedY := BedY.Value; Result.BedZ := BedZ.Value;
+  Result.PrintStartZ := PrintStartZ.Value;
   Result.Nozzle := Nozzle.Value; Result.FilamentDiameter := FilamentDia.Value;
   Result.Flavor := TSlicerFlavor(Max(0, FlavorChoice.ItemIndex));
   Result.Extruder := TExtruderKind(Max(0, ExtruderChoice.ItemIndex));
@@ -2502,6 +2831,7 @@ begin
   FUpdating := True;
   try
     BedX.Value := P.BedX; BedY.Value := P.BedY; BedZ.Value := P.BedZ;
+    PrintStartZ.Value := P.PrintStartZ;
     Nozzle.Value := P.Nozzle; FilamentDia.Value := P.FilamentDiameter;
     FlavorChoice.ItemIndex := Ord(P.Flavor);
     ExtruderChoice.ItemIndex := Ord(P.Extruder);
@@ -2594,13 +2924,206 @@ begin
   end;
 end;
 
+procedure TMultiSlicerForm.PrinterBrandChange(Sender: TObject);
+var
+  Brand: string;
+begin
+  if FUpdating or (PrinterBrandBox = nil) or (PrinterModelBox = nil) then Exit;
+  Brand := PrinterBrandBox.Text;
+  FUpdating := True;
+  try
+    GetMachineModels(Brand, PrinterModelBox.Items);
+    if PrinterModelBox.Items.Count > 0 then
+      PrinterModelBox.ItemIndex := 0
+    else
+      PrinterModelBox.ItemIndex := -1;
+  finally
+    FUpdating := False;
+  end;
+  if PrinterModelBox.ItemIndex >= 0 then
+    PrinterModelChange(Sender);
+end;
+
+procedure TMultiSlicerForm.PrinterModelChange(Sender: TObject);
+var
+  Brand, Model: string;
+  Idx: Integer;
+  Spec: TMachineSpec;
+  P: TPrinterDef;
+begin
+  if FUpdating or (PrinterBrandBox = nil) or (PrinterModelBox = nil) then Exit;
+  Brand := PrinterBrandBox.Text;
+  Model := PrinterModelBox.Text;
+  if Model = '' then Exit;
+
+  Idx := FindMachine(Brand, Model);
+  if Idx >= 0 then
+  begin
+    Spec := MachineCatalog[Idx];
+    P := MachinePrinterDef(Spec, Spec.Brand + ' ' + Spec.Model, 0, 0, 0);
+    ApplyPrinter(P);
+    if Sender <> nil then
+    begin
+      WriteLastChoice('printer_brand', Brand);
+      WriteLastChoice('printer_model', Model);
+    end;
+    Idx := FindPrinter(FPrinters, P.Name);
+    if Idx >= 0 then
+    begin
+      FUpdating := True;
+      try
+        PrinterBox.ItemIndex := Idx;
+      finally
+        FUpdating := False;
+      end;
+    end;
+    SettingsChanged(Sender);
+  end;
+end;
+
+procedure TMultiSlicerForm.CreatePrinterProfileClick(Sender: TObject);
+var
+  P: TPrinterDef;
+  AName: string;
+begin
+  P := CurrentPrinter;
+  if (PrinterBrandBox <> nil) and (PrinterModelBox <> nil) and
+     (PrinterBrandBox.Text <> '') and (PrinterModelBox.Text <> '') then
+    AName := PrinterBrandBox.Text + ' ' + PrinterModelBox.Text
+  else
+    AName := P.Name;
+
+  if not InputQuery('Criar perfil de impressora', 'Nome do perfil:', AName) then Exit;
+  AName := Trim(AName);
+  if AName = '' then Exit;
+  P.Name := AName;
+  try
+    SavePrinter(P);
+    ReloadPrinters(AName);
+    WriteLastChoice('printer', AName);
+    if (PrinterBrandBox <> nil) and (PrinterBrandBox.Text <> '') then
+      WriteLastChoice('printer_brand', PrinterBrandBox.Text);
+    if (PrinterModelBox <> nil) and (PrinterModelBox.Text <> '') then
+      WriteLastChoice('printer_model', PrinterModelBox.Text);
+    RefreshProfileNotes;
+    Status.Caption := 'Perfil criado a partir do modelo: ' + AName;
+  except
+    on E: Exception do ShowError(E);
+  end;
+end;
+
+procedure TMultiSlicerForm.FilamentKindChange(Sender: TObject);
+var
+  Kind, CurBrand: string;
+begin
+  if FUpdating or (FilamentKindBox = nil) or (FilamentBrandBox = nil) then Exit;
+  Kind := FilamentKindBox.Text;
+  CurBrand := FilamentBrandBox.Text;
+  FUpdating := True;
+  try
+    GetFilamentBrands(Kind, FilamentBrandBox.Items);
+    if (CurBrand <> '') and (FilamentBrandBox.Items.IndexOf(CurBrand) >= 0) then
+      FilamentBrandBox.ItemIndex := FilamentBrandBox.Items.IndexOf(CurBrand)
+    else if FilamentBrandBox.Items.Count > 0 then
+      FilamentBrandBox.ItemIndex := 0
+    else
+      FilamentBrandBox.ItemIndex := -1;
+  finally
+    FUpdating := False;
+  end;
+  if FilamentBrandBox.ItemIndex >= 0 then
+    FilamentBrandChange(Sender);
+end;
+
+procedure TMultiSlicerForm.FilamentBrandChange(Sender: TObject);
+var
+  Kind, Brand, CurModel: string;
+begin
+  if FUpdating or (FilamentKindBox = nil) or (FilamentBrandBox = nil) or (FilamentModelBox = nil) then Exit;
+  Kind := FilamentKindBox.Text;
+  Brand := FilamentBrandBox.Text;
+  CurModel := FilamentModelBox.Text;
+  FUpdating := True;
+  try
+    GetFilamentModels(Kind, Brand, FilamentModelBox.Items);
+    if (CurModel <> '') and (FilamentModelBox.Items.IndexOf(CurModel) >= 0) then
+      FilamentModelBox.ItemIndex := FilamentModelBox.Items.IndexOf(CurModel)
+    else if FilamentModelBox.Items.Count > 0 then
+      FilamentModelBox.ItemIndex := 0
+    else
+      FilamentModelBox.ItemIndex := -1;
+  finally
+    FUpdating := False;
+  end;
+  if FilamentModelBox.ItemIndex >= 0 then
+    FilamentModelChange(Sender);
+end;
+
+procedure TMultiSlicerForm.FilamentModelChange(Sender: TObject);
+var
+  Kind, Brand, Model: string;
+  Spec: TFilamentSpec;
+begin
+  if FUpdating or (FilamentKindBox = nil) or (FilamentBrandBox = nil) or (FilamentModelBox = nil) then Exit;
+  Kind := FilamentKindBox.Text;
+  Brand := FilamentBrandBox.Text;
+  Model := FilamentModelBox.Text;
+  if (Model = '') or not FindFilament(Kind, Brand, Model, Spec) then Exit;
+
+  FUpdating := True;
+  try
+    HotendFirst.Value := Spec.HotendFirst;
+    Hotend.Value := Spec.Hotend;
+    BedFirst.Value := Spec.BedFirst;
+    BedTemp.Value := Spec.Bed;
+    FanPct.Value := Spec.FanPercent;
+    FanLayer.Value := Spec.FanFromLayer;
+    Density.Value := Spec.Density;
+    Flow.Value := Spec.FlowPercent;
+    if (ExtruderChoice <> nil) and (ExtruderChoice.ItemIndex = Ord(ekDirect)) then
+      RetractLen.Value := Spec.RetractDirect
+    else
+      RetractLen.Value := Spec.RetractBowden;
+    RetractSpd.Value := Spec.RetractSpeed;
+    if Spec.CostPerKg > 0 then Cost.Value := Spec.CostPerKg;
+    MaterialNotes.Caption := Spec.Notes;
+  finally
+    FUpdating := False;
+  end;
+
+  if Sender <> nil then
+  begin
+    WriteLastChoice('filament_kind', Kind);
+    WriteLastChoice('filament_brand', Brand);
+    WriteLastChoice('filament_model', Model);
+  end;
+
+  SettingsChanged(Sender);
+end;
+
 procedure TMultiSlicerForm.PrinterChange(Sender: TObject);
-var K: Integer;
+var K, M: Integer;
 begin
   if FUpdating then Exit;
   K := PrinterBox.ItemIndex;
   if (K < 0) or (K > High(FPrinters)) then Exit;
   ApplyPrinter(FPrinters[K]);
+  { Atualiza Marca e Modelo se corresponder a uma maquina do catalogo }
+  M := FindMachine('', FPrinters[K].Name);
+  if (M >= 0) and (PrinterBrandBox <> nil) and (PrinterModelBox <> nil) then
+  begin
+    FUpdating := True;
+    try
+      PrinterBrandBox.ItemIndex := PrinterBrandBox.Items.IndexOf(MachineCatalog[M].Brand);
+      if PrinterBrandBox.ItemIndex >= 0 then
+      begin
+        GetMachineModels(MachineCatalog[M].Brand, PrinterModelBox.Items);
+        PrinterModelBox.ItemIndex := PrinterModelBox.Items.IndexOf(MachineCatalog[M].Model);
+      end;
+    finally
+      FUpdating := False;
+    end;
+  end;
   { a retracao depende da extrusora: reaplica a do material atual }
   if (MaterialBox <> nil) and (MaterialBox.ItemIndex >= 0) and (MaterialBox.ItemIndex <= High(FMaterials)) then
     ExtruderChange(nil);
@@ -2719,7 +3242,11 @@ begin
   end;
   if (InfillTrack <> nil) and ((Sender = InfillDensity) or (Sender = SkirtLoops) or (Sender = nil) or
     (Sender = AdhesionTypeBox) or (Sender = SupportModeBox)) then
+  begin
     SyncRecommended;
+    if Sender = InfillDensity then
+      WriteLastChoice('infill_percent', IntToStr(InfillDensity.Value));
+  end;
   if Sender = HeatedBedBox then
   begin
     BedFirst.Enabled := HeatedBedBox.Checked;
@@ -2856,6 +3383,7 @@ begin
   Result.Printer := DefaultPrinterProfile;
   Result.Printer.Name := CurrentPrinter.Name;
   Result.Printer.BedX := BedX.Value; Result.Printer.BedY := BedY.Value; Result.Printer.MaxZ := BedZ.Value;
+  Result.PrintStartZ := PrintStartZ.Value;
   Result.Printer.Nozzle := Nozzle.Value;
   Result.Printer.FilamentDiameter := FilamentDia.Value;
   Result.Printer.HotendTemp := Hotend.Value;
@@ -2959,6 +3487,7 @@ begin
     try
       S := Settings;
       if S.InfillDensity < 0 then Errors.Add('Preenchimento invalido.');
+      if PrintStartZ.Value >= BedZ.Value then Errors.Add('Degrau inicial Z maior que altura maxima da impressora.');
     except
       on E: Exception do Errors.Add(E.Message);
     end;

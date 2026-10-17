@@ -67,8 +67,9 @@ A versão é a do executável MultiCAD. O número do instalador da MultiSuite é
 [Abrir o manual ilustrado em português](Manual_do_Usuario_MultiSlicer_0.1.0.0_PT-BR.pdf) · [Versão em texto](Manual_do_Usuario_MultiSlicer_0.1.0.0_PT-BR.md)
 
 - Versão de referência: **MultiSlicer 0.1.0.0**, Windows x64.
-- Edição: **13/10/2026**.
-- Formato: PDF A4, **30 páginas**, **28 capítulos**, sumário, **5 figuras** e marcadores de navegação.
+- Edição do PDF: **13/10/2026**; **manual Markdown revisado em 17/10/2026** com o novo parâmetro **Degrau inicial Z (mm)**.
+- Formato do PDF anterior: A4, **30 páginas**, **28 capítulos**, sumário, **5 figuras** e marcadores de navegação.
+- **Atenção:** o PDF ainda não inclui o degrau Z. Consulte a versão em texto atualizada para configurar esse recurso.
 - Conteúdo: fluxo de trabalho de fatiamento 3D FDM/FFF, interface e navegação na mesa virtual, importação de modelos STL (ASCII/binário), 3MF e integração com MultiCAD, conferência e reparo automático de malhas (não-manifold, normais invertidas), manipulação espacial (posição, escala, rotação, espelho), arranjo automático (auto-arrange) de lotes de peças, perfis de impressoras 3D integrados ao catálogo do MultiCNC e ajuste manual, configuração de filamentos (PLA, PETG, ABS, TPU), gestão térmica (bico, mesa, ventilação de peça), alturas de camada fixas e adaptativas (Cusp Height), perímetros/paredes e alinhamento de costura (Z-seam), superfícies sólidas de topo/fundo e anti-pillowing, padrões de preenchimento estrutural (Gyroid isotrópico, retilíneo), suportes automáticos e manuais (hastes pontuais e bloqueadores de exclusão), estratégias de adesão (saia/skirt, aba/brim e jangada/raft), controle de retração, Z-hop e anti-stringing, motor de fatiamento em segundo plano (não-bloqueante), inspeção da prévia 3D por camada com legenda de cores, estimativas de tempo e massa de filamento, projeto nativo .mslice, pós-processamento para firmwares Marlin e Klipper (M73, M486, Exclude Object, Arc Fitting G2/G3), contrato de metadados MultiSuite e envio direto ao MultiCNC com verificação de limites da mesa.
 - Inclui exercício guiado do suporte mecânico, guia de calibração de fluxo, diagnóstico de problemas e tabela de atalhos.
 

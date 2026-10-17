@@ -3,8 +3,9 @@
 Manual técnico oficial do fatiador 3D para manufatura aditiva FDM/FFF do ecossistema **MultiSuite**.
 
 - **Versão do Aplicativo:** 0.1.0.0 (Windows x64)
-- **Edição da Documentação:** 13 de outubro de 2026
+- **Edição da Documentação:** 17 de outubro de 2026 (adendo do degrau inicial Z)
 - **Desenvolvedor:** MaurinSoft / MultiSuite
+- **Nota:** o PDF 0.1.0.0 permanece na edição anterior; as instruções do degrau inicial Z estão atualizadas nesta versão em texto.
 - **Documento PDF Oficial:** [`Manual_do_Usuario_MultiSlicer_0.1.0.0_PT-BR.pdf`](Manual_do_Usuario_MultiSlicer_0.1.0.0_PT-BR.pdf) (A4, 30 páginas, sumário, marcadores e capturas de tela)
 
 ---
@@ -17,7 +18,7 @@ Manual técnico oficial do fatiador 3D para manufatura aditiva FDM/FFF do ecossi
 4. [Conferência e Reparo Automático de Malhas](#04-conferência-e-reparo-automático-de-malhas)
 5. [Manipulação de Peças: Posição, Escala e Giro](#05-manipulação-de-peças-posição-escala-e-giro)
 6. [Arranjo Automático e Cena com Múltiplas Peças](#06-arranjo-automático-e-cena-com-múltiplas-peças)
-7. [Equipamentos e Perfis de Impressoras 3D](#07-equipamentos-e-perfis-de-impressoras-3d)
+7. [Equipamentos e Perfis de Impressoras 3D — Degrau inicial Z](#07-equipamentos-e-perfis-de-impressoras-3d--degrau-inicial-z)
 8. [Configuração de Filamentos e Materiais](#08-configuração-de-filamentos-e-materiais)
 9. [Gestão Térmica e Refrigeração](#09-gestão-térmica-e-refrigeração)
 10. [Qualidade e Alturas de Camada](#10-qualidade-e-alturas-de-camada)
@@ -70,6 +71,32 @@ A interface do MultiSlicer é organizada em um fluxo de abas lineares:
 
 ---
 
+## 07. Equipamentos e Perfis de Impressoras 3D — Degrau inicial Z
+
+Na **etapa 1 — Impressora**, configure **Degrau inicial Z (mm)** para equipamentos em que a superfície de impressão se encontre acima do zero físico, ou nos quais o início do trabalho requeira um deslocamento vertical positivo conhecido. O parâmetro é específico do **perfil da impressora**, separado da altura de camada, e tem valor padrão **0,00 mm**.
+
+### Configuração passo a passo
+
+1. Selecione a marca/modelo ou perfil manual da impressora.
+2. Confira as dimensões **Mesa X**, **Mesa Y** e **Altura máxima Z**.
+3. Preencha **Degrau inicial Z (mm)** com o valor físico requerido, por exemplo **3,00**.
+4. Salve o perfil em **Salvar...**. O valor é persistido como `print_start_z`; perfis antigos sem esse campo assumem zero.
+5. Fatie novamente e confira na prévia e no G-code o Z da primeira camada; só envie ao MultiCNC após verificar o referencial do equipamento e a superfície real.
+
+**Exemplo:** modelo com altura da primeira camada de **0,20 mm** e degrau de **3,00 mm**. Sem raft, a primeira camada de deposição começa em **Z=3,20 mm**. As alturas subsequentes são deslocadas por +3,00 mm, sem alterar distância entre camadas, geometria fatiada ou quantidade de extrusão. Com raft, o mesmo deslocamento é aplicado ao conjunto de camadas, incluindo sua base.
+
+O G-code recebe o metadado `; MS-PRINT-START-Z: 3.00`; os comandos de Z da impressão e os comentários de camadas já incluem o deslocamento. A altura disponível é reduzida pelo degrau: uma peça de 100 mm, com degrau de 3 mm, exige pelo menos 103 mm de curso útil de impressão.
+
+### Cuidados e limitações
+
+- **Não confunda com Z-offset de calibração do bico.** O degrau não altera homing, malha de nivelamento nem configuração do firmware.
+- Se a mesa real estiver em Z=0 e não houver plataforma correspondente em Z=3, imprimir em Z=3 mm depositará material no ar.
+- Revise G-code inicial personalizado: comandos de purga, `G92 Z...`, outros offsets ou movimentos absolutos anteriores às camadas **não são corrigidos automaticamente** por este parâmetro.
+- Faça um teste supervisionado com movimento sem extrusão, seguido de primeira camada, antes de produzir peças completas.
+- A implementação foi publicada no código-fonte; o processo de compilação e testes físicos deste recurso ainda necessita validação.
+
+---
+
 ## 08. Configuração de Filamentos e Materiais
 
 Tabela de parâmetros recomendados por polímero:
@@ -117,3 +144,24 @@ Ao acionar **Abrir no MultiCNC**, o painel MultiCNC confere se as coordenadas `M
 | `Esc` | Cancelar fatiamento em andamento |
 | `Delete` | Remover peça selecionada da cena |
 | `Ctrl + D` | Duplicar peça selecionada |
+
+## Transformar dimensões de uma peça
+
+Na etapa **2 Modelo**, selecione a peça e clique em **Transformar dimensões...**. O formulário permite escolher entre **Percentual** (por exemplo, 200% dobra o tamanho atual) e **Dimensão final em mm**. Marque os eixos X, Y e/ou Z a transformar.
+
+- Com **Escala proporcional nos eixos selecionados** ativado, o valor informado no primeiro eixo marcado determina um fator único aplicado apenas aos eixos marcados; eixos não marcados permanecem inalterados.
+- Com a opção desativada, somente os eixos marcados são alterados, cada um com seu percentual ou dimensão final. Eixos não marcados preservam a escala atual.
+- Clique em **Aplicar e visualizar**: a peça é atualizada na mesa 3D, e o G-code previamente gerado é invalidado. Use **Ctrl+Z / Desfazer** para retornar à escala anterior ou **Ctrl+Y / Refazer** para reaplicá-la.
+- **Cancelar** fecha a janela sem transformar a peça. A transformação não altera o STL/3MF original; altera a instância da peça na cena, que deve ser fatiada novamente.
+
+**Exemplo:** peça de 20 × 30 × 10 mm. Escala uniforme de 200% → 40 × 60 × 20 mm. Escala não uniforme com apenas Z marcado em 200% → 20 × 30 × 20 mm. Dimensão final apenas X = 50 mm → 50 × 30 × 10 mm.
+
+**Estado:** recurso publicado no código da branch `fila`; compilação e validação visual no executável ainda pendentes.
+
+**Atualização da transformação proporcional (17/10/2026):** tanto no modo percentual quanto no modo dimensão final (mm), escolha X, Y e/ou Z. Com *Escala proporcional nos eixos selecionados* marcada, o primeiro eixo selecionado determina o fator comum, aplicado **somente aos eixos marcados**. Exemplo: peça 20×30×10 mm, selecionar X e Y, definir X=40 mm, proporcional ativo → 40×60×10 mm. Selecionando X,Y,Z → 40×60×20 mm. Com proporcional desativado, os valores informados em cada eixo marcado são independentes. A peça atualiza ao aplicar; Ctrl+Z desfaz.
+
+## Adendo — Fragmentar e exportar peças STL (17/10/2026)
+
+Na etapa **Modelo**, selecione uma peça e clique em **Fragmentar e exportar STL...**. Escolha o eixo X, Y ou Z, informe a coordenada em milímetros, clique **Gerar partes** e indique uma pasta. O programa tenta gerar `peca_parte01.stl` e `peca_parte02.stl`, que são importadas como objetos editáveis na cena, mantendo o modelo original.
+
+**Limitações da versão inicial:** corte manual por plano, duas partes a cada operação; não existe divisão automática por volume da impressora, prévia anterior ao corte nem Undo de inclusão de objetos. Para voltar à situação original, remova os fragmentos e conserve o original. Malhas complexas, com furos e problemas topológicos, ainda precisam de validação geométrica; não tratar a saída como comprovadamente pronta para impressão. A funcionalidade publicada no código não teve compilação nem testes físicos confirmados.
