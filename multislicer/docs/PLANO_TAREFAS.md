@@ -415,3 +415,13 @@ logo apos a 2 para ja permitir imprimir pela Ender-3 com o posicionamento simple
 ### Critério de aceite
 
 Em uma máquina configurada para uma elevação física de 3 mm, com camada inicial de 0,20 mm, o G-code de impressão deve começar a depositar a peça em Z=3,20 mm; todas as outras camadas devem manter sua distância relativa; perfis antigos precisam continuar com degrau zero. **Não marcar validado em máquina** sem evidência física.
+
+---
+
+### Extensão — formulário de transformação da peça (17/10/2026)
+
+- [x] Formulário aberto por **Transformar dimensões...** na etapa Modelo.
+- [x] Modos percentual e dimensão final (mm), com seleção X/Y/Z e escala uniforme opcional.
+- [x] Aplicação direta na cena, com histórico de undo único por operação, Ctrl+Z e Ctrl+Y.
+- [ ] Compilar, testar alterações proporcionais e por eixo, salvar/reabrir projeto e verificar atualização de prévia e G-code.
+- [ ] Avaliar a usabilidade visual do formulário em Windows/Linux e resoluções menores.
