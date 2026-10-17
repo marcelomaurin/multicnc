@@ -437,9 +437,11 @@ begin
   for I := 0 to N - 1 do begin
     T := Mesh.Triangle(Idx[I]);
     FTris[I] := T;
-    FTriMinZ[I] := Keys[Idx[I]];
+    FTriMinZ[I] := Min(T.A.Z, Min(T.B.Z, T.C.Z));
     FTriMaxZ[I] := Max(T.A.Z, Max(T.B.Z, T.C.Z));
   end;
+  SetLength(Keys, 0);
+  SetLength(Idx, 0);
   SetLength(FActive, 0);
   FActiveN := 0;
   FNextTri := 0;
@@ -964,6 +966,19 @@ begin
   Stage := AStage;
 end;
 
+procedure AppendGCodeLines(Dest: TStrings; const AText: string);
+var Sub: TStringList;
+begin
+  if Trim(AText) = '' then Exit;
+  Sub := TStringList.Create;
+  try
+    Sub.Text := AText;
+    Dest.AddStrings(Sub);
+  finally
+    Sub.Free;
+  end;
+end;
+
 function TModernSlicer.Slice(Mesh: TMesh; const S: TSliceSettings; Output: TStrings): TSliceReport;
 var
   AuditReason: string;
@@ -1110,6 +1125,9 @@ begin
     BuildLayer(I, Mesh);
   end;
   FTris := nil; FTriMinZ := nil; FTriMaxZ := nil; FActive := nil;
+  Result.MinZ := Mesh.MinZ;
+  Result.MaxZ := Mesh.MaxZ;
+  Mesh.Clear;
   Tick(0.35, 1);
   Result.MSLayers := GetTickCount64 - T0; T0 := GetTickCount64;
   BuildSupport;
@@ -1119,6 +1137,7 @@ begin
     Tick(0.45 + 0.35 * I / Length(FLayers), 2);
     BuildInfill(I);
   end;
+  SetLength(FModel, 0);
   Tick(0.8, 3);
   Result.MSInfill := GetTickCount64 - T0;
   BuildSkirt;
@@ -1312,7 +1331,7 @@ begin
     Output.Add('M83 ; extrusao relativa');
     if Trim(S.StartGCode) <> '' then begin
       Output.Add('; --- G-code inicial do perfil da impressora ---');
-      Output.Text := Output.Text + ExpandGCodeTemplate(S.StartGCode, S);
+      AppendGCodeLines(Output, ExpandGCodeTemplate(S.StartGCode, S));
       Output.Add('; --- fim do G-code inicial ---');
       Output.Add('G21');
       Output.Add('G90');
@@ -1343,14 +1362,15 @@ begin
         Inc(K);
       end;
     Output.AddStrings(Body);
+    Body.Clear;
     Output.Add('M400 ; aguarda movimentos antes do encerramento');
     Output.Add('M73 P100 R0');
     if S.Flavor = sfMarlin then Output.Add('M486 S-1');
     Output.Add('M107');
     if Trim(S.EndGCode) <> '' then begin
       Output.Add('; --- G-code final do perfil da impressora ---');
-      Output.Text := Output.Text + ExpandGCodeTemplate(StringReplace(S.EndGCode, '{park_z}',
-        W.N(Min(S.Printer.MaxZ, W.Z + 10)), [rfReplaceAll, rfIgnoreCase]), S);
+      AppendGCodeLines(Output, ExpandGCodeTemplate(StringReplace(S.EndGCode, '{park_z}',
+        W.N(Min(S.Printer.MaxZ, W.Z + 10)), [rfReplaceAll, rfIgnoreCase]), S));
       Output.Add('; --- fim do G-code final ---');
     end else begin
       Output.Add('G91');

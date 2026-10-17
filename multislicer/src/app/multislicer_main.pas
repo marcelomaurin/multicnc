@@ -3667,7 +3667,7 @@ var Candidate: TModernSlicer; G: TStringList; R: TSliceReport; Th: TSliceThread;
 begin
   if FSlicing then Exit;
   if FScene.Count = 0 then raise Exception.Create('Abra um modelo STL ou 3MF primeiro.');
-  FScene.MergedMesh(FMerged);
+  FMerged.Clear;
   Candidate := TModernSlicer.Create;
   G := TStringList.Create;
   try
@@ -3721,7 +3721,7 @@ begin
     View.SetSlice(nil, -1);
     View3D.SetToolpaths(nil);
     Engine.Free; Engine := Candidate; Candidate := nil;
-    Code.Assign(G); Report := R; Ready := True; FExportedFile := '';
+    Code.Assign(G); G.Clear; Report := R; Ready := True; FExportedFile := '';
     FUpdating := True;
     try
       { como no Cura: abre mostrando a peca inteira (ultima camada) }

@@ -236,6 +236,9 @@ begin
         Opt := CadDrawOptions(RoleRGB(Role), Tag);
         R.DrawMesh(C, Opt);
       end;
+      { Em modelos grandes com muitas camadas, descarta malhas inferiores ja desenhadas no z-buffer }
+      if (UpTo - FromLayer > 40) and (I < UpTo - 25) then
+        FreeLayer(I);
     end;
   finally
     R.Style := Saved;
