@@ -1976,7 +1976,7 @@ var
   AxisChoice: TComboBox;
   CutField: TFloatSpinEdit;
   L: TLabel;
-  OKBtn,CancelBtn: TButton;
+  OKBtn, DlgCancelBtn: TButton;
   Box: TBox3;
   Lo,Hi,Cut: Double;
   Axis: Integer;
@@ -2013,8 +2013,8 @@ begin
     L.SetBounds(174,39,210,92);
     OKBtn:=TButton.Create(D);OKBtn.Parent:=D;OKBtn.Caption:='Gerar partes';
     OKBtn.ModalResult:=mrOk;OKBtn.Default:=True;OKBtn.SetBounds(193,172,112,30);
-    CancelBtn:=TButton.Create(D);CancelBtn.Parent:=D;CancelBtn.Caption:='Cancelar';
-    CancelBtn.ModalResult:=mrCancel;CancelBtn.Cancel:=True;CancelBtn.SetBounds(316,172,78,30);
+    DlgCancelBtn:=TButton.Create(D);DlgCancelBtn.Parent:=D;DlgCancelBtn.Caption:='Cancelar';
+    DlgCancelBtn.ModalResult:=mrCancel;DlgCancelBtn.Cancel:=True;DlgCancelBtn.SetBounds(316,172,78,30);
     if D.ShowModal<>mrOk then Exit;
     Axis:=AxisChoice.ItemIndex;Cut:=CutField.Value;
   finally D.Free;end;
@@ -2065,7 +2065,7 @@ var
   Axes: array[0..2] of TCheckBox;
   PercentFields, DimFields: array[0..2] of TFloatSpinEdit;
   Info: TLabel;
-  ApplyBtn, CancelBtn: TButton;
+  ApplyBtn, DlgCancelBtn: TButton;
   O: TSliceObject;
   Sz: TVec3;
   Factors: array[0..2] of Double;
@@ -2148,12 +2148,12 @@ begin
     ApplyBtn.SetBounds(271, 335, 133, 28);
     ApplyBtn.ModalResult := mrOk;
     ApplyBtn.Default := True;
-    CancelBtn := TButton.Create(D);
-    CancelBtn.Parent := D;
-    CancelBtn.Caption := 'Cancelar';
-    CancelBtn.SetBounds(412, 335, 70, 28);
-    CancelBtn.ModalResult := mrCancel;
-    CancelBtn.Cancel := True;
+    DlgCancelBtn := TButton.Create(D);
+    DlgCancelBtn.Parent := D;
+    DlgCancelBtn.Caption := 'Cancelar';
+    DlgCancelBtn.SetBounds(412, 335, 70, 28);
+    DlgCancelBtn.ModalResult := mrCancel;
+    DlgCancelBtn.Cancel := True;
     if D.ShowModal <> mrOk then Exit;
     FirstAxis := -1;
     for I := 0 to 2 do if Axes[I].Checked then begin FirstAxis := I; Break; end;

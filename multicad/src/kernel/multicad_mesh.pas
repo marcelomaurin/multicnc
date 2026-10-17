@@ -206,8 +206,8 @@ end;
 
 function TCadMesh.AddVertex(const P: TCadVec3): Integer;
 var
-  IX, IY, IZ, DX, DY, DZ: Int64;
-  I: Integer;
+  IX, IY, IZ: Int64;
+  DX, DY, DZ, I: Integer;
 begin
   IX := Floor(P.X / FTol);
   IY := Floor(P.Y / FTol);
