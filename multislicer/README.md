@@ -151,4 +151,4 @@ Na etapa **2 Modelo**, selecione a peça e clique em **Transformar dimensões...
 
 ## Fragmentação de peças maiores que a impressora (planejado)
 
-Está especificado um fluxo futuro para dividir modelos em STLs fechados `peca_parte01.stl`, `peca_parte02.stl` etc., permitir editar/transformar cada parte antes do fatiamento e exportar arquivos separados. **Ainda não implementado**; não confundir com fatiamento por camadas. Veja [Plano de Fragmentação 3D](docs/PLANO_FRAGMENTACAO_3D.md).
+A primeira versão oferece **Fragmentar e exportar STL...** na etapa Modelo: um corte manual no eixo X, Y ou Z por vez, criando dois arquivos STL. Está especificada uma extensão futura para dividir modelos em STLs fechados `peca_parte01.stl`, `peca_parte02.stl` etc., permitir editar/transformar cada parte antes do fatiamento e exportar arquivos separados. **Implementação inicial disponível no código, ainda não compilada/testada**. Divisão automática em múltiplas partes, cortes complexos com furos e undo estrutural ainda pendentes; não confundir fragmentação com fatiamento por camadas. Veja [Plano de Fragmentação 3D](docs/PLANO_FRAGMENTACAO_3D.md).
