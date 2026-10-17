@@ -5,7 +5,7 @@ unit multiassembly_solver;
 interface
 
 uses
-  Classes, SysUtils, Math, multiassembly_types, multiassembly_project;
+  Classes, SysUtils, Math, multiassembly_types, multiassembly_project, multiassembly_mates;
 
 type
   TKinematicJointInfo = record
@@ -276,6 +276,14 @@ begin
               FDOFs[I].Rx := False; FDOFs[I].Rz := False;
             end;
           end;
+          mrInsert:
+          begin
+            // Concentrico + coincidente: resta apenas o giro em torno do eixo
+            FDOFs[I].Tx := False; FDOFs[I].Ty := False; FDOFs[I].Tz := False;
+            FDOFs[I].Rx := Abs(R.Axis.X) > 0.5;
+            FDOFs[I].Ry := Abs(R.Axis.Y) > 0.5;
+            FDOFs[I].Rz := Abs(R.Axis.Z) > 0.5;
+          end;
           mrCoincident, mrDistance:
           begin
             // Restringe a translacao normal e inclinacoes
@@ -330,20 +338,59 @@ end;
 
 procedure TKinematicSolver.Solve;
 var
-  I, J, Pass, ParentIdx, ChildIdx: Integer;
+  I, J, Pass, ParentIdx, ChildIdx, Iter: Integer;
   R: TMechanicalRelation;
   Displ, AngleDeg: Double;
   Solved: array of Boolean;
-  AnyProgress: Boolean;
+  SolvedBy, AppliedParent, AppliedChild: array of Integer;
+  AnyProgress, CanApply: Boolean;
   ChildComp, ParentComp: TAssemblyComponent;
+
+  { uniao por referencia: reposiciona o filho sobre a face/eixo do pai }
+  procedure ApplyGeometricMate(const RR: TMechanicalRelation; PIdx, CIdx: Integer);
+  var
+    FChild, FParent, PW: TMateFeature;
+    NP, NR: TAssemblyVec3;
+    PC, CC: TAssemblyComponent;
+  begin
+    PC := FProject.Component(PIdx);
+    CC := FProject.Component(CIdx);
+    if SameText(CC.ID, RR.A) then
+    begin
+      FChild := RR.RefA;
+      FParent := RR.RefB;
+    end
+    else
+    begin
+      FChild := RR.RefB;
+      FParent := RR.RefA;
+    end;
+    PW := FeatureToWorld(PC, FSolvedPositions[PIdx], FSolvedRotations[PIdx], FParent);
+    if SolveMatePose(CC, FSolvedPositions[CIdx], FSolvedRotations[CIdx], FChild, PW, RR.Kind,
+      RR.Flipped, RR.SpinDeg, RR.Distance, NP, NR) then
+    begin
+      FSolvedPositions[CIdx] := NP;
+      FSolvedRotations[CIdx] := NR;
+    end;
+  end;
+
 begin
   EnsureArrays;
   if FProject = nil then Exit;
   AnalyzeDOFs;
 
   SetLength(Solved, FProject.ComponentCount);
+  SetLength(SolvedBy, FProject.ComponentCount);
+  SetLength(AppliedParent, FProject.RelationCount);
+  SetLength(AppliedChild, FProject.RelationCount);
+  for J := 0 to FProject.RelationCount - 1 do
+  begin
+    AppliedParent[J] := -1;
+    AppliedChild[J] := -1;
+  end;
   for I := 0 to FProject.ComponentCount - 1 do
   begin
+    SolvedBy[I] := -1;
     // Inicializa com a posicao base do componente
     FSolvedPositions[I] := FProject.Component(I).Position;
     FSolvedRotations[I] := FProject.Component(I).Rotation;
@@ -363,14 +410,30 @@ begin
       // Se A estiver resolvido e B nao, inverte a ordem hierarquica
       if (ParentIdx < 0) or (ChildIdx < 0) then Continue;
 
-      if not Solved[ParentIdx] and Solved[ChildIdx] then
+      if AppliedChild[J] >= 0 then Continue;
+
+      if (not Solved[ParentIdx] and Solved[ChildIdx]) or
+         (R.HasRefs and Solved[ParentIdx] and Solved[ChildIdx] and (SolvedBy[ParentIdx] = ChildIdx)) then
       begin
         // Inverte papeis
         ParentIdx := FProject.FindComponent(R.A);
         ChildIdx := FProject.FindComponent(R.B);
       end;
 
-      if Solved[ParentIdx] and not Solved[ChildIdx] then
+      { varias unioes por referencia entre o mesmo par sao aplicadas em sequencia }
+      CanApply := Solved[ParentIdx] and (not Solved[ChildIdx] or
+        (R.HasRefs and (SolvedBy[ChildIdx] = ParentIdx)));
+
+      if CanApply and R.HasRefs then
+      begin
+        ApplyGeometricMate(R, ParentIdx, ChildIdx);
+        Solved[ChildIdx] := True;
+        SolvedBy[ChildIdx] := ParentIdx;
+        AppliedParent[J] := ParentIdx;
+        AppliedChild[J] := ChildIdx;
+        AnyProgress := True;
+      end
+      else if CanApply then
       begin
         ChildComp := FProject.Component(ChildIdx);
         Displ := R.CurrentValue;
@@ -485,11 +548,24 @@ begin
         end;
 
         Solved[ChildIdx] := True;
+        SolvedBy[ChildIdx] := ParentIdx;
+        AppliedParent[J] := ParentIdx;
+        AppliedChild[J] := ChildIdx;
         AnyProgress := True;
       end;
     end;
     if not AnyProgress then Break;
   end;
+
+  { refinamento: reaplica as unioes por referencia para que combinacoes
+    (ex.: concentrico + coincidente) convirjam }
+  for Iter := 1 to 3 do
+    for J := 0 to FProject.RelationCount - 1 do
+    begin
+      R := FProject.Relation(J);
+      if R.HasRefs and (AppliedChild[J] >= 0) then
+        ApplyGeometricMate(R, AppliedParent[J], AppliedChild[J]);
+    end;
 
   // Atualiza as posicoes de volta para o projeto para persistencia e renderizacao
   for I := 0 to FProject.ComponentCount - 1 do

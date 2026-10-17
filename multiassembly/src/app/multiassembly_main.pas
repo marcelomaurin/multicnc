@@ -59,7 +59,7 @@ type
 
     // Barra superior de vistas
     BtnViewIso, BtnViewTop, BtnViewFront, BtnViewSide, BtnViewElec, BtnViewManual: TSuiteButton;
-    BtnFit, BtnZoomIn, BtnZoomOut: TSuiteButton;
+    BtnFit, BtnZoomIn, BtnZoomOut, BtnMate: TSuiteButton;
 
     // Rodape
     StatusLabel, CoordsLabel: TLabel;
@@ -168,6 +168,9 @@ type
     procedure SimulateMotionClick(Sender: TObject);
     procedure SimTimerTick(Sender: TObject);
     procedure OnCanvasKinematicMove(Sender: TObject; const ComponentID: string);
+    procedure MateClick(Sender: TObject);
+    procedure OnMateCreated(Sender: TObject);
+    procedure OnMateStatus(Sender: TObject; const Msg: string);
 
     procedure AddPortClick(Sender: TObject);
     procedure FromCompChange;
@@ -417,6 +420,7 @@ begin
   BtnFit := CreateButton(ViewBar, 'Ajustar 3D', 566, 8, 96, 32, sikFit, @FitViewClick);
   BtnZoomIn := CreateButton(ViewBar, '+', 666, 8, 38, 32, sikZoomIn, @ZoomInClick);
   BtnZoomOut := CreateButton(ViewBar, '-', 708, 8, 38, 32, sikZoomOut, @ZoomOutClick);
+  BtnMate := CreateButton(ViewBar, 'Unir Peças', 754, 8, 112, 32, sikAssembly, @MateClick);
 
   // Painel de informacao do passo atual quando no modo manual
   ManualStepPanel := TPanel.Create(Self);
@@ -451,6 +455,8 @@ begin
   MechView.Solver := FSolver;
   MechView.OnSelectComponent := @OnCanvasSelect;
   MechView.OnKinematicMove := @OnCanvasKinematicMove;
+  MechView.OnMateCreated := @OnMateCreated;
+  MechView.OnMateStatus := @OnMateStatus;
 
   ElecView := TElectricalAssemblyCanvas.Create(Self);
   ElecView.Parent := Work;
@@ -596,6 +602,7 @@ begin
   CreateButton(S, '+10mm em Z', 216, 110, 90, 28, sikPulse, @QuickNudgeClick).Tag := 3;
 
   CreateLabel(S, 'VÍNCULOS E RELAÇÕES (MATES)', 16, 154, 290, 18).Font.Style := [fsBold];
+  
   CbRelKind := CreateCombo(S, 'Tipo de Relação', 176);
   CbRelKind.Items.Add('Eixo / Coaxial');
   CbRelKind.Items.Add('Fuso / Castanha (Linear)');
@@ -618,7 +625,9 @@ begin
 
   CreateButton(S, 'Remover Relação', 16, 596, 290, 30, sikTrash, @DeleteRelationClick);
 
-  LblSolverStatus := CreateLabel(S, 'Solver: Montagem consistente.', 16, 638, 290, 40);
+  CreateButton(S, 'Unir peças por face / furo / eixo', 16, 634, 290, 32, sikTarget, @MateClick);
+
+  LblSolverStatus := CreateLabel(S, 'Solver: Montagem consistente.', 16, 676, 290, 40);
   LblSolverStatus.Font.Color := clSuiteSuccess;
 end;
 
@@ -1320,6 +1329,36 @@ begin
   UpdateStatus;
 end;
 
+procedure TMultiAssemblyForm.MateClick(Sender: TObject);
+begin
+  if MechView.MateMode <> mmNone then
+  begin
+    MechView.CancelMateMode;
+    Exit;
+  end;
+  if P.ComponentCount < 2 then
+  begin
+    StatusLabel.Caption := 'Unir peças: insira ao menos duas peças na montagem.';
+    Exit;
+  end;
+  if not MechView.Visible then
+  begin
+    BtnViewIso.Tag := 0;
+    ViewModeClick(BtnViewIso);
+  end;
+  MechView.StartMateMode;
+end;
+
+procedure TMultiAssemblyForm.OnMateCreated(Sender: TObject);
+begin
+  RefreshAll;
+end;
+
+procedure TMultiAssemblyForm.OnMateStatus(Sender: TObject; const Msg: string);
+begin
+  StatusLabel.Caption := Msg;
+end;
+
 procedure TMultiAssemblyForm.OnCanvasKinematicMove(Sender: TObject; const ComponentID: string);
 var
   Pos: TAssemblyVec3;
@@ -1842,9 +1881,12 @@ begin
         mrBelt: Desc := Format('Correia: %s <-> %s (Ratio: %.2f)', [R.A, R.B, R.Ratio]);
         mrAxis: Desc := Format('Eixo: %s <-> %s', [R.A, R.B]);
         mrDistance: Desc := Format('Distância: %s <-> %s (%.1f mm)', [R.A, R.B, R.Distance]);
+        mrInsert: Desc := Format('Inserir: %s -> %s', [R.A, R.B]);
+        mrParallel: Desc := Format('Paralelo: %s <-> %s', [R.A, R.B]);
       else
         Desc := Format('%s <-> %s (Tipo %d)', [R.A, R.B, Ord(R.Kind)]);
       end;
+      if R.HasRefs then Desc := Desc + ' • por referência';
       RelList.Items.AddObject(Desc, TObject(PtrInt(I)));
     end;
   finally

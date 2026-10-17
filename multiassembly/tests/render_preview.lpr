@@ -99,14 +99,28 @@ end;
 var
   F: TPreviewForm;
   Mode: string;
+  C0: TAssemblyComponent;
 begin
   Application.Initialize;
   Mode := LowerCase(ParamStr(1));
   if Mode = '' then Mode := 'demo';
-  if ParamCount >= 5 then
+  if (ParamCount >= 5) and (Mode <> 'unir') then
     TAssemblyLibrary.SetLibraryFolder(ParamStr(5));
   F := TPreviewForm.CreatePreview(nil);
-  if Mode = 'item' then
+  if Mode = 'unir' then
+  begin
+    { unir <pasta_biblioteca>: suporte fixo + motor solto, modo Unir peças ativo }
+    TAssemblyLibrary.SetLibraryFolder(ParamStr(2));
+    C0 := TAssemblyLibrary.CreateFromCatalog('placas_suportes', 'suporte_motor_nema17', 'SUPORTE', 0, 0, 0);
+    C0.Fixed := True;
+    F.Project.AddComponent(C0);
+    F.Project.AddComponent(TAssemblyLibrary.CreateFromCatalog('motores', 'motor_passo_nema17_42mm', 'MOTOR', 90, -40, 0));
+    F.Solver := TKinematicSolver.Create(F.Project);
+    F.Solver.Solve;
+    F.View.Solver := F.Solver;
+    F.View.SetCameraPreset(StrToFloatDef(ParamStr(3), 200), StrToFloatDef(ParamStr(4), 25));
+  end
+  else if Mode = 'item' then
   begin
     { item <arquivo.json> [azimute elevacao] }
     F.Project.AddComponent(TAssemblyLibrary.LoadComponentFromFile(ParamStr(2), 'P1', 0, 0, 0));
@@ -133,6 +147,11 @@ begin
   end;
   F.Show;
   F.View.FitToView;
+  if Mode = 'unir' then
+  begin
+    F.View.Scale := F.View.Scale * 1.6;
+    F.View.StartMateMode;
+  end;
   if ParamCount >= 6 then
     F.View.Scale := F.View.Scale * StrToFloatDef(ParamStr(6), 1.0);
   Application.Run;

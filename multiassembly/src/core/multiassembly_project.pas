@@ -68,6 +68,57 @@ type
 
 implementation
 
+function MateVecToJSON(const V: TAssemblyVec3): TJSONArray;
+begin
+  Result := TJSONArray.Create;
+  Result.Add(V.X);
+  Result.Add(V.Y);
+  Result.Add(V.Z);
+end;
+
+function MateVecFromJSON(O: TJSONObject; const Name: string): TAssemblyVec3;
+var
+  D: TJSONData;
+begin
+  Result := Vec3(0, 0, 0);
+  D := O.Find(Name);
+  if (D <> nil) and (D is TJSONArray) and (TJSONArray(D).Count >= 3) then
+    Result := Vec3(TJSONArray(D).Items[0].AsFloat, TJSONArray(D).Items[1].AsFloat, TJSONArray(D).Items[2].AsFloat);
+end;
+
+function MateFeatureToJSON(const F: TMateFeature): TJSONObject;
+begin
+  Result := TJSONObject.Create;
+  Result.Add('has_plane', F.HasPlane);
+  Result.Add('plane_point', MateVecToJSON(F.PlanePoint));
+  Result.Add('plane_normal', MateVecToJSON(F.PlaneNormal));
+  Result.Add('has_axis', F.HasAxis);
+  Result.Add('axis_point', MateVecToJSON(F.AxisPoint));
+  Result.Add('axis_dir', MateVecToJSON(F.AxisDir));
+  Result.Add('radius', F.Radius);
+  Result.Add('prim', F.Prim);
+  Result.Add('part', F.Part);
+end;
+
+function MateFeatureFromJSON(D: TJSONData): TMateFeature;
+var
+  O: TJSONObject;
+begin
+  Result := Default(TMateFeature);
+  if (D = nil) or not (D is TJSONObject) then Exit;
+  O := TJSONObject(D);
+  Result.Valid := True;
+  Result.HasPlane := O.Get('has_plane', False);
+  Result.PlanePoint := MateVecFromJSON(O, 'plane_point');
+  Result.PlaneNormal := MateVecFromJSON(O, 'plane_normal');
+  Result.HasAxis := O.Get('has_axis', False);
+  Result.AxisPoint := MateVecFromJSON(O, 'axis_point');
+  Result.AxisDir := MateVecFromJSON(O, 'axis_dir');
+  Result.Radius := O.Get('radius', 0.0);
+  Result.Prim := O.Get('prim', -1);
+  Result.Part := O.Get('part', 0);
+end;
+
 constructor TAssemblyProject.Create;
 begin
   inherited Create;
@@ -434,6 +485,12 @@ begin
       VecObj.Add('y', R.Offset.Y);
       VecObj.Add('z', R.Offset.Z);
       RelObj.Add('offset', VecObj);
+      if R.HasRefs then
+      begin
+        RelObj.Add('ref_a', MateFeatureToJSON(R.RefA));
+        RelObj.Add('ref_b', MateFeatureToJSON(R.RefB));
+        RelObj.Add('spin_deg', R.SpinDeg);
+      end;
       RelsArr.Add(RelObj);
     end;
     Root.Add('relations', RelsArr);
@@ -606,6 +663,10 @@ begin
         end
         else
           R.Offset := Vec3(0, 0, 0);
+        R.HasRefs := (RelObj.Find('ref_a') <> nil) and (RelObj.Find('ref_b') <> nil);
+        R.RefA := MateFeatureFromJSON(RelObj.Find('ref_a'));
+        R.RefB := MateFeatureFromJSON(RelObj.Find('ref_b'));
+        R.SpinDeg := RelObj.Get('spin_deg', 0.0);
         Relate(R);
       end;
     end;

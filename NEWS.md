@@ -8,6 +8,11 @@
 - **Formas por tipo:** peças sem geometria (projetos antigos e componentes criados no programa) recebem uma forma coerente com o tipo; projetos antigos recuperam a geometria pelo arquivo de origem.
 - **Formato:** bloco `geometry` documentado em `models/components/README.md`, gerado por `tools/components/generate_components.py`.
 
+### 🧩 MultiAssembly: Unir Peças por face, furo e eixo (estilo SolidWorks Composer)
+- Clique na face/furo/eixo da peça que se move e na referência da outra: a união é sugerida (Inserir, Concêntrico, Coincidente, Distância, Paralelo) e mostrada em prévia antes de confirmar.
+- Realce da referência sob o mouse (contorno da face, eixo tracejado, círculo do furo e normal), inverter lado, girar 90° e distância pelo teclado.
+- Relações por referência salvas no projeto e reaplicadas pelo solver; teste automatizado `multiassembly/tests/test_mates.lpr`.
+
 ---
 
 ## [0.11] — Setup 011 (15/10/2026)

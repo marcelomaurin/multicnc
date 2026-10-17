@@ -6,12 +6,17 @@ interface
 
 uses
   Classes, SysUtils, Controls, Graphics, Math, LCLType, Forms,
-  multiassembly_types, multiassembly_project, multiassembly_solver, multiassembly_geometry;
+  multiassembly_types, multiassembly_project, multiassembly_solver, multiassembly_geometry,
+  multiassembly_mates;
 
 type
   TAssemblyViewMode = (avm3DOrbit, avmTop, avmFront, avmSide);
 
   TComponentSelectEvent = procedure(Sender: TObject; const ComponentID: string) of object;
+  TMateStatusEvent = procedure(Sender: TObject; const Msg: string) of object;
+
+  { modo "Unir peças" (estilo SolidWorks Composer) }
+  TMateMode = (mmNone, mmPickMoving, mmPickTarget, mmPreview);
   TKinematicMoveEvent = procedure(Sender: TObject; const ComponentID: string) of object;
 
   { cache da malha 3D de cada componente }
@@ -32,6 +37,7 @@ type
     Start, Count: Integer; // fatia de FPointBuf
     Depth: Double;
     Fill, Pen: TColor;
+    CompIdx, FaceIdx: Integer; // componente e face da malha (selecao)
   end;
 
   TMechanicalAssemblyCanvas = class(TCustomControl)
@@ -73,6 +79,30 @@ type
     FDrawFaces: array of TDrawFace;
     FDrawCount: Integer;
     FCosAz, FSinAz, FCosEl, FSinEl: Double;
+    FCurCompIdx: Integer;
+
+    // Uniao de pecas por referencia
+    FMateMode: TMateMode;
+    FHoverComp, FHoverFace: Integer;
+    FHoverFeat: TMateFeature;
+    FMoveID, FTargetID: string;
+    FMoveFeat, FTargetFeat: TMateFeature;
+    FMateKind: TMechanicalRelationKind;
+    FMateFlip: Boolean;
+    FMateSpin, FMateDist: Double;
+    FPreviewOK: Boolean;
+    FPreviewPos, FPreviewRot: TAssemblyVec3;
+    FOnMateCreated: TNotifyEvent;
+    FOnMateStatus: TMateStatusEvent;
+
+    function PickFace(SX, SY: Integer; out CompIdx, FaceIdx: Integer): Boolean;
+    function FeatureOf(CompIdx, FaceIdx: Integer): TMateFeature;
+    procedure UpdateMatePreview;
+    procedure MateStatus(const Msg: string);
+    function MateHint: string;
+    procedure DrawFeatureMarker(CompIdx: Integer; const F: TMateFeature; MarkColor: TColor; HighlightFaces: Boolean);
+    procedure DrawMateOverlay;
+    function PoseOf(const C: TAssemblyComponent; out Pos, Rot: TAssemblyVec3): Boolean;
 
     procedure UpdateCameraTrig;
     function CameraDir(const V: TAssemblyVec3): TAssemblyVec3;
@@ -101,6 +131,7 @@ type
   protected
     procedure Paint; override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
+    procedure KeyDown(var Key: Word; Shift: TShiftState); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     function DoMouseWheel(Shift: TShiftState; WheelDelta: Integer; MousePos: TPoint): Boolean; override;
@@ -116,6 +147,19 @@ type
     procedure SetCameraPreset(AzimuthDeg, ElevationDeg: Double);
     procedure ClearMeshCache;
 
+    // Unir pecas: clique na face/furo/eixo da peca que se move e depois na
+    // referencia; Enter confirma, F inverte, R gira 90°, C/O/I/D/P mudam o tipo.
+    procedure StartMateMode;
+    procedure CancelMateMode;
+    function ConfirmMate: Boolean;
+    procedure SetMateKind(Kind: TMechanicalRelationKind);
+    procedure FlipMate;
+    procedure SpinMate(DeltaDeg: Double);
+    procedure SetMateDistance(Value: Double);
+    property MateMode: TMateMode read FMateMode;
+    property MateKind: TMechanicalRelationKind read FMateKind;
+    property MateDistance: Double read FMateDist;
+
     property Project: TAssemblyProject read FProject write FProject;
     property Solver: TKinematicSolver read FSolver write FSolver;
     property SelectedID: string read FSelectedID write FSelectedID;
@@ -130,6 +174,8 @@ type
     property ShowLabels: Boolean read FShowLabels write FShowLabels;
     property OnSelectComponent: TComponentSelectEvent read FOnSelect write FOnSelect;
     property OnKinematicMove: TKinematicMoveEvent read FOnKinematicMove write FOnKinematicMove;
+    property OnMateCreated: TNotifyEvent read FOnMateCreated write FOnMateCreated;
+    property OnMateStatus: TMateStatusEvent read FOnMateStatus write FOnMateStatus;
   end;
 
 implementation
@@ -151,11 +197,16 @@ begin
   FShowMateLines := True;
   FShowGrid := True;
   FShowLabels := True;
+  FMateMode := mmNone;
+  FHoverComp := -1;
+  FHoverFace := -1;
+  FCurCompIdx := -1;
+  TabStop := True;
   FOrbiting := False;
   FPanning := False;
   FDraggingPart := False;
   FDragPartID := '';
-  Cursor := crCross;
+  if FMateMode <> mmNone then Cursor := crHandPoint else Cursor := crCross;
 end;
 
 destructor TMechanicalAssemblyCanvas.Destroy;
@@ -551,6 +602,7 @@ var
   T: TCompXform;
   Depths: array of Double;
   FaceVis: array of Boolean;
+  GroupMin: array of Double;
   Wp, Nc, Nw: TAssemblyVec3;
   D, Diff, Spec, HX, HY, HZ, HL, Light, LLen, Lx_, Ly_, Lz_: Double;
   Base, Fill: TColor;
@@ -585,6 +637,14 @@ begin
       Depths[I] := D;
     end;
 
+    { profundidade minima de cada grupo coplanar: o decalque fica por cima
+      de toda a face subdividida em que esta apoiado }
+    SetLength(GroupMin, Count + 1);
+    for I := 0 to Count do GroupMin[I] := MaxDouble;
+    for I := 0 to Count - 1 do
+      if (Faces[I].Group >= 0) and (Faces[I].Group <= Count) and FaceVis[I] then
+        GroupMin[Faces[I].Group] := Min(GroupMin[Faces[I].Group], Depths[I]);
+
     for I := 0 to Count - 1 do
     begin
       if not FaceVis[I] then Continue;
@@ -593,7 +653,10 @@ begin
         if (Faces[I].Host >= 0) then
         begin
           if not FaceVis[Faces[I].Host] then Continue;
-          D := Depths[Faces[I].Host] - 0.002;
+          D := Depths[Faces[I].Host];
+          if (Faces[Faces[I].Host].Group >= 0) and (GroupMin[Faces[Faces[I].Host].Group] < MaxDouble) then
+            D := Min(D, GroupMin[Faces[Faces[I].Host].Group]);
+          D := D - 0.002;
         end
         else
           D := Depths[I] - 0.5;
@@ -617,7 +680,7 @@ begin
       else if InCurrentStep then
         Base := TintColor(Base, RGBToColor(40, 140, 230), 0.40)
       else if IsSelected then
-        Base := TintColor(Base, RGBToColor(255, 208, 0), 0.22);
+        Base := TintColor(Base, RGBToColor(255, 208, 0), 0.15);
       Base := ColorToRGB(Base);
       RR := Round(Red(Base) * Light + 255 * Spec);
       GG := Round(Green(Base) * Light + 255 * Spec);
@@ -640,6 +703,8 @@ begin
       FDrawFaces[FDrawCount].Count := NV;
       FDrawFaces[FDrawCount].Depth := D;
       FDrawFaces[FDrawCount].Fill := Fill;
+      FDrawFaces[FDrawCount].CompIdx := FCurCompIdx;
+      FDrawFaces[FDrawCount].FaceIdx := I;
       if Faces[I].Smooth or Faces[I].Decal then
         FDrawFaces[FDrawCount].Pen := Fill
       else
@@ -783,9 +848,14 @@ begin
         IsInCurrentStep := False;
       IsSelected := SameText(C.ID, FSelectedID);
       if IsSelected then SelIdx := I;
-      if FSolver <> nil then Pos := FSolver.GetSolvedPosition(C.ID) else Pos := C.Position;
-      Rot := ComponentRotation(C);
-      HasCollision := IsPartColliding(C.ID);
+      PoseOf(C, Pos, Rot);
+      HasCollision := IsPartColliding(C.ID) and (FMateMode = mmNone);
+      if FMateMode <> mmNone then
+      begin
+        IsSelected := SameText(C.ID, FTargetID);           // referencia: realce dourado
+        IsInCurrentStep := SameText(C.ID, FMoveID);        // peca que se move: realce azul
+      end;
+      FCurCompIdx := I;
       CollectComponentFaces(C, Pos, Rot, IsSelected, HasCollision, IsInCurrentStep);
     end;
 
@@ -799,6 +869,9 @@ begin
       Canvas.Pen.Color := FDrawFaces[I].Pen;
       Canvas.Polygon(FPointBuf, False, FDrawFaces[I].Start, FDrawFaces[I].Count);
     end;
+
+    if FMateMode <> mmNone then
+      DrawMateOverlay;
 
     { 3. rotulos, selecao e setas de graus de liberdade }
     for I := 0 to FProject.ComponentCount - 1 do
@@ -816,8 +889,8 @@ begin
         DOF.Status := adsUnderdefined;
         DOF.FreeCount := 6;
       end;
-      Rot := ComponentRotation(C);
-      if FShowLabels or (I = SelIdx) then
+      PoseOf(C, Pos, Rot);
+      if (FShowLabels and (FMateMode = mmNone)) or (I = SelIdx) then
       begin
         LabelStr := C.ID;
         if DOF.Status = adsFixed then
@@ -826,7 +899,7 @@ begin
           LabelStr := '(-) ' + LabelStr;
         DrawComponentLabel(C, Pos, Rot, LabelStr);
       end;
-      if I = SelIdx then
+      if (I = SelIdx) and (FMateMode = mmNone) then
       begin
         DrawSelectionBox(C, Pos, Rot);
         DrawDOFArrows(C.ID, Pos, C.Size, DOF);
@@ -889,6 +962,20 @@ begin
   end;
   Canvas.TextOut(16, 16, LabelStr);
 
+  if FMateMode <> mmNone then
+  begin
+    Canvas.Font.Size := 10;
+    Canvas.Font.Style := [fsBold];
+    Canvas.Brush.Style := bsSolid;
+    Canvas.Brush.Color := $3A2A12;
+    Canvas.Pen.Color := $C08030;
+    StatusStr := MateHint;
+    Canvas.Rectangle(12, Height - 112, Min(Width - 12, 28 + Canvas.TextWidth(StatusStr)), Height - 82);
+    Canvas.Font.Color := $FFE0B0;
+    Canvas.Brush.Style := bsClear;
+    Canvas.TextOut(20, Height - 106, StatusStr);
+  end;
+
   if (FProject <> nil) and (FProject.ComponentCount = 0) then
   begin
     Canvas.Font.Size := 9;
@@ -946,10 +1033,396 @@ begin
   end;
 end;
 
+{ ------------------------------------------------------ unir pecas (mates) }
+
+function TMechanicalAssemblyCanvas.PoseOf(const C: TAssemblyComponent; out Pos, Rot: TAssemblyVec3): Boolean;
+begin
+  Result := (FMateMode = mmPreview) and FPreviewOK and SameText(C.ID, FMoveID);
+  if Result then
+  begin
+    Pos := FPreviewPos;
+    Rot := FPreviewRot;
+    Exit;
+  end;
+  if FSolver <> nil then Pos := FSolver.GetSolvedPosition(C.ID) else Pos := C.Position;
+  Rot := ComponentRotation(C);
+end;
+
+function PointInScreenPoly(const Pts: array of TPoint; Start, Count, X, Y: Integer): Boolean;
+var
+  I, J: Integer;
+  A, B: TPoint;
+begin
+  Result := False;
+  J := Start + Count - 1;
+  for I := Start to Start + Count - 1 do
+  begin
+    A := Pts[I];
+    B := Pts[J];
+    if ((A.Y > Y) <> (B.Y > Y)) and (X < (B.X - A.X) * (Y - A.Y) / (B.Y - A.Y) + A.X) then
+      Result := not Result;
+    J := I;
+  end;
+end;
+
+function TMechanicalAssemblyCanvas.PickFace(SX, SY: Integer; out CompIdx, FaceIdx: Integer): Boolean;
+var
+  I: Integer;
+begin
+  CompIdx := -1;
+  FaceIdx := -1;
+  { a ultima face desenhada e a que esta por cima }
+  for I := FDrawCount - 1 downto 0 do
+    if PointInScreenPoly(FPointBuf, FDrawFaces[I].Start, FDrawFaces[I].Count, SX, SY) then
+    begin
+      CompIdx := FDrawFaces[I].CompIdx;
+      FaceIdx := FDrawFaces[I].FaceIdx;
+      Exit(CompIdx >= 0);
+    end;
+  Result := False;
+end;
+
+function TMechanicalAssemblyCanvas.FeatureOf(CompIdx, FaceIdx: Integer): TMateFeature;
+var
+  C: TAssemblyComponent;
+  MI: Integer;
+  G: TAssemblyGeometry;
+begin
+  Result := Default(TMateFeature);
+  if (FProject = nil) or (CompIdx < 0) or (CompIdx >= FProject.ComponentCount) then Exit;
+  C := FProject.Component(CompIdx);
+  MI := MeshIndexFor(C);
+  G := ComponentGeometry(C);
+  Result := MeshToLocalFeature(FaceFeature(G, FMeshCache[MI].Mesh, FaceIdx), FMeshCache[MI].Mesh, C.Size);
+end;
+
+procedure TMechanicalAssemblyCanvas.MateStatus(const Msg: string);
+begin
+  if Assigned(FOnMateStatus) then FOnMateStatus(Self, Msg);
+end;
+
+function FeatureKindText(const F: TMateFeature): string;
+begin
+  if F.HasPlane and F.HasAxis then
+    Result := Format('face circular Ø%.1f', [F.Radius * 2])
+  else if F.HasAxis then
+    Result := Format('eixo/furo Ø%.1f', [F.Radius * 2])
+  else if F.HasPlane then
+    Result := 'face plana'
+  else
+    Result := 'referência';
+end;
+
+function TMechanicalAssemblyCanvas.MateHint: string;
+begin
+  case FMateMode of
+    mmPickMoving:
+      Result := 'UNIR PEÇAS 1/2 • Clique na face, furo ou eixo da peça que vai se MOVER  •  [Esc] cancelar';
+    mmPickTarget:
+      Result := Format('UNIR PEÇAS 2/2 • %s (%s) • Agora clique na REFERÊNCIA na outra peça  •  [Esc] cancelar',
+        [FMoveID, FeatureKindText(FMoveFeat)]);
+    mmPreview:
+      begin
+        Result := Format('%s: %s → %s', [MateKindName(FMateKind), FMoveID, FTargetID]);
+        if FMateKind = mrDistance then Result := Result + Format(' (%.1f mm)', [FMateDist]);
+        if FMateFlip then Result := Result + ' • invertido';
+        if Abs(FMateSpin) > 0.01 then Result := Result + Format(' • giro %.0f°', [FMateSpin]);
+        Result := Result + '   [Enter] confirmar  [F] inverter  [R] girar 90°  [I] inserir  [O] concêntrico  ' +
+          '[C] coincidente  [D] distância [+/-]  [P] paralelo  [Esc] cancelar';
+      end;
+  else
+    Result := '';
+  end;
+end;
+
+procedure TMechanicalAssemblyCanvas.StartMateMode;
+begin
+  FMateMode := mmPickMoving;
+  FMoveID := '';
+  FTargetID := '';
+  FMoveFeat := Default(TMateFeature);
+  FTargetFeat := Default(TMateFeature);
+  FHoverComp := -1;
+  FHoverFace := -1;
+  FMateFlip := False;
+  FMateSpin := 0;
+  FMateDist := 0;
+  FPreviewOK := False;
+  Cursor := crHandPoint;
+  if CanFocus then SetFocus;
+  MateStatus('Unir peças: clique na face, furo ou eixo da peça que vai se mover.');
+  Invalidate;
+end;
+
+procedure TMechanicalAssemblyCanvas.CancelMateMode;
+begin
+  if FMateMode = mmNone then Exit;
+  FMateMode := mmNone;
+  FPreviewOK := False;
+  FHoverComp := -1;
+  Cursor := crCross;
+  MateStatus('União cancelada.');
+  Invalidate;
+end;
+
+procedure TMechanicalAssemblyCanvas.UpdateMatePreview;
+var
+  IA, IB: Integer;
+  CA, CB: TAssemblyComponent;
+  PB, RB, PA, RA: TAssemblyVec3;
+  WB: TMateFeature;
+begin
+  FPreviewOK := False;
+  if FProject = nil then Exit;
+  IA := FProject.FindComponent(FMoveID);
+  IB := FProject.FindComponent(FTargetID);
+  if (IA < 0) or (IB < 0) then Exit;
+  CA := FProject.Component(IA);
+  CB := FProject.Component(IB);
+  if FSolver <> nil then
+  begin
+    PA := FSolver.GetSolvedPosition(CA.ID); RA := FSolver.GetSolvedRotation(CA.ID);
+    PB := FSolver.GetSolvedPosition(CB.ID); RB := FSolver.GetSolvedRotation(CB.ID);
+  end
+  else
+  begin
+    PA := CA.Position; RA := CA.Rotation;
+    PB := CB.Position; RB := CB.Rotation;
+  end;
+  WB := FeatureToWorld(CB, PB, RB, FTargetFeat);
+  FPreviewOK := SolveMatePose(CA, PA, RA, FMoveFeat, WB, FMateKind, FMateFlip, FMateSpin, FMateDist,
+    FPreviewPos, FPreviewRot);
+  if FPreviewOK then
+    MateStatus(Format('Prévia: %s. Enter confirma, F inverte, R gira.', [MateKindName(FMateKind)]))
+  else
+    MateStatus(Format('%s não se aplica a estas referências.', [MateKindName(FMateKind)]));
+  Invalidate;
+end;
+
+procedure TMechanicalAssemblyCanvas.SetMateKind(Kind: TMechanicalRelationKind);
+begin
+  if FMateMode <> mmPreview then Exit;
+  if not MateKindAllowed(FMoveFeat, FTargetFeat, Kind) then
+  begin
+    MateStatus(Format('%s exige outras referências (%s com %s).',
+      [MateKindName(Kind), FeatureKindText(FMoveFeat), FeatureKindText(FTargetFeat)]));
+    Exit;
+  end;
+  FMateKind := Kind;
+  UpdateMatePreview;
+end;
+
+procedure TMechanicalAssemblyCanvas.FlipMate;
+begin
+  if FMateMode <> mmPreview then Exit;
+  FMateFlip := not FMateFlip;
+  UpdateMatePreview;
+end;
+
+procedure TMechanicalAssemblyCanvas.SpinMate(DeltaDeg: Double);
+begin
+  if FMateMode <> mmPreview then Exit;
+  FMateSpin := FMateSpin + DeltaDeg;
+  while FMateSpin >= 360 do FMateSpin := FMateSpin - 360;
+  while FMateSpin < 0 do FMateSpin := FMateSpin + 360;
+  UpdateMatePreview;
+end;
+
+procedure TMechanicalAssemblyCanvas.SetMateDistance(Value: Double);
+begin
+  FMateDist := Value;
+  if FMateMode = mmPreview then
+  begin
+    if (FMateKind = mrCoincident) and (Abs(Value) > 1e-9) then FMateKind := mrDistance;
+    UpdateMatePreview;
+  end;
+end;
+
+function TMechanicalAssemblyCanvas.ConfirmMate: Boolean;
+var
+  R: TMechanicalRelation;
+  IA, IB: Integer;
+  C, CB: TAssemblyComponent;
+  WB: TMateFeature;
+begin
+  Result := False;
+  if (FMateMode <> mmPreview) or not FPreviewOK or (FProject = nil) then Exit;
+  IA := FProject.FindComponent(FMoveID);
+  IB := FProject.FindComponent(FTargetID);
+  if (IA < 0) or (IB < 0) then Exit;
+
+  C := FProject.Component(IA);
+  C.Position := FPreviewPos;
+  C.Rotation := FPreviewRot;
+  FProject.UpdateComponent(IA, C);
+
+  CB := FProject.Component(IB);
+  WB := FeatureToWorld(CB, CB.Position, CB.Rotation, FTargetFeat);
+  R := Default(TMechanicalRelation);
+  R.A := FMoveID;
+  R.B := FTargetID;
+  R.Kind := FMateKind;
+  R.Ratio := 1;
+  R.Flipped := FMateFlip;
+  R.SpinDeg := FMateSpin;
+  R.Distance := FMateDist;
+  R.HasRefs := True;
+  R.RefA := FMoveFeat;
+  R.RefB := FTargetFeat;
+  if WB.HasAxis and (FMateKind in [mrConcentric, mrInsert]) then
+    R.Axis := DominantAxis(WB.AxisDir)
+  else if WB.HasPlane then
+    R.Axis := DominantAxis(WB.PlaneNormal)
+  else
+    R.Axis := DominantAxis(WB.AxisDir);
+  FProject.Relate(R);
+
+  FMateMode := mmNone;
+  FPreviewOK := False;
+  Cursor := crCross;
+  if FSolver <> nil then FSolver.Solve;
+  FSelectedID := FMoveID;
+  MateStatus(Format('União criada: %s %s → %s.', [MateKindName(R.Kind), R.A, R.B]));
+  if Assigned(FOnMateCreated) then FOnMateCreated(Self);
+  Invalidate;
+  Result := True;
+end;
+
+procedure TMechanicalAssemblyCanvas.DrawFeatureMarker(CompIdx: Integer; const F: TMateFeature; MarkColor: TColor;
+  HighlightFaces: Boolean);
+var
+  C: TAssemblyComponent;
+  Pos, Rot, U, V, P0, Q: TAssemblyVec3;
+  W: TMateFeature;
+  I, J, K, MI: Integer;
+  L: Double;
+  Pts: array[0..32] of TPoint;
+  A, B: TPoint;
+begin
+  if (FProject = nil) or (CompIdx < 0) or (CompIdx >= FProject.ComponentCount) or not F.Valid then Exit;
+  C := FProject.Component(CompIdx);
+  PoseOf(C, Pos, Rot);
+  W := FeatureToWorld(C, Pos, Rot, F);
+  Canvas.Brush.Style := bsClear;
+
+  { contorno das faces da mesma parte (face plana inteira, lateral do cilindro) }
+  if HighlightFaces then
+  begin
+    MI := MeshIndexFor(C);
+    Canvas.Pen.Color := MarkColor;
+    Canvas.Pen.Width := 2;
+    for I := 0 to FDrawCount - 1 do
+    begin
+      if FDrawFaces[I].CompIdx <> CompIdx then Continue;
+      K := FDrawFaces[I].FaceIdx;
+      if (FMeshCache[MI].Mesh.Faces[K].Prim <> F.Prim) or (FMeshCache[MI].Mesh.Faces[K].Part <> F.Part) then Continue;
+      if F.HasPlane and not F.HasAxis and (FHoverFace >= 0) and (CompIdx = FHoverComp) and
+         (Vec3Dot(FMeshCache[MI].Mesh.Faces[K].N, FMeshCache[MI].Mesh.Faces[FHoverFace].N) < 0.99) then Continue;
+      for J := 0 to FDrawFaces[I].Count - 1 do
+      begin
+        A := FPointBuf[FDrawFaces[I].Start + J];
+        B := FPointBuf[FDrawFaces[I].Start + (J + 1) mod FDrawFaces[I].Count];
+        Canvas.Line(A.X, A.Y, B.X, B.Y);
+      end;
+    end;
+  end;
+
+  Canvas.Pen.Width := 2;
+  Canvas.Pen.Color := MarkColor;
+  if F.HasAxis then
+  begin
+    { eixo tracejado e circulo do furo/eixo }
+    L := Max(25.0, Max(C.Size.X, Max(C.Size.Y, C.Size.Z)) * 0.7);
+    Canvas.Pen.Style := psDash;
+    Canvas.Pen.Width := 1;
+    ProjectToScreen(W.AxisPoint.X - W.AxisDir.X * L, W.AxisPoint.Y - W.AxisDir.Y * L, W.AxisPoint.Z - W.AxisDir.Z * L, A.X, A.Y);
+    ProjectToScreen(W.AxisPoint.X + W.AxisDir.X * L, W.AxisPoint.Y + W.AxisDir.Y * L, W.AxisPoint.Z + W.AxisDir.Z * L, B.X, B.Y);
+    Canvas.Line(A.X, A.Y, B.X, B.Y);
+    Canvas.Pen.Style := psSolid;
+    Canvas.Pen.Width := 2;
+    U := Vec3Cross(W.AxisDir, Vec3(0, 0, 1));
+    if Vec3Len(U) < 0.1 then U := Vec3Cross(W.AxisDir, Vec3(1, 0, 0));
+    U := Vec3Normalize(U);
+    V := Vec3Normalize(Vec3Cross(W.AxisDir, U));
+    if F.HasPlane then P0 := W.PlanePoint else P0 := W.AxisPoint;
+    for I := 0 to 32 do
+    begin
+      Q := Vec3Add(P0, Vec3Add(Vec3Mul(U, Cos(I * Pi / 16) * Max(0.5, F.Radius)), Vec3Mul(V, Sin(I * Pi / 16) * Max(0.5, F.Radius))));
+      ProjectToScreen(Q.X, Q.Y, Q.Z, Pts[I].X, Pts[I].Y);
+    end;
+    Canvas.Polyline(Pts);
+  end;
+  if F.HasPlane then
+  begin
+    { seta da normal da face }
+    L := Max(12.0, Max(C.Size.X, Max(C.Size.Y, C.Size.Z)) * 0.25);
+    ProjectToScreen(W.PlanePoint.X, W.PlanePoint.Y, W.PlanePoint.Z, A.X, A.Y);
+    ProjectToScreen(W.PlanePoint.X + W.PlaneNormal.X * L, W.PlanePoint.Y + W.PlaneNormal.Y * L,
+      W.PlanePoint.Z + W.PlaneNormal.Z * L, B.X, B.Y);
+    Canvas.Line(A.X, A.Y, B.X, B.Y);
+    Canvas.Brush.Style := bsSolid;
+    Canvas.Brush.Color := MarkColor;
+    Canvas.Ellipse(B.X - 3, B.Y - 3, B.X + 4, B.Y + 4);
+    Canvas.Ellipse(A.X - 3, A.Y - 3, A.X + 4, A.Y + 4);
+  end;
+  Canvas.Brush.Style := bsSolid;
+  Canvas.Pen.Width := 1;
+end;
+
+procedure TMechanicalAssemblyCanvas.DrawMateOverlay;
+var
+  IA, IB: Integer;
+begin
+  if FProject = nil then Exit;
+  IA := FProject.FindComponent(FMoveID);
+  IB := FProject.FindComponent(FTargetID);
+  if (FMateMode in [mmPickTarget, mmPreview]) and (IA >= 0) then
+    DrawFeatureMarker(IA, FMoveFeat, $20A0FF, False);       // laranja: peca que se move
+  if (FMateMode = mmPreview) and (IB >= 0) then
+    DrawFeatureMarker(IB, FTargetFeat, $40E040, False);     // verde: referencia
+  if (FMateMode in [mmPickMoving, mmPickTarget]) and (FHoverComp >= 0) and FHoverFeat.Valid then
+    DrawFeatureMarker(FHoverComp, FHoverFeat, $FFE000, True); // ciano: sob o mouse
+end;
+
+procedure TMechanicalAssemblyCanvas.KeyDown(var Key: Word; Shift: TShiftState);
+begin
+  if FMateMode <> mmNone then
+  begin
+    case Key of
+      VK_ESCAPE: CancelMateMode;
+      VK_RETURN: ConfirmMate;
+      VK_F: FlipMate;
+      VK_R: if ssShift in Shift then SpinMate(-90) else SpinMate(90);
+      VK_I: SetMateKind(mrInsert);
+      VK_O: SetMateKind(mrConcentric);
+      VK_C: SetMateKind(mrCoincident);
+      VK_P: SetMateKind(mrParallel);
+      VK_D:
+        begin
+          SetMateKind(mrDistance);
+        end;
+      VK_ADD, VK_OEM_PLUS: SetMateDistance(FMateDist + IfThen(ssShift in Shift, 10, 1));
+      VK_SUBTRACT, VK_OEM_MINUS: SetMateDistance(FMateDist - IfThen(ssShift in Shift, 10, 1));
+    else
+      begin
+        inherited KeyDown(Key, Shift);
+        Exit;
+      end;
+    end;
+    Key := 0;
+    Exit;
+  end;
+  inherited KeyDown(Key, Shift);
+end;
+
 procedure TMechanicalAssemblyCanvas.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
   HitID: string;
   DOF: TComponentDOF;
+  CI, FI: Integer;
+  F: TMateFeature;
+  C: TAssemblyComponent;
+  K: TMechanicalRelationKind;
 begin
   SetFocus;
   FDragMouseX := X;
@@ -969,6 +1442,53 @@ begin
     else
       FOrbiting := True;
     Cursor := crHandPoint;
+    Exit;
+  end;
+
+  if (Button = mbLeft) and (FMateMode <> mmNone) then
+  begin
+    if (FMateMode in [mmPickMoving, mmPickTarget]) and PickFace(X, Y, CI, FI) then
+    begin
+      F := FeatureOf(CI, FI);
+      C := FProject.Component(CI);
+      if not F.Valid then
+        MateStatus('Não foi possível usar esta face como referência.')
+      else if FMateMode = mmPickMoving then
+      begin
+        if C.Fixed then
+          MateStatus(C.ID + ' é a base fixa e não se move: escolha primeiro a peça livre.')
+        else
+        begin
+          FMoveID := C.ID;
+          FMoveFeat := F;
+          FMateMode := mmPickTarget;
+          MateStatus(Format('%s: %s. Agora clique na referência da outra peça.', [C.ID, FeatureKindText(F)]));
+        end;
+      end
+      else if SameText(C.ID, FMoveID) then
+        MateStatus('A referência precisa estar em outra peça.')
+      else
+      begin
+        FTargetID := C.ID;
+        FTargetFeat := F;
+        if SuggestMateKind(FMoveFeat, FTargetFeat, K) then
+        begin
+          FMateKind := K;
+          FMateFlip := False;
+          FMateSpin := 0;
+          FMateMode := mmPreview;
+          UpdateMatePreview;
+        end
+        else
+          MateStatus(Format('Não há união entre %s e %s.', [FeatureKindText(FMoveFeat), FeatureKindText(F)]));
+      end;
+      Invalidate;
+    end
+    else
+    begin
+      FOrbiting := True;
+      Cursor := crHandPoint;
+    end;
     Exit;
   end;
 
@@ -1014,6 +1534,7 @@ end;
 
 procedure TMechanicalAssemblyCanvas.MouseMove(Shift: TShiftState; X, Y: Integer);
 var
+  CI, FI: Integer;
   DX, DY: Integer;
   RadAz, RadEl: Double;
   WorldDelta: TAssemblyVec3;
@@ -1021,6 +1542,27 @@ var
 begin
   DX := X - FDragMouseX;
   DY := Y - FDragMouseY;
+
+  if (FMateMode in [mmPickMoving, mmPickTarget]) and not FOrbiting and not FPanning then
+  begin
+    if PickFace(X, Y, CI, FI) then
+    begin
+      if (CI <> FHoverComp) or (FI <> FHoverFace) then
+      begin
+        FHoverComp := CI;
+        FHoverFace := FI;
+        FHoverFeat := FeatureOf(CI, FI);
+        Invalidate;
+      end;
+    end
+    else if FHoverComp >= 0 then
+    begin
+      FHoverComp := -1;
+      FHoverFace := -1;
+      FHoverFeat := Default(TMateFeature);
+      Invalidate;
+    end;
+  end;
 
   if FOrbiting then
   begin
@@ -1080,7 +1622,7 @@ begin
   FPanning := False;
   FDraggingPart := False;
   FDragPartID := '';
-  Cursor := crCross;
+  if FMateMode <> mmNone then Cursor := crHandPoint else Cursor := crCross;
 end;
 
 function TMechanicalAssemblyCanvas.DoMouseWheel(Shift: TShiftState; WheelDelta: Integer; MousePos: TPoint): Boolean;

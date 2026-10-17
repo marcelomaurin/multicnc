@@ -129,8 +129,21 @@ type
     mrDistance,
     mrSlider,
     mrHinge,
-    mrGear
+    mrGear,
+    mrInsert     // concentrico + coincidente (parafuso no furo, motor no suporte)
   );
+
+  { Referencia geometrica de uma uniao: face plana e/ou eixo de um componente,
+    no sistema local do componente (caixa 0..Size, antes da rotacao). }
+  TMateFeature = record
+    Valid: Boolean;
+    HasPlane: Boolean;
+    PlanePoint, PlaneNormal: TAssemblyVec3;
+    HasAxis: Boolean;
+    AxisPoint, AxisDir: TAssemblyVec3;
+    Radius: Double;
+    Prim, Part: Integer; // primitiva e parte de origem (informativo)
+  end;
 
   TMechanicalRelation = record
     A, B: string;
@@ -144,6 +157,10 @@ type
     CurrentValue: Double;
     Offset: TAssemblyVec3;
     Flipped: Boolean;
+    // Uniao por referencia (faces/furos/eixos escolhidos na vista 3D)
+    HasRefs: Boolean;
+    RefA, RefB: TMateFeature; // RefA pertence a A (peca movida), RefB a B (referencia)
+    SpinDeg: Double;          // giro em torno do eixo/normal da uniao
   end;
 
   TAssemblyDOFStatus = (

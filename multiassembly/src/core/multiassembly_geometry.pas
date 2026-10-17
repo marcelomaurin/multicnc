@@ -30,6 +30,9 @@ type
     Smooth: Boolean;       // faceta de superficie curva (sem contorno escuro)
     Decal: Boolean;        // decalque sobre outra face
     Host: Integer;         // face onde o decalque se apoia (-1 = nenhuma)
+    Prim: Integer;         // primitiva de origem
+    Part: Integer;         // FP_* : parte da primitiva
+    Group: Integer;        // faces coplanares da mesma parte (face subdividida)
   end;
 
   TAssemblyMesh = record
@@ -40,6 +43,16 @@ type
 
 const
   MESH_MAX_EDGE = 40.0; // mm: faces maiores sao subdivididas
+
+  { partes de primitiva (TMeshFace.Part) }
+  FP_SIDE = 0;       // lateral externa de cilindro
+  FP_INNER = 1;      // lateral interna (furo do tubo)
+  FP_BOTTOM = 2;     // tampa inferior (w = 0)
+  FP_TOP = 3;        // tampa superior (w = h)
+  FP_ARC_END = 4;    // extremidade de setor
+  FP_BOX = 5;        // face de caixa
+  FP_PRISM_SIDE = 6; // lateral de prisma
+  FP_DISK = 7;       // decalque
 
 function GeomRGB(R, G, B: Byte): LongInt;
 function GeomHexToColor(const S: string; Default: LongInt): LongInt;
@@ -56,7 +69,16 @@ function BuildDefaultGeometry(const C: TAssemblyComponent): TAssemblyGeometry;
 procedure BuildMesh(const G: TAssemblyGeometry; out M: TAssemblyMesh);
 function MapUVW(Axis: Char; U, V, W: Double): TAssemblyVec3;
 
+{ Referencia de uniao (plano e/ou eixo) da face FaceIdx, nas coordenadas da
+  geometria. Use MeshToLocalFeature para levar ao sistema 0..Size do componente. }
+function FaceFeature(const G: TAssemblyGeometry; const M: TAssemblyMesh; FaceIdx: Integer): TMateFeature;
+function MeshToLocalFeature(const F: TMateFeature; const M: TAssemblyMesh; const Size: TAssemblyVec3): TMateFeature;
+
 implementation
+
+var
+  GCurPrim: Integer = -1;
+  GCurPart: Integer = 0;
 
 { ------------------------------------------------------------------ cores }
 
@@ -717,6 +739,9 @@ begin
   F.Smooth := Smooth;
   F.Decal := Decal;
   F.Host := -1;
+  F.Prim := GCurPrim;
+  F.Part := GCurPart;
+  F.Group := -1;
   M.Faces[M.Count] := F;
   Inc(M.Count);
 end;
@@ -769,6 +794,7 @@ begin
   X0 := P.At.X; Y0 := P.At.Y; Z0 := P.At.Z;
   X1 := X0 + P.Size.X; Y1 := Y0 + P.Size.Y; Z1 := Z0 + P.Size.Z;
   NX := Splits(P.Size.X); NY := Splits(P.Size.Y); NZ := Splits(P.Size.Z);
+  GCurPart := FP_BOX;
   PushQuadGrid(M, Vec3(X0, Y0, Z0), Vec3(X1, Y0, Z0), Vec3(X1, Y1, Z0), Vec3(X0, Y1, Z0), Vec3(0, 0, -1), NX, NY, P.Color, False);
   PushQuadGrid(M, Vec3(X0, Y0, Z1), Vec3(X1, Y0, Z1), Vec3(X1, Y1, Z1), Vec3(X0, Y1, Z1), Vec3(0, 0, 1), NX, NY, P.Color, False);
   PushQuadGrid(M, Vec3(X0, Y0, Z0), Vec3(X1, Y0, Z0), Vec3(X1, Y0, Z1), Vec3(X0, Y0, Z1), Vec3(0, -1, 0), NX, NZ, P.Color, False);
@@ -826,6 +852,7 @@ begin
   NW := Splits(H);
 
   { lateral externa }
+  GCurPart := FP_SIDE;
   for I := 0 to NSeg - 1 do
   begin
     Ta := Ang[I]; Tb := Ang[I + 1]; Tm := (Ta + Tb) / 2;
@@ -835,6 +862,7 @@ begin
   end;
 
   { lateral interna (tubo) }
+  GCurPart := FP_INNER;
   if Ri > 1e-6 then
     for I := 0 to NSeg - 1 do
     begin
@@ -858,11 +886,13 @@ begin
       Poly[1] := MapP(P, R0 * Cos(Ta), R0 * Sin(Ta), 0);
       Poly[2] := MapP(P, R0 * Cos(Tb), R0 * Sin(Tb), 0);
       Poly[3] := MapP(P, Ri * Cos(Tb), Ri * Sin(Tb), 0);
+      GCurPart := FP_BOTTOM;
       PushFace(M, Poly, MapUVW(P.Axis, 0, 0, -1), P.Color, True, False);
       Poly[0] := MapP(P, Ri * Cos(Ta), Ri * Sin(Ta), H);
       Poly[1] := MapP(P, R1 * Cos(Ta), R1 * Sin(Ta), H);
       Poly[2] := MapP(P, R1 * Cos(Tb), R1 * Sin(Tb), H);
       Poly[3] := MapP(P, Ri * Cos(Tb), Ri * Sin(Tb), H);
+      GCurPart := FP_TOP;
       PushFace(M, Poly, MapUVW(P.Axis, 0, 0, 1), P.Color, True, False);
     end;
   end
@@ -874,6 +904,7 @@ begin
         Poly[I] := MapP(P, R0 * Cos(Ang[I]), R0 * Sin(Ang[I]), 0)
       else
         Poly[I] := MapP(P, 0, 0, 0);
+    GCurPart := FP_BOTTOM;
     PushFace(M, Poly, MapUVW(P.Axis, 0, 0, -1), P.Color, False, False);
     if R1 > 1e-3 then
     begin
@@ -882,6 +913,7 @@ begin
           Poly[I] := MapP(P, R1 * Cos(Ang[I]), R1 * Sin(Ang[I]), H)
         else
           Poly[I] := MapP(P, 0, 0, H);
+      GCurPart := FP_TOP;
       PushFace(M, Poly, MapUVW(P.Axis, 0, 0, 1), P.Color, False, False);
     end;
   end;
@@ -889,6 +921,7 @@ begin
   { faces das extremidades de um setor }
   if not Full then
   begin
+    GCurPart := FP_ARC_END;
     SetLength(Poly, 4);
     Ta := Ang[0];
     Poly[0] := MapP(P, Ri * Cos(Ta), Ri * Sin(Ta), 0);
@@ -935,9 +968,12 @@ begin
 
   SetLength(Poly, N);
   for I := 0 to N - 1 do Poly[I] := MapP(P, Pts[I].U, Pts[I].V, 0);
+  GCurPart := FP_BOTTOM;
   PushFace(M, Poly, MapUVW(P.Axis, 0, 0, -1), P.Color, False, False);
   for I := 0 to N - 1 do Poly[I] := MapP(P, Pts[I].U, Pts[I].V, P.H);
+  GCurPart := FP_TOP;
   PushFace(M, Poly, MapUVW(P.Axis, 0, 0, 1), P.Color, False, False);
+  GCurPart := FP_PRISM_SIDE;
 
   NW := Splits(P.H);
   for I := 0 to N - 1 do
@@ -967,6 +1003,7 @@ begin
     A := DegToRad(P.RotDeg) + 2 * Pi * I / Seg;
     Poly[I] := MapP(P, P.R * Cos(A), P.R * Sin(A), 0);
   end;
+  GCurPart := FP_DISK;
   PushFace(M, Poly, MapUVW(P.Axis, 0, 0, 1), P.Color, False, True);
   PushFace(M, Poly, MapUVW(P.Axis, 0, 0, -1), P.Color, False, True);
 end;
@@ -1040,6 +1077,25 @@ begin
   end;
 end;
 
+procedure GroupCoplanar(var M: TAssemblyMesh);
+var
+  I, J, NextG: Integer;
+begin
+  NextG := 0;
+  for I := 0 to M.Count - 1 do
+  begin
+    if M.Faces[I].Group >= 0 then Continue;
+    M.Faces[I].Group := NextG;
+    for J := I + 1 to M.Count - 1 do
+      if (M.Faces[J].Group < 0) and (M.Faces[J].Decal = M.Faces[I].Decal) and
+         (M.Faces[J].Prim = M.Faces[I].Prim) and (M.Faces[J].Part = M.Faces[I].Part) and
+         (Vec3Dot(M.Faces[J].N, M.Faces[I].N) > 0.9999) and
+         (Abs(Vec3Dot(Vec3Sub(M.Faces[J].V[0], M.Faces[I].V[0]), M.Faces[I].N)) < 1e-4) then
+        M.Faces[J].Group := NextG;
+    Inc(NextG);
+  end;
+end;
+
 procedure BuildMesh(const G: TAssemblyGeometry; out M: TAssemblyMesh);
 var
   I, J: Integer;
@@ -1049,13 +1105,18 @@ begin
   M.Count := 0;
   SetLength(M.Faces, 0);
   for I := 0 to High(G) do
+  begin
+    GCurPrim := I;
     case G[I].Kind of
       agpBox: MeshBox(M, G[I]);
       agpCylinder: MeshCylinder(M, G[I]);
       agpPrism: MeshPrism(M, G[I]);
       agpDisk: MeshDisk(M, G[I]);
     end;
+  end;
+  GCurPrim := -1;
   SetLength(M.Faces, M.Count);
+  GroupCoplanar(M);
   AttachDecals(M);
 
   First := True;
@@ -1080,6 +1141,141 @@ begin
       end;
     end;
   end;
+end;
+
+{ ---------------------------------------------------- referencias de uniao }
+
+function PolyCentroidRound(const P: TAssemblyPrimitive; out CU, CV, Radius: Double): Boolean;
+var
+  I, N: Integer;
+  D, DMin, DMax: Double;
+begin
+  N := Length(P.Poly);
+  CU := 0; CV := 0; Radius := 0;
+  Result := False;
+  if N < 3 then Exit;
+  for I := 0 to N - 1 do
+  begin
+    CU := CU + P.Poly[I].U;
+    CV := CV + P.Poly[I].V;
+  end;
+  CU := CU / N; CV := CV / N;
+  DMin := MaxDouble; DMax := 0;
+  for I := 0 to N - 1 do
+  begin
+    D := Sqrt(Sqr(P.Poly[I].U - CU) + Sqr(P.Poly[I].V - CV));
+    DMin := Min(DMin, D);
+    DMax := Max(DMax, D);
+    Radius := Radius + D / N;
+  end;
+  { contorno "redondo": sextavado, eixo com chato, polia dentada }
+  Result := (N >= 6) and (DMax > 1e-6) and (DMin / DMax > 0.8);
+end;
+
+function FaceFeature(const G: TAssemblyGeometry; const M: TAssemblyMesh; FaceIdx: Integer): TMateFeature;
+var
+  F: TMeshFace;
+  P: TAssemblyPrimitive;
+  C, Axis: TAssemblyVec3;
+  I: Integer;
+  CU, CV, Rad: Double;
+begin
+  Result := Default(TMateFeature);
+  Result.Prim := -1;
+  if (FaceIdx < 0) or (FaceIdx >= M.Count) then Exit;
+  F := M.Faces[FaceIdx];
+  Result.Valid := True;
+  Result.Prim := F.Prim;
+  Result.Part := F.Part;
+  C := Vec3(0, 0, 0);
+  for I := 0 to High(F.V) do C := Vec3Add(C, F.V[I]);
+  if Length(F.V) > 0 then C := Vec3Mul(C, 1.0 / Length(F.V));
+
+  { padrao: plano da face }
+  Result.HasPlane := F.Part <> FP_SIDE;
+  Result.PlanePoint := C;
+  Result.PlaneNormal := F.N;
+
+  if (F.Prim < 0) or (F.Prim > High(G)) then Exit;
+  P := G[F.Prim];
+  Axis := MapUVW(P.Axis, 0, 0, 1);
+  case P.Kind of
+    agpCylinder:
+      case F.Part of
+        FP_SIDE, FP_INNER:
+          begin
+            Result.HasPlane := False;
+            Result.HasAxis := True;
+            Result.AxisPoint := P.At;
+            Result.AxisDir := Axis;
+            if F.Part = FP_INNER then Result.Radius := P.Ri else Result.Radius := P.R;
+          end;
+        FP_BOTTOM, FP_TOP:
+          begin
+            Result.HasAxis := True;
+            Result.AxisDir := Axis;
+            if F.Part = FP_TOP then
+              Result.AxisPoint := Vec3Add(P.At, Vec3Mul(Axis, P.H))
+            else
+              Result.AxisPoint := P.At;
+            Result.PlanePoint := Result.AxisPoint;
+            Result.Radius := P.R;
+          end;
+      end;
+    agpDisk:
+      begin
+        Result.HasAxis := True;
+        Result.AxisPoint := P.At;
+        Result.AxisDir := F.N;
+        Result.PlanePoint := P.At;
+        Result.Radius := P.R;
+      end;
+    agpPrism:
+      if PolyCentroidRound(P, CU, CV, Rad) then
+      begin
+        Result.HasAxis := True;
+        Result.AxisPoint := Vec3Add(P.At, MapUVW(P.Axis, CU, CV, 0));
+        Result.AxisDir := Axis;
+        Result.Radius := Rad;
+        if F.Part = FP_TOP then
+          Result.PlanePoint := Vec3Add(Result.AxisPoint, Vec3Mul(Axis, P.H))
+        else if F.Part = FP_BOTTOM then
+          Result.PlanePoint := Result.AxisPoint
+        else
+          Result.HasPlane := False;
+      end;
+  end;
+end;
+
+function MeshToLocalFeature(const F: TMateFeature; const M: TAssemblyMesh; const Size: TAssemblyVec3): TMateFeature;
+var
+  S: TAssemblyVec3;
+
+  function P(const V: TAssemblyVec3): TAssemblyVec3;
+  begin
+    Result := Vec3((V.X - M.BoundsMin.X) * S.X, (V.Y - M.BoundsMin.Y) * S.Y, (V.Z - M.BoundsMin.Z) * S.Z);
+  end;
+
+  function D(const V: TAssemblyVec3): TAssemblyVec3;
+  begin
+    Result := Vec3Normalize(Vec3(V.X * S.X, V.Y * S.Y, V.Z * S.Z));
+  end;
+
+  function N(const V: TAssemblyVec3): TAssemblyVec3;
+  begin
+    Result := Vec3Normalize(Vec3(V.X / Max(1e-9, S.X), V.Y / Max(1e-9, S.Y), V.Z / Max(1e-9, S.Z)));
+  end;
+
+begin
+  Result := F;
+  S.X := IfThen(M.BoundsMax.X - M.BoundsMin.X > 1e-6, Size.X / Max(1e-6, M.BoundsMax.X - M.BoundsMin.X), 1);
+  S.Y := IfThen(M.BoundsMax.Y - M.BoundsMin.Y > 1e-6, Size.Y / Max(1e-6, M.BoundsMax.Y - M.BoundsMin.Y), 1);
+  S.Z := IfThen(M.BoundsMax.Z - M.BoundsMin.Z > 1e-6, Size.Z / Max(1e-6, M.BoundsMax.Z - M.BoundsMin.Z), 1);
+  Result.PlanePoint := P(F.PlanePoint);
+  Result.PlaneNormal := N(F.PlaneNormal);
+  Result.AxisPoint := P(F.AxisPoint);
+  Result.AxisDir := D(F.AxisDir);
+  Result.Radius := F.Radius * (S.X + S.Y + S.Z) / 3;
 end;
 
 initialization
