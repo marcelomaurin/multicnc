@@ -87,7 +87,7 @@ type
     PrinterBrandBox, PrinterModelBox: TComboBox;
     CreatePrinterProfileBtn: TSuiteButton;
     PrinterBox, FlavorChoice, ExtruderChoice: TComboBox;
-    BedX, BedY, BedZ, Nozzle, FilamentDia: TFloatSpinEdit;
+    BedX, BedY, BedZ, PrintStartZ, Nozzle, FilamentDia: TFloatSpinEdit;
     HeatedBedBox: TCheckBox;
     StartMemo, EndMemo: TMemo;
     PrinterNote: TLabel;
@@ -719,26 +719,27 @@ begin
   BedZ := FloatField(S, 'Altura maxima Z (mm)', 'BedZ', 250, 10, 2000, 1, 1, 642);
   Nozzle := FloatField(S, 'Diametro do bico (mm)', 'Nozzle', 0.4, 0.1, 2, 0.05, 2, 698);
   FilamentDia := FloatField(S, 'Diametro do filamento (mm)', 'FilamentDiameter', 1.75, 1, 3.5, 0.05, 2, 754);
-  HeatedBedBox := Check(S, 'Mesa aquecida', 812);
+  PrintStartZ := FloatField(S, 'Degrau inicial Z (mm)', 'PrintStartZ', 0, 0, 100, 0.1, 2, 810);
+  HeatedBedBox := Check(S, 'Mesa aquecida', 868);
   HeatedBedBox.Checked := True;
-  Section(S, 'G-CODE INICIAL', 850);
+  Section(S, 'G-CODE INICIAL', 906);
   StartMemo := TMemo.Create(Self);
   StartMemo.Parent := S; StartMemo.Name := 'StartGCode';
-  StartMemo.SetBounds(16, 872, 290, 170);
+  StartMemo.SetBounds(16, 928, 290, 170);
   StartMemo.ScrollBars := ssAutoBoth; StartMemo.WordWrap := False;
   StartMemo.Font.Name := 'Courier New'; StartMemo.Font.Size := 9;
   StartMemo.Clear;
   StartMemo.OnChange := @SettingsChanged;
-  Section(S, 'G-CODE FINAL', 1052);
+  Section(S, 'G-CODE FINAL', 1108);
   EndMemo := TMemo.Create(Self);
   EndMemo.Parent := S; EndMemo.Name := 'EndGCode';
-  EndMemo.SetBounds(16, 1074, 290, 130);
+  EndMemo.SetBounds(16, 1130, 290, 130);
   EndMemo.ScrollBars := ssAutoBoth; EndMemo.WordWrap := False;
   EndMemo.Font.Name := 'Courier New'; EndMemo.Font.Size := 9;
   EndMemo.Clear;
   EndMemo.OnChange := @SettingsChanged;
   LabelAt(S, 'Vazio = bloco padrao (aquece, G28, espera). Variaveis: {first_layer_bed_temp} {first_layer_hotend_temp} {bed_temp} {hotend_temp} {bed_x} {bed_y} {bed_z} {fan_speed}.',
-    16, 1212, 290, 76);
+    16, 1268, 290, 76);
 end;
 
 function TMultiSlicerForm.TransformField(AParent: TWinControl; const AText, AName: string;
@@ -2433,6 +2434,7 @@ begin
   if (PrinterBox.ItemIndex >= 0) and (PrinterBox.ItemIndex <= High(FPrinters)) then
     Result.Name := FPrinters[PrinterBox.ItemIndex].Name;
   Result.BedX := BedX.Value; Result.BedY := BedY.Value; Result.BedZ := BedZ.Value;
+  Result.PrintStartZ := PrintStartZ.Value;
   Result.Nozzle := Nozzle.Value; Result.FilamentDiameter := FilamentDia.Value;
   Result.Flavor := TSlicerFlavor(Max(0, FlavorChoice.ItemIndex));
   Result.Extruder := TExtruderKind(Max(0, ExtruderChoice.ItemIndex));
@@ -2528,6 +2530,7 @@ begin
   FUpdating := True;
   try
     BedX.Value := P.BedX; BedY.Value := P.BedY; BedZ.Value := P.BedZ;
+    PrintStartZ.Value := P.PrintStartZ;
     Nozzle.Value := P.Nozzle; FilamentDia.Value := P.FilamentDiameter;
     FlavorChoice.ItemIndex := Ord(P.Flavor);
     ExtruderChoice.ItemIndex := Ord(P.Extruder);
@@ -3064,6 +3067,7 @@ begin
   Result.Printer := DefaultPrinterProfile;
   Result.Printer.Name := CurrentPrinter.Name;
   Result.Printer.BedX := BedX.Value; Result.Printer.BedY := BedY.Value; Result.Printer.MaxZ := BedZ.Value;
+  Result.PrintStartZ := PrintStartZ.Value;
   Result.Printer.Nozzle := Nozzle.Value;
   Result.Printer.FilamentDiameter := FilamentDia.Value;
   Result.Printer.HotendTemp := Hotend.Value;
@@ -3166,6 +3170,7 @@ begin
     try
       S := Settings;
       if S.InfillDensity < 0 then Errors.Add('Preenchimento invalido.');
+      if PrintStartZ.Value >= BedZ.Value then Errors.Add('Degrau inicial Z maior que altura maxima da impressora.');
     except
       on E: Exception do Errors.Add(E.Message);
     end;
