@@ -121,8 +121,8 @@ begin
   Ex := TCadExtrude.Create('Extrude1', S.ID, 5, False);
   Mesh := TCadMesh.Create;
   try
-    S.AddRectangle(0, 0, 40, 30);
-    S.AddCircle(20, 15, 6);
+    S.AddRectangle(50, 50, 90, 80);
+    S.AddCircle(70, 65, 6);
     Pr := SketchProfiles(S, 0.01);
     Check((Length(Pr.Outer) = 1) and (Length(Pr.Holes) = 1), 'perfil com um furo');
     CircleArea := Abs(PolygonArea(Pr.Holes[0]));
@@ -151,7 +151,7 @@ begin
       SM.Clear;
       Check(T3MFImporter.Load(FN3, SM) and (SM.Count = Mesh.Count), '3MF do CAD lido pelo slicer');
       Check(Abs(SM.MaxZ - 5) < 1e-6, 'altura no 3MF');
-      // desloca para a mesa e fatia
+      // fatia no centro da mesa
       Rep := Slicer.Slice(SM, DefaultSliceSettings, G);
       Check(Rep.Layers = 25, Format('placa de 5 mm em 25 camadas (%d)', [Rep.Layers]));
       Check(Length(Slicer.Layers[10].Loops) = 2, 'furo aparece no fatiamento');

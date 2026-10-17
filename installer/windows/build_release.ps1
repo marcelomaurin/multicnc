@@ -20,7 +20,8 @@ function FindTool($EnvName, $Name, $Fallbacks) {
   throw "Ferramenta ausente: $Name. Configure $EnvName."
 }
 $env:LAZBUILD = FindTool 'LAZBUILD' 'lazbuild' @('C:\lazarus\lazbuild.exe')
-$env:FPC = FindTool 'FPC' 'fpc' @('C:\lazarus\fpc\3.2.2\bin\x86_64-win64\fpc.exe')
+$env:FPC = FindTool 'FPC' 'fpc' @('C:\lazarus\fpc\3.2.2\bin\x86_64-win64\fpc.exe', 'C:\lazarus\fpc\3.2.2\bin\i386-win32\fpc.exe')
+if (-not $env:MULTICNC_TEST_FLAGS) { $env:MULTICNC_TEST_FLAGS = '-Px86_64 -Twin64' }
 $python = FindTool 'PYTHON' 'python' @("$env:LOCALAPPDATA\Programs\Python\Python313\python.exe")
 $pf86 = [Environment]::GetFolderPath('ProgramFilesX86')
 $iscc = FindTool 'ISCC' 'iscc' @("$env:ProgramFiles\Inno Setup 7\ISCC.exe", "$pf86\Inno Setup 6\ISCC.exe")
@@ -59,7 +60,7 @@ $targets = @(
 foreach ($target in $targets) {
   Write-Host "Compilando $($target[1])..."
   $log = Join-Path $dist ("build-logs\" + $target[1] + '.log')
-  & $env:LAZBUILD '--ws=win32' "--compiler=$env:FPC" "--opt=@$config" '--build-mode=Default' ($target[0]+'.lpi') *> $log
+  & $env:LAZBUILD '--cpu=x86_64' '--os=win64' '--ws=win32' "--compiler=$env:FPC" "--opt=@$config" '--build-mode=Default' ($target[0]+'.lpi') *> $log
   if ($LASTEXITCODE -ne 0) { Get-Content -LiteralPath $log -Tail 35; throw "Falha ao compilar $($target[1])" }
   Copy-Item -LiteralPath ($target[0]+'.exe') -Destination (Join-Path $app ($target[1]+'.exe')) -Force
 }
@@ -73,7 +74,10 @@ if (-not (Test-Path -LiteralPath $library)) { throw 'Biblioteca ausente: models\
 $libraryDest = Join-Path $app 'models\components'
 New-Item -ItemType Directory -Force -Path $libraryDest | Out-Null
 Copy-Item -LiteralPath $library -Destination $libraryDest -Recurse -Force
-$strip = Join-Path (Split-Path $env:FPC) 'strip.exe'
+$strip = Join-Path (Split-Path $env:FPC) 'x86_64-win64-strip.exe'
+if (-not (Test-Path -LiteralPath $strip)) {
+  $strip = Join-Path (Split-Path $env:FPC) 'strip.exe'
+}
 if (Test-Path -LiteralPath $strip) {
   foreach ($exe in Get-ChildItem -LiteralPath $app -Filter '*.exe') {
     & $strip '--strip-debug' $exe.FullName

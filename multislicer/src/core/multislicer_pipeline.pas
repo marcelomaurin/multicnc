@@ -1127,7 +1127,6 @@ begin
   FTris := nil; FTriMinZ := nil; FTriMaxZ := nil; FActive := nil;
   Result.MinZ := Mesh.MinZ;
   Result.MaxZ := Mesh.MaxZ;
-  Mesh.Clear;
   Tick(0.35, 1);
   Result.MSLayers := GetTickCount64 - T0; T0 := GetTickCount64;
   BuildSupport;
