@@ -159,3 +159,9 @@ Na etapa **2 Modelo**, selecione a peça e clique em **Transformar dimensões...
 **Estado:** recurso publicado no código da branch `fila`; compilação e validação visual no executável ainda pendentes.
 
 **Atualização da transformação proporcional (17/10/2026):** tanto no modo percentual quanto no modo dimensão final (mm), escolha X, Y e/ou Z. Com *Escala proporcional nos eixos selecionados* marcada, o primeiro eixo selecionado determina o fator comum, aplicado **somente aos eixos marcados**. Exemplo: peça 20×30×10 mm, selecionar X e Y, definir X=40 mm, proporcional ativo → 40×60×10 mm. Selecionando X,Y,Z → 40×60×20 mm. Com proporcional desativado, os valores informados em cada eixo marcado são independentes. A peça atualiza ao aplicar; Ctrl+Z desfaz.
+
+## Adendo — Fragmentar e exportar peças STL (17/10/2026)
+
+Na etapa **Modelo**, selecione uma peça e clique em **Fragmentar e exportar STL...**. Escolha o eixo X, Y ou Z, informe a coordenada em milímetros, clique **Gerar partes** e indique uma pasta. O programa tenta gerar `peca_parte01.stl` e `peca_parte02.stl`, que são importadas como objetos editáveis na cena, mantendo o modelo original.
+
+**Limitações da versão inicial:** corte manual por plano, duas partes a cada operação; não existe divisão automática por volume da impressora, prévia anterior ao corte nem Undo de inclusão de objetos. Para voltar à situação original, remova os fragmentos e conserve o original. Malhas complexas, com furos e problemas topológicos, ainda precisam de validação geométrica; não tratar a saída como comprovadamente pronta para impressão. A funcionalidade publicada no código não teve compilação nem testes físicos confirmados.
