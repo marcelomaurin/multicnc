@@ -1973,12 +1973,12 @@ begin
     Mode.ItemIndex := 0;
     UniformBoxDlg := TCheckBox.Create(D);
     UniformBoxDlg.Parent := D;
-    UniformBoxDlg.Caption := 'Manter as proporcoes dos tres eixos';
+    UniformBoxDlg.Caption := 'Escala proporcional nos eixos selecionados';
     UniformBoxDlg.SetBounds(18, 99, 450, 24);
     UniformBoxDlg.Checked := True;
     Info := TLabel.Create(D);
     Info.Parent := D;
-    Info.Caption := 'Selecione o eixo de referencia; para alterar so alguns eixos, desmarque proporcoes.';
+    Info.Caption := 'Marque os eixos a alterar. Em proporcional, o primeiro eixo marcado define o fator comum.';
     Info.SetBounds(18, 126, 455, 36);
     Info.WordWrap := True;
     for I := 0 to 2 do
@@ -1987,7 +1987,7 @@ begin
       Axes[I].Parent := D;
       Axes[I].Caption := AxisNames[I];
       Axes[I].SetBounds(20, 167 + I * 51, 48, 25);
-      Axes[I].Checked := I = 0;
+      Axes[I].Checked := True;
       PercentFields[I] := TFloatSpinEdit.Create(D);
       PercentFields[I].Parent := D;
       PercentFields[I].SetBounds(85, 164 + I * 51, 105, 28);
@@ -2042,7 +2042,8 @@ begin
     if UniformBoxDlg.Checked then
     begin
       Factor := Factors[FirstAxis];
-      for I := 0 to 2 do Factors[I] := Factor;
+      for I := 0 to 2 do
+        if Axes[I].Checked then Factors[I] := Factor;
     end;
     if (Abs(Factors[0] - 1) < 1e-9) and
        (Abs(Factors[1] - 1) < 1e-9) and
