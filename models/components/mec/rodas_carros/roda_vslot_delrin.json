@@ -1,0 +1,40 @@
+{
+  "name": "Roda V-Slot Delrin",
+  "model": "Solid V Wheel Delrin + 2x 625ZZ",
+  "category": "rodas_carros",
+  "kind": "ackBearing",
+  "material": "POM (Delrin) / rolamentos 625ZZ",
+  "color": 2236190,
+  "size": {
+    "x": 24.39,
+    "y": 24.39,
+    "z": 10.25
+  },
+  "ports": [
+    {
+      "name": "FURO_5MM",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "PISTA_V",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Roda em V Ø24,39 x 10,23 mm para perfis V-Slot, com 2 rolamentos 625ZZ e espaçador.",
+  "standard": "OpenBuilds",
+  "mass_g": 12,
+  "specs": {
+    "D_mm": 24.39,
+    "largura_mm": 10.23,
+    "furo_mm": 5,
+    "rolamentos": "2x 625ZZ"
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [12.195, 12.195, 0.01], "r": 9.75, "h": 2.251, "color": "#1E1F22", "r2": 12.195, "seg": 32},
+    {"type": "cyl", "axis": "z", "at": [12.195, 12.195, 2.261], "r": 12.195, "h": 5.729, "color": "#1E1F22", "seg": 32},
+    {"type": "cyl", "axis": "z", "at": [12.195, 12.195, 7.989], "r": 12.195, "h": 2.251, "color": "#1E1F22", "r2": 9.75, "seg": 32},
+    {"type": "cyl", "axis": "z", "at": [12.195, 12.195, 0.0], "r": 8.0, "h": 10.25, "color": "#DDE1E6", "ri": 2.5, "seg": 24}
+  ]
+}

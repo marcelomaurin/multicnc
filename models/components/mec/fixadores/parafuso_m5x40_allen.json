@@ -1,0 +1,77 @@
+{
+  "name": "Parafuso M5x40 Allen",
+  "model": "DIN 912 M5x40 12.9",
+  "category": "fixadores",
+  "kind": "ackFastenerScrew",
+  "material": "Aço classe 12.9 oxidado preto",
+  "color": 4275258,
+  "size": {
+    "x": 8.5,
+    "y": 8.5,
+    "z": 45.0
+  },
+  "ports": [
+    {
+      "name": "ROSCA",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "CABECA",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Parafuso cabeça cilíndrica com sextavado interno M5 x 40 mm (cabeça Ø8.5 x 5.0, chave 4.0).",
+  "standard": "DIN 912 / ISO 4762",
+  "mass_g": 6.9,
+  "specs": {
+    "rosca": "M5 x 0.8",
+    "comprimento_mm": 40,
+    "cabeca_d_mm": 8.5,
+    "cabeca_h_mm": 5.0,
+    "chave_allen_mm": 4.0,
+    "torque_ref_Nm": 9.5
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 0.0], "r": 2.1, "h": 40.0, "color": "#2E3135", "seg": 16},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 0.278], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 1.389], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 2.5], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 3.611], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 4.722], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 5.833], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 6.944], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 8.056], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 9.167], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 10.278], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 11.389], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 12.5], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 13.611], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 14.722], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 15.833], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 16.944], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 18.056], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 19.167], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 20.278], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 21.389], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 22.5], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 23.611], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 24.722], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 25.833], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 26.944], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 28.056], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 29.167], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 30.278], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 31.389], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 32.5], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 33.611], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 34.722], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 35.833], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 36.944], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 38.056], "r": 2.5, "h": 0.556, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 40.0], "r": 4.25, "h": 4.7, "color": "#3A3C41", "seg": 28},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 44.7], "r": 4.25, "h": 0.3, "color": "#3A3C41", "r2": 3.95, "seg": 28},
+    {"type": "disk", "axis": "z", "at": [4.25, 4.25, 45.0], "r": 2.309, "color": "#15161A", "seg": 6}
+  ]
+}

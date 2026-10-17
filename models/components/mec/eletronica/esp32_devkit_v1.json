@@ -1,0 +1,106 @@
+{
+  "name": "ESP32 DevKit V1",
+  "model": "ESP32-WROOM-32 30 pinos",
+  "category": "eletronica",
+  "kind": "ackController",
+  "material": "PCB FR4",
+  "color": 2827811,
+  "size": {
+    "x": 51.9,
+    "y": 28.3,
+    "z": 13.2
+  },
+  "ports": [
+    {
+      "name": "VIN",
+      "kind": "apkPower",
+      "voltage": 5.0
+    },
+    {
+      "name": "3V3",
+      "kind": "apkPower",
+      "voltage": 3.3
+    },
+    {
+      "name": "GND",
+      "kind": "apkGround",
+      "voltage": 0.0
+    },
+    {
+      "name": "USB",
+      "kind": "apkCommunication",
+      "voltage": 0.0
+    },
+    {
+      "name": "TX",
+      "kind": "apkCommunication",
+      "voltage": 0.0
+    },
+    {
+      "name": "RX",
+      "kind": "apkCommunication",
+      "voltage": 0.0
+    },
+    {
+      "name": "IN_GPIO34",
+      "kind": "apkDigitalInput",
+      "voltage": 3.3
+    },
+    {
+      "name": "OUT_GPIO2",
+      "kind": "apkDigitalOutput",
+      "voltage": 3.3
+    }
+  ],
+  "description": "Placa de desenvolvimento ESP32 (Wi-Fi/Bluetooth) com 30 pinos, para FluidNC, painéis e automação.",
+  "mass_g": 10,
+  "specs": {
+    "mcu": "ESP32 dual-core 240 MHz",
+    "logica_V": 3.3,
+    "pinos": 30
+  },
+  "geometry": [
+    {"type": "box", "at": [3.0, 0.5, 6.0], "size": [38.1, 2.54, 2.5], "color": "#202124"},
+    {"type": "box", "at": [3.95, 1.45, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [6.49, 1.45, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [9.03, 1.45, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [11.57, 1.45, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [14.11, 1.45, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [16.65, 1.45, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [19.19, 1.45, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [21.73, 1.45, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [24.27, 1.45, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [26.81, 1.45, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [29.35, 1.45, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [31.89, 1.45, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [34.43, 1.45, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [36.97, 1.45, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [39.51, 1.45, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [3.0, 25.3, 6.0], "size": [38.1, 2.54, 2.5], "color": "#202124"},
+    {"type": "box", "at": [3.95, 26.25, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [6.49, 26.25, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [9.03, 26.25, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [11.57, 26.25, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [14.11, 26.25, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [16.65, 26.25, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [19.19, 26.25, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [21.73, 26.25, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [24.27, 26.25, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [26.81, 26.25, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [29.35, 26.25, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [31.89, 26.25, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [34.43, 26.25, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [36.97, 26.25, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [39.51, 26.25, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [0.0, 0.0, 8.5], "size": [51.5, 28.3, 1.6], "color": "#23262B"},
+    {"type": "box", "at": [0.0, 5.2, 10.1], "size": [18.0, 18.0, 0.8], "color": "#23262B"},
+    {"type": "box", "at": [5.0, 5.2, 10.9], "size": [13.0, 18.0, 2.3], "color": "#DDE1E6"},
+    {"type": "box", "at": [46.0, 10.4, 10.1], "size": [5.9, 7.5, 2.9], "color": "#DDE1E6"},
+    {"type": "box", "at": [40.0, 3.0, 10.1], "size": [3.5, 6.0, 1.6], "color": "#DDE1E6"},
+    {"type": "cyl", "axis": "z", "at": [41.75, 6.0, 11.7], "r": 0.9, "h": 0.5, "color": "#26282C", "seg": 10},
+    {"type": "box", "at": [40.0, 22.0, 10.1], "size": [3.5, 6.0, 1.6], "color": "#DDE1E6"},
+    {"type": "cyl", "axis": "z", "at": [41.75, 25.0, 11.7], "r": 0.9, "h": 0.5, "color": "#26282C", "seg": 10},
+    {"type": "box", "at": [30.0, 10.0, 10.1], "size": [5.0, 5.0, 1.0], "color": "#18191C"},
+    {"type": "disk", "axis": "z", "at": [36.0, 14.0, 10.1], "r": 0.6, "color": "#FF3030", "seg": 8}
+  ]
+}

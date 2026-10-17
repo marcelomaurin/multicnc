@@ -3,11 +3,11 @@
   "model": "Spindle 500W 52mm 48V",
   "category": "motores",
   "kind": "ackSpindle",
-  "material": "Aço / Alumínio",
-  "color": 5592405,
+  "material": "Alumínio / aço",
+  "color": 13815241,
   "size": {
-    "x": 52.0,
-    "y": 52.0,
+    "x": 52.1,
+    "y": 52.1,
     "z": 175.0
   },
   "ports": [
@@ -20,7 +20,43 @@
       "name": "POWER_IN",
       "kind": "apkPower",
       "voltage": 48.0
+    },
+    {
+      "name": "GND",
+      "kind": "apkGround",
+      "voltage": 0.0
     }
   ],
-  "description": "Motor Spindle 500W refrigerado a ar com pinça ER11"
+  "description": "Spindle DC 500 W Ø52 refrigerado a ar, pinça ER11 (1–7 mm), 12000 RPM a 48 V; ferramenta em -Z.",
+  "mass_g": 1300,
+  "specs": {
+    "d_mm": 52,
+    "comprimento_mm": 175,
+    "pinca": "ER11",
+    "potencia_W": 500,
+    "tensao_V": 48,
+    "rpm_max": 12000,
+    "suporte": "Ø52"
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [26.05, 26.05, 0.0], "r": 8.0, "h": 11.5, "color": "#DDE1E6", "seg": 12},
+    {"type": "disk", "axis": "z", "at": [26.05, 26.05, 0.0], "r": 3.5, "color": "#15161A"},
+    {"type": "cyl", "axis": "z", "at": [26.05, 26.05, 11.5], "r": 7.0, "h": 5.5, "color": "#DDE1E6", "seg": 20},
+    {"type": "cyl", "axis": "z", "at": [26.05, 26.05, 17.0], "r": 22.0, "h": 10.0, "color": "#C9CDD2", "r2": 26.0, "seg": 40},
+    {"type": "cyl", "axis": "z", "at": [26.05, 26.05, 27.0], "r": 26.0, "h": 115.0, "color": "#C9CDD2", "seg": 40},
+    {"type": "cyl", "axis": "z", "at": [26.05, 26.05, 60.0], "r": 26.05, "h": 1.0, "color": "#787B7E", "seg": 40, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [26.05, 26.05, 110.0], "r": 26.05, "h": 1.0, "color": "#787B7E", "seg": 40, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [26.05, 26.05, 142.0], "r": 26.0, "h": 25.0, "color": "#26282C", "seg": 40},
+    {"type": "disk", "axis": "z", "at": [44.05, 26.05, 167.0], "r": 3.0, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [38.778, 38.778, 167.0], "r": 3.0, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [26.05, 44.05, 167.0], "r": 3.0, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [13.322, 38.778, 167.0], "r": 3.0, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [8.05, 26.05, 167.0], "r": 3.0, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [13.322, 13.322, 167.0], "r": 3.0, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [26.05, 8.05, 167.0], "r": 3.0, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [38.778, 13.322, 167.0], "r": 3.0, "color": "#15161A"},
+    {"type": "cyl", "axis": "z", "at": [26.05, 26.05, 167.0], "r": 6.5, "h": 8.0, "color": "#26282C", "seg": 20},
+    {"type": "box", "at": [34.05, 23.05, 167.0], "size": [10.0, 6.0, 6.0], "color": "#D02020"},
+    {"type": "box", "at": [8.05, 23.05, 167.0], "size": [10.0, 6.0, 6.0], "color": "#26282C"}
+  ]
 }

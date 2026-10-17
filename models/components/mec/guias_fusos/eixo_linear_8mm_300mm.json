@@ -1,0 +1,31 @@
+{
+  "name": "Eixo Retificado 8mm 300mm",
+  "model": "WCS 8mm h6",
+  "category": "guias_fusos",
+  "kind": "ackLinearGuide",
+  "material": "Aço SAE 1045 temperado e cromado",
+  "color": 15131101,
+  "size": {
+    "x": 8.0,
+    "y": 8.0,
+    "z": 300.0
+  },
+  "ports": [
+    {
+      "name": "EIXO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Eixo linear retificado Ø8 mm tolerância h6, temperado por indução e cromado duro, 300 mm.",
+  "mass_g": 118.0,
+  "specs": {
+    "d_mm": 8,
+    "comprimento_mm": 300,
+    "tolerancia": "h6",
+    "dureza_HRC": "60±2"
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [4.0, 4.0, 0.0], "r": 4.0, "h": 300.0, "color": "#DDE1E6", "seg": 24}
+  ]
+}

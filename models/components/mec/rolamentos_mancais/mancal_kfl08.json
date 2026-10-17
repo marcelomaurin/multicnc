@@ -3,11 +3,11 @@
   "model": "KFL08 Eixo 8mm",
   "category": "rolamentos_mancais",
   "kind": "ackBearing",
-  "material": "Liga de Zinco",
-  "color": 9868950,
+  "material": "Liga de zinco / rolamento K08",
+  "color": 11314334,
   "size": {
-    "x": 48.0,
-    "y": 12.0,
+    "x": 47.832,
+    "y": 13.6,
     "z": 27.0
   },
   "ports": [
@@ -15,7 +15,29 @@
       "name": "FURO_EIXO",
       "kind": "apkMechanical",
       "voltage": 0.0
+    },
+    {
+      "name": "FLANGE",
+      "kind": "apkMechanical",
+      "voltage": 0.0
     }
   ],
-  "description": "Mancal com flange losangular 2 furos para fuso T8"
+  "description": "Mancal de flange losangular KFL08: 2 furos a 37 mm, para fuso T8.",
+  "mass_g": 30,
+  "specs": {
+    "d_mm": 8,
+    "L_mm": 48,
+    "J_furos_mm": 37,
+    "largura_mm": 27,
+    "altura_total_mm": 12
+  },
+  "geometry": [
+    {"type": "prism", "axis": "y", "at": [23.916, 0.8, 13.5], "h": 5.0, "poly": [[-13.5, 0.0], [-12.686, -4.617], [-5.168, -20.381], [-4.213, -22.035], [-2.75, -23.263], [-0.955, -23.916], [0.955, -23.916], [2.75, -23.263], [4.213, -22.035], [5.168, -20.381], [12.686, -4.617], [13.5, 0.0], [12.686, 4.617], [5.168, 20.381], [4.213, 22.035], [2.75, 23.263], [0.955, 23.916], [-0.955, 23.916], [-2.75, 23.263], [-4.213, 22.035], [-5.168, 20.381], [-12.686, 4.617]], "color": "#9EA4AC"},
+    {"type": "cyl", "axis": "y", "at": [23.916, 5.8, 13.5], "r": 9.0, "h": 7.0, "color": "#9EA4AC", "seg": 28},
+    {"type": "cyl", "axis": "y", "at": [23.916, 0.0, 13.5], "r": 6.5, "h": 13.6, "color": "#DDE1E6", "ri": 4.0, "seg": 24},
+    {"type": "disk", "axis": "y", "at": [5.416, 0.8, 13.5], "r": 2.5, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [5.416, 5.8, 13.5], "r": 2.5, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [42.416, 0.8, 13.5], "r": 2.5, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [42.416, 5.8, 13.5], "r": 2.5, "color": "#15161A"}
+  ]
 }

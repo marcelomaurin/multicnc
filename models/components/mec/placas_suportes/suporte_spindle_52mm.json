@@ -3,11 +3,11 @@
   "model": "Clamp Mount 52mm",
   "category": "placas_suportes",
   "kind": "ackMechanicalPart",
-  "material": "Alumínio Fundido e Usinado",
-  "color": 11842740,
+  "material": "Alumínio fundido",
+  "color": 13815241,
   "size": {
     "x": 90.0,
-    "y": 40.0,
+    "y": 86.0,
     "z": 60.0
   },
   "ports": [
@@ -22,5 +22,27 @@
       "voltage": 0.0
     }
   ],
-  "description": "Abraçadeira de montagem de alta precisão para motor spindle de 52mm"
+  "description": "Abraçadeira Ø52 com aperto por parafuso M8 e flange traseira de 90 mm para a placa do eixo Z.",
+  "mass_g": 300,
+  "specs": {
+    "d_mm": 52,
+    "flange_mm": [
+      90,
+      60
+    ],
+    "aperto": "M8"
+  },
+  "geometry": [
+    {"type": "box", "at": [0.0, 0.0, 0.0], "size": [90.0, 12.0, 60.0], "color": "#C9CDD2"},
+    {"type": "cyl", "axis": "z", "at": [45.0, 40.0, 5.0], "r": 34.0, "h": 50.0, "color": "#C9CDD2", "ri": 26.0, "seg": 48},
+    {"type": "box", "at": [22.0, 12.0, 5.0], "size": [46.0, 6.0, 50.0], "color": "#C9CDD2"},
+    {"type": "box", "at": [38.0, 72.0, 5.0], "size": [6.0, 14.0, 50.0], "color": "#C9CDD2"},
+    {"type": "box", "at": [46.0, 72.0, 5.0], "size": [6.0, 14.0, 50.0], "color": "#C9CDD2"},
+    {"type": "cyl", "axis": "x", "at": [30.0, 80.0, 30.0], "r": 4.2, "h": 30.0, "color": "#3A3C41", "seg": 16},
+    {"type": "cyl", "axis": "x", "at": [26.0, 80.0, 30.0], "r": 5.0, "h": 4.0, "color": "#3A3C41", "seg": 16},
+    {"type": "disk", "axis": "y", "at": [10.0, 0.0, 12.0], "r": 2.75, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [10.0, 0.0, 48.0], "r": 2.75, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [80.0, 0.0, 12.0], "r": 2.75, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [80.0, 0.0, 48.0], "r": 2.75, "color": "#15161A"}
+  ]
 }

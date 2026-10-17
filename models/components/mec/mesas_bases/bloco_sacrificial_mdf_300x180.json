@@ -1,10 +1,10 @@
 {
   "name": "Spoilboard MDF 300x180mm",
-  "model": "MDF Sacrificial Board",
+  "model": "MDF 12mm",
   "category": "mesas_bases",
   "kind": "ackMechanicalPart",
-  "material": "MDF Alta Densidade",
-  "color": 9145227,
+  "material": "MDF",
+  "color": 6195893,
   "size": {
     "x": 300.0,
     "y": 180.0,
@@ -17,5 +17,29 @@
       "voltage": 0.0
     }
   ],
-  "description": "Tábua de sacrifício em MDF retificado para fresamento sem danificar a mesa"
+  "description": "Tábua de sacrifício de MDF 12 mm com 6 furos escareados para M5; refaceie após fixar na mesa.",
+  "mass_g": 480,
+  "specs": {
+    "dim_mm": [
+      300,
+      180,
+      12
+    ],
+    "furos": "6x M5 escareado"
+  },
+  "geometry": [
+    {"type": "box", "at": [0.0, 0.0, 0.0], "size": [300.0, 180.0, 12.0], "color": "#B58A5E"},
+    {"type": "disk", "axis": "z", "at": [15.0, 15.0, 12.0], "r": 5.0, "color": "#634B33"},
+    {"type": "disk", "axis": "z", "at": [15.0, 15.0, 12.001], "r": 2.75, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [15.0, 90.0, 12.0], "r": 5.0, "color": "#634B33"},
+    {"type": "disk", "axis": "z", "at": [15.0, 90.0, 12.001], "r": 2.75, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [15.0, 165.0, 12.0], "r": 5.0, "color": "#634B33"},
+    {"type": "disk", "axis": "z", "at": [15.0, 165.0, 12.001], "r": 2.75, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [285.0, 15.0, 12.0], "r": 5.0, "color": "#634B33"},
+    {"type": "disk", "axis": "z", "at": [285.0, 15.0, 12.001], "r": 2.75, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [285.0, 90.0, 12.0], "r": 5.0, "color": "#634B33"},
+    {"type": "disk", "axis": "z", "at": [285.0, 90.0, 12.001], "r": 2.75, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [285.0, 165.0, 12.0], "r": 5.0, "color": "#634B33"},
+    {"type": "disk", "axis": "z", "at": [285.0, 165.0, 12.001], "r": 2.75, "color": "#15161A"}
+  ]
 }

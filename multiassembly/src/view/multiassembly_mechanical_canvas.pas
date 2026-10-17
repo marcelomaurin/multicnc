@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, Controls, Graphics, Math, LCLType, Forms,
-  multiassembly_types, multiassembly_project, multiassembly_solver;
+  multiassembly_types, multiassembly_project, multiassembly_solver, multiassembly_geometry;
 
 type
   TAssemblyViewMode = (avm3DOrbit, avmTop, avmFront, avmSide);
@@ -14,16 +14,24 @@ type
   TComponentSelectEvent = procedure(Sender: TObject; const ComponentID: string) of object;
   TKinematicMoveEvent = procedure(Sender: TObject; const ComponentID: string) of object;
 
-  TFace3D = record
-    P: array[0..3] of TPoint;
-    AvgDepth: Double;
-    Color: TColor;
-    BorderColor: TColor;
+  { cache da malha 3D de cada componente }
+  TMeshCacheItem = record
+    ID: string;
+    Sig: string;
+    Mesh: TAssemblyMesh;
   end;
 
-  TCompRenderItem = record
-    CompIndex: Integer;
-    AvgDepth: Double;
+  { transformacao local -> mundo de um componente }
+  TCompXform = record
+    Pos, Center, Scale, GMin: TAssemblyVec3;
+    R: array[0..2, 0..2] of Double;
+  end;
+
+  { face projetada pronta para desenho (algoritmo do pintor) }
+  TDrawFace = record
+    Start, Count: Integer; // fatia de FPointBuf
+    Depth: Double;
+    Fill, Pen: TColor;
   end;
 
   TMechanicalAssemblyCanvas = class(TCustomControl)
@@ -54,9 +62,33 @@ type
     FShowDOFArrows: Boolean;
     FShowMateLines: Boolean;
     FShowGrid: Boolean;
+    FShowLabels: Boolean;
     FOnSelect: TComponentSelectEvent;
     FOnKinematicMove: TKinematicMoveEvent;
 
+    // Renderizacao realista
+    FMeshCache: array of TMeshCacheItem;
+    FPointBuf: array of TPoint;
+    FPointCount: Integer;
+    FDrawFaces: array of TDrawFace;
+    FDrawCount: Integer;
+    FCosAz, FSinAz, FCosEl, FSinEl: Double;
+
+    procedure UpdateCameraTrig;
+    function CameraDir(const V: TAssemblyVec3): TAssemblyVec3;
+    function MeshIndexFor(const C: TAssemblyComponent): Integer;
+    procedure MakeXform(const C: TAssemblyComponent; const Pos, Rot: TAssemblyVec3; const M: TAssemblyMesh;
+      out T: TCompXform);
+    function XformPoint(const T: TCompXform; const V: TAssemblyVec3): TAssemblyVec3;
+    function XformNormal(const T: TCompXform; const N: TAssemblyVec3): TAssemblyVec3;
+    procedure ComponentCorners(const C: TAssemblyComponent; const Pos, Rot: TAssemblyVec3;
+      out Corners: array of TAssemblyVec3);
+    function ComponentRotation(const C: TAssemblyComponent): TAssemblyVec3;
+    procedure CollectComponentFaces(const C: TAssemblyComponent; const Pos, Rot: TAssemblyVec3;
+      IsSelected, HasCollision, InCurrentStep: Boolean);
+    procedure SortDrawFaces;
+    procedure DrawSelectionBox(const C: TAssemblyComponent; const Pos, Rot: TAssemblyVec3);
+    procedure DrawComponentLabel(const C: TAssemblyComponent; const Pos, Rot: TAssemblyVec3; const LabelStr: string);
     procedure ProjectToScreen(X, Y, Z: Double; out SX, SY: Integer; out Depth: Double); overload;
     procedure ProjectToScreen(X, Y, Z: Double; out SX, SY: Integer); overload;
     function HitTest(SX, SY: Integer): string;
@@ -66,7 +98,6 @@ type
     procedure Draw3DGrid;
     procedure DrawDOFArrows(const CompID: string; const Pos, Size: TAssemblyVec3; const DOF: TComponentDOF);
     procedure DrawArrow(X0, Y0, Z0, DX, DY, DZ: Double; AColor: TColor; const ALabel: string);
-    procedure RenderBox3D(const Pos, Size: TAssemblyVec3; BaseColor: TColor; IsSelected, HasCollision, InCurrentStep: Boolean; const LabelStr: string);
   protected
     procedure Paint; override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
@@ -83,6 +114,7 @@ type
     procedure ZoomOut;
     procedure SetViewMode(Mode: TAssemblyViewMode);
     procedure SetCameraPreset(AzimuthDeg, ElevationDeg: Double);
+    procedure ClearMeshCache;
 
     property Project: TAssemblyProject read FProject write FProject;
     property Solver: TKinematicSolver read FSolver write FSolver;
@@ -95,34 +127,12 @@ type
     property ShowDOFArrows: Boolean read FShowDOFArrows write FShowDOFArrows;
     property ShowMateLines: Boolean read FShowMateLines write FShowMateLines;
     property ShowGrid: Boolean read FShowGrid write FShowGrid;
+    property ShowLabels: Boolean read FShowLabels write FShowLabels;
     property OnSelectComponent: TComponentSelectEvent read FOnSelect write FOnSelect;
     property OnKinematicMove: TKinematicMoveEvent read FOnKinematicMove write FOnKinematicMove;
   end;
 
 implementation
-
-function ColorForKind(K: TAssemblyComponentKind): TColor;
-begin
-  case K of
-    ackMechanicalPart: Result := $C0B0A0; // Aco/Aluminio
-    ackMotor: Result := $805030;          // Cobre/Azul motor
-    ackSpindle: Result := $2090D0;        // Dourado metalico
-    ackLeadScrew: Result := $A8A8A8;      // Inox
-    ackLinearGuide: Result := $908070;    // Trilho de aco
-    ackBearing: Result := $B08050;        // Bronze/Rolamento
-    ackPulley: Result := $404040;         // Alum escuro
-    ackBelt: Result := $202020;           // Preto borracha
-    ackController, ackPCB: Result := $308040; // Verde PCB
-    ackDriver: Result := $802060;         // Roxo escuro
-    ackPowerSupply: Result := $888888;    // Prata industrial
-    ackEStop: Result := $2020D0;          // Vermelho
-    ackFastenerScrew, ackFastenerNut, ackFastenerWasher: Result := $D0D0D0; // Inox
-    ackPinSpacer, ackFastenerRivet: Result := $90B0C0;
-    ackSensor, ackEndStop: Result := $2080F0; // Laranja
-  else
-    Result := $A0A0A0;
-  end;
-end;
 
 constructor TMechanicalAssemblyCanvas.Create(AOwner: TComponent);
 begin
@@ -140,6 +150,7 @@ begin
   FShowDOFArrows := True;
   FShowMateLines := True;
   FShowGrid := True;
+  FShowLabels := True;
   FOrbiting := False;
   FPanning := False;
   FDraggingPart := False;
@@ -389,138 +400,355 @@ begin
   end;
 end;
 
-procedure TMechanicalAssemblyCanvas.RenderBox3D(const Pos, Size: TAssemblyVec3; BaseColor: TColor;
-  IsSelected, HasCollision, InCurrentStep: Boolean; const LabelStr: string);
+{ ------------------------------------------------------- renderizacao 3D }
+
+procedure TMechanicalAssemblyCanvas.ClearMeshCache;
+begin
+  SetLength(FMeshCache, 0);
+  Invalidate;
+end;
+
+procedure TMechanicalAssemblyCanvas.UpdateCameraTrig;
+begin
+  FCosAz := Cos(DegToRad(FAzimuth));
+  FSinAz := Sin(DegToRad(FAzimuth));
+  FCosEl := Cos(DegToRad(FElevation));
+  FSinEl := Sin(DegToRad(FElevation));
+end;
+
+{ direcao no espaco da camera: X direita, Y para cima, Z profundidade (para dentro da tela) }
+function TMechanicalAssemblyCanvas.CameraDir(const V: TAssemblyVec3): TAssemblyVec3;
 var
-  X0, Y0, Z0, W, H, D: Double;
-  P: array[0..7] of TPoint;
-  Depths: array[0..7] of Double;
-  Faces: array[0..5] of TFace3D;
-  FCount, FI, FJ: Integer;
-  TempFace: TFace3D;
-  CX, CY: Integer;
-  BorderCol: TColor;
+  X1, Y1: Double;
+begin
+  X1 := V.X * FCosAz - V.Y * FSinAz;
+  Y1 := V.X * FSinAz + V.Y * FCosAz;
+  Result.X := X1;
+  Result.Y := Y1 * FSinEl + V.Z * FCosEl;
+  Result.Z := Y1 * FCosEl - V.Z * FSinEl;
+end;
 
-  procedure AddFace(P0, P1, P2, P3: Integer; Factor: Double);
-  var
-    AvgD: Double;
-    R, G, B: Integer;
+function TMechanicalAssemblyCanvas.MeshIndexFor(const C: TAssemblyComponent): Integer;
+var
+  Sig: string;
+  I: Integer;
+  G: TAssemblyGeometry;
+begin
+  Sig := Format('%s|%d|%d|%d|%.3f|%.3f|%.3f', [C.SourceRef, Ord(C.Kind), Length(C.Geometry), C.Color,
+    C.Size.X, C.Size.Y, C.Size.Z]);
+  if Length(C.Geometry) > 0 then
+    Sig := Sig + Format('|%.3f|%.3f|%.3f', [C.Geometry[0].At.X, C.Geometry[0].At.Y, C.Geometry[0].At.Z]);
+  for I := 0 to High(FMeshCache) do
+    if (FMeshCache[I].ID = C.ID) then
+    begin
+      if FMeshCache[I].Sig <> Sig then
+      begin
+        G := ComponentGeometry(C);
+        BuildMesh(G, FMeshCache[I].Mesh);
+        FMeshCache[I].Sig := Sig;
+      end;
+      Exit(I);
+    end;
+  I := Length(FMeshCache);
+  SetLength(FMeshCache, I + 1);
+  FMeshCache[I].ID := C.ID;
+  FMeshCache[I].Sig := Sig;
+  G := ComponentGeometry(C);
+  BuildMesh(G, FMeshCache[I].Mesh);
+  Result := I;
+end;
+
+function TMechanicalAssemblyCanvas.ComponentRotation(const C: TAssemblyComponent): TAssemblyVec3;
+begin
+  if FSolver <> nil then
+    Result := FSolver.GetSolvedRotation(C.ID)
+  else
+    Result := C.Rotation;
+end;
+
+procedure TMechanicalAssemblyCanvas.MakeXform(const C: TAssemblyComponent; const Pos, Rot: TAssemblyVec3;
+  const M: TAssemblyMesh; out T: TCompXform);
+var
+  CA, SA, CB, SB, CG, SG: Double;
+  GX, GY, GZ: Double;
+begin
+  T.Pos := Pos;
+  T.Center := Vec3(C.Size.X * 0.5, C.Size.Y * 0.5, C.Size.Z * 0.5);
+  T.GMin := M.BoundsMin;
+  GX := M.BoundsMax.X - M.BoundsMin.X;
+  GY := M.BoundsMax.Y - M.BoundsMin.Y;
+  GZ := M.BoundsMax.Z - M.BoundsMin.Z;
+  if GX > 1e-6 then T.Scale.X := C.Size.X / GX else T.Scale.X := 1;
+  if GY > 1e-6 then T.Scale.Y := C.Size.Y / GY else T.Scale.Y := 1;
+  if GZ > 1e-6 then T.Scale.Z := C.Size.Z / GZ else T.Scale.Z := 1;
+  { R = Rz * Ry * Rx (graus) }
+  CA := Cos(DegToRad(Rot.X)); SA := Sin(DegToRad(Rot.X));
+  CB := Cos(DegToRad(Rot.Y)); SB := Sin(DegToRad(Rot.Y));
+  CG := Cos(DegToRad(Rot.Z)); SG := Sin(DegToRad(Rot.Z));
+  T.R[0, 0] := CG * CB; T.R[0, 1] := CG * SB * SA - SG * CA; T.R[0, 2] := CG * SB * CA + SG * SA;
+  T.R[1, 0] := SG * CB; T.R[1, 1] := SG * SB * SA + CG * CA; T.R[1, 2] := SG * SB * CA - CG * SA;
+  T.R[2, 0] := -SB;     T.R[2, 1] := CB * SA;                T.R[2, 2] := CB * CA;
+end;
+
+function TMechanicalAssemblyCanvas.XformPoint(const T: TCompXform; const V: TAssemblyVec3): TAssemblyVec3;
+var
+  LX, LY, LZ: Double;
+begin
+  LX := (V.X - T.GMin.X) * T.Scale.X - T.Center.X;
+  LY := (V.Y - T.GMin.Y) * T.Scale.Y - T.Center.Y;
+  LZ := (V.Z - T.GMin.Z) * T.Scale.Z - T.Center.Z;
+  Result.X := T.Pos.X + T.Center.X + T.R[0, 0] * LX + T.R[0, 1] * LY + T.R[0, 2] * LZ;
+  Result.Y := T.Pos.Y + T.Center.Y + T.R[1, 0] * LX + T.R[1, 1] * LY + T.R[1, 2] * LZ;
+  Result.Z := T.Pos.Z + T.Center.Z + T.R[2, 0] * LX + T.R[2, 1] * LY + T.R[2, 2] * LZ;
+end;
+
+function TMechanicalAssemblyCanvas.XformNormal(const T: TCompXform; const N: TAssemblyVec3): TAssemblyVec3;
+var
+  LX, LY, LZ: Double;
+begin
+  { normal com escala nao uniforme: divide pela escala e normaliza }
+  LX := N.X / Max(1e-6, T.Scale.X);
+  LY := N.Y / Max(1e-6, T.Scale.Y);
+  LZ := N.Z / Max(1e-6, T.Scale.Z);
+  Result.X := T.R[0, 0] * LX + T.R[0, 1] * LY + T.R[0, 2] * LZ;
+  Result.Y := T.R[1, 0] * LX + T.R[1, 1] * LY + T.R[1, 2] * LZ;
+  Result.Z := T.R[2, 0] * LX + T.R[2, 1] * LY + T.R[2, 2] * LZ;
+  Result := Vec3Normalize(Result);
+end;
+
+procedure TMechanicalAssemblyCanvas.ComponentCorners(const C: TAssemblyComponent; const Pos, Rot: TAssemblyVec3;
+  out Corners: array of TAssemblyVec3);
+var
+  T: TCompXform;
+  M: TAssemblyMesh;
+  I: Integer;
+begin
+  M.BoundsMin := Vec3(0, 0, 0);
+  M.BoundsMax := C.Size;
+  MakeXform(C, Pos, Rot, M, T);
+  for I := 0 to 7 do
+    Corners[I] := XformPoint(T, Vec3(IfThen(I and 1 <> 0, C.Size.X, 0), IfThen(I and 2 <> 0, C.Size.Y, 0),
+      IfThen(I and 4 <> 0, C.Size.Z, 0)));
+end;
+
+function TintColor(C, Target: TColor; F: Double): TColor;
+var
+  R, G, B: Integer;
+begin
+  C := ColorToRGB(C);
+  R := Round(Red(C) * (1 - F) + Red(Target) * F);
+  G := Round(Green(C) * (1 - F) + Green(Target) * F);
+  B := Round(Blue(C) * (1 - F) + Blue(Target) * F);
+  Result := RGBToColor(EnsureRange(R, 0, 255), EnsureRange(G, 0, 255), EnsureRange(B, 0, 255));
+end;
+
+procedure TMechanicalAssemblyCanvas.CollectComponentFaces(const C: TAssemblyComponent; const Pos, Rot: TAssemblyVec3;
+  IsSelected, HasCollision, InCurrentStep: Boolean);
+const
+  LX = -0.43; LY = 0.66; LZ = -0.62;   // luz principal (camera): esquerda, acima, frente
+var
+  MI, I, J, NV, CX, CY: Integer;
+  T: TCompXform;
+  Depths: array of Double;
+  FaceVis: array of Boolean;
+  Wp, Nc, Nw: TAssemblyVec3;
+  D, Diff, Spec, HX, HY, HZ, HL, Light, LLen, Lx_, Ly_, Lz_: Double;
+  Base, Fill: TColor;
+  RR, GG, BB: Integer;
+begin
+  MI := MeshIndexFor(C);
+  MakeXform(C, Pos, Rot, FMeshCache[MI].Mesh, T);
+  with FMeshCache[MI].Mesh do
   begin
-    AvgD := (Depths[P0] + Depths[P1] + Depths[P2] + Depths[P3]) * 0.25;
-    R := EnsureRange(Round(Red(ColorToRGB(BaseColor)) * Factor), 0, 255);
-    G := EnsureRange(Round(Green(ColorToRGB(BaseColor)) * Factor), 0, 255);
-    B := EnsureRange(Round(Blue(ColorToRGB(BaseColor)) * Factor), 0, 255);
+    SetLength(Depths, Count);
+    SetLength(FaceVis, Count);
+    LLen := Sqrt(LX * LX + LY * LY + LZ * LZ);
+    Lx_ := LX / LLen; Ly_ := LY / LLen; Lz_ := LZ / LLen;
+    HX := Lx_; HY := Ly_; HZ := Lz_ - 1.0;
+    HL := Sqrt(HX * HX + HY * HY + HZ * HZ);
+    HX := HX / HL; HY := HY / HL; HZ := HZ / HL;
 
-    Faces[FCount].P[0] := P[P0];
-    Faces[FCount].P[1] := P[P1];
-    Faces[FCount].P[2] := P[P2];
-    Faces[FCount].P[3] := P[P3];
-    Faces[FCount].AvgDepth := AvgD;
-    Faces[FCount].Color := RGBToColor(R, G, B);
-    Faces[FCount].BorderColor := BorderCol;
-    Inc(FCount);
+    { profundidade e visibilidade de todas as faces (decalques usam a da face hospedeira) }
+    for I := 0 to Count - 1 do
+    begin
+      Nw := XformNormal(T, Faces[I].N);
+      Nc := CameraDir(Nw);
+      FaceVis[I] := Nc.Z < -1e-3;
+      D := 0;
+      NV := Length(Faces[I].V);
+      for J := 0 to NV - 1 do
+      begin
+        Wp := XformPoint(T, Faces[I].V[J]);
+        D := D + CameraDir(Vec3(Wp.X - FTargetCenter.X, Wp.Y - FTargetCenter.Y, Wp.Z - FTargetCenter.Z)).Z;
+      end;
+      if NV > 0 then D := D / NV;
+      Depths[I] := D;
+    end;
+
+    for I := 0 to Count - 1 do
+    begin
+      if not FaceVis[I] then Continue;
+      if Faces[I].Decal then
+      begin
+        if (Faces[I].Host >= 0) then
+        begin
+          if not FaceVis[Faces[I].Host] then Continue;
+          D := Depths[Faces[I].Host] - 0.002;
+        end
+        else
+          D := Depths[I] - 0.5;
+      end
+      else
+        D := Depths[I];
+
+      { sombreamento: ambiente + difusa + especular (Blinn-Phong) }
+      Nc := CameraDir(XformNormal(T, Faces[I].N));
+      Diff := Max(0.0, Nc.X * Lx_ + Nc.Y * Ly_ + Nc.Z * Lz_);
+      Spec := Power(Max(0.0, Nc.X * HX + Nc.Y * HY + Nc.Z * HZ), 28) * 0.20;
+      Light := 0.36 + 0.64 * Diff;
+      if Faces[I].Decal then
+      begin
+        Light := 0.75 + 0.25 * Diff;
+        Spec := 0;
+      end;
+      Base := TColor(Faces[I].Color);
+      if HasCollision then
+        Base := TintColor(Base, RGBToColor(230, 40, 40), 0.55)
+      else if InCurrentStep then
+        Base := TintColor(Base, RGBToColor(40, 140, 230), 0.40)
+      else if IsSelected then
+        Base := TintColor(Base, RGBToColor(255, 208, 0), 0.22);
+      Base := ColorToRGB(Base);
+      RR := Round(Red(Base) * Light + 255 * Spec);
+      GG := Round(Green(Base) * Light + 255 * Spec);
+      BB := Round(Blue(Base) * Light + 255 * Spec);
+      Fill := RGBToColor(EnsureRange(RR, 0, 255), EnsureRange(GG, 0, 255), EnsureRange(BB, 0, 255));
+
+      { projeta os vertices no buffer de pontos }
+      NV := Length(Faces[I].V);
+      if FPointCount + NV > Length(FPointBuf) then
+        SetLength(FPointBuf, (FPointCount + NV) * 2 + 1024);
+      for J := 0 to NV - 1 do
+      begin
+        Wp := XformPoint(T, Faces[I].V[J]);
+        ProjectToScreen(Wp.X, Wp.Y, Wp.Z, CX, CY);
+        FPointBuf[FPointCount + J] := Point(CX, CY);
+      end;
+      if FDrawCount >= Length(FDrawFaces) then
+        SetLength(FDrawFaces, FDrawCount * 2 + 1024);
+      FDrawFaces[FDrawCount].Start := FPointCount;
+      FDrawFaces[FDrawCount].Count := NV;
+      FDrawFaces[FDrawCount].Depth := D;
+      FDrawFaces[FDrawCount].Fill := Fill;
+      if Faces[I].Smooth or Faces[I].Decal then
+        FDrawFaces[FDrawCount].Pen := Fill
+      else
+        FDrawFaces[FDrawCount].Pen := TColor(GeomShade(LongInt(Fill), 0.72));
+      Inc(FDrawCount);
+      Inc(FPointCount, NV);
+    end;
+  end;
+end;
+
+procedure TMechanicalAssemblyCanvas.SortDrawFaces;
+
+  procedure QSort(L, R: Integer);
+  var
+    I, J: Integer;
+    P: Double;
+    Tmp: TDrawFace;
+  begin
+    repeat
+      I := L;
+      J := R;
+      P := FDrawFaces[(L + R) shr 1].Depth;
+      repeat
+        while FDrawFaces[I].Depth > P do Inc(I);
+        while FDrawFaces[J].Depth < P do Dec(J);
+        if I <= J then
+        begin
+          Tmp := FDrawFaces[I];
+          FDrawFaces[I] := FDrawFaces[J];
+          FDrawFaces[J] := Tmp;
+          Inc(I);
+          Dec(J);
+        end;
+      until I > J;
+      if L < J then QSort(L, J);
+      L := I;
+    until I >= R;
   end;
 
 begin
-  X0 := Pos.X; Y0 := Pos.Y; Z0 := Pos.Z;
-  W := Max(4.0, Size.X);
-  H := Max(4.0, Size.Y);
-  D := Max(4.0, Size.Z);
+  if FDrawCount > 1 then QSort(0, FDrawCount - 1);
+end;
 
-  // Calcula os 8 vertices projetados em 3D com profundidade
-  ProjectToScreen(X0,     Y0,     Z0,     P[0].X, P[0].Y, Depths[0]);
-  ProjectToScreen(X0 + W, Y0,     Z0,     P[1].X, P[1].Y, Depths[1]);
-  ProjectToScreen(X0 + W, Y0 + H, Z0,     P[2].X, P[2].Y, Depths[2]);
-  ProjectToScreen(X0,     Y0 + H, Z0,     P[3].X, P[3].Y, Depths[3]);
+procedure TMechanicalAssemblyCanvas.DrawSelectionBox(const C: TAssemblyComponent; const Pos, Rot: TAssemblyVec3);
+const
+  Edges: array[0..11, 0..1] of Integer = ((0, 1), (2, 3), (4, 5), (6, 7), (0, 2), (1, 3), (4, 6), (5, 7),
+    (0, 4), (1, 5), (2, 6), (3, 7));
+var
+  K: array[0..7] of TAssemblyVec3;
+  P: array[0..7] of TPoint;
+  I: Integer;
+begin
+  ComponentCorners(C, Pos, Rot, K);
+  for I := 0 to 7 do
+    ProjectToScreen(K[I].X, K[I].Y, K[I].Z, P[I].X, P[I].Y);
+  Canvas.Pen.Color := $00D0FF;
+  Canvas.Pen.Width := 2;
+  Canvas.Pen.Style := psDot;
+  for I := 0 to 11 do
+    Canvas.Line(P[Edges[I, 0]].X, P[Edges[I, 0]].Y, P[Edges[I, 1]].X, P[Edges[I, 1]].Y);
+  Canvas.Pen.Style := psSolid;
+  Canvas.Pen.Width := 1;
+end;
 
-  ProjectToScreen(X0,     Y0,     Z0 + D, P[4].X, P[4].Y, Depths[4]);
-  ProjectToScreen(X0 + W, Y0,     Z0 + D, P[5].X, P[5].Y, Depths[5]);
-  ProjectToScreen(X0 + W, Y0 + H, Z0 + D, P[6].X, P[6].Y, Depths[6]);
-  ProjectToScreen(X0,     Y0 + H, Z0 + D, P[7].X, P[7].Y, Depths[7]);
-
-  if HasCollision then
-    BaseColor := $2020E0
-  else if InCurrentStep then
-    BaseColor := $D08020;
-
-  BorderCol := RGBToColor(Max(0, Red(ColorToRGB(BaseColor)) - 60),
-                          Max(0, Green(ColorToRGB(BaseColor)) - 60),
-                          Max(0, Blue(ColorToRGB(BaseColor)) - 60));
-
-  FCount := 0;
-  // Face Superior (+Z)
-  AddFace(4, 5, 6, 7, 1.00);
-  // Face Inferior (-Z)
-  AddFace(0, 3, 2, 1, 0.45);
-  // Face Frontal (-Y)
-  AddFace(0, 1, 5, 4, 0.85);
-  // Face Traseira (+Y)
-  AddFace(3, 7, 6, 2, 0.60);
-  // Face Direita (+X)
-  AddFace(1, 2, 6, 5, 0.70);
-  // Face Esquerda (-X)
-  AddFace(0, 4, 7, 3, 0.75);
-
-  // Ordena as 6 faces da mais distante para a mais proxima (Painter's Algorithm)
-  for FI := 0 to FCount - 2 do
-    for FJ := FI + 1 to FCount - 1 do
-      if Faces[FI].AvgDepth < Faces[FJ].AvgDepth then
-      begin
-        TempFace := Faces[FI];
-        Faces[FI] := Faces[FJ];
-        Faces[FJ] := TempFace;
-      end;
-
-  // Renderiza faces sombreadas
-  for FI := 0 to FCount - 1 do
+procedure TMechanicalAssemblyCanvas.DrawComponentLabel(const C: TAssemblyComponent; const Pos, Rot: TAssemblyVec3;
+  const LabelStr: string);
+var
+  K: array[0..7] of TAssemblyVec3;
+  I, SX, SY, MinY, SumX, TW: Integer;
+begin
+  ComponentCorners(C, Pos, Rot, K);
+  MinY := MaxInt;
+  SumX := 0;
+  for I := 0 to 7 do
   begin
-    Canvas.Brush.Color := Faces[FI].Color;
-    Canvas.Pen.Color := Faces[FI].BorderColor;
-    Canvas.Pen.Width := 1;
-    Canvas.Polygon(Faces[FI].P);
+    ProjectToScreen(K[I].X, K[I].Y, K[I].Z, SX, SY);
+    MinY := Min(MinY, SY);
+    Inc(SumX, SX);
   end;
-
-  // Destaque de selecao
-  if IsSelected then
-  begin
-    Canvas.Pen.Color := $00D0FF;
-    Canvas.Pen.Width := 3;
-    Canvas.Brush.Style := bsClear;
-    Canvas.Polygon([P[4], P[5], P[6], P[7]]);
-    Canvas.Line(P[0].X, P[0].Y, P[4].X, P[4].Y);
-    Canvas.Line(P[1].X, P[1].Y, P[5].X, P[5].Y);
-    Canvas.Line(P[2].X, P[2].Y, P[6].X, P[6].Y);
-    Canvas.Line(P[3].X, P[3].Y, P[7].X, P[7].Y);
-    Canvas.Brush.Style := bsSolid;
-  end;
-
-  // Rotulo
-  CX := (P[4].X + P[6].X) div 2;
-  CY := (P[4].Y + P[6].Y) div 2 - 12;
+  SX := SumX div 8;
   Canvas.Font.Size := 8;
   Canvas.Font.Style := [fsBold];
-  Canvas.Font.Color := $E2E8F0;
+  TW := Canvas.TextWidth(LabelStr);
+  Canvas.Brush.Style := bsSolid;
   Canvas.Brush.Color := $2D1E1E;
-  Canvas.TextOut(CX - Canvas.TextWidth(LabelStr) div 2, CY, LabelStr);
+  Canvas.Pen.Color := $4A3A3A;
+  Canvas.Rectangle(SX - TW div 2 - 4, MinY - 20, SX + TW div 2 + 4, MinY - 4);
+  Canvas.Font.Color := $E2E8F0;
+  Canvas.Brush.Style := bsClear;
+  Canvas.TextOut(SX - TW div 2, MinY - 19, LabelStr);
+  Canvas.Brush.Style := bsSolid;
 end;
 
 procedure TMechanicalAssemblyCanvas.Paint;
 var
-  I, J, StepI, GX, GY: Integer;
+  I, StepI, GX, GY: Integer;
   C: TAssemblyComponent;
-  Pos: TAssemblyVec3;
+  Pos, Rot: TAssemblyVec3;
   DOF: TComponentDOF;
   IsSelected, IsInCurrentStep, HasCollision: Boolean;
   StepComps, CurrStepComps: TStringList;
   LabelStr, StatusStr: string;
   R: TMechanicalRelation;
-  OrderList: array of TCompRenderItem;
-  TempItem: TCompRenderItem;
-  D0, D1, D2: Double;
   P1, P2: TPoint;
+  SelIdx: Integer;
 begin
   Canvas.Brush.Color := $1E1E28; // Fundo escuro premium MultiSuite
   Canvas.FillRect(ClientRect);
+  UpdateCameraTrig;
 
   // Grade 3D
   Draw3DGrid;
@@ -539,36 +767,13 @@ begin
   end;
 
   try
-    // Ordena componentes da cena por profundidade 3D (Z de camera)
-    SetLength(OrderList, FProject.ComponentCount);
+    { 1. coleta as faces de todos os componentes visiveis }
+    FPointCount := 0;
+    FDrawCount := 0;
+    SelIdx := -1;
     for I := 0 to FProject.ComponentCount - 1 do
     begin
       C := FProject.Component(I);
-      if FSolver <> nil then
-        Pos := FSolver.GetSolvedPosition(C.ID)
-      else
-        Pos := C.Position;
-
-      ProjectToScreen(Pos.X + C.Size.X * 0.5, Pos.Y + C.Size.Y * 0.5, Pos.Z + C.Size.Z * 0.5, P1.X, P1.Y, D0);
-      OrderList[I].CompIndex := I;
-      OrderList[I].AvgDepth := D0;
-    end;
-
-    for I := 0 to High(OrderList) - 1 do
-      for J := I + 1 to High(OrderList) do
-        if OrderList[I].AvgDepth < OrderList[J].AvgDepth then
-        begin
-          TempItem := OrderList[I];
-          OrderList[I] := OrderList[J];
-          OrderList[J] := TempItem;
-        end;
-
-    // Desenha componentes tridimensionais ordenados
-    for I := 0 to High(OrderList) do
-    begin
-      C := FProject.Component(OrderList[I].CompIndex);
-      IsSelected := SameText(C.ID, FSelectedID);
-
       if StepComps <> nil then
       begin
         if StepComps.IndexOf(C.ID) < 0 then Continue;
@@ -576,7 +781,30 @@ begin
       end
       else
         IsInCurrentStep := False;
+      IsSelected := SameText(C.ID, FSelectedID);
+      if IsSelected then SelIdx := I;
+      if FSolver <> nil then Pos := FSolver.GetSolvedPosition(C.ID) else Pos := C.Position;
+      Rot := ComponentRotation(C);
+      HasCollision := IsPartColliding(C.ID);
+      CollectComponentFaces(C, Pos, Rot, IsSelected, HasCollision, IsInCurrentStep);
+    end;
 
+    { 2. ordena da face mais distante para a mais proxima e desenha }
+    SortDrawFaces;
+    Canvas.Pen.Width := 1;
+    Canvas.Brush.Style := bsSolid;
+    for I := 0 to FDrawCount - 1 do
+    begin
+      Canvas.Brush.Color := FDrawFaces[I].Fill;
+      Canvas.Pen.Color := FDrawFaces[I].Pen;
+      Canvas.Polygon(FPointBuf, False, FDrawFaces[I].Start, FDrawFaces[I].Count);
+    end;
+
+    { 3. rotulos, selecao e setas de graus de liberdade }
+    for I := 0 to FProject.ComponentCount - 1 do
+    begin
+      C := FProject.Component(I);
+      if (StepComps <> nil) and (StepComps.IndexOf(C.ID) < 0) then Continue;
       if FSolver <> nil then
       begin
         Pos := FSolver.GetSolvedPosition(C.ID);
@@ -588,19 +816,21 @@ begin
         DOF.Status := adsUnderdefined;
         DOF.FreeCount := 6;
       end;
-
-      HasCollision := IsPartColliding(C.ID);
-
-      LabelStr := C.ID;
-      if DOF.Status = adsFixed then
-        LabelStr := '(f) ' + LabelStr
-      else if DOF.Status = adsUnderdefined then
-        LabelStr := '(-) ' + LabelStr;
-
-      RenderBox3D(Pos, C.Size, ColorForKind(C.Kind), IsSelected, HasCollision, IsInCurrentStep, LabelStr);
-
-      if IsSelected then
+      Rot := ComponentRotation(C);
+      if FShowLabels or (I = SelIdx) then
+      begin
+        LabelStr := C.ID;
+        if DOF.Status = adsFixed then
+          LabelStr := '(f) ' + LabelStr
+        else if DOF.Status = adsUnderdefined then
+          LabelStr := '(-) ' + LabelStr;
+        DrawComponentLabel(C, Pos, Rot, LabelStr);
+      end;
+      if I = SelIdx then
+      begin
+        DrawSelectionBox(C, Pos, Rot);
         DrawDOFArrows(C.ID, Pos, C.Size, DOF);
+      end;
     end;
 
     // Linhas cinemáticas / Junções mecânicas (Mates)
@@ -635,6 +865,7 @@ begin
           Canvas.Line(P1.X, P1.Y, P2.X, P2.Y);
         end;
       end;
+      Canvas.Pen.Width := 1;
     end;
 
   finally
@@ -649,6 +880,7 @@ begin
   Canvas.Font.Size := 9;
   Canvas.Font.Style := [fsBold];
   Canvas.Font.Color := $94A3B8;
+  Canvas.Brush.Style := bsClear;
   case FViewMode of
     avm3DOrbit: LabelStr := Format('VISTA 3D ORBITAL [Azimute: %.0f° | Elevação: %.0f°] • Botão Direito: Girar 3D • Botão Esquerdo: Mover Peça', [FAzimuth, FElevation]);
     avmTop: LabelStr := 'VISTA SUPERIOR (X-Y) • 2D / 3D';
@@ -673,18 +905,22 @@ begin
     StatusStr := Format('⚠️ COLISÃO DETECTADA: %d ponto(s) de interferência entre peças!', [FSolver.CollisionCount]);
     Canvas.TextOut(16, 38, StatusStr);
   end;
+  Canvas.Brush.Style := bsSolid;
 end;
 
 function TMechanicalAssemblyCanvas.HitTest(SX, SY: Integer): string;
 var
-  I: Integer;
+  I, J, PX, PY: Integer;
   C: TAssemblyComponent;
   Pos: TAssemblyVec3;
-  P: array[0..7] of TPoint;
+  K: array[0..7] of TAssemblyVec3;
   MinX, MaxX, MinY, MaxY: Integer;
+  D, Depth, BestDepth: Double;
 begin
   Result := '';
   if FProject = nil then Exit;
+  UpdateCameraTrig;
+  BestDepth := MaxDouble;
   for I := FProject.ComponentCount - 1 downto 0 do
   begin
     C := FProject.Component(I);
@@ -692,15 +928,21 @@ begin
       Pos := FSolver.GetSolvedPosition(C.ID)
     else
       Pos := C.Position;
-
-    ProjectToScreen(Pos.X, Pos.Y, Pos.Z, P[0].X, P[0].Y);
-    ProjectToScreen(Pos.X + C.Size.X, Pos.Y + C.Size.Y, Pos.Z + C.Size.Z, P[6].X, P[6].Y);
-    MinX := Min(P[0].X, P[6].X) - 10;
-    MaxX := Max(P[0].X, P[6].X) + 10;
-    MinY := Min(P[0].Y, P[6].Y) - 10;
-    MaxY := Max(P[0].Y, P[6].Y) + 10;
-    if (SX >= MinX) and (SX <= MaxX) and (SY >= MinY) and (SY <= MaxY) then
-      Exit(C.ID);
+    ComponentCorners(C, Pos, ComponentRotation(C), K);
+    MinX := MaxInt; MaxX := -MaxInt; MinY := MaxInt; MaxY := -MaxInt;
+    Depth := 0;
+    for J := 0 to 7 do
+    begin
+      ProjectToScreen(K[J].X, K[J].Y, K[J].Z, PX, PY, D);
+      MinX := Min(MinX, PX); MaxX := Max(MaxX, PX);
+      MinY := Min(MinY, PY); MaxY := Max(MaxY, PY);
+      Depth := Depth + D / 8;
+    end;
+    if (SX >= MinX - 4) and (SX <= MaxX + 4) and (SY >= MinY - 4) and (SY <= MaxY + 4) and (Depth < BestDepth) then
+    begin
+      BestDepth := Depth;
+      Result := C.ID;
+    end;
   end;
 end;
 

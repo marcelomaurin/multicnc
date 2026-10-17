@@ -1,10 +1,10 @@
 {
   "name": "Cantoneira L 90° 2020",
-  "model": "Cast Bracket 2020",
+  "model": "Cast Corner Bracket 2020",
   "category": "fixadores",
   "kind": "ackMechanicalPart",
-  "material": "Alumínio Fundido",
-  "color": 10526880,
+  "material": "Alumínio fundido",
+  "color": 11314334,
   "size": {
     "x": 20.0,
     "y": 20.0,
@@ -22,5 +22,21 @@
       "voltage": 0.0
     }
   ],
-  "description": "Suporte de canto fundido 90 graus para união de perfis 2020"
+  "description": "Cantoneira fundida 90° com nervura para união de perfis série 20 (2 furos Ø5,5).",
+  "mass_g": 9,
+  "specs": {
+    "abas_mm": [
+      20,
+      20
+    ],
+    "largura_mm": 20,
+    "furo_mm": 5.5
+  },
+  "geometry": [
+    {"type": "box", "at": [0.0, 0.0, 0.0], "size": [20.0, 20.0, 4.0], "color": "#9EA4AC"},
+    {"type": "box", "at": [0.0, 0.0, 4.0], "size": [4.0, 20.0, 16.0], "color": "#9EA4AC"},
+    {"type": "prism", "axis": "y", "at": [4.0, 8.0, 4.0], "h": 4.0, "poly": [[0.0, 0.0], [0.0, 14.0], [14.0, 0.0]], "color": "#9EA4AC"},
+    {"type": "disk", "axis": "z", "at": [13.0, 10.0, 4.0], "r": 2.75, "color": "#15161A"},
+    {"type": "disk", "axis": "x", "at": [4.0, 10.0, 13.0], "r": 2.75, "color": "#15161A"}
+  ]
 }

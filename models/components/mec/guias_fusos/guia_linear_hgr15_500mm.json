@@ -3,8 +3,8 @@
   "model": "HGR15",
   "category": "guias_fusos",
   "kind": "ackLinearGuide",
-  "material": "Aço Carbono Temperado",
-  "color": 12105912,
+  "material": "Aço rolamento temperado",
+  "color": 12630452,
   "size": {
     "x": 15.0,
     "y": 15.0,
@@ -17,5 +17,27 @@
       "voltage": 0.0
     }
   ],
-  "description": "Guia linear industrial de alta carga HGR15 com 500mm"
+  "description": "Trilho HGR15 (15 x 15 mm, furos M4 a cada 60 mm) com 500 mm; carros HGH15CA/HGW15CC vendidos à parte.",
+  "standard": "HIWIN HG",
+  "mass_g": 700,
+  "specs": {
+    "trilho_mm": [
+      15,
+      15
+    ],
+    "comprimento_mm": 500,
+    "passo_furos_mm": 60,
+    "parafuso": "M4x16"
+  },
+  "geometry": [
+    {"type": "prism", "axis": "z", "at": [0.0, 0.0, 0.0], "h": 500.0, "poly": [[0.0, 0.0], [15.0, 0.0], [15.0, 6.75], [12.3, 8.7], [15.0, 10.8], [15.0, 15.0], [0.0, 15.0], [0.0, 10.8], [2.7, 8.7], [0.0, 6.75]], "color": "#B4B9C0"},
+    {"type": "disk", "axis": "y", "at": [7.5, 15.0, 20.0], "r": 3.75, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [7.5, 15.0, 80.0], "r": 3.75, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [7.5, 15.0, 140.0], "r": 3.75, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [7.5, 15.0, 200.0], "r": 3.75, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [7.5, 15.0, 260.0], "r": 3.75, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [7.5, 15.0, 320.0], "r": 3.75, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [7.5, 15.0, 380.0], "r": 3.75, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [7.5, 15.0, 440.0], "r": 3.75, "color": "#15161A"}
+  ]
 }

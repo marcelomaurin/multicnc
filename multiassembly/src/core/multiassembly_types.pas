@@ -60,6 +60,38 @@ type
     Voltage: Double;
   end;
 
+  { Geometria 3D realista de um componente (mm, sistema local da peca, canto
+    minimo em 0,0,0). Ver models/components/README.md.
+    Eixo das primitivas (ciclico): 'z' u->X v->Y w->Z | 'x' u->Y v->Z w->X |
+    'y' u->Z v->X w->Y. }
+  TAssemblyPrimitiveKind = (
+    agpBox,      // caixa: At = canto minimo, Size = dimensoes
+    agpCylinder, // cilindro/tubo/cone/setor: At = centro da base
+    agpPrism,    // poligono (u,v) extrudado ao longo do eixo
+    agpDisk      // decalque plano (furo, LED, etiqueta)
+  );
+
+  TAssemblyUV = record
+    U, V: Double;
+  end;
+
+  TAssemblyPrimitive = record
+    Kind: TAssemblyPrimitiveKind;
+    Axis: Char;           // 'x', 'y' ou 'z'
+    At: TAssemblyVec3;
+    Size: TAssemblyVec3;  // agpBox
+    R, R2, Ri, H: Double; // raio base, raio topo (cone), raio interno, altura
+    Segments: Integer;
+    RotDeg: Double;       // fase angular inicial
+    HasArc: Boolean;
+    ArcStart, ArcEnd: Double;
+    Caps: Boolean;
+    Poly: array of TAssemblyUV;
+    Color: LongInt;       // TColor (BGR)
+  end;
+
+  TAssemblyGeometry = array of TAssemblyPrimitive;
+
   TAssemblyComponent = record
     ID: string;
     Name: string;
@@ -74,6 +106,7 @@ type
     Ports: array of TAssemblyPort;
     Fixed: Boolean;
     Color: LongInt;
+    Geometry: TAssemblyGeometry; // vazio = forma gerada pelo tipo (Kind)
   end;
 
   TElectricalConnection = record

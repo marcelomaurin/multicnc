@@ -3,12 +3,12 @@
   "model": "RS-775 12000 RPM",
   "category": "motores",
   "kind": "ackMotor",
-  "material": "Aço / Cobre",
-  "color": 4473924,
+  "material": "Aço / cobre",
+  "color": 12630452,
   "size": {
     "x": 42.0,
     "y": 42.0,
-    "z": 66.0
+    "z": 94.1
   },
   "ports": [
     {
@@ -27,5 +27,41 @@
       "voltage": 0.0
     }
   ],
-  "description": "Motor DC escovado 775 rolamentado de alta rotação"
+  "description": "Motor DC escovado 775 com rolamentos (Ø42 x 66,7 mm), eixo Ø5 x 17 mm, 2 furos M4 a 29 mm.",
+  "mass_g": 350,
+  "specs": {
+    "d_mm": 42,
+    "corpo_mm": 66.7,
+    "eixo_mm": [
+      5,
+      17
+    ],
+    "furos": "2x M4 29 mm",
+    "tensao_V": 24,
+    "rpm_vazio": 12000,
+    "corrente_vazio_A": 0.8
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [21.0, 21.0, 6.0], "r": 21.0, "h": 4.0, "color": "#878A90", "seg": 40},
+    {"type": "cyl", "axis": "z", "at": [21.0, 21.0, 10.0], "r": 21.0, "h": 62.7, "color": "#B4B9C0", "seg": 40},
+    {"type": "cyl", "axis": "z", "at": [21.0, 21.0, 72.7], "r": 8.75, "h": 4.4, "color": "#C9CDD2", "seg": 28},
+    {"type": "cyl", "axis": "z", "at": [21.0, 21.0, 77.1], "r": 2.5, "h": 17.0, "color": "#DDE1E6", "seg": 16},
+    {"type": "disk", "axis": "z", "at": [6.5, 21.0, 72.7], "r": 2.0, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [35.5, 21.0, 72.7], "r": 2.0, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [34.858, 26.74, 72.7], "r": 2.0, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [26.74, 34.858, 72.7], "r": 2.0, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [15.26, 34.858, 72.7], "r": 2.0, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [7.142, 26.74, 72.7], "r": 2.0, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [7.142, 15.26, 72.7], "r": 2.0, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [15.26, 7.142, 72.7], "r": 2.0, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [26.74, 7.142, 72.7], "r": 2.0, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [34.858, 15.26, 72.7], "r": 2.0, "color": "#15161A"},
+    {"type": "disk", "axis": "x", "at": [42.0, 21.0, 66.0], "r": 1.8, "color": "#15161A"},
+    {"type": "disk", "axis": "x", "at": [0.0, 21.0, 66.0], "r": 1.8, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [21.0, 42.0, 66.0], "r": 1.8, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [21.0, 0.0, 66.0], "r": 1.8, "color": "#15161A"},
+    {"type": "box", "at": [13.5, 18.5, 0.0], "size": [1.0, 5.0, 6.0], "color": "#B87333"},
+    {"type": "box", "at": [27.5, 18.5, 0.0], "size": [1.0, 5.0, 6.0], "color": "#B87333"},
+    {"type": "cyl", "axis": "z", "at": [21.0, 21.0, 3.5], "r": 6.0, "h": 2.5, "color": "#26282C", "seg": 24}
+  ]
 }

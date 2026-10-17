@@ -1,21 +1,60 @@
 {
-  "name": "Parafuso M5x16 Allen",
-  "model": "ISO 7380 M5x16 Abaulado",
+  "name": "Parafuso M5x16 Abaulado",
+  "model": "ISO 7380 M5x16",
   "category": "fixadores",
   "kind": "ackFastenerScrew",
-  "material": "Aço Classe 10.9 Preto",
-  "color": 2105376,
+  "material": "Aço inox A2",
+  "color": 15131101,
   "size": {
-    "x": 8.5,
-    "y": 8.5,
-    "z": 16.0
+    "x": 9.5,
+    "y": 9.5,
+    "z": 18.75
   },
   "ports": [
     {
       "name": "ROSCA",
       "kind": "apkMechanical",
       "voltage": 0.0
+    },
+    {
+      "name": "CABECA",
+      "kind": "apkMechanical",
+      "voltage": 0.0
     }
   ],
-  "description": "Parafuso cabeça abaulada M5x16 para montagem em perfis V-Slot"
+  "description": "Parafuso cabeça abaulada M5 x 16 mm para perfis V-Slot, placas gantry e rodas.",
+  "standard": "ISO 7380",
+  "mass_g": 2.4,
+  "specs": {
+    "rosca": "M5 x 0.8",
+    "comprimento_mm": 16,
+    "cabeca_d_mm": 9.5,
+    "cabeca_h_mm": 2.75,
+    "chave_allen_mm": 3.0
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 0.0], "r": 2.1, "h": 16.0, "color": "#B4B8BB", "seg": 16},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 0.2], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 1.0], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 1.8], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 2.6], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 3.4], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 4.2], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 5.0], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 5.8], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 6.6], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 7.4], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 8.2], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 9.0], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 9.8], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 10.6], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 11.4], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 12.2], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 13.0], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 13.8], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 14.6], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 16.0], "r": 4.75, "h": 0.688, "color": "#DDE1E6", "seg": 28},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 16.688], "r": 4.75, "h": 2.062, "color": "#DDE1E6", "r2": 2.85, "seg": 28},
+    {"type": "disk", "axis": "z", "at": [4.75, 4.75, 18.75], "r": 1.732, "color": "#15161A", "seg": 6}
+  ]
 }

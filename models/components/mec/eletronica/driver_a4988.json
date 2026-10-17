@@ -1,0 +1,104 @@
+{
+  "name": "Driver A4988",
+  "model": "Pololu A4988 StepStick",
+  "category": "eletronica",
+  "kind": "ackDriver",
+  "material": "PCB FR4 / dissipador",
+  "color": 2763429,
+  "size": {
+    "x": 20.32,
+    "y": 15.24,
+    "z": 16.0
+  },
+  "ports": [
+    {
+      "name": "STEP",
+      "kind": "apkStep",
+      "voltage": 0.0
+    },
+    {
+      "name": "DIR",
+      "kind": "apkDir",
+      "voltage": 0.0
+    },
+    {
+      "name": "EN",
+      "kind": "apkEnable",
+      "voltage": 0.0
+    },
+    {
+      "name": "VMOT",
+      "kind": "apkPower",
+      "voltage": 24.0
+    },
+    {
+      "name": "GND",
+      "kind": "apkGround",
+      "voltage": 0.0
+    },
+    {
+      "name": "VDD",
+      "kind": "apkPower",
+      "voltage": 5.0
+    },
+    {
+      "name": "1A",
+      "kind": "apkPower",
+      "voltage": 0.0
+    },
+    {
+      "name": "1B",
+      "kind": "apkPower",
+      "voltage": 0.0
+    },
+    {
+      "name": "2A",
+      "kind": "apkPower",
+      "voltage": 0.0
+    },
+    {
+      "name": "2B",
+      "kind": "apkPower",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Módulo StepStick A4988: 8–35 V, até 2 A com dissipação, micropasso até 1/16.",
+  "mass_g": 3,
+  "specs": {
+    "tensao_V": [
+      8,
+      35
+    ],
+    "corrente_A": 2.0,
+    "micropasso": "1..16",
+    "formato": "StepStick 15,2 x 20,3 mm"
+  },
+  "geometry": [
+    {"type": "box", "at": [0.0, 0.0, 6.0], "size": [20.32, 2.54, 2.5], "color": "#202124"},
+    {"type": "box", "at": [0.95, 0.95, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [3.49, 0.95, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [6.03, 0.95, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [8.57, 0.95, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [11.11, 0.95, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [13.65, 0.95, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [16.19, 0.95, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [18.73, 0.95, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [0.0, 12.7, 6.0], "size": [20.32, 2.54, 2.5], "color": "#202124"},
+    {"type": "box", "at": [0.95, 13.65, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [3.49, 13.65, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [6.03, 13.65, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [8.57, 13.65, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [11.11, 13.65, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [13.65, 13.65, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [16.19, 13.65, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [18.73, 13.65, 0.0], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [0.0, 0.0, 8.5], "size": [20.32, 15.24, 1.6], "color": "#A52A2A"},
+    {"type": "box", "at": [6.0, 4.6, 10.1], "size": [5.0, 5.0, 0.9], "color": "#18191C"},
+    {"type": "box", "at": [5.2, 3.6, 11.0], "size": [9.0, 9.0, 1.5], "color": "#C9CDD2"},
+    {"type": "box", "at": [5.2, 3.6, 12.5], "size": [9.0, 1.286, 3.5], "color": "#C9CDD2"},
+    {"type": "box", "at": [5.2, 6.171, 12.5], "size": [9.0, 1.286, 3.5], "color": "#C9CDD2"},
+    {"type": "box", "at": [5.2, 8.743, 12.5], "size": [9.0, 1.286, 3.5], "color": "#C9CDD2"},
+    {"type": "box", "at": [5.2, 11.314, 12.5], "size": [9.0, 1.286, 3.5], "color": "#C9CDD2"},
+    {"type": "cyl", "axis": "z", "at": [3.0, 7.6, 10.1], "r": 1.4, "h": 1.4, "color": "#2050C0", "seg": 12}
+  ]
+}

@@ -1,10 +1,10 @@
 {
   "name": "Rolamento 608ZZ",
-  "model": "608-2Z 8x22x7mm",
+  "model": "608ZZ 8x22x7mm",
   "category": "rolamentos_mancais",
   "kind": "ackBearing",
-  "material": "Aço Cromo SAE 52100",
-  "color": 11184810,
+  "material": "Aço cromo GCr15",
+  "color": 15131101,
   "size": {
     "x": 22.0,
     "y": 22.0,
@@ -22,5 +22,17 @@
       "voltage": 0.0
     }
   ],
-  "description": "Rolamento radial de esferas com dupla blindagem metálica 8x22x7"
+  "description": "Rolamento rígido de esferas 8 x 22 x 7 mm com dupla blindagem metálica.",
+  "standard": "ISO 15",
+  "mass_g": 2.1,
+  "specs": {
+    "d_mm": 8,
+    "D_mm": 22,
+    "B_mm": 7
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [11.0, 11.0, 0.0], "r": 11.0, "h": 7.0, "color": "#DDE1E6", "ri": 9.04, "seg": 32},
+    {"type": "cyl", "axis": "z", "at": [11.0, 11.0, 0.0], "r": 5.68, "h": 7.0, "color": "#DDE1E6", "ri": 4.0, "seg": 28},
+    {"type": "cyl", "axis": "z", "at": [11.0, 11.0, 0.28], "r": 9.04, "h": 6.44, "color": "#B4B9C0", "ri": 5.68, "seg": 32}
+  ]
 }

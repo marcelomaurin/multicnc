@@ -1,0 +1,37 @@
+{
+  "name": "Espaçador Sextavado M3x10 F-F",
+  "model": "Standoff M3x10 Fêmea-Fêmea",
+  "category": "fixadores",
+  "kind": "ackPinSpacer",
+  "material": "Latão niquelado",
+  "color": 5022921,
+  "size": {
+    "x": 5.774,
+    "y": 5.0,
+    "z": 10.0
+  },
+  "ports": [
+    {
+      "name": "ROSCA_A",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "ROSCA_B",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Espaçador sextavado chave 5 com rosca M3 interna nas duas pontas, para placas eletrônicas.",
+  "mass_g": 1.6,
+  "specs": {
+    "chave_mm": 5,
+    "rosca": "M3",
+    "comprimento_mm": 10
+  },
+  "geometry": [
+    {"type": "prism", "axis": "z", "at": [2.887, 2.5, 0.0], "h": 10.0, "poly": [[2.887, 0.0], [1.443, 2.5], [-1.443, 2.5], [-2.887, 0.0], [-1.443, -2.5], [1.443, -2.5]], "color": "#C9A44C"},
+    {"type": "disk", "axis": "z", "at": [2.887, 2.5, 10.0], "r": 1.35, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [2.887, 2.5, 0.0], "r": 1.35, "color": "#15161A"}
+  ]
+}

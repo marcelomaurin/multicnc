@@ -1,10 +1,10 @@
 {
   "name": "Eixo Retificado 12mm 400mm",
-  "model": "WCS 12mm",
+  "model": "WCS 12mm h6",
   "category": "guias_fusos",
   "kind": "ackLinearGuide",
-  "material": "Aço SAE 52100 Cromado",
-  "color": 14803425,
+  "material": "Aço SAE 1045 temperado e cromado",
+  "color": 15131101,
   "size": {
     "x": 12.0,
     "y": 12.0,
@@ -17,5 +17,15 @@
       "voltage": 0.0
     }
   ],
-  "description": "Eixo linear retificado temperado e cromado h6"
+  "description": "Eixo linear retificado Ø12 mm tolerância h6, temperado por indução e cromado duro, 400 mm.",
+  "mass_g": 355.0,
+  "specs": {
+    "d_mm": 12,
+    "comprimento_mm": 400,
+    "tolerancia": "h6",
+    "dureza_HRC": "60±2"
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [6.0, 6.0, 0.0], "r": 6.0, "h": 400.0, "color": "#DDE1E6", "seg": 24}
+  ]
 }

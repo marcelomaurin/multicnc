@@ -3,11 +3,11 @@
   "model": "LM8UU 8x15x24mm",
   "category": "rolamentos_mancais",
   "kind": "ackBearing",
-  "material": "Aço Carbono / Esferas",
-  "color": 12500670,
+  "material": "Aço cromo / gaiola POM",
+  "color": 15131101,
   "size": {
-    "x": 15.0,
-    "y": 15.0,
+    "x": 15.04,
+    "y": 15.04,
     "z": 24.0
   },
   "ports": [
@@ -15,7 +15,24 @@
       "name": "EIXO_8MM",
       "kind": "apkMechanical",
       "voltage": 0.0
+    },
+    {
+      "name": "EXTERNO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
     }
   ],
-  "description": "Rolamento linear de esferas recirculantes para eixos retificados 8mm"
+  "description": "Rolamento linear de esferas recirculantes para eixo retificado Ø8 mm (Ø15 x 24 mm).",
+  "mass_g": 14,
+  "specs": {
+    "d_mm": 8,
+    "D_mm": 15,
+    "L_mm": 24
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [7.52, 7.52, 0.0], "r": 7.5, "h": 24.0, "color": "#DDE1E6", "ri": 5.2, "seg": 28},
+    {"type": "cyl", "axis": "z", "at": [7.52, 7.52, 0.0], "r": 5.2, "h": 24.0, "color": "#1C1C1E", "ri": 4.0, "seg": 24},
+    {"type": "cyl", "axis": "z", "at": [7.52, 7.52, 3.25], "r": 7.52, "h": 1.1, "color": "#6C6F73", "seg": 28, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [7.52, 7.52, 19.65], "r": 7.52, "h": 1.1, "color": "#6C6F73", "seg": 28, "caps": false}
+  ]
 }

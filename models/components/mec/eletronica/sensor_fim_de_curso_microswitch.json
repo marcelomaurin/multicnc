@@ -3,29 +3,51 @@
   "model": "KW12-3 Alavanca Roldana",
   "category": "eletronica",
   "kind": "ackEndStop",
-  "material": "Baquelite / Metal",
-  "color": 2105376,
+  "material": "Plástico / contatos prata",
+  "color": 2893862,
   "size": {
-    "x": 20.0,
-    "y": 10.0,
-    "z": 6.0
+    "x": 21.9,
+    "y": 19.6,
+    "z": 6.4
   },
   "ports": [
     {
       "name": "COM",
-      "kind": "apkDigitalInput",
-      "voltage": 5.0
+      "kind": "apkGround",
+      "voltage": 0.0
     },
     {
       "name": "NO",
       "kind": "apkDigitalInput",
-      "voltage": 5.0
+      "voltage": 0.0
     },
     {
       "name": "NC",
       "kind": "apkDigitalInput",
-      "voltage": 5.0
+      "voltage": 0.0
     }
   ],
-  "description": "Chave microswitch de limite mecânico com roldana"
+  "description": "Chave microswitch KW12-3 com alavanca e roldana (corpo 20 x 10,2 x 6,4 mm, 2 furos M2).",
+  "mass_g": 3,
+  "specs": {
+    "corpo_mm": [
+      20,
+      10.2,
+      6.4
+    ],
+    "furos": "2x M2 9,5 mm",
+    "contato": "5 A 250 VAC"
+  },
+  "geometry": [
+    {"type": "box", "at": [0.0, 3.8, 0.0], "size": [20.0, 10.2, 6.4], "color": "#26282C"},
+    {"type": "disk", "axis": "z", "at": [5.0, 7.8, 6.4], "r": 1.15, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [14.5, 7.8, 6.4], "r": 1.15, "color": "#15161A"},
+    {"type": "box", "at": [8.5, 14.0, 2.7], "size": [2.6, 1.0, 1.0], "color": "#E03030"},
+    {"type": "box", "at": [3.0, 14.8, 2.0], "size": [17.0, 0.4, 2.4], "color": "#DDE1E6"},
+    {"type": "cyl", "axis": "z", "at": [19.5, 17.2, 1.2], "r": 2.4, "h": 4.0, "color": "#26282C", "seg": 18},
+    {"type": "disk", "axis": "z", "at": [19.5, 17.2, 5.2], "r": 0.8, "color": "#DDE1E6", "seg": 8},
+    {"type": "box", "at": [1.8, 0.0, 2.6], "size": [0.8, 3.8, 3.2], "color": "#C9A44C"},
+    {"type": "box", "at": [9.3, 0.0, 2.6], "size": [0.8, 3.8, 3.2], "color": "#C9A44C"},
+    {"type": "box", "at": [17.2, 0.0, 2.6], "size": [0.8, 3.8, 3.2], "color": "#C9A44C"}
+  ]
 }

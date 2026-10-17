@@ -1,0 +1,42 @@
+{
+  "name": "Bloco Mancal BF12 (lado livre)",
+  "model": "BF12 para SFU1605",
+  "category": "rolamentos_mancais",
+  "kind": "ackBearing",
+  "material": "Aço C45 oxidado / rolamento 6001",
+  "color": 3222827,
+  "size": {
+    "x": 60.0,
+    "y": 20.02,
+    "z": 43.0
+  },
+  "ports": [
+    {
+      "name": "FURO_FUSO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "BASE_FIXACAO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Suporte do lado livre BF12 com rolamento rígido 6001 e anel elástico.",
+  "mass_g": 280,
+  "specs": {
+    "d_mm": 10,
+    "W_mm": 60,
+    "H_mm": 43,
+    "h_centro_mm": 25,
+    "L_mm": 20,
+    "furos_mm": 46
+  },
+  "geometry": [
+    {"type": "box", "at": [0.0, 0.01, 0.0], "size": [60.0, 20.0, 18.06], "color": "#2B2D31"},
+    {"type": "prism", "axis": "y", "at": [0.0, 0.01, 0.0], "h": 20.0, "poly": [[0.0, 10.8], [43.0, 16.8], [43.0, 43.2], [0.0, 49.2]], "color": "#2B2D31"},
+    {"type": "cyl", "axis": "y", "at": [30.0, 0.0, 25.0], "r": 11.0, "h": 20.02, "color": "#44484E", "ri": 5.0, "seg": 28},
+    {"type": "disk", "axis": "z", "at": [7.0, 10.01, 18.06], "r": 2.75, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [53.0, 10.01, 18.06], "r": 2.75, "color": "#15161A"}
+  ]
+}

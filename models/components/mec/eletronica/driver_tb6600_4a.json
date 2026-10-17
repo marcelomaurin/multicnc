@@ -3,28 +3,63 @@
   "model": "TB6600 Microstep 9-42V 4A",
   "category": "eletronica",
   "kind": "ackDriver",
-  "material": "Gabinete Alumínio / Plástico",
-  "color": 1579032,
+  "material": "Dissipador de alumínio / plástico",
+  "color": 13815241,
   "size": {
     "x": 96.0,
     "y": 56.0,
-    "z": 33.0
+    "z": 33.2
   },
   "ports": [
     {
-      "name": "ENA+",
-      "kind": "apkEnable",
-      "voltage": 5.0
+      "name": "PUL+",
+      "kind": "apkStep",
+      "voltage": 0.0
+    },
+    {
+      "name": "PUL-",
+      "kind": "apkGround",
+      "voltage": 0.0
     },
     {
       "name": "DIR+",
       "kind": "apkDir",
-      "voltage": 5.0
+      "voltage": 0.0
     },
     {
-      "name": "PUL+",
-      "kind": "apkStep",
-      "voltage": 5.0
+      "name": "DIR-",
+      "kind": "apkGround",
+      "voltage": 0.0
+    },
+    {
+      "name": "ENA+",
+      "kind": "apkEnable",
+      "voltage": 0.0
+    },
+    {
+      "name": "ENA-",
+      "kind": "apkGround",
+      "voltage": 0.0
+    },
+    {
+      "name": "A+",
+      "kind": "apkPower",
+      "voltage": 0.0
+    },
+    {
+      "name": "A-",
+      "kind": "apkPower",
+      "voltage": 0.0
+    },
+    {
+      "name": "B+",
+      "kind": "apkPower",
+      "voltage": 0.0
+    },
+    {
+      "name": "B-",
+      "kind": "apkPower",
+      "voltage": 0.0
     },
     {
       "name": "VCC",
@@ -37,5 +72,58 @@
       "voltage": 0.0
     }
   ],
-  "description": "Driver profissional para motores NEMA 23 com controle de micropasso até 32x"
+  "description": "Driver de motor de passo TB6600: 9–42 V, até 4,0 A, micropasso até 1/32 por chaves DIP, entradas optoacopladas.",
+  "mass_g": 200,
+  "specs": {
+    "tensao_V": [
+      9,
+      42
+    ],
+    "corrente_A": 4.0,
+    "micropasso": "1..32",
+    "entrada_sinal": "3,3–5 V opto",
+    "freq_max_kHz": 200
+  },
+  "geometry": [
+    {"type": "box", "at": [0.0, 0.0, 0.0], "size": [96.0, 56.0, 1.6], "color": "#C9CDD2"},
+    {"type": "disk", "axis": "z", "at": [3.5, 10.0, 1.6], "r": 1.9, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [3.5, 46.0, 1.6], "r": 1.9, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [92.5, 10.0, 1.6], "r": 1.9, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [92.5, 46.0, 1.6], "r": 1.9, "color": "#15161A"},
+    {"type": "box", "at": [8.0, 0.0, 1.6], "size": [80.0, 56.0, 24.0], "color": "#C9CDD2"},
+    {"type": "box", "at": [8.0, 0.0, 25.6], "size": [80.0, 2.4, 6.4], "color": "#C9CDD2"},
+    {"type": "box", "at": [8.0, 5.3, 25.6], "size": [80.0, 2.4, 6.4], "color": "#C9CDD2"},
+    {"type": "box", "at": [8.0, 10.6, 25.6], "size": [80.0, 2.4, 6.4], "color": "#C9CDD2"},
+    {"type": "box", "at": [8.0, 15.9, 25.6], "size": [80.0, 2.4, 6.4], "color": "#C9CDD2"},
+    {"type": "box", "at": [8.0, 21.2, 25.6], "size": [80.0, 2.4, 6.4], "color": "#C9CDD2"},
+    {"type": "box", "at": [8.0, 26.5, 25.6], "size": [80.0, 2.4, 6.4], "color": "#C9CDD2"},
+    {"type": "box", "at": [8.0, 31.8, 25.6], "size": [80.0, 2.4, 6.4], "color": "#C9CDD2"},
+    {"type": "box", "at": [8.0, 37.1, 25.6], "size": [80.0, 2.4, 6.4], "color": "#C9CDD2"},
+    {"type": "box", "at": [8.0, 42.4, 25.6], "size": [80.0, 2.4, 6.4], "color": "#C9CDD2"},
+    {"type": "box", "at": [8.0, 47.7, 25.6], "size": [80.0, 2.4, 6.4], "color": "#C9CDD2"},
+    {"type": "box", "at": [8.0, 53.0, 25.6], "size": [80.0, 2.4, 6.4], "color": "#C9CDD2"},
+    {"type": "box", "at": [8.0, 0.0, 1.6], "size": [80.0, 0.1, 30.4], "color": "#B8BCC1"},
+    {"type": "box", "at": [0.0, 3.0, 1.6], "size": [8.0, 50.0, 18.0], "color": "#26282C"},
+    {"type": "box", "at": [88.0, 3.0, 1.6], "size": [8.0, 50.0, 18.0], "color": "#26282C"},
+    {"type": "disk", "axis": "z", "at": [4.0, 6.5, 19.6], "r": 1.6, "color": "#DDE1E6", "seg": 12},
+    {"type": "disk", "axis": "z", "at": [92.0, 6.5, 19.6], "r": 1.6, "color": "#DDE1E6", "seg": 12},
+    {"type": "disk", "axis": "z", "at": [4.0, 14.0, 19.6], "r": 1.6, "color": "#DDE1E6", "seg": 12},
+    {"type": "disk", "axis": "z", "at": [92.0, 14.0, 19.6], "r": 1.6, "color": "#DDE1E6", "seg": 12},
+    {"type": "disk", "axis": "z", "at": [4.0, 21.5, 19.6], "r": 1.6, "color": "#DDE1E6", "seg": 12},
+    {"type": "disk", "axis": "z", "at": [92.0, 21.5, 19.6], "r": 1.6, "color": "#DDE1E6", "seg": 12},
+    {"type": "disk", "axis": "z", "at": [4.0, 29.0, 19.6], "r": 1.6, "color": "#DDE1E6", "seg": 12},
+    {"type": "disk", "axis": "z", "at": [92.0, 29.0, 19.6], "r": 1.6, "color": "#DDE1E6", "seg": 12},
+    {"type": "disk", "axis": "z", "at": [4.0, 36.5, 19.6], "r": 1.6, "color": "#DDE1E6", "seg": 12},
+    {"type": "disk", "axis": "z", "at": [92.0, 36.5, 19.6], "r": 1.6, "color": "#DDE1E6", "seg": 12},
+    {"type": "disk", "axis": "z", "at": [4.0, 44.0, 19.6], "r": 1.6, "color": "#DDE1E6", "seg": 12},
+    {"type": "disk", "axis": "z", "at": [92.0, 44.0, 19.6], "r": 1.6, "color": "#DDE1E6", "seg": 12},
+    {"type": "box", "at": [30.0, 20.0, 32.01], "size": [24.0, 14.0, 0.4], "color": "#D02020"},
+    {"type": "box", "at": [31.5, 24.0, 32.4], "size": [1.8, 6.0, 0.8], "color": "#EEEEEA"},
+    {"type": "box", "at": [35.1, 24.0, 32.4], "size": [1.8, 6.0, 0.8], "color": "#EEEEEA"},
+    {"type": "box", "at": [38.7, 24.0, 32.4], "size": [1.8, 6.0, 0.8], "color": "#EEEEEA"},
+    {"type": "box", "at": [42.3, 24.0, 32.4], "size": [1.8, 6.0, 0.8], "color": "#EEEEEA"},
+    {"type": "box", "at": [45.9, 24.0, 32.4], "size": [1.8, 6.0, 0.8], "color": "#EEEEEA"},
+    {"type": "box", "at": [49.5, 24.0, 32.4], "size": [1.8, 6.0, 0.8], "color": "#EEEEEA"},
+    {"type": "disk", "axis": "z", "at": [70.0, 28.0, 32.0], "r": 8.0, "color": "#F5F5F0", "seg": 4, "rot": 45.0}
+  ]
 }

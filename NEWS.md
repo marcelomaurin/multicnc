@@ -1,5 +1,15 @@
 # MultiSuite — Notas de Lançamento / News
 
+## [Em desenvolvimento] — MultiAssembly: geometria realista (17/10/2026)
+
+### 🔩 MultiAssembly: componentes com aparência real
+- **Vista mecânica 3D:** as peças deixam de ser caixas. Cilindros, tubos, cones, setores, prismas com perfil e decalques (furos, LEDs) são desenhados com sombreamento, brilho especular, rotação e ordenação por face.
+- **Biblioteca ampliada de 50 para 135 componentes** com dimensões de norma/datasheet: perfis V-Slot 2020–4040 e C-Beam, parafusos DIN 912/ISO 7380/ISO 10642/DIN 933, porcas, arruelas, T-nuts, rolamentos (608, 625, 623, 6000, 6205, F623, LM8UU/LM8LUU/LM12UU), mancais KP08/KFL08/BK12/BF12/SK/SCS, guias MGN12H e HGR15 com carros, fusos T8 e SFU com castanhas, NEMA 17/23/34, DC 775, motorredutor, spindles 500 W e 1,5 kW, laser 10 W, acoplamentos, polias e correias GT2, rodas V-Slot, drivers TB6600/DM542/A4988/DRV8825/TMC2209, controladoras grblHAL/FluidNC/Arduino CNC Shield, ESP32, fontes, inversor VFD, relé, sensores, ventoinhas e conectores.
+- **Formas por tipo:** peças sem geometria (projetos antigos e componentes criados no programa) recebem uma forma coerente com o tipo; projetos antigos recuperam a geometria pelo arquivo de origem.
+- **Formato:** bloco `geometry` documentado em `models/components/README.md`, gerado por `tools/components/generate_components.py`.
+
+---
+
 ## [0.11] — Setup 011 (15/10/2026)
 
 ### 🌟 Destaques da Versão 0.11

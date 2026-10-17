@@ -1,0 +1,52 @@
+{
+  "name": "Parafuso M5x10 Abaulado",
+  "model": "ISO 7380 M5x10",
+  "category": "fixadores",
+  "kind": "ackFastenerScrew",
+  "material": "Aço inox A2",
+  "color": 15131101,
+  "size": {
+    "x": 9.5,
+    "y": 9.5,
+    "z": 12.75
+  },
+  "ports": [
+    {
+      "name": "ROSCA",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "CABECA",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Parafuso cabeça abaulada M5 x 10 mm para perfis V-Slot, placas gantry e rodas.",
+  "standard": "ISO 7380",
+  "mass_g": 1.5,
+  "specs": {
+    "rosca": "M5 x 0.8",
+    "comprimento_mm": 10,
+    "cabeca_d_mm": 9.5,
+    "cabeca_h_mm": 2.75,
+    "chave_allen_mm": 3.0
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 0.0], "r": 2.1, "h": 10.0, "color": "#B4B8BB", "seg": 16},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 0.2], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 1.0], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 1.8], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 2.6], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 3.4], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 4.2], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 5.0], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 5.8], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 6.6], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 7.4], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 8.2], "r": 2.5, "h": 0.4, "color": "#E8ECF1", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 10.0], "r": 4.75, "h": 0.688, "color": "#DDE1E6", "seg": 28},
+    {"type": "cyl", "axis": "z", "at": [4.75, 4.75, 10.688], "r": 4.75, "h": 2.062, "color": "#DDE1E6", "r2": 2.85, "seg": 28},
+    {"type": "disk", "axis": "z", "at": [4.75, 4.75, 12.75], "r": 1.732, "color": "#15161A", "seg": 6}
+  ]
+}

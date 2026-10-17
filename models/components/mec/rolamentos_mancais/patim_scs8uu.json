@@ -1,0 +1,43 @@
+{
+  "name": "Patim Linear SCS8UU",
+  "model": "SCS8UU Eixo 8mm",
+  "category": "rolamentos_mancais",
+  "kind": "ackBearing",
+  "material": "Alumínio / LM8UU",
+  "color": 13815241,
+  "size": {
+    "x": 34.0,
+    "y": 30.02,
+    "z": 22.0
+  },
+  "ports": [
+    {
+      "name": "EIXO_8MM",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "TOPO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Bloco de rolamento linear SCS8UU (LM8UU encapsulado), 4 furos M4 no topo.",
+  "mass_g": 52,
+  "specs": {
+    "d_mm": 8,
+    "W_mm": 34,
+    "L_mm": 30,
+    "H_mm": 22,
+    "h_centro_mm": 11
+  },
+  "geometry": [
+    {"type": "box", "at": [0.0, 0.01, 0.0], "size": [34.0, 30.0, 9.9], "color": "#C9CDD2"},
+    {"type": "box", "at": [4.08, 0.01, 9.9], "size": [25.84, 30.0, 12.1], "color": "#C9CDD2"},
+    {"type": "cyl", "axis": "y", "at": [17.0, 0.0, 11.0], "r": 7.5, "h": 30.02, "color": "#DDE1E6", "ri": 4.0, "seg": 24},
+    {"type": "disk", "axis": "z", "at": [6.8, 7.51, 22.0], "r": 1.7, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [6.8, 22.51, 22.0], "r": 1.7, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [27.2, 7.51, 22.0], "r": 1.7, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [27.2, 22.51, 22.0], "r": 1.7, "color": "#15161A"}
+  ]
+}

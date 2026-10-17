@@ -5,7 +5,8 @@ unit multiassembly_project;
 interface
 
 uses
-  Classes, SysUtils, fpjson, jsonparser, multisuite_numfmt, multiassembly_types;
+  Classes, SysUtils, fpjson, jsonparser, multisuite_numfmt, multiassembly_types, multiassembly_geometry,
+  multiassembly_library;
 
 type
   TAssemblyProject = class
@@ -386,6 +387,8 @@ begin
         PortsArr.Add(PortObj);
       end;
       CompObj.Add('ports', PortsArr);
+      if Length(C.Geometry) > 0 then
+        CompObj.Add('geometry', GeometryToJSON(C.Geometry));
       CompsArr.Add(CompObj);
     end;
     Root.Add('components', CompsArr);
@@ -545,6 +548,10 @@ begin
         end
         else
           SetLength(C.Ports, 0);
+
+        C.Geometry := ParseGeometryJSON(CompObj.Find('geometry'));
+        if Length(C.Geometry) = 0 then
+          TAssemblyLibrary.RestoreGeometry(C);
 
         AddComponent(C);
       end;

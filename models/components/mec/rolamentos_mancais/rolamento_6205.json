@@ -3,8 +3,8 @@
   "model": "6205-2RS 25x52x15mm",
   "category": "rolamentos_mancais",
   "kind": "ackBearing",
-  "material": "Aço Cromo",
-  "color": 11184810,
+  "material": "Aço cromo GCr15",
+  "color": 15131101,
   "size": {
     "x": 52.0,
     "y": 52.0,
@@ -15,7 +15,24 @@
       "name": "FURO_25MM",
       "kind": "apkMechanical",
       "voltage": 0.0
+    },
+    {
+      "name": "EXTERNO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
     }
   ],
-  "description": "Rolamento para eixos principais de máquinas pesadas"
+  "description": "Rolamento rígido de esferas 25 x 52 x 15 mm com vedação de borracha 2RS.",
+  "standard": "ISO 15",
+  "mass_g": 22.5,
+  "specs": {
+    "d_mm": 25,
+    "D_mm": 52,
+    "B_mm": 15
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [26.0, 26.0, 0.0], "r": 26.0, "h": 15.0, "color": "#DDE1E6", "ri": 22.22, "seg": 32},
+    {"type": "cyl", "axis": "z", "at": [26.0, 26.0, 0.0], "r": 15.74, "h": 15.0, "color": "#DDE1E6", "ri": 12.5, "seg": 28},
+    {"type": "cyl", "axis": "z", "at": [26.0, 26.0, 0.6], "r": 22.22, "h": 13.8, "color": "#9E2A2B", "ri": 15.74, "seg": 32}
+  ]
 }

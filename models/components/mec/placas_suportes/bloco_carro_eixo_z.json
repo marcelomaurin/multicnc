@@ -4,11 +4,11 @@
   "category": "placas_suportes",
   "kind": "ackMechanicalPart",
   "material": "Alumínio 6061-T6",
-  "color": 8421504,
+  "color": 13815241,
   "size": {
     "x": 100.0,
     "y": 80.0,
-    "z": 20.0
+    "z": 22.0
   },
   "ports": [
     {
@@ -20,7 +20,42 @@
       "name": "BLOCO_PATINS",
       "kind": "apkMechanical",
       "voltage": 0.0
+    },
+    {
+      "name": "CASTANHA",
+      "kind": "apkMechanical",
+      "voltage": 0.0
     }
   ],
-  "description": "Placa base usinada do eixo Z para acoplamento do spindle e patins lineares"
+  "description": "Placa usinada do eixo Z (100 x 80 x 10 mm) com bloco da castanha e furação para patins e suporte do spindle.",
+  "mass_g": 260,
+  "specs": {
+    "dim_mm": [
+      100,
+      80,
+      10
+    ],
+    "bloco_castanha_mm": [
+      30,
+      30,
+      12
+    ]
+  },
+  "geometry": [
+    {"type": "prism", "axis": "z", "at": [0.0, 0.0, 0.0], "h": 10.0, "poly": [[97.0, 0.0], [97.776, 0.102], [98.5, 0.402], [99.121, 0.879], [99.598, 1.5], [99.898, 2.224], [100.0, 3.0], [100.0, 77.0], [99.898, 77.776], [99.598, 78.5], [99.121, 79.121], [98.5, 79.598], [97.776, 79.898], [97.0, 80.0], [3.0, 80.0], [2.224, 79.898], [1.5, 79.598], [0.879, 79.121], [0.402, 78.5], [0.102, 77.776], [0.0, 77.0], [0.0, 3.0], [0.102, 2.224], [0.402, 1.5], [0.879, 0.879], [1.5, 0.402], [2.224, 0.102], [3.0, 0.0]], "color": "#C9CDD2"},
+    {"type": "box", "at": [35.0, 25.0, 10.0], "size": [30.0, 30.0, 12.0], "color": "#C9CDD2"},
+    {"type": "disk", "axis": "z", "at": [50.0, 40.0, 22.0], "r": 5.0, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [10.0, 10.0, 10.0], "r": 2.2, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [10.0, 30.0, 10.0], "r": 2.2, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [10.0, 50.0, 10.0], "r": 2.2, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [10.0, 70.0, 10.0], "r": 2.2, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [90.0, 10.0, 10.0], "r": 2.2, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [90.0, 30.0, 10.0], "r": 2.2, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [90.0, 50.0, 10.0], "r": 2.2, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [90.0, 70.0, 10.0], "r": 2.2, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [40.0, 30.0, 22.0], "r": 1.75, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [60.0, 30.0, 22.0], "r": 1.75, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [40.0, 50.0, 22.0], "r": 1.75, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [60.0, 50.0, 22.0], "r": 1.75, "color": "#15161A"}
+  ]
 }

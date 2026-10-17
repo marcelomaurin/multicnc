@@ -79,3 +79,7 @@ bin/libmcad_occt.so
 /multislicer/tests/test_modern_slicer
 /multislicer/tests/test_scene
 /multislicer/tests/test_support
+
+# pre-visualizacao 3D do MultiAssembly
+multiassembly/tests/render_preview
+tools/components/__pycache__/

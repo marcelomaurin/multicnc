@@ -1,0 +1,31 @@
+{
+  "name": "Arruela M5 Pressão",
+  "model": "DIN 127 B M5",
+  "category": "fixadores",
+  "kind": "ackFastenerWasher",
+  "material": "Aço mola oxidado",
+  "color": 4275258,
+  "size": {
+    "x": 9.155,
+    "y": 9.199,
+    "z": 1.2
+  },
+  "ports": [
+    {
+      "name": "FURO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Arruela de pressão (mola) M5 contra afrouxamento por vibração.",
+  "standard": "DIN 127",
+  "mass_g": 0.3,
+  "specs": {
+    "d_int_mm": 5.1,
+    "d_ext_mm": 9.2,
+    "espessura_mm": 1.2
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [4.6, 4.6, 0.0], "r": 4.6, "h": 1.2, "color": "#3A3C41", "ri": 2.55, "seg": 28, "arc": [8.0, 352.0]}
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "name": "Acoplador Flexível 8x8mm",
+  "model": "Coupler D19L25 8x8mm",
+  "category": "transmissao",
+  "kind": "ackMechanicalPart",
+  "material": "Alumínio 7075",
+  "color": 13815241,
+  "size": {
+    "x": 19.0,
+    "y": 19.0,
+    "z": 25.0
+  },
+  "ports": [
+    {
+      "name": "ENTRADA_8MM",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "SAIDA_8MM",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Acoplamento flexível helicoidal Ø19 x 25 mm, furos 8 e 8 mm.",
+  "mass_g": 12,
+  "specs": {
+    "d_mm": 19,
+    "L_mm": 25,
+    "furos_mm": [
+      8,
+      8
+    ]
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [9.5, 9.5, 0.0], "r": 9.5, "h": 7.5, "color": "#C9CDD2", "seg": 32},
+    {"type": "cyl", "axis": "z", "at": [9.5, 9.5, 17.5], "r": 9.5, "h": 7.5, "color": "#C9CDD2", "seg": 32},
+    {"type": "cyl", "axis": "z", "at": [9.5, 9.5, 7.5], "r": 9.5, "h": 1.111, "color": "#C9CDD2", "seg": 32},
+    {"type": "cyl", "axis": "z", "at": [9.5, 9.5, 8.611], "r": 8.9, "h": 1.111, "color": "#464749", "seg": 32, "rot": 18.0},
+    {"type": "cyl", "axis": "z", "at": [9.5, 9.5, 9.722], "r": 9.5, "h": 1.111, "color": "#C9CDD2", "seg": 32, "rot": 36.0},
+    {"type": "cyl", "axis": "z", "at": [9.5, 9.5, 10.833], "r": 8.9, "h": 1.111, "color": "#464749", "seg": 32, "rot": 54.0},
+    {"type": "cyl", "axis": "z", "at": [9.5, 9.5, 11.944], "r": 9.5, "h": 1.111, "color": "#C9CDD2", "seg": 32, "rot": 72.0},
+    {"type": "cyl", "axis": "z", "at": [9.5, 9.5, 13.056], "r": 8.9, "h": 1.111, "color": "#464749", "seg": 32, "rot": 90.0},
+    {"type": "cyl", "axis": "z", "at": [9.5, 9.5, 14.167], "r": 9.5, "h": 1.111, "color": "#C9CDD2", "seg": 32, "rot": 108.0},
+    {"type": "cyl", "axis": "z", "at": [9.5, 9.5, 15.278], "r": 8.9, "h": 1.111, "color": "#464749", "seg": 32, "rot": 126.0},
+    {"type": "cyl", "axis": "z", "at": [9.5, 9.5, 16.389], "r": 9.5, "h": 1.111, "color": "#C9CDD2", "seg": 32, "rot": 144.0},
+    {"type": "disk", "axis": "z", "at": [9.5, 9.5, 0.0], "r": 4.0, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [9.5, 9.5, 25.0], "r": 4.0, "color": "#15161A"},
+    {"type": "disk", "axis": "x", "at": [19.0, 9.5, 3.75], "r": 1.6, "color": "#15161A", "seg": 6},
+    {"type": "disk", "axis": "y", "at": [9.5, 19.0, 3.75], "r": 1.6, "color": "#15161A", "seg": 6},
+    {"type": "disk", "axis": "x", "at": [19.0, 9.5, 21.25], "r": 1.6, "color": "#15161A", "seg": 6},
+    {"type": "disk", "axis": "y", "at": [9.5, 19.0, 21.25], "r": 1.6, "color": "#15161A", "seg": 6}
+  ]
+}

@@ -1,10 +1,10 @@
 {
   "name": "Castanha Latão Fuso T8",
-  "model": "Brass Nut T8x8 Flange",
+  "model": "Brass Nut Tr8x8 Flange",
   "category": "transmissao",
   "kind": "ackFastenerNut",
-  "material": "Latão Especial",
-  "color": 13421619,
+  "material": "Latão",
+  "color": 5022921,
   "size": {
     "x": 22.0,
     "y": 22.0,
@@ -22,5 +22,22 @@
       "voltage": 0.0
     }
   ],
-  "description": "Castanha de latão com flange para tração de fuso trapezoidal T8"
+  "description": "Castanha de latão com flange Ø22 (4 furos Ø3,5 em PCD 16) para fuso Tr8x8.",
+  "mass_g": 15,
+  "specs": {
+    "flange_mm": 22,
+    "corpo_mm": 10.2,
+    "L_mm": 15,
+    "pcd_mm": 16
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [11.0, 11.0, 0.0], "r": 11.0, "h": 3.5, "color": "#C9A44C", "seg": 32},
+    {"type": "cyl", "axis": "z", "at": [11.0, 11.0, 3.5], "r": 5.1, "h": 11.5, "color": "#C9A44C", "seg": 24},
+    {"type": "disk", "axis": "z", "at": [16.657, 16.657, 3.5], "r": 1.75, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [5.343, 16.657, 3.5], "r": 1.75, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [5.343, 5.343, 3.5], "r": 1.75, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [16.657, 5.343, 3.5], "r": 1.75, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [11.0, 11.0, 0.0], "r": 4.0, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [11.0, 11.0, 15.0], "r": 4.0, "color": "#15161A"}
+  ]
 }

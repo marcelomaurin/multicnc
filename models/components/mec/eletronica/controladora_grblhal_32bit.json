@@ -3,43 +3,58 @@
   "model": "GrblHAL Cortex-M4 5-Axis",
   "category": "eletronica",
   "kind": "ackController",
-  "material": "Placa FR4 / Conectores",
-  "color": 32896,
+  "material": "PCB FR4 / conectores",
+  "color": 2827811,
   "size": {
     "x": 100.0,
-    "y": 70.0,
-    "z": 20.0
+    "y": 70.05,
+    "z": 18.1
   },
   "ports": [
     {
       "name": "STEP_X",
       "kind": "apkStep",
-      "voltage": 3.3
+      "voltage": 5.0
     },
     {
       "name": "DIR_X",
       "kind": "apkDir",
-      "voltage": 3.3
+      "voltage": 5.0
     },
     {
       "name": "STEP_Y",
       "kind": "apkStep",
-      "voltage": 3.3
+      "voltage": 5.0
     },
     {
       "name": "DIR_Y",
       "kind": "apkDir",
-      "voltage": 3.3
+      "voltage": 5.0
     },
     {
       "name": "STEP_Z",
       "kind": "apkStep",
-      "voltage": 3.3
+      "voltage": 5.0
     },
     {
       "name": "DIR_Z",
       "kind": "apkDir",
-      "voltage": 3.3
+      "voltage": 5.0
+    },
+    {
+      "name": "STEP_A",
+      "kind": "apkStep",
+      "voltage": 5.0
+    },
+    {
+      "name": "DIR_A",
+      "kind": "apkDir",
+      "voltage": 5.0
+    },
+    {
+      "name": "ENABLE",
+      "kind": "apkEnable",
+      "voltage": 5.0
     },
     {
       "name": "SPINDLE_PWM",
@@ -47,10 +62,156 @@
       "voltage": 5.0
     },
     {
+      "name": "SPINDLE_EN",
+      "kind": "apkDigitalOutput",
+      "voltage": 5.0
+    },
+    {
+      "name": "LIMIT_X",
+      "kind": "apkDigitalInput",
+      "voltage": 5.0
+    },
+    {
+      "name": "LIMIT_Y",
+      "kind": "apkDigitalInput",
+      "voltage": 5.0
+    },
+    {
+      "name": "LIMIT_Z",
+      "kind": "apkDigitalInput",
+      "voltage": 5.0
+    },
+    {
+      "name": "PROBE",
+      "kind": "apkDigitalInput",
+      "voltage": 5.0
+    },
+    {
+      "name": "ESTOP",
+      "kind": "apkDigitalInput",
+      "voltage": 5.0
+    },
+    {
+      "name": "USB",
+      "kind": "apkCommunication",
+      "voltage": 0.0
+    },
+    {
+      "name": "ETHERNET",
+      "kind": "apkCommunication",
+      "voltage": 0.0
+    },
+    {
       "name": "POWER_24V",
       "kind": "apkPower",
       "voltage": 24.0
+    },
+    {
+      "name": "GND",
+      "kind": "apkGround",
+      "voltage": 0.0
     }
   ],
-  "description": "Placa controladora CNC de 32 bits rodando firmware GrblHAL"
+  "description": "Placa controladora CNC 32 bits (Cortex-M4) com grblHAL: 5 eixos com saídas STEP/DIR externas, USB e Ethernet.",
+  "mass_g": 90,
+  "specs": {
+    "mcu": "ARM Cortex-M4",
+    "eixos": 5,
+    "firmware": "grblHAL",
+    "alimentacao_V": 24,
+    "saidas_sinal_V": 5
+  },
+  "geometry": [
+    {"type": "prism", "axis": "z", "at": [4.0, 4.05, 0.0], "h": 3.0, "poly": [[2.887, 0.0], [1.443, 2.5], [-1.443, 2.5], [-2.887, 0.0], [-1.443, -2.5], [1.443, -2.5]], "color": "#C9A44C"},
+    {"type": "prism", "axis": "z", "at": [96.0, 4.05, 0.0], "h": 3.0, "poly": [[2.887, 0.0], [1.443, 2.5], [-1.443, 2.5], [-2.887, 0.0], [-1.443, -2.5], [1.443, -2.5]], "color": "#C9A44C"},
+    {"type": "prism", "axis": "z", "at": [4.0, 66.05, 0.0], "h": 3.0, "poly": [[2.887, 0.0], [1.443, 2.5], [-1.443, 2.5], [-2.887, 0.0], [-1.443, -2.5], [1.443, -2.5]], "color": "#C9A44C"},
+    {"type": "prism", "axis": "z", "at": [96.0, 66.05, 0.0], "h": 3.0, "poly": [[2.887, 0.0], [1.443, 2.5], [-1.443, 2.5], [-2.887, 0.0], [-1.443, -2.5], [1.443, -2.5]], "color": "#C9A44C"},
+    {"type": "box", "at": [0.0, 0.05, 3.0], "size": [100.0, 70.0, 1.6], "color": "#23262B"},
+    {"type": "box", "at": [44.0, 30.05, 4.6], "size": [10.0, 10.0, 1.4], "color": "#18191C"},
+    {"type": "box", "at": [30.0, 30.05, 4.6], "size": [4.0, 4.0, 0.9], "color": "#18191C"},
+    {"type": "box", "at": [8.0, 52.05, 4.6], "size": [10.16, 2.54, 2.5], "color": "#202124"},
+    {"type": "box", "at": [8.95, 53.0, 7.1], "size": [0.64, 0.64, 5.8], "color": "#D4AF37"},
+    {"type": "box", "at": [11.49, 53.0, 7.1], "size": [0.64, 0.64, 5.8], "color": "#D4AF37"},
+    {"type": "box", "at": [14.03, 53.0, 7.1], "size": [0.64, 0.64, 5.8], "color": "#D4AF37"},
+    {"type": "box", "at": [16.57, 53.0, 7.1], "size": [0.64, 0.64, 5.8], "color": "#D4AF37"},
+    {"type": "box", "at": [25.0, 52.05, 4.6], "size": [10.16, 2.54, 2.5], "color": "#202124"},
+    {"type": "box", "at": [25.95, 53.0, 7.1], "size": [0.64, 0.64, 5.8], "color": "#D4AF37"},
+    {"type": "box", "at": [28.49, 53.0, 7.1], "size": [0.64, 0.64, 5.8], "color": "#D4AF37"},
+    {"type": "box", "at": [31.03, 53.0, 7.1], "size": [0.64, 0.64, 5.8], "color": "#D4AF37"},
+    {"type": "box", "at": [33.57, 53.0, 7.1], "size": [0.64, 0.64, 5.8], "color": "#D4AF37"},
+    {"type": "box", "at": [42.0, 52.05, 4.6], "size": [10.16, 2.54, 2.5], "color": "#202124"},
+    {"type": "box", "at": [42.95, 53.0, 7.1], "size": [0.64, 0.64, 5.8], "color": "#D4AF37"},
+    {"type": "box", "at": [45.49, 53.0, 7.1], "size": [0.64, 0.64, 5.8], "color": "#D4AF37"},
+    {"type": "box", "at": [48.03, 53.0, 7.1], "size": [0.64, 0.64, 5.8], "color": "#D4AF37"},
+    {"type": "box", "at": [50.57, 53.0, 7.1], "size": [0.64, 0.64, 5.8], "color": "#D4AF37"},
+    {"type": "box", "at": [59.0, 52.05, 4.6], "size": [10.16, 2.54, 2.5], "color": "#202124"},
+    {"type": "box", "at": [59.95, 53.0, 7.1], "size": [0.64, 0.64, 5.8], "color": "#D4AF37"},
+    {"type": "box", "at": [62.49, 53.0, 7.1], "size": [0.64, 0.64, 5.8], "color": "#D4AF37"},
+    {"type": "box", "at": [65.03, 53.0, 7.1], "size": [0.64, 0.64, 5.8], "color": "#D4AF37"},
+    {"type": "box", "at": [67.57, 53.0, 7.1], "size": [0.64, 0.64, 5.8], "color": "#D4AF37"},
+    {"type": "box", "at": [76.0, 52.05, 4.6], "size": [10.16, 2.54, 2.5], "color": "#202124"},
+    {"type": "box", "at": [76.95, 53.0, 7.1], "size": [0.64, 0.64, 5.8], "color": "#D4AF37"},
+    {"type": "box", "at": [79.49, 53.0, 7.1], "size": [0.64, 0.64, 5.8], "color": "#D4AF37"},
+    {"type": "box", "at": [82.03, 53.0, 7.1], "size": [0.64, 0.64, 5.8], "color": "#D4AF37"},
+    {"type": "box", "at": [84.57, 53.0, 7.1], "size": [0.64, 0.64, 5.8], "color": "#D4AF37"},
+    {"type": "box", "at": [4.0, 0.05, 4.6], "size": [35.0, 7.0, 8.5], "color": "#2F8F5B"},
+    {"type": "disk", "axis": "z", "at": [5.75, 4.39, 13.1], "r": 1.5, "color": "#DDE1E6", "seg": 12},
+    {"type": "box", "at": [4.45, 0.0, 5.8], "size": [2.6, 0.1, 2.8], "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [9.25, 4.39, 13.1], "r": 1.5, "color": "#DDE1E6", "seg": 12},
+    {"type": "box", "at": [7.95, 0.0, 5.8], "size": [2.6, 0.1, 2.8], "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [12.75, 4.39, 13.1], "r": 1.5, "color": "#DDE1E6", "seg": 12},
+    {"type": "box", "at": [11.45, 0.0, 5.8], "size": [2.6, 0.1, 2.8], "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [16.25, 4.39, 13.1], "r": 1.5, "color": "#DDE1E6", "seg": 12},
+    {"type": "box", "at": [14.95, 0.0, 5.8], "size": [2.6, 0.1, 2.8], "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [19.75, 4.39, 13.1], "r": 1.5, "color": "#DDE1E6", "seg": 12},
+    {"type": "box", "at": [18.45, 0.0, 5.8], "size": [2.6, 0.1, 2.8], "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [23.25, 4.39, 13.1], "r": 1.5, "color": "#DDE1E6", "seg": 12},
+    {"type": "box", "at": [21.95, 0.0, 5.8], "size": [2.6, 0.1, 2.8], "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [26.75, 4.39, 13.1], "r": 1.5, "color": "#DDE1E6", "seg": 12},
+    {"type": "box", "at": [25.45, 0.0, 5.8], "size": [2.6, 0.1, 2.8], "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [30.25, 4.39, 13.1], "r": 1.5, "color": "#DDE1E6", "seg": 12},
+    {"type": "box", "at": [28.95, 0.0, 5.8], "size": [2.6, 0.1, 2.8], "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [33.75, 4.39, 13.1], "r": 1.5, "color": "#DDE1E6", "seg": 12},
+    {"type": "box", "at": [32.45, 0.0, 5.8], "size": [2.6, 0.1, 2.8], "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [37.25, 4.39, 13.1], "r": 1.5, "color": "#DDE1E6", "seg": 12},
+    {"type": "box", "at": [35.95, 0.0, 5.8], "size": [2.6, 0.1, 2.8], "color": "#15161A"},
+    {"type": "box", "at": [44.0, 0.05, 4.6], "size": [35.0, 7.0, 8.5], "color": "#2F8F5B"},
+    {"type": "disk", "axis": "z", "at": [45.75, 4.39, 13.1], "r": 1.5, "color": "#DDE1E6", "seg": 12},
+    {"type": "box", "at": [44.45, 0.0, 5.8], "size": [2.6, 0.1, 2.8], "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [49.25, 4.39, 13.1], "r": 1.5, "color": "#DDE1E6", "seg": 12},
+    {"type": "box", "at": [47.95, 0.0, 5.8], "size": [2.6, 0.1, 2.8], "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [52.75, 4.39, 13.1], "r": 1.5, "color": "#DDE1E6", "seg": 12},
+    {"type": "box", "at": [51.45, 0.0, 5.8], "size": [2.6, 0.1, 2.8], "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [56.25, 4.39, 13.1], "r": 1.5, "color": "#DDE1E6", "seg": 12},
+    {"type": "box", "at": [54.95, 0.0, 5.8], "size": [2.6, 0.1, 2.8], "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [59.75, 4.39, 13.1], "r": 1.5, "color": "#DDE1E6", "seg": 12},
+    {"type": "box", "at": [58.45, 0.0, 5.8], "size": [2.6, 0.1, 2.8], "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [63.25, 4.39, 13.1], "r": 1.5, "color": "#DDE1E6", "seg": 12},
+    {"type": "box", "at": [61.95, 0.0, 5.8], "size": [2.6, 0.1, 2.8], "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [66.75, 4.39, 13.1], "r": 1.5, "color": "#DDE1E6", "seg": 12},
+    {"type": "box", "at": [65.45, 0.0, 5.8], "size": [2.6, 0.1, 2.8], "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [70.25, 4.39, 13.1], "r": 1.5, "color": "#DDE1E6", "seg": 12},
+    {"type": "box", "at": [68.95, 0.0, 5.8], "size": [2.6, 0.1, 2.8], "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [73.75, 4.39, 13.1], "r": 1.5, "color": "#DDE1E6", "seg": 12},
+    {"type": "box", "at": [72.45, 0.0, 5.8], "size": [2.6, 0.1, 2.8], "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [77.25, 4.39, 13.1], "r": 1.5, "color": "#DDE1E6", "seg": 12},
+    {"type": "box", "at": [75.95, 0.0, 5.8], "size": [2.6, 0.1, 2.8], "color": "#15161A"},
+    {"type": "box", "at": [84.0, 22.05, 4.6], "size": [7.6, 10.16, 10.0], "color": "#2F8F5B"},
+    {"type": "disk", "axis": "z", "at": [88.712, 24.59, 14.6], "r": 1.5, "color": "#DDE1E6", "seg": 12},
+    {"type": "box", "at": [83.95, 23.29, 5.8], "size": [0.1, 2.6, 2.8], "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [88.712, 29.67, 14.6], "r": 1.5, "color": "#DDE1E6", "seg": 12},
+    {"type": "box", "at": [83.95, 28.37, 5.8], "size": [0.1, 2.6, 2.8], "color": "#15161A"},
+    {"type": "box", "at": [90.0, 40.05, 4.6], "size": [10.0, 9.0, 3.3], "color": "#DDE1E6"},
+    {"type": "box", "at": [84.0, 50.05, 4.6], "size": [16.0, 16.0, 13.5], "color": "#DDE1E6"},
+    {"type": "cyl", "axis": "z", "at": [70.0, 30.05, 4.6], "r": 3.15, "h": 7.7, "color": "#20242C", "seg": 16},
+    {"type": "disk", "axis": "z", "at": [70.0, 30.05, 12.3], "r": 2.75, "color": "#B4B9C0", "seg": 16},
+    {"type": "cyl", "axis": "z", "at": [76.0, 30.05, 4.6], "r": 3.15, "h": 7.7, "color": "#20242C", "seg": 16},
+    {"type": "disk", "axis": "z", "at": [76.0, 30.05, 12.3], "r": 2.75, "color": "#B4B9C0", "seg": 16},
+    {"type": "cyl", "axis": "z", "at": [70.0, 38.05, 4.6], "r": 3.15, "h": 7.7, "color": "#20242C", "seg": 16},
+    {"type": "disk", "axis": "z", "at": [70.0, 38.05, 12.3], "r": 2.75, "color": "#B4B9C0", "seg": 16},
+    {"type": "disk", "axis": "z", "at": [20.0, 45.05, 4.6], "r": 0.8, "color": "#30E060", "seg": 8},
+    {"type": "disk", "axis": "z", "at": [24.0, 45.05, 4.6], "r": 0.8, "color": "#FF3030", "seg": 8},
+    {"type": "disk", "axis": "z", "at": [28.0, 45.05, 4.6], "r": 0.8, "color": "#3080FF", "seg": 8},
+    {"type": "disk", "axis": "z", "at": [32.0, 45.05, 4.6], "r": 0.8, "color": "#30E060", "seg": 8}
+  ]
 }

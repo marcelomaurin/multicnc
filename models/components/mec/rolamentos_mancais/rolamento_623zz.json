@@ -1,0 +1,38 @@
+{
+  "name": "Rolamento 623ZZ",
+  "model": "623ZZ 3x10x4mm",
+  "category": "rolamentos_mancais",
+  "kind": "ackBearing",
+  "material": "Aço cromo GCr15",
+  "color": 15131101,
+  "size": {
+    "x": 10.0,
+    "y": 10.0,
+    "z": 4.0
+  },
+  "ports": [
+    {
+      "name": "FURO_3MM",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "EXTERNO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Rolamento rígido de esferas 3 x 10 x 4 mm com dupla blindagem (polias tensoras).",
+  "standard": "ISO 15",
+  "mass_g": 0.3,
+  "specs": {
+    "d_mm": 3,
+    "D_mm": 10,
+    "B_mm": 4
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [5.0, 5.0, 0.0], "r": 5.0, "h": 4.0, "color": "#DDE1E6", "ri": 4.02, "seg": 32},
+    {"type": "cyl", "axis": "z", "at": [5.0, 5.0, 0.0], "r": 2.34, "h": 4.0, "color": "#DDE1E6", "ri": 1.5, "seg": 28},
+    {"type": "cyl", "axis": "z", "at": [5.0, 5.0, 0.16], "r": 4.02, "h": 3.68, "color": "#B4B9C0", "ri": 2.34, "seg": 32}
+  ]
+}

@@ -3,11 +3,11 @@
   "model": "DIN 985 M3",
   "category": "fixadores",
   "kind": "ackFastenerNut",
-  "material": "Aço Zincado / Nylon",
-  "color": 12500670,
+  "material": "Aço zincado / inserto de nylon",
+  "color": 13420482,
   "size": {
-    "x": 6.0,
-    "y": 6.0,
+    "x": 6.35,
+    "y": 5.5,
     "z": 4.0
   },
   "ports": [
@@ -17,5 +17,19 @@
       "voltage": 0.0
     }
   ],
-  "description": "Porca autotravante com inserto de nylon M3"
+  "description": "Porca autotravante com inserto de nylon M3 (chave 5.5, altura 4.0).",
+  "standard": "DIN 985 / ISO 10511",
+  "mass_g": 0.6,
+  "specs": {
+    "rosca": "M3",
+    "chave_mm": 5.5,
+    "altura_mm": 4.0
+  },
+  "geometry": [
+    {"type": "prism", "axis": "z", "at": [3.175, 2.75, 0.0], "h": 2.48, "poly": [[3.175, 0.0], [1.588, 2.75], [-1.588, 2.75], [-3.175, 0.0], [-1.588, -2.75], [1.588, -2.75]], "color": "#C2C7CC"},
+    {"type": "cyl", "axis": "z", "at": [3.175, 2.75, 2.48], "r": 2.585, "h": 1.52, "color": "#C2C7CC", "r2": 2.31, "seg": 24},
+    {"type": "cyl", "axis": "z", "at": [3.175, 2.75, 3.99], "r": 1.98, "h": 0.01, "color": "#EDEBE2", "ri": 1.5, "seg": 24},
+    {"type": "disk", "axis": "z", "at": [3.175, 2.75, 0.0], "r": 1.5, "color": "#15161A", "seg": 16},
+    {"type": "disk", "axis": "z", "at": [3.175, 2.75, 4.0], "r": 1.44, "color": "#15161A", "seg": 16}
+  ]
 }

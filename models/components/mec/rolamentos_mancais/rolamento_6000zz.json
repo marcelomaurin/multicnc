@@ -1,0 +1,38 @@
+{
+  "name": "Rolamento 6000ZZ",
+  "model": "6000ZZ 10x26x8mm",
+  "category": "rolamentos_mancais",
+  "kind": "ackBearing",
+  "material": "Aço cromo GCr15",
+  "color": 15131101,
+  "size": {
+    "x": 26.0,
+    "y": 26.0,
+    "z": 8.0
+  },
+  "ports": [
+    {
+      "name": "FURO_10MM",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "EXTERNO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Rolamento rígido de esferas 10 x 26 x 8 mm com dupla blindagem.",
+  "standard": "ISO 15",
+  "mass_g": 3.3,
+  "specs": {
+    "d_mm": 10,
+    "D_mm": 26,
+    "B_mm": 8
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [13.0, 13.0, 0.0], "r": 13.0, "h": 8.0, "color": "#DDE1E6", "ri": 10.76, "seg": 32},
+    {"type": "cyl", "axis": "z", "at": [13.0, 13.0, 0.0], "r": 6.92, "h": 8.0, "color": "#DDE1E6", "ri": 5.0, "seg": 28},
+    {"type": "cyl", "axis": "z", "at": [13.0, 13.0, 0.32], "r": 10.76, "h": 7.36, "color": "#B4B9C0", "ri": 6.92, "seg": 32}
+  ]
+}

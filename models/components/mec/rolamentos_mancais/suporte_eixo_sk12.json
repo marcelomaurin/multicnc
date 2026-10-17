@@ -1,0 +1,42 @@
+{
+  "name": "Suporte de Eixo SK12",
+  "model": "SK12 Eixo 12mm",
+  "category": "rolamentos_mancais",
+  "kind": "ackMechanicalPart",
+  "material": "Alumínio",
+  "color": 13815241,
+  "size": {
+    "x": 42.0,
+    "y": 14.0,
+    "z": 37.5
+  },
+  "ports": [
+    {
+      "name": "FURO_EIXO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "BASE_FIXACAO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Suporte de eixo SK12 com aperto por fenda (centro a 23 mm da base).",
+  "mass_g": 30,
+  "specs": {
+    "d_mm": 12,
+    "W_mm": 42,
+    "H_mm": 37.5,
+    "h_centro_mm": 23,
+    "T_mm": 14,
+    "furos_mm": 32
+  },
+  "geometry": [
+    {"type": "prism", "axis": "y", "at": [0.0, 0.0, 0.0], "h": 14.0, "poly": [[0.0, 0.0], [11.25, 0.0], [37.5, 12.6], [37.5, 29.4], [11.25, 42.0], [0.0, 42.0]], "color": "#C9CDD2"},
+    {"type": "disk", "axis": "y", "at": [21.0, 14.0, 23.0], "r": 6.0, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [21.0, 0.0, 23.0], "r": 6.0, "color": "#15161A"},
+    {"type": "box", "at": [20.5, 0.0, 29.0], "size": [1.0, 14.0, 8.5], "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [7.04, 7.0, 11.25], "r": 2.25, "color": "#15161A"}
+  ]
+}

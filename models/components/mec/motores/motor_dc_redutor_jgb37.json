@@ -1,0 +1,57 @@
+{
+  "name": "Motor DC com Redutor 12V",
+  "model": "JGB37-520 12V 100RPM",
+  "category": "motores",
+  "kind": "ackMotor",
+  "material": "Aço / engrenagens metálicas",
+  "color": 12630452,
+  "size": {
+    "x": 37.0,
+    "y": 37.0,
+    "z": 89.5
+  },
+  "ports": [
+    {
+      "name": "SHAFT",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "VCC",
+      "kind": "apkPower",
+      "voltage": 12.0
+    },
+    {
+      "name": "GND",
+      "kind": "apkGround",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Motorredutor DC JGB37-520 (Ø37), eixo excêntrico Ø6 em D, 100 RPM a 12 V.",
+  "mass_g": 170,
+  "specs": {
+    "d_mm": 37,
+    "eixo_mm": [
+      6,
+      15
+    ],
+    "tensao_V": 12,
+    "rpm": 100,
+    "furos": "6x M3"
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [18.5, 18.5, 8.0], "r": 17.5, "h": 34.0, "color": "#B4B9C0", "seg": 36},
+    {"type": "cyl", "axis": "z", "at": [18.5, 18.5, 5.0], "r": 7.0, "h": 3.0, "color": "#26282C", "seg": 20},
+    {"type": "cyl", "axis": "z", "at": [18.5, 18.5, 42.0], "r": 18.5, "h": 26.0, "color": "#C2C7CC", "seg": 36},
+    {"type": "cyl", "axis": "z", "at": [25.5, 18.5, 68.0], "r": 6.0, "h": 6.5, "color": "#C2C7CC", "seg": 24},
+    {"type": "prism", "axis": "z", "at": [25.5, 18.5, 74.5], "h": 15.0, "poly": [[9.5, 0.0], [9.5, 0.776], [9.5, 1.5], [9.121, 2.121], [8.5, 2.598], [7.776, 2.898], [7.0, 3.0], [6.224, 2.898], [5.5, 2.598], [4.879, 2.121], [4.402, 1.5], [4.102, 0.776], [4.0, 0.0], [4.102, -0.776], [4.402, -1.5], [4.879, -2.121], [5.5, -2.598], [6.224, -2.898], [7.0, -3.0], [7.776, -2.898], [8.5, -2.598], [9.121, -2.121], [9.5, -1.5], [9.5, -0.776]], "color": "#DDE1E6"},
+    {"type": "disk", "axis": "z", "at": [34.0, 18.5, 68.0], "r": 1.5, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [26.25, 31.923, 68.0], "r": 1.5, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [10.75, 31.923, 68.0], "r": 1.5, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [3.0, 18.5, 68.0], "r": 1.5, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [10.75, 5.077, 68.0], "r": 1.5, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [26.25, 5.077, 68.0], "r": 1.5, "color": "#15161A"},
+    {"type": "box", "at": [13.0, 17.0, 0.0], "size": [1.0, 3.0, 5.0], "color": "#B87333"},
+    {"type": "box", "at": [23.0, 17.0, 0.0], "size": [1.0, 3.0, 5.0], "color": "#B87333"}
+  ]
+}

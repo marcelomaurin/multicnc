@@ -3,8 +3,8 @@
   "model": "DIN 125 M5",
   "category": "fixadores",
   "kind": "ackFastenerWasher",
-  "material": "Aço Inox",
-  "color": 13158600,
+  "material": "Aço zincado",
+  "color": 13420482,
   "size": {
     "x": 10.0,
     "y": 10.0,
@@ -17,5 +17,15 @@
       "voltage": 0.0
     }
   ],
-  "description": "Arruela lisa M5 diâmetro externo 10mm"
+  "description": "Arruela lisa M5: Ø interno 5.3, Ø externo 10, espessura 1.0 mm.",
+  "standard": "DIN 125 / ISO 7089",
+  "mass_g": 0.43,
+  "specs": {
+    "d_int_mm": 5.3,
+    "d_ext_mm": 10.0,
+    "espessura_mm": 1.0
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [5.0, 5.0, 0.0], "r": 5.0, "h": 1.0, "color": "#C2C7CC", "ri": 2.65, "seg": 28}
+  ]
 }

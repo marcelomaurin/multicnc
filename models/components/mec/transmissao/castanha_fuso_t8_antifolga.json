@@ -1,0 +1,44 @@
+{
+  "name": "Castanha T8 Anti-folga",
+  "model": "Anti-backlash Nut Tr8x8",
+  "category": "transmissao",
+  "kind": "ackFastenerNut",
+  "material": "Latão / mola de aço",
+  "color": 5022921,
+  "size": {
+    "x": 22.0,
+    "y": 22.0,
+    "z": 33.0
+  },
+  "ports": [
+    {
+      "name": "ROSCA_T8",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "FLANGE",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Castanha dupla com mola de pré-carga para eliminar folga axial em fusos Tr8x8.",
+  "mass_g": 28,
+  "specs": {
+    "flange_mm": 22,
+    "L_mm": 33,
+    "pcd_mm": 16
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [11.0, 11.0, 0.0], "r": 11.0, "h": 3.5, "color": "#C9A44C", "seg": 32},
+    {"type": "cyl", "axis": "z", "at": [11.0, 11.0, 3.5], "r": 5.1, "h": 11.5, "color": "#C9A44C", "seg": 24},
+    {"type": "disk", "axis": "z", "at": [16.657, 16.657, 3.5], "r": 1.75, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [5.343, 16.657, 3.5], "r": 1.75, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [5.343, 5.343, 3.5], "r": 1.75, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [16.657, 5.343, 3.5], "r": 1.75, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [11.0, 11.0, 0.0], "r": 4.0, "color": "#15161A"},
+    {"type": "cyl", "axis": "z", "at": [11.0, 11.0, 15.0], "r": 4.6, "h": 8.0, "color": "#DDE1E6", "ri": 4.2, "seg": 20},
+    {"type": "cyl", "axis": "z", "at": [11.0, 11.0, 23.0], "r": 5.1, "h": 10.0, "color": "#C9A44C", "seg": 24},
+    {"type": "disk", "axis": "z", "at": [11.0, 11.0, 33.0], "r": 4.0, "color": "#15161A"}
+  ]
+}

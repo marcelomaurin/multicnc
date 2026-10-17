@@ -1,0 +1,121 @@
+{
+  "name": "Inversor de Frequência 1.5kW",
+  "model": "VFD 1.5kW 220V monofásico/trifásico",
+  "category": "eletronica",
+  "kind": "ackVFD",
+  "material": "Gabinete plástico / dissipador",
+  "color": 13683913,
+  "size": {
+    "x": 134.0,
+    "y": 129.65,
+    "z": 170.1
+  },
+  "ports": [
+    {
+      "name": "AC_L",
+      "kind": "apkPower",
+      "voltage": 220.0
+    },
+    {
+      "name": "AC_N",
+      "kind": "apkPower",
+      "voltage": 220.0
+    },
+    {
+      "name": "PE",
+      "kind": "apkGround",
+      "voltage": 0.0
+    },
+    {
+      "name": "U",
+      "kind": "apkPower",
+      "voltage": 220.0
+    },
+    {
+      "name": "V",
+      "kind": "apkPower",
+      "voltage": 220.0
+    },
+    {
+      "name": "W",
+      "kind": "apkPower",
+      "voltage": 220.0
+    },
+    {
+      "name": "FWD",
+      "kind": "apkDigitalInput",
+      "voltage": 0.0
+    },
+    {
+      "name": "DCM",
+      "kind": "apkGround",
+      "voltage": 0.0
+    },
+    {
+      "name": "VI1",
+      "kind": "apkAnalogInput",
+      "voltage": 10.0
+    },
+    {
+      "name": "RS485_A",
+      "kind": "apkCommunication",
+      "voltage": 0.0
+    },
+    {
+      "name": "RS485_B",
+      "kind": "apkCommunication",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Inversor de frequência 1,5 kW (entrada 220 V monofásica, saída trifásica até 400 Hz) para spindle de 24000 RPM.",
+  "mass_g": 1600,
+  "specs": {
+    "potencia_W": 1500,
+    "entrada_V": 220,
+    "saida_Hz": [
+      0,
+      400
+    ],
+    "controle": "0–10 V / RS-485 Modbus"
+  },
+  "geometry": [
+    {"type": "box", "at": [8.0, 1.65, 0.0], "size": [118.0, 128.0, 170.0], "color": "#C9CCD0"},
+    {"type": "box", "at": [8.0, 1.15, 0.0], "size": [118.0, 0.5, 40.0], "color": "#8F949A"},
+    {"type": "box", "at": [28.0, 0.15, 100.0], "size": [78.0, 1.5, 58.0], "color": "#2F3237"},
+    {"type": "box", "at": [38.0, 0.05, 136.0], "size": [58.0, 0.1, 15.0], "color": "#101214"},
+    {"type": "box", "at": [42.0, 0.0, 139.0], "size": [9.0, 0.05, 9.0], "color": "#FF3030"},
+    {"type": "box", "at": [55.0, 0.0, 139.0], "size": [9.0, 0.05, 9.0], "color": "#FF3030"},
+    {"type": "box", "at": [68.0, 0.0, 139.0], "size": [9.0, 0.05, 9.0], "color": "#FF3030"},
+    {"type": "box", "at": [81.0, 0.0, 139.0], "size": [9.0, 0.05, 9.0], "color": "#FF3030"},
+    {"type": "disk", "axis": "y", "at": [38.0, 0.15, 120.0], "r": 3.2, "color": "#606468", "seg": 16},
+    {"type": "disk", "axis": "y", "at": [50.0, 0.15, 120.0], "r": 3.2, "color": "#606468", "seg": 16},
+    {"type": "disk", "axis": "y", "at": [62.0, 0.15, 120.0], "r": 3.2, "color": "#20A040", "seg": 16},
+    {"type": "disk", "axis": "y", "at": [74.0, 0.15, 120.0], "r": 3.2, "color": "#D03030", "seg": 16},
+    {"type": "disk", "axis": "y", "at": [86.0, 0.15, 120.0], "r": 3.2, "color": "#606468", "seg": 16},
+    {"type": "cyl", "axis": "y", "at": [96.0, 0.15, 112.0], "r": 6.0, "h": 5.0, "color": "#26282C", "r2": 5.2, "seg": 20},
+    {"type": "box", "at": [22.0, 1.05, 10.0], "size": [6.0, 0.1, 22.0], "color": "#15161A"},
+    {"type": "box", "at": [34.0, 1.05, 10.0], "size": [6.0, 0.1, 22.0], "color": "#15161A"},
+    {"type": "box", "at": [46.0, 1.05, 10.0], "size": [6.0, 0.1, 22.0], "color": "#15161A"},
+    {"type": "box", "at": [58.0, 1.05, 10.0], "size": [6.0, 0.1, 22.0], "color": "#15161A"},
+    {"type": "box", "at": [70.0, 1.05, 10.0], "size": [6.0, 0.1, 22.0], "color": "#15161A"},
+    {"type": "box", "at": [82.0, 1.05, 10.0], "size": [6.0, 0.1, 22.0], "color": "#15161A"},
+    {"type": "box", "at": [94.0, 1.05, 10.0], "size": [6.0, 0.1, 22.0], "color": "#15161A"},
+    {"type": "box", "at": [106.0, 1.05, 10.0], "size": [6.0, 0.1, 22.0], "color": "#15161A"},
+    {"type": "box", "at": [18.0, 21.65, 170.0], "size": [5.0, 88.0, 0.1], "color": "#15161A"},
+    {"type": "box", "at": [28.0, 21.65, 170.0], "size": [5.0, 88.0, 0.1], "color": "#15161A"},
+    {"type": "box", "at": [38.0, 21.65, 170.0], "size": [5.0, 88.0, 0.1], "color": "#15161A"},
+    {"type": "box", "at": [48.0, 21.65, 170.0], "size": [5.0, 88.0, 0.1], "color": "#15161A"},
+    {"type": "box", "at": [58.0, 21.65, 170.0], "size": [5.0, 88.0, 0.1], "color": "#15161A"},
+    {"type": "box", "at": [68.0, 21.65, 170.0], "size": [5.0, 88.0, 0.1], "color": "#15161A"},
+    {"type": "box", "at": [78.0, 21.65, 170.0], "size": [5.0, 88.0, 0.1], "color": "#15161A"},
+    {"type": "box", "at": [88.0, 21.65, 170.0], "size": [5.0, 88.0, 0.1], "color": "#15161A"},
+    {"type": "box", "at": [98.0, 21.65, 170.0], "size": [5.0, 88.0, 0.1], "color": "#15161A"},
+    {"type": "box", "at": [108.0, 21.65, 170.0], "size": [5.0, 88.0, 0.1], "color": "#15161A"},
+    {"type": "box", "at": [0.0, 21.65, 0.0], "size": [8.0, 88.0, 3.0], "color": "#C9CCD0"},
+    {"type": "box", "at": [126.0, 21.65, 0.0], "size": [8.0, 88.0, 3.0], "color": "#C9CCD0"},
+    {"type": "disk", "axis": "z", "at": [4.0, 31.65, 3.0], "r": 2.5, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [4.0, 99.65, 3.0], "r": 2.5, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [130.0, 31.65, 3.0], "r": 2.5, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [130.0, 99.65, 3.0], "r": 2.5, "color": "#15161A"}
+  ]
+}

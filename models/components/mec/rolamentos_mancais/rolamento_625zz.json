@@ -1,0 +1,38 @@
+{
+  "name": "Rolamento 625ZZ",
+  "model": "625ZZ 5x16x5mm",
+  "category": "rolamentos_mancais",
+  "kind": "ackBearing",
+  "material": "Aço cromo GCr15",
+  "color": 15131101,
+  "size": {
+    "x": 16.0,
+    "y": 16.0,
+    "z": 5.0
+  },
+  "ports": [
+    {
+      "name": "FURO_5MM",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "EXTERNO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Rolamento rígido de esferas 5 x 16 x 5 mm com dupla blindagem (rodas V-Slot).",
+  "standard": "ISO 15",
+  "mass_g": 0.8,
+  "specs": {
+    "d_mm": 5,
+    "D_mm": 16,
+    "B_mm": 5
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [8.0, 8.0, 0.0], "r": 8.0, "h": 5.0, "color": "#DDE1E6", "ri": 6.46, "seg": 32},
+    {"type": "cyl", "axis": "z", "at": [8.0, 8.0, 0.0], "r": 3.82, "h": 5.0, "color": "#DDE1E6", "ri": 2.5, "seg": 28},
+    {"type": "cyl", "axis": "z", "at": [8.0, 8.0, 0.2], "r": 6.46, "h": 4.6, "color": "#B4B9C0", "ri": 3.82, "seg": 32}
+  ]
+}

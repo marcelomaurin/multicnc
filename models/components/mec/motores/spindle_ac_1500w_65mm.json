@@ -3,11 +3,11 @@
   "model": "GDZ-65-1.5 24000RPM",
   "category": "motores",
   "kind": "ackSpindle",
-  "material": "Aço Inox / Alumínio",
-  "color": 7829367,
+  "material": "Aço / alumínio",
+  "color": 12630452,
   "size": {
     "x": 65.0,
-    "y": 65.0,
+    "y": 81.0,
     "z": 205.0
   },
   "ports": [
@@ -30,7 +30,39 @@
       "name": "W",
       "kind": "apkPower",
       "voltage": 220.0
+    },
+    {
+      "name": "PE",
+      "kind": "apkGround",
+      "voltage": 0.0
     }
   ],
-  "description": "Spindle industrial de alta precisão 24.000 RPM para inversor de frequência VFD"
+  "description": "Spindle trifásico 1,5 kW Ø65 refrigerado a água (2 bicos), ER11, 24000 RPM, para inversor VFD 220 V.",
+  "mass_g": 2800,
+  "specs": {
+    "d_mm": 65,
+    "comprimento_mm": 205,
+    "pinca": "ER11",
+    "potencia_W": 1500,
+    "tensao_V": 220,
+    "frequencia_Hz": 400,
+    "rpm_max": 24000,
+    "refrigeracao": "água",
+    "conector": "aviação 4 pinos"
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [32.5, 32.5, 0.0], "r": 8.0, "h": 11.5, "color": "#DDE1E6", "seg": 12},
+    {"type": "disk", "axis": "z", "at": [32.5, 32.5, 0.0], "r": 3.5, "color": "#15161A"},
+    {"type": "cyl", "axis": "z", "at": [32.5, 32.5, 11.5], "r": 7.0, "h": 5.5, "color": "#DDE1E6", "seg": 20},
+    {"type": "cyl", "axis": "z", "at": [32.5, 32.5, 17.0], "r": 22.0, "h": 13.0, "color": "#B4B9C0", "r2": 32.5, "seg": 48},
+    {"type": "cyl", "axis": "z", "at": [32.5, 32.5, 30.0], "r": 32.5, "h": 145.0, "color": "#B4B9C0", "seg": 48},
+    {"type": "disk", "axis": "y", "at": [32.5, 0.0, 100.0], "r": 9.0, "color": "#F5F5F0", "seg": 4, "rot": 45.0},
+    {"type": "cyl", "axis": "z", "at": [32.5, 32.5, 175.0], "r": 32.5, "h": 15.0, "color": "#2B2D31", "seg": 48},
+    {"type": "cyl", "axis": "y", "at": [46.5, 65.0, 45.0], "r": 4.0, "h": 6.0, "color": "#C9A44C", "seg": 6},
+    {"type": "cyl", "axis": "y", "at": [46.5, 71.0, 45.0], "r": 2.6, "h": 10.0, "color": "#C9A44C", "r2": 2.2, "seg": 14},
+    {"type": "cyl", "axis": "y", "at": [46.5, 65.0, 160.0], "r": 4.0, "h": 6.0, "color": "#C9A44C", "seg": 6},
+    {"type": "cyl", "axis": "y", "at": [46.5, 71.0, 160.0], "r": 2.6, "h": 10.0, "color": "#C9A44C", "r2": 2.2, "seg": 14},
+    {"type": "cyl", "axis": "z", "at": [32.5, 32.5, 190.0], "r": 9.5, "h": 3.0, "color": "#DDE1E6", "seg": 6},
+    {"type": "cyl", "axis": "z", "at": [32.5, 32.5, 193.0], "r": 8.0, "h": 12.0, "color": "#DDE1E6", "seg": 24}
+  ]
 }

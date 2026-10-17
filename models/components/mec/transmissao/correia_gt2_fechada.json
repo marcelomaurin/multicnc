@@ -1,14 +1,14 @@
 {
-  "name": "Correia Dentada GT2 Aberta 6mm",
-  "model": "GT2-6mm Neoprene",
+  "name": "Correia GT2 6mm Fechada 400mm",
+  "model": "GT2-400-6 (200 dentes)",
   "category": "transmissao",
   "kind": "ackBelt",
-  "material": "Borracha com Fibra de Vidro",
-  "color": 2105376,
+  "material": "Borracha com fibra de vidro",
+  "color": 1973276,
   "size": {
-    "x": 6.0,
-    "y": 2.0,
-    "z": 500.0
+    "x": 194.384,
+    "y": 6.0,
+    "z": 14.396
   },
   "ports": [
     {
@@ -17,5 +17,18 @@
       "voltage": 0.0
     }
   ],
-  "description": "Correia sincronizada GT2 passo 2mm largura 6mm"
+  "description": "Correia sincronizada GT2 fechada (passo 2 mm, 200 dentes, 6 mm) mostrada sobre duas polias de 20 dentes.",
+  "mass_g": 5,
+  "specs": {
+    "passo_mm": 2,
+    "largura_mm": 6,
+    "comprimento_mm": 400,
+    "dentes": 200
+  },
+  "geometry": [
+    {"type": "box", "at": [7.198, 0.0, 0.0], "size": [179.988, 6.0, 1.38], "color": "#1C1C1E"},
+    {"type": "box", "at": [7.198, 0.0, 13.016], "size": [179.988, 6.0, 1.38], "color": "#1C1C1E"},
+    {"type": "cyl", "axis": "y", "at": [7.198, 0.0, 7.198], "r": 7.198, "h": 6.0, "color": "#1C1C1E", "ri": 5.818, "seg": 24, "arc": [180.0, 360.0]},
+    {"type": "cyl", "axis": "y", "at": [187.186, 0.0, 7.198], "r": 7.198, "h": 6.0, "color": "#1C1C1E", "ri": 5.818, "seg": 24, "arc": [0.0, 180.0]}
+  ]
 }

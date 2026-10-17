@@ -1,0 +1,31 @@
+{
+  "name": "Arruela M8 Lisa",
+  "model": "DIN 125 M8",
+  "category": "fixadores",
+  "kind": "ackFastenerWasher",
+  "material": "Aço zincado",
+  "color": 13420482,
+  "size": {
+    "x": 16.0,
+    "y": 16.0,
+    "z": 1.6
+  },
+  "ports": [
+    {
+      "name": "FURO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Arruela lisa M8: Ø interno 8.4, Ø externo 16, espessura 1.6 mm.",
+  "standard": "DIN 125 / ISO 7089",
+  "mass_g": 1.78,
+  "specs": {
+    "d_int_mm": 8.4,
+    "d_ext_mm": 16.0,
+    "espessura_mm": 1.6
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [8.0, 8.0, 0.0], "r": 8.0, "h": 1.6, "color": "#C2C7CC", "ri": 4.2, "seg": 28}
+  ]
+}

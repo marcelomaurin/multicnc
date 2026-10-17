@@ -1,0 +1,76 @@
+{
+  "name": "Módulo Relé 5V 1 Canal",
+  "model": "SRD-05VDC-SL-C 10A",
+  "category": "eletronica",
+  "kind": "ackRelay",
+  "material": "PCB FR4 / relé",
+  "color": 9391645,
+  "size": {
+    "x": 50.0,
+    "y": 26.0,
+    "z": 16.9
+  },
+  "ports": [
+    {
+      "name": "VCC",
+      "kind": "apkPower",
+      "voltage": 5.0
+    },
+    {
+      "name": "GND",
+      "kind": "apkGround",
+      "voltage": 0.0
+    },
+    {
+      "name": "IN",
+      "kind": "apkDigitalInput",
+      "voltage": 5.0
+    },
+    {
+      "name": "COM",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "NO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "NC",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Módulo relé 5 V 1 canal (10 A 250 VAC) com LED, para ligar spindle, aspirador ou bomba.",
+  "mass_g": 18,
+  "specs": {
+    "bobina_V": 5,
+    "contato": "10 A 250 VAC / 30 VDC"
+  },
+  "geometry": [
+    {"type": "box", "at": [0.0, 0.0, 0.0], "size": [50.0, 26.0, 1.6], "color": "#1D4E8F"},
+    {"type": "disk", "axis": "z", "at": [3.0, 3.0, 1.6], "r": 1.6, "color": "#D4AF37", "seg": 12},
+    {"type": "disk", "axis": "z", "at": [3.0, 3.0, 1.601], "r": 1.0, "color": "#15161A", "seg": 12},
+    {"type": "disk", "axis": "z", "at": [47.0, 3.0, 1.6], "r": 1.6, "color": "#D4AF37", "seg": 12},
+    {"type": "disk", "axis": "z", "at": [47.0, 3.0, 1.601], "r": 1.0, "color": "#15161A", "seg": 12},
+    {"type": "disk", "axis": "z", "at": [3.0, 23.0, 1.6], "r": 1.6, "color": "#D4AF37", "seg": 12},
+    {"type": "disk", "axis": "z", "at": [3.0, 23.0, 1.601], "r": 1.0, "color": "#15161A", "seg": 12},
+    {"type": "disk", "axis": "z", "at": [47.0, 23.0, 1.6], "r": 1.6, "color": "#D4AF37", "seg": 12},
+    {"type": "disk", "axis": "z", "at": [47.0, 23.0, 1.601], "r": 1.0, "color": "#15161A", "seg": 12},
+    {"type": "box", "at": [14.0, 5.0, 1.6], "size": [19.0, 15.5, 15.3], "color": "#1F5FB0"},
+    {"type": "disk", "axis": "z", "at": [23.5, 12.75, 16.9], "r": 5.0, "color": "#F5F5F0", "seg": 4, "rot": 45.0},
+    {"type": "box", "at": [39.0, 2.5, 1.6], "size": [7.5, 15.0, 10.0], "color": "#2D6CC0"},
+    {"type": "disk", "axis": "z", "at": [43.65, 5.0, 11.6], "r": 1.5, "color": "#DDE1E6", "seg": 12},
+    {"type": "box", "at": [38.95, 3.7, 2.8], "size": [0.1, 2.6, 2.8], "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [43.65, 10.0, 11.6], "r": 1.5, "color": "#DDE1E6", "seg": 12},
+    {"type": "box", "at": [38.95, 8.7, 2.8], "size": [0.1, 2.6, 2.8], "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [43.65, 15.0, 11.6], "r": 1.5, "color": "#DDE1E6", "seg": 12},
+    {"type": "box", "at": [38.95, 13.7, 2.8], "size": [0.1, 2.6, 2.8], "color": "#15161A"},
+    {"type": "box", "at": [2.0, 5.7, 1.6], "size": [2.54, 7.62, 2.5], "color": "#202124"},
+    {"type": "box", "at": [2.95, 6.65, 4.1], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [2.95, 9.19, 4.1], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "box", "at": [2.95, 11.73, 4.1], "size": [0.64, 0.64, 6.0], "color": "#D4AF37"},
+    {"type": "disk", "axis": "z", "at": [8.0, 22.0, 1.6], "r": 0.7, "color": "#FF3030", "seg": 8}
+  ]
+}

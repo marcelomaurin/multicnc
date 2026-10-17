@@ -1,0 +1,60 @@
+{
+  "name": "Conector Aviação GX16 4 Pinos",
+  "model": "GX16-4 painel",
+  "category": "cabos_conectores",
+  "kind": "ackConnector",
+  "material": "Latão niquelado / baquelite",
+  "color": 15131101,
+  "size": {
+    "x": 21.94,
+    "y": 19.0,
+    "z": 23.5
+  },
+  "ports": [
+    {
+      "name": "P1",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "P2",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "P3",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "P4",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Conector circular GX16 de 4 pinos para painel (furo Ø16), usado em motores e spindle.",
+  "mass_g": 20,
+  "specs": {
+    "furo_painel_mm": 16,
+    "pinos": 4,
+    "corrente_A": 5
+  },
+  "geometry": [
+    {"type": "prism", "axis": "z", "at": [10.97, 9.5, 12.0], "h": 2.5, "poly": [[10.97, 0.0], [5.485, 9.5], [-5.485, 9.5], [-10.97, 0.0], [-5.485, -9.5], [5.485, -9.5]], "color": "#DDE1E6"},
+    {"type": "cyl", "axis": "z", "at": [10.97, 9.5, 0.0], "r": 6.72, "h": 12.0, "color": "#ACAFB3", "seg": 16},
+    {"type": "cyl", "axis": "z", "at": [10.97, 9.5, 0.375], "r": 8.0, "h": 0.75, "color": "#DDE1E6", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [10.97, 9.5, 1.875], "r": 8.0, "h": 0.75, "color": "#DDE1E6", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [10.97, 9.5, 3.375], "r": 8.0, "h": 0.75, "color": "#DDE1E6", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [10.97, 9.5, 4.875], "r": 8.0, "h": 0.75, "color": "#DDE1E6", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [10.97, 9.5, 6.375], "r": 8.0, "h": 0.75, "color": "#DDE1E6", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [10.97, 9.5, 7.875], "r": 8.0, "h": 0.75, "color": "#DDE1E6", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [10.97, 9.5, 9.375], "r": 8.0, "h": 0.75, "color": "#DDE1E6", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [10.97, 9.5, 14.5], "r": 9.5, "h": 2.0, "color": "#DDE1E6", "seg": 28},
+    {"type": "cyl", "axis": "z", "at": [10.97, 9.5, 16.5], "r": 8.0, "h": 7.0, "color": "#DDE1E6", "seg": 28},
+    {"type": "disk", "axis": "z", "at": [10.97, 9.5, 23.5], "r": 6.5, "color": "#26282C", "seg": 24},
+    {"type": "disk", "axis": "z", "at": [13.233, 11.763, 23.51], "r": 0.75, "color": "#D4AF37", "seg": 10},
+    {"type": "disk", "axis": "z", "at": [8.707, 11.763, 23.51], "r": 0.75, "color": "#D4AF37", "seg": 10},
+    {"type": "disk", "axis": "z", "at": [8.707, 7.237, 23.51], "r": 0.75, "color": "#D4AF37", "seg": 10},
+    {"type": "disk", "axis": "z", "at": [13.233, 7.237, 23.51], "r": 0.75, "color": "#D4AF37", "seg": 10}
+  ]
+}

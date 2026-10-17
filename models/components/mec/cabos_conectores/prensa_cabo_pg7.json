@@ -1,0 +1,41 @@
+{
+  "name": "Prensa-Cabo PG7",
+  "model": "PG7 Nylon IP68",
+  "category": "cabos_conectores",
+  "kind": "ackConnector",
+  "material": "Nylon PA66",
+  "color": 2893862,
+  "size": {
+    "x": 17.32,
+    "y": 15.0,
+    "z": 22.0
+  },
+  "ports": [
+    {
+      "name": "PASSAGEM",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Prensa-cabo PG7 IP68 para cabos de 3 a 6,5 mm.",
+  "mass_g": 3,
+  "specs": {
+    "rosca": "PG7",
+    "cabo_mm": [
+      3,
+      6.5
+    ]
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [8.66, 7.5, 0.0], "r": 5.25, "h": 8.0, "color": "#1D1F22", "seg": 16},
+    {"type": "cyl", "axis": "z", "at": [8.66, 7.5, 0.333], "r": 6.25, "h": 0.667, "color": "#26282C", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [8.66, 7.5, 1.667], "r": 6.25, "h": 0.667, "color": "#26282C", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [8.66, 7.5, 3.0], "r": 6.25, "h": 0.667, "color": "#26282C", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [8.66, 7.5, 4.333], "r": 6.25, "h": 0.667, "color": "#26282C", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [8.66, 7.5, 5.667], "r": 6.25, "h": 0.667, "color": "#26282C", "seg": 16, "caps": false},
+    {"type": "prism", "axis": "z", "at": [8.66, 7.5, 8.0], "h": 4.0, "poly": [[8.66, 0.0], [4.33, 7.5], [-4.33, 7.5], [-8.66, 0.0], [-4.33, -7.5], [4.33, -7.5]], "color": "#26282C"},
+    {"type": "prism", "axis": "z", "at": [8.66, 7.5, 12.0], "h": 7.0, "poly": [[7.5, 0.0], [6.495, 3.75], [3.75, 6.495], [0.0, 7.5], [-3.75, 6.495], [-6.495, 3.75], [-7.5, 0.0], [-6.495, -3.75], [-3.75, -6.495], [-0.0, -7.5], [3.75, -6.495], [6.495, -3.75]], "color": "#26282C"},
+    {"type": "cyl", "axis": "z", "at": [8.66, 7.5, 19.0], "r": 6.5, "h": 3.0, "color": "#26282C", "r2": 4.5, "seg": 20},
+    {"type": "disk", "axis": "z", "at": [8.66, 7.5, 22.0], "r": 2.5, "color": "#15161A"}
+  ]
+}

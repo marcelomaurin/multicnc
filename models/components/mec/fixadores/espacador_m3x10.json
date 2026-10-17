@@ -1,10 +1,10 @@
 {
   "name": "Espaçador M3x10",
-  "model": "Espaçador Cilíndrico M3",
+  "model": "Espaçador cilíndrico Ø6 M3",
   "category": "fixadores",
   "kind": "ackPinSpacer",
   "material": "Latão",
-  "color": 13421619,
+  "color": 5022921,
   "size": {
     "x": 6.0,
     "y": 6.0,
@@ -17,5 +17,14 @@
       "voltage": 0.0
     }
   ],
-  "description": "Espaçador cilíndrico de latão M3 comprimento 10mm"
+  "description": "Espaçador cilíndrico de latão Ø6 x 10 mm, furo passante 3,2 mm.",
+  "mass_g": 1.8,
+  "specs": {
+    "d_ext_mm": 6,
+    "d_int_mm": 3.2,
+    "comprimento_mm": 10
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [3.0, 3.0, 0.0], "r": 3.0, "h": 10.0, "color": "#C9A44C", "ri": 1.6, "seg": 24}
+  ]
 }

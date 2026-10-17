@@ -1,21 +1,47 @@
 {
   "name": "Suporte Usinado NEMA 23",
-  "model": "NEMA 23 Mount 60mm",
+  "model": "NEMA 23 Mount 70mm",
   "category": "placas_suportes",
   "kind": "ackMechanicalPart",
-  "material": "Alumínio Usinado",
-  "color": 10526880,
+  "material": "Alumínio 6061-T6",
+  "color": 13815241,
   "size": {
-    "x": 65.0,
-    "y": 65.0,
-    "z": 58.0
+    "x": 70.0,
+    "y": 60.0,
+    "z": 70.0
   },
   "ports": [
     {
       "name": "FLANGE_MOTOR",
       "kind": "apkMechanical",
       "voltage": 0.0
+    },
+    {
+      "name": "BASE_FIXACAO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
     }
   ],
-  "description": "Bloco de fixação para motores de passo NEMA 23 em pórticos CNC"
+  "description": "Suporte em L usinado com nervuras para NEMA 23 (furo Ø39, furação 47,14 mm).",
+  "mass_g": 220,
+  "specs": {
+    "furo_piloto_mm": 39,
+    "furos_motor": "4x Ø5,2 47,14 mm"
+  },
+  "geometry": [
+    {"type": "box", "at": [0.0, 0.0, 0.0], "size": [70.0, 60.0, 8.0], "color": "#C9CDD2"},
+    {"type": "box", "at": [0.0, 0.0, 8.0], "size": [70.0, 10.0, 62.0], "color": "#C9CDD2"},
+    {"type": "prism", "axis": "x", "at": [0.0, 10.0, 8.0], "h": 6.0, "poly": [[0.0, 0.0], [40.0, 0.0], [0.0, 40.0]], "color": "#C9CDD2"},
+    {"type": "prism", "axis": "x", "at": [64.0, 10.0, 8.0], "h": 6.0, "poly": [[0.0, 0.0], [40.0, 0.0], [0.0, 40.0]], "color": "#C9CDD2"},
+    {"type": "disk", "axis": "y", "at": [35.0, 10.0, 39.0], "r": 19.5, "color": "#15161A", "seg": 28},
+    {"type": "disk", "axis": "y", "at": [35.0, 0.0, 39.0], "r": 19.5, "color": "#15161A", "seg": 28},
+    {"type": "disk", "axis": "y", "at": [11.43, 0.0, 15.43], "r": 2.6, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [11.43, 0.0, 62.57], "r": 2.6, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [58.57, 0.0, 15.43], "r": 2.6, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [58.57, 0.0, 62.57], "r": 2.6, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [12.0, 25.0, 8.0], "r": 2.75, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [12.0, 50.0, 8.0], "r": 2.75, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [58.0, 25.0, 8.0], "r": 2.75, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [58.0, 50.0, 8.0], "r": 2.75, "color": "#15161A"}
+  ]
 }

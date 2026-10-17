@@ -1,0 +1,43 @@
+{
+  "name": "Patim Linear SCS12UU",
+  "model": "SCS12UU Eixo 12mm",
+  "category": "rolamentos_mancais",
+  "kind": "ackBearing",
+  "material": "Alumínio / LM12UU",
+  "color": 13815241,
+  "size": {
+    "x": 42.0,
+    "y": 36.02,
+    "z": 28.0
+  },
+  "ports": [
+    {
+      "name": "EIXO_12MM",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "TOPO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Bloco de rolamento linear SCS12UU (LM12UU encapsulado), 4 furos M5 no topo.",
+  "mass_g": 100,
+  "specs": {
+    "d_mm": 12,
+    "W_mm": 42,
+    "L_mm": 36,
+    "H_mm": 28,
+    "h_centro_mm": 14
+  },
+  "geometry": [
+    {"type": "box", "at": [0.0, 0.01, 0.0], "size": [42.0, 36.0, 12.6], "color": "#C9CDD2"},
+    {"type": "box", "at": [5.04, 0.01, 12.6], "size": [31.92, 36.0, 15.4], "color": "#C9CDD2"},
+    {"type": "cyl", "axis": "y", "at": [21.0, 0.0, 14.0], "r": 10.5, "h": 36.02, "color": "#DDE1E6", "ri": 6.0, "seg": 24},
+    {"type": "disk", "axis": "z", "at": [8.4, 9.01, 28.0], "r": 1.7, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [8.4, 27.01, 28.0], "r": 1.7, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [33.6, 9.01, 28.0], "r": 1.7, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [33.6, 27.01, 28.0], "r": 1.7, "color": "#15161A"}
+  ]
+}

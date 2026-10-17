@@ -3,11 +3,11 @@
   "model": "KP08 Eixo 8mm",
   "category": "rolamentos_mancais",
   "kind": "ackBearing",
-  "material": "Liga de Zinco",
-  "color": 9868950,
+  "material": "Liga de zinco / rolamento K08",
+  "color": 11314334,
   "size": {
     "x": 55.0,
-    "y": 13.0,
+    "y": 16.0,
     "z": 29.0
   },
   "ports": [
@@ -22,5 +22,23 @@
       "voltage": 0.0
     }
   ],
-  "description": "Mancal com rolamento autoalinhante tipo pedestal para fuso T8"
+  "description": "Mancal pedestal KP08 (furos 42 mm, centro a 15 mm da base) com rolamento autoalinhante.",
+  "mass_g": 50,
+  "specs": {
+    "d_mm": 8,
+    "L_mm": 55,
+    "J_furos_mm": 42,
+    "H_centro_mm": 15,
+    "altura_mm": 29,
+    "furo_fixacao_mm": 5
+  },
+  "geometry": [
+    {"type": "box", "at": [0.0, 1.5, 0.0], "size": [55.0, 13.0, 5.0], "color": "#9EA4AC"},
+    {"type": "box", "at": [13.5, 1.5, 5.0], "size": [28.0, 13.0, 10.0], "color": "#9EA4AC"},
+    {"type": "cyl", "axis": "y", "at": [27.5, 1.5, 15.0], "r": 14.0, "h": 13.0, "color": "#9EA4AC", "seg": 32},
+    {"type": "cyl", "axis": "y", "at": [27.5, 0.0, 15.0], "r": 9.5, "h": 16.0, "color": "#DDE1E6", "ri": 4.0, "seg": 28},
+    {"type": "disk", "axis": "z", "at": [27.5, 8.0, 29.0], "r": 1.5, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [6.5, 8.0, 5.0], "r": 2.75, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [48.5, 8.0, 5.0], "r": 2.75, "color": "#15161A"}
+  ]
 }

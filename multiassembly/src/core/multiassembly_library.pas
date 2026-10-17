@@ -5,7 +5,7 @@ unit multiassembly_library;
 interface
 
 uses
-  Classes, SysUtils, fpjson, jsonparser, multiassembly_types;
+  Classes, SysUtils, fpjson, jsonparser, multiassembly_types, multiassembly_geometry;
 
 type
   TStringArray = array of string;
@@ -58,6 +58,11 @@ type
     // Carregamento e salvamento direto de arquivos de componentes (.json)
     class function LoadComponentFromFile(const Filename, ID: string; X, Y, Z: Double): TAssemblyComponent; static;
     class procedure SaveComponentToFile(const Filename: string; const C: TAssemblyComponent); static;
+
+    // Localiza o arquivo de biblioteca de um componente (source_ref) e
+    // recupera sua geometria 3D quando o projeto nao a traz (projetos antigos).
+    class function FindComponentFile(const SourceRef, Category: string): string; static;
+    class function RestoreGeometry(var C: TAssemblyComponent): Boolean; static;
   end;
 
 function StrToComponentKind(const S: string; DefaultKind: TAssemblyComponentKind = ackMechanicalPart): TAssemblyComponentKind;
@@ -213,6 +218,7 @@ begin
   Result.Fixed := False;
   Result.Color := 0;
   SetLength(Result.Ports, 0);
+  SetLength(Result.Geometry, 0);
   Result.Position.X := X; Result.Position.Y := Y; Result.Position.Z := Z;
   Result.Rotation.X := 0; Result.Rotation.Y := 0; Result.Rotation.Z := 0;
   Result.Size.X := SX; Result.Size.Y := SY; Result.Size.Z := SZ;
@@ -692,7 +698,7 @@ var
   F: TFileStream;
   I: Integer;
 begin
-  FillChar(Result, SizeOf(Result), 0);
+  Result := Default(TAssemblyComponent);
   Result.ID := ID;
   Result.Position := Vec3(X, Y, Z);
   Result.Rotation := Vec3(0, 0, 0);
@@ -702,6 +708,7 @@ begin
   Result.Material := 'Aco';
   Result.Color := 0;
   SetLength(Result.Ports, 0);
+  SetLength(Result.Geometry, 0);
 
   if not FileExists(Filename) then Exit;
 
@@ -764,6 +771,8 @@ begin
         Result.Ports[I].Voltage := PortObj.Get('voltage', 0.0);
       end;
     end;
+
+    Result.Geometry := ParseGeometryJSON(Obj.Find('geometry'));
   finally
     Data.Free;
   end;
@@ -803,6 +812,8 @@ begin
     end;
     Root.Add('ports', PortsArr);
     Root.Add('description', C.Name + ' (' + C.Model + ')');
+    if Length(C.Geometry) > 0 then
+      Root.Add('geometry', GeometryToJSON(C.Geometry));
 
     S := Root.FormatJSON;
     ForceDirectories(ExtractFileDir(Filename));
@@ -955,6 +966,56 @@ begin
     else
       Result := MakeProfile(ID, Item, 300, X, Y, Z);
   end;
+end;
+
+class function TAssemblyLibrary.FindComponentFile(const SourceRef, Category: string): string;
+var
+  BaseDir, Cand, FileName: string;
+  SR: TSearchRec;
+begin
+  Result := '';
+  FileName := ExtractFileName(SourceRef);
+  if FileName = '' then Exit;
+  if ExtractFileExt(FileName) = '' then FileName := FileName + '.json';
+  BaseDir := IncludeTrailingPathDelimiter(GetLibraryFolder);
+  if Category <> '' then
+  begin
+    Cand := BaseDir + IncludeTrailingPathDelimiter(Category) + FileName;
+    if FileExists(Cand) then Exit(Cand);
+  end;
+  if FindFirst(BaseDir + '*', faDirectory, SR) = 0 then
+  begin
+    try
+      repeat
+        if ((SR.Attr and faDirectory) <> 0) and (SR.Name <> '') and (SR.Name[1] <> '.') then
+        begin
+          Cand := BaseDir + IncludeTrailingPathDelimiter(SR.Name) + FileName;
+          if FileExists(Cand) then
+          begin
+            Result := Cand;
+            Break;
+          end;
+        end;
+      until FindNext(SR) <> 0;
+    finally
+      FindClose(SR);
+    end;
+  end;
+end;
+
+class function TAssemblyLibrary.RestoreGeometry(var C: TAssemblyComponent): Boolean;
+var
+  Path: string;
+  Lib: TAssemblyComponent;
+begin
+  Result := False;
+  if (Length(C.Geometry) > 0) or (C.SourceRef = '') then Exit;
+  Path := FindComponentFile(C.SourceRef, C.Category);
+  if Path = '' then Exit;
+  Lib := LoadComponentFromFile(Path, C.ID, 0, 0, 0);
+  if Length(Lib.Geometry) = 0 then Exit;
+  C.Geometry := Lib.Geometry;
+  Result := True;
 end;
 
 end.

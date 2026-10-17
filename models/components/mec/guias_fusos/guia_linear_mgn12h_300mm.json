@@ -1,13 +1,13 @@
 {
   "name": "Guia Linear MGN12H 300mm",
-  "model": "MGN12H",
+  "model": "MGN12 + carro MGN12H",
   "category": "guias_fusos",
   "kind": "ackLinearGuide",
-  "material": "Aço Rolamento",
-  "color": 13158600,
+  "material": "Aço rolamento temperado",
+  "color": 12630452,
   "size": {
-    "x": 12.0,
-    "y": 8.0,
+    "x": 27.0,
+    "y": 13.0,
     "z": 300.0
   },
   "ports": [
@@ -15,7 +15,55 @@
       "name": "TRILHO",
       "kind": "apkMechanical",
       "voltage": 0.0
+    },
+    {
+      "name": "CARRO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
     }
   ],
-  "description": "Trilho de guia linear miniatura MGN12 com 300mm"
+  "description": "Trilho miniatura MGN12 (furos M3 a cada 25 mm) com 300 mm e um carro longo MGN12H (27 x 45,4 mm, H 13).",
+  "standard": "HIWIN MGN",
+  "mass_g": 300,
+  "specs": {
+    "trilho_mm": [
+      12,
+      8
+    ],
+    "comprimento_mm": 300,
+    "passo_furos_mm": 25,
+    "carro": "MGN12H",
+    "carro_mm": [
+      27,
+      45.4
+    ],
+    "H_mm": 13,
+    "furos_carro": "4x M3 20x20",
+    "C_dinamica_kN": 3.7
+  },
+  "geometry": [
+    {"type": "prism", "axis": "z", "at": [7.5, 0.0, 0.0], "h": 300.0, "poly": [[0.0, 0.0], [12.0, 0.0], [12.0, 3.6], [10.56, 4.64], [12.0, 5.76], [12.0, 8.0], [0.0, 8.0], [0.0, 5.76], [1.44, 4.64], [0.0, 3.6]], "color": "#B4B9C0"},
+    {"type": "disk", "axis": "y", "at": [13.5, 8.0, 12.5], "r": 3.0, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [13.5, 8.0, 37.5], "r": 3.0, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [13.5, 8.0, 62.5], "r": 3.0, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [13.5, 8.0, 87.5], "r": 3.0, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [13.5, 8.0, 112.5], "r": 3.0, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [13.5, 8.0, 137.5], "r": 3.0, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [13.5, 8.0, 162.5], "r": 3.0, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [13.5, 8.0, 187.5], "r": 3.0, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [13.5, 8.0, 212.5], "r": 3.0, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [13.5, 8.0, 237.5], "r": 3.0, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [13.5, 8.0, 262.5], "r": 3.0, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [13.5, 8.0, 287.5], "r": 3.0, "color": "#15161A"},
+    {"type": "prism", "axis": "z", "at": [7.5, 0.0, 127.3], "h": 1.634, "poly": [[-7.5, 3.0], [-0.3, 3.0], [-0.3, 8.5], [12.3, 8.5], [12.3, 3.0], [19.5, 3.0], [19.5, 13.0], [-7.5, 13.0]], "color": "#1C1C1E"},
+    {"type": "prism", "axis": "z", "at": [7.5, 0.0, 128.934], "h": 2.452, "poly": [[-7.5, 3.0], [-0.3, 3.0], [-0.3, 8.5], [12.3, 8.5], [12.3, 3.0], [19.5, 3.0], [19.5, 13.0], [-7.5, 13.0]], "color": "#9E2A2B"},
+    {"type": "prism", "axis": "z", "at": [7.5, 0.0, 131.386], "h": 37.228, "poly": [[-7.5, 3.0], [-0.3, 3.0], [-0.3, 8.5], [12.3, 8.5], [12.3, 3.0], [19.5, 3.0], [19.5, 13.0], [-7.5, 13.0]], "color": "#B4B9C0"},
+    {"type": "prism", "axis": "z", "at": [7.5, 0.0, 168.614], "h": 2.452, "poly": [[-7.5, 3.0], [-0.3, 3.0], [-0.3, 8.5], [12.3, 8.5], [12.3, 3.0], [19.5, 3.0], [19.5, 13.0], [-7.5, 13.0]], "color": "#9E2A2B"},
+    {"type": "prism", "axis": "z", "at": [7.5, 0.0, 171.066], "h": 1.634, "poly": [[-7.5, 3.0], [-0.3, 3.0], [-0.3, 8.5], [12.3, 8.5], [12.3, 3.0], [19.5, 3.0], [19.5, 13.0], [-7.5, 13.0]], "color": "#1C1C1E"},
+    {"type": "disk", "axis": "y", "at": [3.5, 13.0, 140.0], "r": 1.4, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [3.5, 13.0, 160.0], "r": 1.4, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [23.5, 13.0, 140.0], "r": 1.4, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [23.5, 13.0, 160.0], "r": 1.4, "color": "#15161A"},
+    {"type": "cyl", "axis": "z", "at": [13.5, 10.5, 124.3], "r": 1.6, "h": 3.0, "color": "#C9A44C", "seg": 8}
+  ]
 }

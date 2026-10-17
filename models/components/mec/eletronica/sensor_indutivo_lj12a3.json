@@ -1,0 +1,73 @@
+{
+  "name": "Sensor Indutivo M12 NPN",
+  "model": "LJ12A3-4-Z/BX",
+  "category": "eletronica",
+  "kind": "ackSensor",
+  "material": "Latão niquelado / plástico",
+  "color": 5022921,
+  "size": {
+    "x": 19.63,
+    "y": 17.0,
+    "z": 81.0
+  },
+  "ports": [
+    {
+      "name": "VCC",
+      "kind": "apkPower",
+      "voltage": 24.0
+    },
+    {
+      "name": "GND",
+      "kind": "apkGround",
+      "voltage": 0.0
+    },
+    {
+      "name": "OUT",
+      "kind": "apkDigitalOutput",
+      "voltage": 24.0
+    }
+  ],
+  "description": "Sensor indutivo de proximidade M12 NPN NA, alcance 4 mm (metal), 6–36 V; ideal para homing e sonda Z.",
+  "mass_g": 45,
+  "specs": {
+    "rosca": "M12x1",
+    "alcance_mm": 4,
+    "saida": "NPN NA",
+    "tensao_V": [
+      6,
+      36
+    ]
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [9.815, 8.5, 0.0], "r": 5.9, "h": 6.0, "color": "#E8701A", "seg": 24},
+    {"type": "cyl", "axis": "z", "at": [9.815, 8.5, 6.0], "r": 5.04, "h": 43.0, "color": "#9C7F3B", "seg": 16},
+    {"type": "cyl", "axis": "z", "at": [9.815, 8.5, 6.448], "r": 6.0, "h": 0.896, "color": "#C9A44C", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [9.815, 8.5, 8.24], "r": 6.0, "h": 0.896, "color": "#C9A44C", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [9.815, 8.5, 10.031], "r": 6.0, "h": 0.896, "color": "#C9A44C", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [9.815, 8.5, 11.823], "r": 6.0, "h": 0.896, "color": "#C9A44C", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [9.815, 8.5, 13.615], "r": 6.0, "h": 0.896, "color": "#C9A44C", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [9.815, 8.5, 15.406], "r": 6.0, "h": 0.896, "color": "#C9A44C", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [9.815, 8.5, 17.198], "r": 6.0, "h": 0.896, "color": "#C9A44C", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [9.815, 8.5, 18.99], "r": 6.0, "h": 0.896, "color": "#C9A44C", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [9.815, 8.5, 20.781], "r": 6.0, "h": 0.896, "color": "#C9A44C", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [9.815, 8.5, 22.573], "r": 6.0, "h": 0.896, "color": "#C9A44C", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [9.815, 8.5, 24.365], "r": 6.0, "h": 0.896, "color": "#C9A44C", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [9.815, 8.5, 26.156], "r": 6.0, "h": 0.896, "color": "#C9A44C", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [9.815, 8.5, 27.948], "r": 6.0, "h": 0.896, "color": "#C9A44C", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [9.815, 8.5, 29.74], "r": 6.0, "h": 0.896, "color": "#C9A44C", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [9.815, 8.5, 31.531], "r": 6.0, "h": 0.896, "color": "#C9A44C", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [9.815, 8.5, 33.323], "r": 6.0, "h": 0.896, "color": "#C9A44C", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [9.815, 8.5, 35.115], "r": 6.0, "h": 0.896, "color": "#C9A44C", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [9.815, 8.5, 36.906], "r": 6.0, "h": 0.896, "color": "#C9A44C", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [9.815, 8.5, 38.698], "r": 6.0, "h": 0.896, "color": "#C9A44C", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [9.815, 8.5, 40.49], "r": 6.0, "h": 0.896, "color": "#C9A44C", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [9.815, 8.5, 42.281], "r": 6.0, "h": 0.896, "color": "#C9A44C", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [9.815, 8.5, 44.073], "r": 6.0, "h": 0.896, "color": "#C9A44C", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [9.815, 8.5, 45.865], "r": 6.0, "h": 0.896, "color": "#C9A44C", "seg": 16, "caps": false},
+    {"type": "prism", "axis": "z", "at": [9.815, 8.5, 14.0], "h": 4.0, "poly": [[9.815, 0.0], [4.907, 8.5], [-4.907, 8.5], [-9.815, 0.0], [-4.907, -8.5], [4.907, -8.5]], "color": "#DDE1E6"},
+    {"type": "prism", "axis": "z", "at": [9.815, 8.5, 34.0], "h": 4.0, "poly": [[9.815, 0.0], [4.907, 8.5], [-4.907, 8.5], [-9.815, 0.0], [-4.907, -8.5], [4.907, -8.5]], "color": "#DDE1E6"},
+    {"type": "cyl", "axis": "z", "at": [9.815, 8.5, 49.0], "r": 6.0, "h": 12.0, "color": "#E8701A", "seg": 24},
+    {"type": "disk", "axis": "y", "at": [9.815, 14.5, 57.0], "r": 1.3, "color": "#FF3030", "seg": 10},
+    {"type": "cyl", "axis": "z", "at": [9.815, 8.5, 61.0], "r": 2.6, "h": 20.0, "color": "#1C1C1E", "seg": 12}
+  ]
+}

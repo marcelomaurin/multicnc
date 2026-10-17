@@ -1,26 +1,42 @@
 {
   "name": "Botão Parada de Emergência E-Stop",
-  "model": "LAY37-11ZS Cogumelo",
+  "model": "LAY37-11ZS Cogumelo 40mm",
   "category": "eletronica",
   "kind": "ackEStop",
-  "material": "Policarbonato Vermelho / Amarelo",
-  "color": 255,
+  "material": "Caixa ABS / botão PA",
+  "color": 49906,
   "size": {
     "x": 40.0,
-    "y": 40.0,
-    "z": 70.0
+    "y": 42.5,
+    "z": 69.0
   },
   "ports": [
     {
       "name": "NC_1",
       "kind": "apkDigitalInput",
-      "voltage": 24.0
+      "voltage": 0.0
     },
     {
       "name": "NC_2",
       "kind": "apkDigitalInput",
-      "voltage": 24.0
+      "voltage": 0.0
     }
   ],
-  "description": "Botão de parada de emergência tipo cogumelo com trava giratória"
+  "description": "Botão de emergência tipo cogumelo Ø40 com trava giratória, contato NF, em caixa amarela.",
+  "standard": "IEC 60947-5-5",
+  "mass_g": 110,
+  "specs": {
+    "contato": "1 NF",
+    "furo_painel_mm": 22,
+    "cogumelo_mm": 40
+  },
+  "geometry": [
+    {"type": "box", "at": [0.0, 2.5, 0.0], "size": [40.0, 40.0, 44.0], "color": "#F2C200"},
+    {"type": "box", "at": [0.5, 3.0, 44.0], "size": [39.0, 39.0, 1.5], "color": "#F2C200"},
+    {"type": "cyl", "axis": "z", "at": [20.0, 22.5, 45.5], "r": 13.0, "h": 3.0, "color": "#26282C", "seg": 28},
+    {"type": "cyl", "axis": "z", "at": [20.0, 22.5, 48.5], "r": 6.5, "h": 6.0, "color": "#DDE1E6", "seg": 20},
+    {"type": "cyl", "axis": "z", "at": [20.0, 22.5, 54.5], "r": 20.0, "h": 6.0, "color": "#D02020", "seg": 40},
+    {"type": "cyl", "axis": "z", "at": [20.0, 22.5, 60.5], "r": 20.0, "h": 8.5, "color": "#D02020", "r2": 13.0, "seg": 40},
+    {"type": "cyl", "axis": "y", "at": [20.0, 0.0, 20.0], "r": 5.5, "h": 2.5, "color": "#26282C", "seg": 16}
+  ]
 }

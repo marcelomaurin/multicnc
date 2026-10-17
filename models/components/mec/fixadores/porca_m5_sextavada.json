@@ -1,0 +1,33 @@
+{
+  "name": "Porca M5 Sextavada",
+  "model": "DIN 934 M5",
+  "category": "fixadores",
+  "kind": "ackFastenerNut",
+  "material": "Aço classe 8 zincado",
+  "color": 13420482,
+  "size": {
+    "x": 9.238,
+    "y": 8.0,
+    "z": 4.0
+  },
+  "ports": [
+    {
+      "name": "FURO_ROSCA",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Porca sextavada comum M5 (chave 8, altura 4.0).",
+  "standard": "DIN 934 / ISO 4032",
+  "mass_g": 1.3,
+  "specs": {
+    "rosca": "M5",
+    "chave_mm": 8.0,
+    "altura_mm": 4.0
+  },
+  "geometry": [
+    {"type": "prism", "axis": "z", "at": [4.619, 4.0, 0.0], "h": 4.0, "poly": [[4.619, 0.0], [2.309, 4.0], [-2.309, 4.0], [-4.619, 0.0], [-2.309, -4.0], [2.309, -4.0]], "color": "#C2C7CC"},
+    {"type": "disk", "axis": "z", "at": [4.619, 4.0, 4.0], "r": 2.5, "color": "#15161A", "seg": 16},
+    {"type": "disk", "axis": "z", "at": [4.619, 4.0, 0.0], "r": 2.5, "color": "#15161A", "seg": 16}
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "name": "Parafuso M8x25 Sextavado",
+  "model": "DIN 933 M8x25 8.8",
+  "category": "fixadores",
+  "kind": "ackFastenerScrew",
+  "material": "Aço classe 8.8 zincado",
+  "color": 13420482,
+  "size": {
+    "x": 15.012,
+    "y": 13.0,
+    "z": 30.5
+  },
+  "ports": [
+    {
+      "name": "ROSCA",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "CABECA",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Parafuso sextavado M8 x 25 mm rosca total (chave 13).",
+  "standard": "DIN 933 / ISO 4017",
+  "mass_g": 15,
+  "specs": {
+    "rosca": "M8 x 1.25",
+    "comprimento_mm": 25,
+    "chave_mm": 13,
+    "torque_ref_Nm": 25
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [7.506, 6.5, 0.0], "r": 3.36, "h": 25.0, "color": "#979B9F", "seg": 16},
+    {"type": "cyl", "axis": "z", "at": [7.506, 6.5, 0.312], "r": 4.0, "h": 0.625, "color": "#C2C7CC", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [7.506, 6.5, 1.562], "r": 4.0, "h": 0.625, "color": "#C2C7CC", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [7.506, 6.5, 2.812], "r": 4.0, "h": 0.625, "color": "#C2C7CC", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [7.506, 6.5, 4.062], "r": 4.0, "h": 0.625, "color": "#C2C7CC", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [7.506, 6.5, 5.312], "r": 4.0, "h": 0.625, "color": "#C2C7CC", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [7.506, 6.5, 6.562], "r": 4.0, "h": 0.625, "color": "#C2C7CC", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [7.506, 6.5, 7.812], "r": 4.0, "h": 0.625, "color": "#C2C7CC", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [7.506, 6.5, 9.062], "r": 4.0, "h": 0.625, "color": "#C2C7CC", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [7.506, 6.5, 10.312], "r": 4.0, "h": 0.625, "color": "#C2C7CC", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [7.506, 6.5, 11.562], "r": 4.0, "h": 0.625, "color": "#C2C7CC", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [7.506, 6.5, 12.812], "r": 4.0, "h": 0.625, "color": "#C2C7CC", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [7.506, 6.5, 14.062], "r": 4.0, "h": 0.625, "color": "#C2C7CC", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [7.506, 6.5, 15.312], "r": 4.0, "h": 0.625, "color": "#C2C7CC", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [7.506, 6.5, 16.562], "r": 4.0, "h": 0.625, "color": "#C2C7CC", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [7.506, 6.5, 17.812], "r": 4.0, "h": 0.625, "color": "#C2C7CC", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [7.506, 6.5, 19.062], "r": 4.0, "h": 0.625, "color": "#C2C7CC", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [7.506, 6.5, 20.312], "r": 4.0, "h": 0.625, "color": "#C2C7CC", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [7.506, 6.5, 21.562], "r": 4.0, "h": 0.625, "color": "#C2C7CC", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [7.506, 6.5, 22.812], "r": 4.0, "h": 0.625, "color": "#C2C7CC", "seg": 16, "caps": false},
+    {"type": "prism", "axis": "z", "at": [7.506, 6.5, 25.0], "h": 5.3, "poly": [[7.506, 0.0], [3.753, 6.5], [-3.753, 6.5], [-7.506, 0.0], [-3.753, -6.5], [3.753, -6.5]], "color": "#C2C7CC"},
+    {"type": "cyl", "axis": "z", "at": [7.506, 6.5, 30.3], "r": 5.85, "h": 0.2, "color": "#C2C7CC", "r2": 5.46, "seg": 24}
+  ]
+}
