@@ -149,7 +149,7 @@ Ao acionar **Abrir no MultiCNC**, o painel MultiCNC confere se as coordenadas `M
 
 Na etapa **2 Modelo**, selecione a peça e clique em **Transformar dimensões...**. O formulário permite escolher entre **Percentual** (por exemplo, 200% dobra o tamanho atual) e **Dimensão final em mm**. Marque os eixos X, Y e/ou Z a transformar.
 
-- Com **Manter as proporções dos três eixos** ativado, o valor informado no primeiro eixo marcado determina um fator único aplicado a X, Y e Z; a forma original é preservada.
+- Com **Escala proporcional nos eixos selecionados** ativado, o valor informado no primeiro eixo marcado determina um fator único aplicado apenas aos eixos marcados; eixos não marcados permanecem inalterados.
 - Com a opção desativada, somente os eixos marcados são alterados, cada um com seu percentual ou dimensão final. Eixos não marcados preservam a escala atual.
 - Clique em **Aplicar e visualizar**: a peça é atualizada na mesa 3D, e o G-code previamente gerado é invalidado. Use **Ctrl+Z / Desfazer** para retornar à escala anterior ou **Ctrl+Y / Refazer** para reaplicá-la.
 - **Cancelar** fecha a janela sem transformar a peça. A transformação não altera o STL/3MF original; altera a instância da peça na cena, que deve ser fatiada novamente.
@@ -157,3 +157,5 @@ Na etapa **2 Modelo**, selecione a peça e clique em **Transformar dimensões...
 **Exemplo:** peça de 20 × 30 × 10 mm. Escala uniforme de 200% → 40 × 60 × 20 mm. Escala não uniforme com apenas Z marcado em 200% → 20 × 30 × 20 mm. Dimensão final apenas X = 50 mm → 50 × 30 × 10 mm.
 
 **Estado:** recurso publicado no código da branch `fila`; compilação e validação visual no executável ainda pendentes.
+
+**Atualização da transformação proporcional (17/10/2026):** tanto no modo percentual quanto no modo dimensão final (mm), escolha X, Y e/ou Z. Com *Escala proporcional nos eixos selecionados* marcada, o primeiro eixo selecionado determina o fator comum, aplicado **somente aos eixos marcados**. Exemplo: peça 20×30×10 mm, selecionar X e Y, definir X=40 mm, proporcional ativo → 40×60×10 mm. Selecionando X,Y,Z → 40×60×20 mm. Com proporcional desativado, os valores informados em cada eixo marcado são independentes. A peça atualiza ao aplicar; Ctrl+Z desfaz.
