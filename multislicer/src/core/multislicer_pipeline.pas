@@ -50,6 +50,7 @@ type
     Printer: TPrinterProfile;
     Flavor: TSlicerFlavor;
     LayerHeight, FirstLayerHeight: Double;
+    PrintStartZ: Double; // acrescido ao Z de cada camada no G-code
     Adaptive: Boolean;
     AdaptiveMin, AdaptiveMax, CuspHeight: Double;
     LineWidth: Double;
@@ -1064,6 +1065,10 @@ begin
   BuildSkirt;
   BuildBrim;
   Result.RaftLayers := BuildRaft;
+  { O deslocamento e aplicado depois de calcular as secoes e o raft. }
+  if S.PrintStartZ > 0 then
+    for I := 0 to High(FLayers) do
+      FLayers[I].Z := FLayers[I].Z + S.PrintStartZ;
   Result.Layers := Length(FLayers);
   for I := 0 to High(FLayers) do
     for K := 0 to High(FLayers[I].Paths) do
@@ -1073,6 +1078,8 @@ begin
       end;
   Result.MinZ := Mesh.MinZ;
   Result.MaxZ := Mesh.MaxZ;
+  if (S.PrintStartZ < 0) or (S.PrintStartZ >= S.Printer.MaxZ) then
+    raise Exception.Create('Degrau Z invalido para a altura maxima');
   // envelope da mesa
   MinX := MaxDouble; MinY := MaxDouble; MaxX := -MaxDouble; MaxY := -MaxDouble;
   for I := 0 to High(FLayers) do
@@ -1082,7 +1089,7 @@ begin
         MinY := Min(MinY, FLayers[I].Loops[K][P].Y); MaxY := Max(MaxY, FLayers[I].Loops[K][P].Y);
       end;
   if (MinX < 0) or (MinY < 0) or (MaxX > S.Printer.BedX) or (MaxY > S.Printer.BedY) or
-    (Result.MaxZ > S.Printer.MaxZ) then
+    (Result.MaxZ + S.PrintStartZ > S.Printer.MaxZ) then
     Result.Warnings := Result.Warnings + 'Modelo fora do volume de impressao; ';
 
   AF := DefaultArcFitOptions;
@@ -1176,9 +1183,10 @@ begin
     Output.Add('; MultiSlicer -> MultiCNC (Impressora 3D)');
     Output.Add('; MS-CONTRACT: 1');
     Output.Add('; MS-MACHINE: printer3d');
+    Output.Add('; MS-PRINT-START-Z: ' + W.N(S.PrintStartZ));
     if Length(FLayers) > 0 then
       Output.Add('; MS-BOUNDS: X0=' + W.N(MinX) + ' X1=' + W.N(MaxX) + ' Y0=' + W.N(MinY) +
-        ' Y1=' + W.N(MaxY) + ' Z0=0 Z1=' + W.N(FLayers[High(FLayers)].Z));
+        ' Y1=' + W.N(MaxY) + ' Z0=' + W.N(S.PrintStartZ) + ' Z1=' + W.N(FLayers[High(FLayers)].Z));
     if S.Printer.Name <> '' then Output.Add(Copy('; MS-PRINTER: ' + S.Printer.Name, 1, 127));
     if S.MaterialName <> '' then Output.Add(Copy('; MS-MATERIAL: ' + S.MaterialName, 1, 127));
     Output.Add(Format('; MS-TEMP: HOTEND=%d BED=%d FIRST_HOTEND=%d FIRST_BED=%d',
