@@ -130,6 +130,16 @@ begin
     1.24, 100, 5.0, 0.8, 45, 100,
     'PLA generico: mesa 50-60 C, bico 195-210 C.');
 
+  { PLA - 3D Lab }
+  AddFilament('PLA', '3D Lab', 'PLA', 210, 205, 60, 60, 100, 2,
+    1.24, 100, 5.0, 0.8, 45, 120,
+    '3D Lab PLA: mesa ate 70 C; 210/60 C recomendados pelo fabricante.');
+
+  { PLA - Bambu Lab }
+  AddFilament('PLA', 'Bambu Lab', 'PLA Basic', 210, 205, 45, 40, 100, 2,
+    1.24, 100, 4.0, 0.8, 45, 140,
+    'Bambu Lab PLA Basic: mesa 35-45 C com cola, bico 190-230 C.');
+
   { ABS - Voolt3D }
   AddFilament('ABS', 'Voolt3D', 'ABS Premium', 245, 240, 105, 100, 0, 2,
     1.04, 100, 5.0, 0.8, 45, 110,
@@ -162,6 +172,16 @@ begin
   AddFilament('ABS', 'Generico', 'ABS Padrao', 245, 240, 105, 100, 0, 2,
     1.04, 100, 5.0, 0.8, 45, 100,
     'ABS generico: mesa 100 C, ambiente fechado e sem vento.');
+
+  { ABS - 3D Lab }
+  AddFilament('ABS', '3D Lab', 'ABS Premium', 235, 230, 110, 105, 0, 2,
+    1.04, 100, 5.0, 0.8, 45, 120,
+    '3D Lab ABS Premium: 235/110 C recomendados pelo fabricante, com adesivo.');
+
+  { ABS - Bambu Lab }
+  AddFilament('ABS', 'Bambu Lab', 'ABS', 255, 250, 90, 85, 10, 2,
+    1.04, 100, 4.0, 0.8, 45, 140,
+    'Bambu Lab ABS: mesa com cola; usar impressora fechada.');
 
   { PETG - Voolt3D }
   AddFilament('PETG', 'Voolt3D', 'PETG Premium', 240, 235, 80, 75, 40, 2,

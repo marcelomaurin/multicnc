@@ -3,7 +3,7 @@ program test_slicer_app;
 uses {$IFDEF UNIX}cthreads,{$ENDIF} Interfaces, Forms, Graphics, Classes, SysUtils, Math, Spin, StdCtrls, multislicer_main,
   multisuite_gcode_writer, multislicer_mesh, multislicer_pipeline, multislicer_stl, multislicer_types,
   multislicer_userdata, multislicer_materials, multislicer_scene, multicad_camera, multislicer_quality,
-  multicnc_types, multicnc_equipment, ExtCtrls, Controls, ComCtrls, multislicer_meshcheck, fpjson, jsonparser;
+  multicnc_types, multicnc_equipment, ExtCtrls, Controls, ComCtrls, multislicer_meshcheck, fpjson, jsonparser, multisuite_controls;
 var Header:TSuiteGCodeHeader; PrintBounds:TSuiteBounds;
   MaterialPreview: TBitmap;
   SavedProject, ModelPath: TJSONData; RelativeModelPath: string;
@@ -12,6 +12,7 @@ var Header:TSuiteGCodeHeader; PrintBounds:TSuiteBounds;
   QD: TQualityDef; PX, PY, PZ, PD, PX0: Double; NSup: Integer; Blk: TSceneBlocker;
   FN, Output, BadOutput, ProfileDir: string; Mat: TMaterialDef; Raised: Boolean; Before: string;
   EqFile: string; EqStore: TEquipmentStore; Eq: TEquipmentProfile; EqBox, PBrand, PModel, FKind, FBrand, FModel: TComboBox; InfEd: TSpinEdit; InfTr: TTrackBar; IFS: TFormatSettings; PDir, PFile: string; St0: TTransformState; Canc: TObject; Tm: TTimer;
+  ObjList: TListBox; DelPartBtn: TSuiteButton;
 procedure Check(OK: Boolean; const Msg: string);
 begin if not OK then raise Exception.Create(Msg); end;
 type
@@ -571,6 +572,33 @@ begin
     InfEd.Value := 35;
     InfEd.OnChange(InfEd);
     Check(ReadLastChoice('infill_percent') = '35', 'infill saved to multislicer.json');
+
+    { Teste: Perfil antes de Marca e Modelo & Pre-preenchimento automatico }
+    F.SelectPrinter('Creality Ender-3');
+    Check(PBrand.Text = 'Creality', 'PrinterBrandBox auto-filled Creality on profile selection');
+    Check(PModel.Text = 'Ender-3', 'PrinterModelBox auto-filled Ender-3 on profile selection');
+
+    F.SelectMaterial('3D Lab PLA');
+    Check(FKind.Text = 'PLA', 'FilamentKindBox auto-filled PLA on material profile selection');
+    Check(FBrand.Text = '3D Lab', 'FilamentBrandBox auto-filled 3D Lab on material profile selection');
+    Check(FModel.Text = 'PLA', 'FilamentModelBox auto-filled PLA on material profile selection');
+
+    { Teste: Excluir peca selecionada na lista de pecas na mesa }
+    ObjList := TListBox(F.FindComponent('ObjectList'));
+    Check(ObjList <> nil, 'ObjectList exists');
+    DelPartBtn := TSuiteButton(F.FindComponent('DeletePartBtn'));
+    Check(DelPartBtn <> nil, 'DeletePartBtn exists');
+
+    Mesh.Clear; AddBox(Mesh, 0, 0, 0, 10, 10, 10); TSTLImporter.SaveBinary(Mesh, FN);
+    F.OpenFile(FN);
+    Check(ObjList.Items.Count > 0, 'ObjectList has loaded piece');
+    I := F.Scene.Count;
+    ObjList.ItemIndex := 0;
+    ObjList.OnClick(ObjList);
+    Check(F.Scene.SelectedCount > 0, 'Scene object selected from ObjectList');
+    DelPartBtn.Click;
+    Check(F.Scene.Count = I - 1, 'Scene count decreased after deleting piece');
+    Check(ObjList.Items.Count = I - 1, 'ObjectList count decreased after deleting piece');
 
     Writeln('MultiSlicer GUI: OK (suite UI, centering, validation, profiles, start/end G-code, persistence, 3D scene, picking, transform panel, undo, labels, quality profiles, supports, pillars, blockers, brim, raft, layers, export, 3D preview, threaded slicing, project, mesh check, drag and drop, equipment)');
   finally F.Free; Mesh.Free; DeleteFile(ProfileDir + PathDelim + 'multislicer.json'); RemoveDir(ProfileDir + PathDelim + 'materials'); RemoveDir(ProfileDir + PathDelim + 'quality'); RemoveDir(ProfileDir); G.Free; DeleteFile(FN); DeleteFile(Output); DeleteFile(BadOutput); DeleteFile(EqFile); DeleteFile(EqFile + '.bak'); end;

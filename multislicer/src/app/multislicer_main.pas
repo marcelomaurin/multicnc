@@ -21,7 +21,7 @@ unit multislicer_main;
 interface
 
 uses
-  Classes, SysUtils, Math, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls, Spin,
+  Classes, Menus, SysUtils, Math, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls, Spin,
   Dialogs, Graphics, LCLType, LCLIntf, multislicer_types, multislicer_mesh, multislicer_stl,
   multislicer_3mf, multislicer_profile, multislicer_pipeline, multislicer_view,
   multislicer_printers, multislicer_materials, multislicer_userdata,
@@ -66,6 +66,8 @@ type
     View: TSlicerView;          { previa de camadas (2D) }
     View3D: TSlicerView3D;      { mesa em 3D }
     ObjectList: TListBox;
+    DeletePartBtn: TSuiteButton;
+    ObjectMenu: TPopupMenu;
     { modelo: transformacao da peca selecionada }
     PosX, PosY, RotXEd, RotYEd, RotZEd, ScaleXP, ScaleYP, ScaleZP, SizeX, SizeY, SizeZ: TFloatSpinEdit;
     CopiesEd: TSpinEdit;
@@ -233,6 +235,8 @@ type
     procedure RemoveClick(Sender: TObject);
     procedure ClearClick(Sender: TObject);
     procedure ObjectListClick(Sender: TObject);
+    procedure ObjectListKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure ObjectListSelectionChange(Sender: TObject; User: Boolean);
     procedure View3DSelect(Sender: TObject);
     procedure View3DMoved(Sender: TObject);
     procedure View3DDelete(Sender: TObject);
@@ -446,6 +450,7 @@ var
   Page: TTabSheet;
   Scroll: TScrollBox;
   I: Integer;
+  MI: TMenuItem;
   LastBrand, LastModel, LastKind, InfillStr: string;
 begin
   inherited CreateNew(AOwner, 1);
@@ -519,12 +524,33 @@ begin
   ModelInfo.Align := alBottom;
   ModelInfo.BorderSpacing.Around := 12;
   Section(Sidebar, 'PECAS NA MESA', 16 + MS_STEP_COUNT * 44 + 56).Width := 190;
+  DeletePartBtn := Button(Sidebar, 'Excluir peca', 12, 16 + MS_STEP_COUNT * 44 + 80, 190, sikTrash, @RemoveClick);
+  DeletePartBtn.Name := 'DeletePartBtn';
+  DeletePartBtn.Hint := 'Excluir a peca selecionada da mesa (Del)';
   ObjectList := TListBox.Create(Self);
+  ObjectList.Name := 'ObjectList';
   ObjectList.Parent := Sidebar;
-  ObjectList.SetBounds(12, 16 + MS_STEP_COUNT * 44 + 80, 190, 160);
+  ObjectList.SetBounds(12, 16 + MS_STEP_COUNT * 44 + 116, 190, 130);
   ObjectList.Anchors := [akLeft, akTop, akRight, akBottom];
   ObjectList.MultiSelect := True;
   ObjectList.OnClick := @ObjectListClick;
+  ObjectList.OnSelectionChange := @ObjectListSelectionChange;
+  ObjectList.OnKeyDown := @ObjectListKeyDown;
+
+  ObjectMenu := TPopupMenu.Create(Self);
+  MI := TMenuItem.Create(ObjectMenu);
+  MI.Caption := 'Excluir peca (Del)';
+  MI.OnClick := @RemoveClick;
+  ObjectMenu.Items.Add(MI);
+  MI := TMenuItem.Create(ObjectMenu);
+  MI.Caption := 'Duplicar';
+  MI.OnClick := @DuplicateClick;
+  ObjectMenu.Items.Add(MI);
+  MI := TMenuItem.Create(ObjectMenu);
+  MI.Caption := 'Centralizar';
+  MI.OnClick := @CenterClick;
+  ObjectMenu.Items.Add(MI);
+  ObjectList.PopupMenu := ObjectMenu;
 
   Pages := TPageControl.Create(Self);
   Pages.Parent := Self; Pages.Align := alRight; Pages.Width := 336;
@@ -590,14 +616,7 @@ begin
 
   FUpdating := False;
   OnResize := @ResizeUI;
-  ReloadPrinters(ReadLastChoice('printer'));
-  if PrinterBox.ItemIndex < 0 then PrinterBox.ItemIndex := 0;
-  PrinterChange(nil);
-  ReloadMaterials(ReadLastChoice('material'));
-  if MaterialBox.ItemIndex < 0 then MaterialBox.ItemIndex := 0;
-  MaterialChange(nil);
-
-  { Inicializa marcas e modelos de impressora }
+  { Inicializa marcas e modelos de impressora primeiro }
   if PrinterBrandBox <> nil then
   begin
     GetMachineBrands(PrinterBrandBox.Items);
@@ -618,7 +637,7 @@ begin
     end;
   end;
 
-  { Inicializa tipos, marcas e modelos de filamento }
+  { Inicializa tipos, marcas e modelos de filamento primeiro }
   if FilamentKindBox <> nil then
   begin
     GetFilamentKinds(FilamentKindBox.Items);
@@ -648,6 +667,13 @@ begin
       end;
     end;
   end;
+
+  ReloadPrinters(ReadLastChoice('printer'));
+  if PrinterBox.ItemIndex < 0 then PrinterBox.ItemIndex := 0;
+  PrinterChange(nil);
+  ReloadMaterials(ReadLastChoice('material'));
+  if MaterialBox.ItemIndex < 0 then MaterialBox.ItemIndex := 0;
+  MaterialChange(nil);
   ReloadEquipment;
   SelectEquipment(ReadLastChoice('equipment'));
   ReloadQualities(ReadLastChoice('quality'));
@@ -698,22 +724,23 @@ begin
   EquipmentNote.ShowHint := True;
   EquipmentNote.Name := 'EquipmentNote';
 
-  Section(S, 'MARCA E MODELO', 92);
-  PrinterBrandBox := Combo(S, 'Marca da impressora', 114);
+  Section(S, 'PERFIL DE IMPRESSORA', 92);
+  PrinterBox := Combo(S, 'Perfil cadastrado', 114);
+  PrinterBox.OnChange := @PrinterChange;
+  PrinterNote := LabelAt(S, '', 16, 168, 290, 20);
+  Button(S, 'Salvar...', 16, 190, 140, sikSave, @SavePrinterClick);
+  PrinterDeleteBtn := Button(S, 'Excluir', 166, 190, 140, sikTrash, @DeletePrinterClick);
+
+  Section(S, 'MARCA E MODELO', 236);
+  PrinterBrandBox := Combo(S, 'Marca da impressora', 258);
   PrinterBrandBox.Name := 'PrinterBrandBox';
   PrinterBrandBox.OnChange := @PrinterBrandChange;
-  PrinterModelBox := Combo(S, 'Modelo', 170);
+  PrinterModelBox := Combo(S, 'Modelo', 314);
   PrinterModelBox.Name := 'PrinterModelBox';
   PrinterModelBox.OnChange := @PrinterModelChange;
-  CreatePrinterProfileBtn := Button(S, 'Criar perfil a partir do modelo...', 16, 226, 290, sikNew, @CreatePrinterProfileClick);
+  CreatePrinterProfileBtn := Button(S, 'Criar perfil a partir do modelo...', 16, 370, 290, sikNew, @CreatePrinterProfileClick);
   CreatePrinterProfileBtn.Name := 'CreatePrinterProfileBtn';
 
-  Section(S, 'PERFIL DE IMPRESSORA', 270);
-  PrinterBox := Combo(S, 'Perfil cadastrado', 292);
-  PrinterBox.OnChange := @PrinterChange;
-  PrinterNote := LabelAt(S, '', 16, 346, 290, 20);
-  Button(S, 'Salvar...', 16, 368, 140, sikSave, @SavePrinterClick);
-  PrinterDeleteBtn := Button(S, 'Excluir', 166, 368, 140, sikTrash, @DeletePrinterClick);
   FlavorChoice := Combo(S, 'Firmware', 414);
   FlavorChoice.Items.Add('Marlin'); FlavorChoice.Items.Add('Klipper');
   FlavorChoice.ItemIndex := 0;
@@ -779,7 +806,7 @@ begin
     16, 94, 290, 42);
   Section(S, 'PECAS', 146);
   Button(S, 'Duplicar', 16, 168, 140, sikCopy, @DuplicateClick);
-  Button(S, 'Remover', 166, 168, 140, sikTrash, @RemoveClick);
+  Button(S, 'Excluir', 166, 168, 140, sikTrash, @RemoveClick);
   Button(S, 'Centralizar', 16, 210, 140, sikFit, @CenterClick);
   Button(S, 'Limpar mesa', 166, 210, 140, sikClose, @ClearClick);
   LabelAt(S, 'Copias ao duplicar', 16, 254, 140, 18);
@@ -847,34 +874,35 @@ end;
 
 procedure TMultiSlicerForm.BuildMaterialPage(S: TScrollBox);
 begin
-  Section(S, 'FILAMENTO POR MARCA E MODELO', 44);
-  FilamentKindBox := Combo(S, 'Tipo (Polimero)', 66);
-  FilamentKindBox.Name := 'FilamentKindBox';
-  FilamentKindBox.OnChange := @FilamentKindChange;
-  FilamentBrandBox := Combo(S, 'Marca do filamento', 124);
-  FilamentBrandBox.Name := 'FilamentBrandBox';
-  FilamentBrandBox.OnChange := @FilamentBrandChange;
-  FilamentModelBox := Combo(S, 'Modelo comercial', 182);
-  FilamentModelBox.Name := 'FilamentModelBox';
-  FilamentModelBox.OnChange := @FilamentModelChange;
-
-  Section(S, 'PERFIL DE MATERIAL', 240);
-  MaterialKindBox := Combo(S, 'Material', 262);
+  Section(S, 'PERFIL DE MATERIAL', 44);
+  MaterialKindBox := Combo(S, 'Material', 66);
   MaterialKindBox.Name := 'MaterialKind';
   MaterialKindBox.Items.CommaText := 'PLA,PETG,ABS,ASA,TPU,Outro';
   MaterialKindBox.ItemIndex := 0;
   MaterialKindBox.OnChange := @MaterialKindChange;
-  MaterialBox := Combo(S, 'Marca / linha (opcional)', 318);
+  MaterialBox := Combo(S, 'Perfil salvo / linha comercial', 122);
   MaterialBox.Name := 'CommercialFilament';
   MaterialBox.OnChange := @MaterialChange;
-  MaterialNote := LabelAt(S, '', 16, 372, 290, 20);
-  Button(S, 'Salvar...', 16, 394, 140, sikSave, @SaveMaterialClick);
-  MaterialDeleteBtn := Button(S, 'Excluir', 166, 394, 140, sikTrash, @DeleteMaterialClick);
-  MaterialNotes := LabelAt(S, '', 16, 436, 290, 120);
+  MaterialNote := LabelAt(S, '', 16, 176, 290, 20);
+  Button(S, 'Salvar...', 16, 198, 140, sikSave, @SaveMaterialClick);
+  MaterialDeleteBtn := Button(S, 'Excluir', 166, 198, 140, sikTrash, @DeleteMaterialClick);
+  MaterialNotes := LabelAt(S, '', 16, 240, 290, 80);
   MaterialNotes.Name := 'MaterialRecommendation';
-  MaterialSourceBtn := Button(S, 'Fonte do fabricante', 16, 562, 290, sikFile, @MaterialSourceClick);
+  MaterialSourceBtn := Button(S, 'Fonte do fabricante', 16, 326, 290, sikFile, @MaterialSourceClick);
   MaterialSourceBtn.Name := 'MaterialSource';
-  Section(S, 'TEMPERATURAS', 604);
+
+  Section(S, 'FILAMENTO POR MARCA E MODELO', 374);
+  FilamentKindBox := Combo(S, 'Tipo (Polimero)', 396);
+  FilamentKindBox.Name := 'FilamentKindBox';
+  FilamentKindBox.OnChange := @FilamentKindChange;
+  FilamentBrandBox := Combo(S, 'Marca do filamento', 452);
+  FilamentBrandBox.Name := 'FilamentBrandBox';
+  FilamentBrandBox.OnChange := @FilamentBrandChange;
+  FilamentModelBox := Combo(S, 'Modelo comercial', 508);
+  FilamentModelBox.Name := 'FilamentModelBox';
+  FilamentModelBox.OnChange := @FilamentModelChange;
+
+  Section(S, 'TEMPERATURAS', 564);
   HotendFirst := IntField(S, 'Bico na 1a camada (C)', 'HotendFirstLayer', 205, 0, 400, 626);
   Hotend := IntField(S, 'Bico nas demais camadas (C)', 'HotendTemperature', 200, 0, 400, 682);
   BedFirst := IntField(S, 'Mesa na 1a camada (C)', 'BedFirstLayer', 60, 0, 150, 738);
@@ -1789,15 +1817,43 @@ begin
 end;
 
 procedure TMultiSlicerForm.ObjectListClick(Sender: TObject);
-var I: Integer;
+var I, SelCount: Integer;
 begin
   if FUpdating then Exit;
+  SelCount := 0;
   for I := 0 to FScene.Count - 1 do
-    FScene[I].Selected := (I < ObjectList.Items.Count) and ObjectList.Selected[I];
+  begin
+    if (I < ObjectList.Items.Count) and ObjectList.Selected[I] then
+    begin
+      FScene[I].Selected := True;
+      Inc(SelCount);
+    end
+    else
+      FScene[I].Selected := False;
+  end;
+  if (SelCount = 0) and (ObjectList.ItemIndex >= 0) and (ObjectList.ItemIndex < FScene.Count) then
+  begin
+    FScene[ObjectList.ItemIndex].Selected := True;
+    ObjectList.Selected[ObjectList.ItemIndex] := True;
+  end;
   FScene.Touch;
   View3D.Redraw;
   RefreshModelInfo;
   LoadTransformEditor;
+end;
+
+procedure TMultiSlicerForm.ObjectListKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+begin
+  if (Key = VK_DELETE) or (Key = VK_BACK) then
+  begin
+    Key := 0;
+    RemoveClick(Sender);
+  end;
+end;
+
+procedure TMultiSlicerForm.ObjectListSelectionChange(Sender: TObject; User: Boolean);
+begin
+  ObjectListClick(Sender);
 end;
 
 procedure TMultiSlicerForm.View3DSelect(Sender: TObject);
@@ -1854,7 +1910,19 @@ begin
 end;
 
 procedure TMultiSlicerForm.RemoveClick(Sender: TObject);
+var I: Integer;
 begin
+  if (FScene.SelectedCount = 0) and (ObjectList <> nil) then
+  begin
+    if (ObjectList.ItemIndex >= 0) and (ObjectList.ItemIndex < FScene.Count) then
+      FScene[ObjectList.ItemIndex].Selected := True
+    else
+    begin
+      for I := 0 to ObjectList.Items.Count - 1 do
+        if ObjectList.Selected[I] and (I < FScene.Count) then
+          FScene[I].Selected := True;
+    end;
+  end;
   if FScene.SelectedCount = 0 then
     Status.Caption := 'Selecione a peca a remover (clique nela na vista ou na lista).'
   else
@@ -2491,6 +2559,14 @@ begin
     Key := 0;
     Exit;
   end;
+  { Excluir peca selecionada da mesa quando Del for pressionado fora dos campos de texto }
+  if (Key = VK_DELETE) and ((ActiveControl = View3D) or (ActiveControl = ObjectList) or
+    (ActiveControl = nil) or (ActiveControl is TSuiteButton) or (ActiveControl is TListBox)) then
+  begin
+    RemoveClick(Sender);
+    Key := 0;
+    Exit;
+  end;
   { Ctrl+Z / Ctrl+Y so fora dos campos de texto (la eles desfazem o texto) }
   if (ssCtrl in Shift) and ((ActiveControl = View3D) or (ActiveControl = ObjectList) or (ActiveControl = nil) or
     (ActiveControl is TSuiteButton)) then
@@ -3102,26 +3178,61 @@ begin
 end;
 
 procedure TMultiSlicerForm.PrinterChange(Sender: TObject);
-var K, M: Integer;
+var K, M, I: Integer; Brand, Model, PName: string;
 begin
   if FUpdating then Exit;
   K := PrinterBox.ItemIndex;
   if (K < 0) or (K > High(FPrinters)) then Exit;
   ApplyPrinter(FPrinters[K]);
   { Atualiza Marca e Modelo se corresponder a uma maquina do catalogo }
-  M := FindMachine('', FPrinters[K].Name);
-  if (M >= 0) and (PrinterBrandBox <> nil) and (PrinterModelBox <> nil) then
+  if (PrinterBrandBox <> nil) and (PrinterModelBox <> nil) then
   begin
-    FUpdating := True;
-    try
-      PrinterBrandBox.ItemIndex := PrinterBrandBox.Items.IndexOf(MachineCatalog[M].Brand);
-      if PrinterBrandBox.ItemIndex >= 0 then
+    if PrinterBrandBox.Items.Count = 0 then
+      GetMachineBrands(PrinterBrandBox.Items);
+    PName := FPrinters[K].Name;
+    Brand := '';
+    Model := '';
+    M := FindMachine('', PName);
+    if M >= 0 then
+    begin
+      Brand := MachineCatalog[M].Brand;
+      Model := MachineCatalog[M].Model;
+    end
+    else
+    begin
+      for I := 0 to PrinterBrandBox.Items.Count - 1 do
+        if (PrinterBrandBox.Items[I] <> '') and
+           (Pos(LowerCase(PrinterBrandBox.Items[I]), LowerCase(PName)) = 1) then
+        begin
+          Brand := PrinterBrandBox.Items[I];
+          Break;
+        end;
+      if Brand <> '' then
       begin
-        GetMachineModels(MachineCatalog[M].Brand, PrinterModelBox.Items);
-        PrinterModelBox.ItemIndex := PrinterModelBox.Items.IndexOf(MachineCatalog[M].Model);
+        GetMachineModels(Brand, PrinterModelBox.Items);
+        for I := 0 to PrinterModelBox.Items.Count - 1 do
+          if (PrinterModelBox.Items[I] <> '') and
+             (Pos(LowerCase(PrinterModelBox.Items[I]), LowerCase(PName)) > 0) then
+          begin
+            Model := PrinterModelBox.Items[I];
+            Break;
+          end;
       end;
-    finally
-      FUpdating := False;
+    end;
+
+    if Brand <> '' then
+    begin
+      FUpdating := True;
+      try
+        PrinterBrandBox.ItemIndex := PrinterBrandBox.Items.IndexOf(Brand);
+        GetMachineModels(Brand, PrinterModelBox.Items);
+        if Model <> '' then
+          PrinterModelBox.ItemIndex := PrinterModelBox.Items.IndexOf(Model)
+        else if PrinterModelBox.Items.Count > 0 then
+          PrinterModelBox.ItemIndex := 0;
+      finally
+        FUpdating := False;
+      end;
     end;
   end;
   { a retracao depende da extrusora: reaplica a do material atual }
@@ -3151,12 +3262,51 @@ begin
 end;
 
 procedure TMultiSlicerForm.MaterialChange(Sender: TObject);
-var K: Integer;
+var K: Integer; AKind, ABrand, AModel: string;
 begin
   if FUpdating then Exit;
   K := MaterialBox.ItemIndex;
   if (K < 0) or (K > High(FMaterials)) then Exit;
   ApplyMaterial(FMaterials[K]);
+
+  { Pre-preenche Tipo, Marca e Modelo do filamento se disponiveis no perfil }
+  if (FilamentKindBox <> nil) and (FilamentBrandBox <> nil) and (FilamentModelBox <> nil) then
+  begin
+    AKind := FMaterials[K].Kind;
+    ABrand := FMaterials[K].Brand;
+    AModel := FMaterials[K].Product;
+    if (AKind = '') and (MaterialKindBox <> nil) then
+      AKind := MaterialKindBox.Text;
+
+    if AKind <> '' then
+    begin
+      FUpdating := True;
+      try
+        if FilamentKindBox.Items.IndexOf(AKind) >= 0 then
+          FilamentKindBox.ItemIndex := FilamentKindBox.Items.IndexOf(AKind);
+        GetFilamentBrands(AKind, FilamentBrandBox.Items);
+        if (ABrand <> '') and (FilamentBrandBox.Items.IndexOf(ABrand) >= 0) then
+        begin
+          FilamentBrandBox.ItemIndex := FilamentBrandBox.Items.IndexOf(ABrand);
+          GetFilamentModels(AKind, ABrand, FilamentModelBox.Items);
+          if (AModel <> '') and (FilamentModelBox.Items.IndexOf(AModel) >= 0) then
+            FilamentModelBox.ItemIndex := FilamentModelBox.Items.IndexOf(AModel)
+          else if FilamentModelBox.Items.Count > 0 then
+            FilamentModelBox.ItemIndex := 0;
+        end
+        else if FilamentBrandBox.Items.Count > 0 then
+        begin
+          FilamentBrandBox.ItemIndex := 0;
+          GetFilamentModels(AKind, FilamentBrandBox.Text, FilamentModelBox.Items);
+          if FilamentModelBox.Items.Count > 0 then
+            FilamentModelBox.ItemIndex := 0;
+        end;
+      finally
+        FUpdating := False;
+      end;
+    end;
+  end;
+
   if Sender <> nil then WriteLastChoice('material', FMaterials[K].Name);
   SettingsChanged(nil);
 end;
