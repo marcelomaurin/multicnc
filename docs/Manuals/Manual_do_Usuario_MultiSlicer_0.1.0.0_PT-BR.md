@@ -3,9 +3,9 @@
 Manual técnico oficial do fatiador 3D para manufatura aditiva FDM/FFF do ecossistema **MultiSuite**.
 
 - **Versão do Aplicativo:** 0.1.0.0 (Windows x64)
-- **Edição da Documentação:** 17 de outubro de 2026 (adendo do degrau inicial Z)
+- **Edição da Documentação:** 17 de outubro de 2026 (adendo do elevação da superfície da mesa)
 - **Desenvolvedor:** MaurinSoft / MultiSuite
-- **Nota:** o PDF 0.1.0.0 permanece na edição anterior; as instruções do degrau inicial Z estão atualizadas nesta versão em texto.
+- **Nota:** o PDF 0.1.0.0 permanece na edição anterior; as instruções do elevação da superfície da mesa estão atualizadas nesta versão em texto.
 - **Documento PDF Oficial:** [`Manual_do_Usuario_MultiSlicer_0.1.0.0_PT-BR.pdf`](Manual_do_Usuario_MultiSlicer_0.1.0.0_PT-BR.pdf) (A4, 30 páginas, sumário, marcadores e capturas de tela)
 
 ---
@@ -18,7 +18,7 @@ Manual técnico oficial do fatiador 3D para manufatura aditiva FDM/FFF do ecossi
 4. [Conferência e Reparo Automático de Malhas](#04-conferência-e-reparo-automático-de-malhas)
 5. [Manipulação de Peças: Posição, Escala e Giro](#05-manipulação-de-peças-posição-escala-e-giro)
 6. [Arranjo Automático e Cena com Múltiplas Peças](#06-arranjo-automático-e-cena-com-múltiplas-peças)
-7. [Equipamentos e Perfis de Impressoras 3D — Degrau inicial Z](#07-equipamentos-e-perfis-de-impressoras-3d--degrau-inicial-z)
+7. [Equipamentos e Perfis de Impressoras 3D — Elevação da superfície da mesa](#07-equipamentos-e-perfis-de-impressoras-3d--degrau-inicial-z)
 8. [Configuração de Filamentos e Materiais](#08-configuração-de-filamentos-e-materiais)
 9. [Gestão Térmica e Refrigeração](#09-gestão-térmica-e-refrigeração)
 10. [Qualidade e Alturas de Camada](#10-qualidade-e-alturas-de-camada)
@@ -71,15 +71,15 @@ A interface do MultiSlicer é organizada em um fluxo de abas lineares:
 
 ---
 
-## 07. Equipamentos e Perfis de Impressoras 3D — Degrau inicial Z
+## 07. Equipamentos e Perfis de Impressoras 3D — Elevação da superfície da mesa
 
-Na **etapa 1 — Impressora**, configure **Degrau inicial Z (mm)** para equipamentos em que a superfície de impressão se encontre acima do zero físico, ou nos quais o início do trabalho requeira um deslocamento vertical positivo conhecido. O parâmetro é específico do **perfil da impressora**, separado da altura de camada, e tem valor padrão **0,00 mm**.
+Na **etapa 1 — Impressora**, configure **Elevação da superfície da mesa em relação ao Z=0 (mm)** para equipamentos em que a superfície de impressão se encontre acima do zero físico, ou nos quais o início do trabalho requeira um deslocamento vertical positivo conhecido. O parâmetro é específico do **perfil da impressora**, separado da altura de camada, e tem valor padrão **0,00 mm**.
 
 ### Configuração passo a passo
 
 1. Selecione a marca/modelo ou perfil manual da impressora.
 2. Confira as dimensões **Mesa X**, **Mesa Y** e **Altura máxima Z**.
-3. Preencha **Degrau inicial Z (mm)** com o valor físico requerido, por exemplo **3,00**.
+3. Preencha **Elevação da superfície da mesa em relação ao Z=0 (mm)** com o valor físico requerido, por exemplo **3,00**.
 4. Salve o perfil em **Salvar...**. O valor é persistido como `print_start_z`; perfis antigos sem esse campo assumem zero.
 5. Fatie novamente e confira na prévia e no G-code o Z da primeira camada; só envie ao MultiCNC após verificar o referencial do equipamento e a superfície real.
 
@@ -165,3 +165,5 @@ Na etapa **2 Modelo**, selecione a peça e clique em **Transformar dimensões...
 Na etapa **Modelo**, selecione uma peça e clique em **Fragmentar e exportar STL...**. Escolha o eixo X, Y ou Z, informe a coordenada em milímetros, clique **Gerar partes** e indique uma pasta. O programa tenta gerar `peca_parte01.stl` e `peca_parte02.stl`, que são importadas como objetos editáveis na cena, mantendo o modelo original.
 
 **Limitações da versão inicial:** corte manual por plano, duas partes a cada operação; não existe divisão automática por volume da impressora, prévia anterior ao corte nem Undo de inclusão de objetos. Para voltar à situação original, remova os fragmentos e conserve o original. Malhas complexas, com furos e problemas topológicos, ainda precisam de validação geométrica; não tratar a saída como comprovadamente pronta para impressão. A funcionalidade publicada no código não teve compilação nem testes físicos confirmados.
+
+**Nota sobre a elevação da mesa:** este ajuste desloca apenas os movimentos Z da impressão; não cria degrau de plástico, não gera camadas adicionais e não consome filamento para preencher o espaço. Configure somente quando o zero da controladora estiver abaixo da superfície física de impressão. Se o firmware, homing ou Z-offset já corrigirem essa distância, deixe o parâmetro em 0 mm para evitar compensação duplicada.

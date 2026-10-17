@@ -81,9 +81,9 @@ de movimento dentro da camada e as marcas de retração ainda estão previstos.
   seleciona Impressora 3D (Marlin), mostra no log impressora, material, temperaturas, tempo e
   filamento e avisa se as peças não cabem no volume do equipamento.
 
-## Degrau inicial Z da impressora (novo parâmetro)
+## Elevação da superfície da mesa da impressora (novo parâmetro)
 
-Na etapa **1 Impressora**, o campo **Degrau inicial Z (mm)** permite deslocar o trabalho inteiro para cima em relação ao zero da máquina. O valor é armazenado no perfil da impressora (JSON: `print_start_z`) e é **0,00 mm** para perfis existentes que não possuam o campo.
+Na etapa **1 Impressora**, o campo **Elevação da superfície da mesa em relação ao Z=0 (mm)** permite deslocar o trabalho inteiro para cima em relação ao zero da máquina. O valor é armazenado no perfil da impressora (JSON: `print_start_z`) e é **0,00 mm** para perfis existentes que não possuam o campo.
 
 - Exemplo: degrau de **3,00 mm**, primeira camada de **0,20 mm**: o primeiro percurso da peça será emitido em **Z=3,20 mm** (sem raft); as demais camadas também recebem **+3,00 mm**.
 - A geometria original, a altura de camada, a extrusão por milímetro e o espaçamento dos suportes não mudam. Quando há raft, o deslocamento é aplicado depois da sua construção, abrangendo todas as camadas.
@@ -152,3 +152,5 @@ Na etapa **2 Modelo**, selecione a peça e clique em **Transformar dimensões...
 ## Fragmentação de peças maiores que a impressora (planejado)
 
 A primeira versão oferece **Fragmentar e exportar STL...** na etapa Modelo: um corte manual no eixo X, Y ou Z por vez, criando dois arquivos STL. Está especificada uma extensão futura para dividir modelos em STLs fechados `peca_parte01.stl`, `peca_parte02.stl` etc., permitir editar/transformar cada parte antes do fatiamento e exportar arquivos separados. **Implementação inicial disponível no código, ainda não compilada/testada**. Divisão automática em múltiplas partes, cortes complexos com furos e undo estrutural ainda pendentes; não confundir fragmentação com fatiamento por camadas. Veja [Plano de Fragmentação 3D](docs/PLANO_FRAGMENTACAO_3D.md).
+
+**Nota sobre a elevação da mesa:** este ajuste desloca apenas os movimentos Z da impressão; não cria degrau de plástico, não gera camadas adicionais e não consome filamento para preencher o espaço. Configure somente quando o zero da controladora estiver abaixo da superfície física de impressão. Se o firmware, homing ou Z-offset já corrigirem essa distância, deixe o parâmetro em 0 mm para evitar compensação duplicada.
