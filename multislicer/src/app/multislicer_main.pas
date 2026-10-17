@@ -721,7 +721,7 @@ begin
   BedZ := FloatField(S, 'Altura maxima Z (mm)', 'BedZ', 250, 10, 2000, 1, 1, 642);
   Nozzle := FloatField(S, 'Diametro do bico (mm)', 'Nozzle', 0.4, 0.1, 2, 0.05, 2, 698);
   FilamentDia := FloatField(S, 'Diametro do filamento (mm)', 'FilamentDiameter', 1.75, 1, 3.5, 0.05, 2, 754);
-  PrintStartZ := FloatField(S, 'Degrau inicial Z (mm)', 'PrintStartZ', 0, 0, 100, 0.1, 2, 810);
+  PrintStartZ := FloatField(S, 'Elevacao da superficie da mesa em relacao ao Z=0 (mm)', 'PrintStartZ', 0, 0, 100, 0.1, 2, 810);
   HeatedBedBox := Check(S, 'Mesa aquecida', 868);
   HeatedBedBox.Checked := True;
   Section(S, 'G-CODE INICIAL', 906);
@@ -3403,7 +3403,7 @@ begin
     try
       S := Settings;
       if S.InfillDensity < 0 then Errors.Add('Preenchimento invalido.');
-      if PrintStartZ.Value >= BedZ.Value then Errors.Add('Degrau inicial Z maior que altura maxima da impressora.');
+      if PrintStartZ.Value >= BedZ.Value then Errors.Add('Elevacao da mesa deve ser menor que a altura maxima Z.');
     except
       on E: Exception do Errors.Add(E.Message);
     end;
