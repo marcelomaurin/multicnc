@@ -148,3 +148,7 @@ Na etapa **2 Modelo**, selecione a peça e clique em **Transformar dimensões...
 **Exemplo:** peça de 20 × 30 × 10 mm. Escala uniforme de 200% → 40 × 60 × 20 mm. Escala não uniforme com apenas Z marcado em 200% → 20 × 30 × 20 mm. Dimensão final apenas X = 50 mm → 50 × 30 × 10 mm.
 
 **Estado:** recurso publicado no código da branch `fila`; compilação e validação visual no executável ainda pendentes.
+
+## Fragmentação de peças maiores que a impressora (planejado)
+
+Está especificado um fluxo futuro para dividir modelos em STLs fechados `peca_parte01.stl`, `peca_parte02.stl` etc., permitir editar/transformar cada parte antes do fatiamento e exportar arquivos separados. **Ainda não implementado**; não confundir com fatiamento por camadas. Veja [Plano de Fragmentação 3D](docs/PLANO_FRAGMENTACAO_3D.md).
