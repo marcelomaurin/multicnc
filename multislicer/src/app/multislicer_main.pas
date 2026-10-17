@@ -243,6 +243,7 @@ type
     procedure ShowQualityMode(Custom: Boolean);
     procedure SyncRecommended;
     procedure TransformChange(Sender: TObject);
+    procedure TransformDialogClick(Sender: TObject);
     procedure Rotate90Click(Sender: TObject);
     procedure MirrorClick(Sender: TObject);
     procedure LayFlatClick(Sender: TObject);
@@ -802,6 +803,8 @@ begin
     'Clique depois na face da peca que deve ficar apoiada na mesa';
 
   Section(S, 'ESCALAR', 686);
+  Button(S, 'Transformar dimensoes...', 16, 1098, 290, sikGauge, @TransformDialogClick).Hint :=
+    'Formulario de escala, com escolha de eixos. Aplique e use Ctrl+Z para desfazer';
   UniformBox := TCheckBox.Create(Self);
   UniformBox.Parent := S; UniformBox.Name := 'UniformScale';
   UniformBox.SetBounds(16, 706, 290, 24);
@@ -1918,6 +1921,144 @@ begin
   FScene.Touch;
   LoadTransformEditor;
   SceneChanged('');
+end;
+
+procedure TMultiSlicerForm.TransformDialogClick(Sender: TObject);
+var
+  D: TForm;
+  Mode: TRadioGroup;
+  UniformBoxDlg: TCheckBox;
+  Axes: array[0..2] of TCheckBox;
+  PercentFields, DimFields: array[0..2] of TFloatSpinEdit;
+  Info: TLabel;
+  ApplyBtn, CancelBtn: TButton;
+  O: TSliceObject;
+  Sz: TVec3;
+  Factors: array[0..2] of Double;
+  Dimensions: array[0..2] of Double;
+  I, FirstAxis: Integer;
+  Factor: Double;
+  AxisNames: array[0..2] of string = ('X', 'Y', 'Z');
+begin
+  O := TargetObject;
+  if O = nil then
+  begin
+    MessageDlg('Transformar dimensoes', 'Selecione uma peca na lista ou na mesa 3D.',
+      mtInformation, [mbOK], 0);
+    Exit;
+  end;
+  if O.Locked then
+  begin
+    MessageDlg('Transformar dimensoes', 'Destrave a peca antes de transforma-la.',
+      mtInformation, [mbOK], 0);
+    Exit;
+  end;
+  Sz := O.Size;
+  Dimensions[0] := Sz.X;
+  Dimensions[1] := Sz.Y;
+  Dimensions[2] := Sz.Z;
+  D := TForm.Create(Self);
+  try
+    D.Caption := 'Transformar peca - escala e dimensoes';
+    D.Position := poScreenCenter;
+    D.BorderStyle := bsDialog;
+    D.ClientWidth := 495;
+    D.ClientHeight := 374;
+    Mode := TRadioGroup.Create(D);
+    Mode.Parent := D;
+    Mode.Caption := 'Aplicar valores em';
+    Mode.SetBounds(16, 12, 463, 77);
+    Mode.Items.Add('Percentual sobre o tamanho atual (200% = dobro)');
+    Mode.Items.Add('Dimensao final em milimetros');
+    Mode.ItemIndex := 0;
+    UniformBoxDlg := TCheckBox.Create(D);
+    UniformBoxDlg.Parent := D;
+    UniformBoxDlg.Caption := 'Manter as proporcoes dos tres eixos';
+    UniformBoxDlg.SetBounds(18, 99, 450, 24);
+    UniformBoxDlg.Checked := True;
+    Info := TLabel.Create(D);
+    Info.Parent := D;
+    Info.Caption := 'Selecione o eixo de referencia; para alterar so alguns eixos, desmarque proporcoes.';
+    Info.SetBounds(18, 126, 455, 36);
+    Info.WordWrap := True;
+    for I := 0 to 2 do
+    begin
+      Axes[I] := TCheckBox.Create(D);
+      Axes[I].Parent := D;
+      Axes[I].Caption := AxisNames[I];
+      Axes[I].SetBounds(20, 167 + I * 51, 48, 25);
+      Axes[I].Checked := I = 0;
+      PercentFields[I] := TFloatSpinEdit.Create(D);
+      PercentFields[I].Parent := D;
+      PercentFields[I].SetBounds(85, 164 + I * 51, 105, 28);
+      PercentFields[I].MinValue := 0.01;
+      PercentFields[I].MaxValue := 10000;
+      PercentFields[I].DecimalPlaces := 2;
+      PercentFields[I].Increment := 5;
+      PercentFields[I].Value := 100;
+      DimFields[I] := TFloatSpinEdit.Create(D);
+      DimFields[I].Parent := D;
+      DimFields[I].SetBounds(211, 164 + I * 51, 112, 28);
+      DimFields[I].MinValue := 0.01;
+      DimFields[I].MaxValue := 100000;
+      DimFields[I].DecimalPlaces := 2;
+      DimFields[I].Increment := 1;
+      DimFields[I].Value := Max(0.01, Dimensions[I]);
+    end;
+    with TLabel.Create(D) do begin Parent := D; Caption := 'Percentual (%)'; SetBounds(85, 146, 112, 18); end;
+    with TLabel.Create(D) do begin Parent := D; Caption := 'Dimensao (mm)'; SetBounds(211, 146, 112, 18); end;
+    with TLabel.Create(D) do begin Parent := D; Caption := Format('Atual: X %.2f  Y %.2f  Z %.2f mm', [Sz.X, Sz.Y, Sz.Z]); SetBounds(332, 187, 155, 60); WordWrap := True; end;
+    ApplyBtn := TButton.Create(D);
+    ApplyBtn.Parent := D;
+    ApplyBtn.Caption := 'Aplicar e visualizar';
+    ApplyBtn.SetBounds(271, 335, 133, 28);
+    ApplyBtn.ModalResult := mrOk;
+    ApplyBtn.Default := True;
+    CancelBtn := TButton.Create(D);
+    CancelBtn.Parent := D;
+    CancelBtn.Caption := 'Cancelar';
+    CancelBtn.SetBounds(412, 335, 70, 28);
+    CancelBtn.ModalResult := mrCancel;
+    CancelBtn.Cancel := True;
+    if D.ShowModal <> mrOk then Exit;
+    FirstAxis := -1;
+    for I := 0 to 2 do if Axes[I].Checked then begin FirstAxis := I; Break; end;
+    if FirstAxis < 0 then
+    begin
+      MessageDlg('Transformar dimensoes', 'Nenhum eixo selecionado. A peca nao foi alterada.',
+        mtInformation, [mbOK], 0);
+      Exit;
+    end;
+    for I := 0 to 2 do
+    begin
+      Factors[I] := 1;
+      if Axes[I].Checked then
+      begin
+        if Mode.ItemIndex = 0 then Factors[I] := PercentFields[I].Value / 100
+        else if Dimensions[I] > 1e-9 then Factors[I] := DimFields[I].Value / Dimensions[I]
+        else raise Exception.Create('Dimensao atual igual a zero no eixo ' + AxisNames[I]);
+      end;
+    end;
+    if UniformBoxDlg.Checked then
+    begin
+      Factor := Factors[FirstAxis];
+      for I := 0 to 2 do Factors[I] := Factor;
+    end;
+    if (Abs(Factors[0] - 1) < 1e-9) and
+       (Abs(Factors[1] - 1) < 1e-9) and
+       (Abs(Factors[2] - 1) < 1e-9) then Exit;
+    { Um unico passo de undo para toda a transformacao. }
+    FScene.PushUndo;
+    FUndoKey := '';
+    O.ScaleX := O.ScaleX * Factors[0];
+    O.ScaleY := O.ScaleY * Factors[1];
+    O.ScaleZ := O.ScaleZ * Factors[2];
+    FScene.Touch;
+    LoadTransformEditor;
+    SceneChanged('Escala aplicada. Confira a mesa 3D; Ctrl+Z desfaz e Ctrl+Y refaz.');
+  finally
+    D.Free;
+  end;
 end;
 
 procedure TMultiSlicerForm.Rotate90Click(Sender: TObject);
