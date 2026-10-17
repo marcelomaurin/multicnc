@@ -26,7 +26,7 @@ uses
   multislicer_3mf, multislicer_profile, multislicer_pipeline, multislicer_view,
   multislicer_printers, multislicer_materials, multislicer_userdata,
   multislicer_scene, multislicer_view3d, multislicer_toolpath3d, multicad_camera, multislicer_quality, multislicer_support,
-  multisuite_controls, multisuite_icons, multislicer_machines, multicnc_types, multicnc_equipment, fpjson, multislicer_project, multislicer_meshcheck, multislicer_filaments;
+  multisuite_controls, multisuite_icons, multislicer_machines, multicnc_types, multicnc_equipment, fpjson, multislicer_project, multislicer_meshcheck, multislicer_filaments, multislicer_fragment;
 
 const
   { manter igual ao VersionInfo do multislicer.lpi (revisao = etapa do PLANO_TAREFAS) }
@@ -244,6 +244,7 @@ type
     procedure SyncRecommended;
     procedure TransformChange(Sender: TObject);
     procedure TransformDialogClick(Sender: TObject);
+    procedure FragmentClick(Sender: TObject);
     procedure Rotate90Click(Sender: TObject);
     procedure MirrorClick(Sender: TObject);
     procedure LayFlatClick(Sender: TObject);
@@ -778,6 +779,8 @@ begin
   LockBox.SetBounds(166, 278, 140, 24);
   LockBox.Caption := 'Travar peca';
   LockBox.OnChange := @LockClick;
+  Button(S, 'Fragmentar e exportar STL...', 16, 1142, 290, sikCopy, @FragmentClick).Hint :=
+    'Dividir no eixo X, Y ou Z; cria duas partes STL separadas sem apagar a original';
   Button(S, 'Organizar mesa', 16, 314, 290, sikWand, @ArrangeClick).Hint := 'Distribui as pecas destravadas a partir do centro';
   UndoBtn := Button(S, 'Desfazer', 16, 356, 140, sikUndo, @UndoClick);
   UndoBtn.Hint := 'Ctrl+Z';
@@ -1921,6 +1924,94 @@ begin
   FScene.Touch;
   LoadTransformEditor;
   SceneChanged('');
+end;
+
+procedure TMultiSlicerForm.FragmentClick(Sender: TObject);
+var
+  O: TSliceObject;
+  D: TForm;
+  AxisChoice: TComboBox;
+  CutField: TFloatSpinEdit;
+  L: TLabel;
+  OKBtn,CancelBtn: TButton;
+  Box: TBox3;
+  Lo,Hi,Cut: Double;
+  Axis: Integer;
+  Base,Dir,File1,File2,Reason: string;
+  M1,M2: TMesh;
+begin
+  if FSlicing then Exit;
+  O:=TargetObject;
+  if O=nil then begin
+    MessageDlg('Fragmentar peca','Selecione uma peca.',mtInformation,[mbOK],0);
+    Exit;
+  end;
+  if O.Locked then begin
+    MessageDlg('Fragmentar peca','Destrave a peca para fragmentar.',mtInformation,[mbOK],0);
+    Exit;
+  end;
+  Box:=O.WorldBox;
+  D:=TForm.Create(Self);
+  try
+    D.Caption:='Fragmentar peca - corte em plano';
+    D.Position:=poScreenCenter;D.BorderStyle:=bsDialog;
+    D.ClientWidth:=400;D.ClientHeight:=215;
+    L:=TLabel.Create(D);L.Parent:=D;L.Caption:='Eixo de corte';L.SetBounds(15,17,160,19);
+    AxisChoice:=TComboBox.Create(D);AxisChoice.Parent:=D;AxisChoice.SetBounds(15,39,145,28);
+    AxisChoice.Style:=csDropDownList;
+    AxisChoice.Items.Add('X');AxisChoice.Items.Add('Y');AxisChoice.Items.Add('Z');
+    AxisChoice.ItemIndex:=0;
+    L:=TLabel.Create(D);L.Parent:=D;L.Caption:='Posicao de corte (mm, coordenada da mesa)';L.SetBounds(15,79,365,20);
+    CutField:=TFloatSpinEdit.Create(D);CutField.Parent:=D;CutField.SetBounds(15,102,145,28);
+    CutField.DecimalPlaces:=2;CutField.MinValue:=-100000;CutField.MaxValue:=100000;
+    CutField.Value:=(Box.Min.X+Box.Max.X)/2;
+    L:=TLabel.Create(D);L.Parent:=D;L.WordWrap:=True;
+    L.Caption:='Gera duas partes STL fechadas quando a malha permitir. A peca original permanece na cena.';
+    L.SetBounds(174,39,210,92);
+    OKBtn:=TButton.Create(D);OKBtn.Parent:=D;OKBtn.Caption:='Gerar partes';
+    OKBtn.ModalResult:=mrOk;OKBtn.Default:=True;OKBtn.SetBounds(193,172,112,30);
+    CancelBtn:=TButton.Create(D);CancelBtn.Parent:=D;CancelBtn.Caption:='Cancelar';
+    CancelBtn.ModalResult:=mrCancel;CancelBtn.Cancel:=True;CancelBtn.SetBounds(316,172,78,30);
+    if D.ShowModal<>mrOk then Exit;
+    Axis:=AxisChoice.ItemIndex;Cut:=CutField.Value;
+  finally D.Free;end;
+  case Axis of
+    0:begin Lo:=Box.Min.X;Hi:=Box.Max.X;end;
+    1:begin Lo:=Box.Min.Y;Hi:=Box.Max.Y;end;
+  else begin Lo:=Box.Min.Z;Hi:=Box.Max.Z;end;end;
+  if (Cut<=Lo+1e-5)or(Cut>=Hi-1e-5) then begin
+    MessageDlg('Fragmentar peca','Plano deve ficar dentro dos limites da peca.',mtWarning,[mbOK],0);
+    Exit;
+  end;
+  Dir:='';
+  if not SelectDirectory('Salvar os fragmentos STL','',Dir) then Exit;
+  Base:=ChangeFileExt(ExtractFileName(O.Name),'');
+  if Base='' then Base:='peca';
+  File1:=IncludeTrailingPathDelimiter(Dir)+Base+'_parte01.stl';
+  File2:=IncludeTrailingPathDelimiter(Dir)+Base+'_parte02.stl';
+  if FileExists(File1)or FileExists(File2) then
+    if MessageDlg('Fragmentar peca','Os arquivos de partes ja existem. Sobrescrever?',
+      mtConfirmation,[mbYes,mbNo],0)<>mrYes then Exit;
+  M1:=nil;M2:=nil;
+  if not SplitMeshAxis(O.WorldMesh,Axis,Cut,M1,M2,Reason) then begin
+    MessageDlg('Fragmentar peca','Falha no corte: '+Reason,mtError,[mbOK],0);
+    Exit;
+  end;
+  try
+    SaveBinarySTL(M1,File1);
+    SaveBinarySTL(M2,File2);
+    { O original permanece: o historico atual so abrange transformacoes,
+      nao a inclusao ou remocao de malhas. }
+    FScene.Add(M1,Base+'_parte01',File1);M1:=nil;
+    FScene.Add(M2,Base+'_parte02',File2);M2:=nil;
+    FScene.ClearHistory;
+    FUndoKey:='';
+    SceneChanged('Partes STL exportadas e adicionadas. Original preservado; remova-o manualmente quando desejar.');
+    MessageDlg('Fragmentar peca',
+      'Foram exportados dois STL. As partes podem ser movidas e transformadas antes de fatiar.'+
+      LineEnding+'A criacao das partes nao pode ser desfeita por Ctrl+Z nesta versao.',
+      mtInformation,[mbOK],0);
+  finally M1.Free;M2.Free;end;
 end;
 
 procedure TMultiSlicerForm.TransformDialogClick(Sender: TObject);
