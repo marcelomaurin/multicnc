@@ -32,6 +32,7 @@ __pycache__/
 # instaladores publicados
 !/releases/**
 !/bin/**
+!/setup/**
 
 # logs de compilacao locais
 /build-*.log
