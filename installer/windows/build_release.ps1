@@ -1,11 +1,11 @@
 param(
   [string]$Version = $env:VERSION,
-  [ValidatePattern('^\d{3}$')][string]$SetupSeq = '011',
+  [ValidatePattern('^\d{3}$')][string]$SetupSeq = '012',
   [switch]$AllowDirty,
   [switch]$SkipBinUpdate
 )
 $ErrorActionPreference = 'Stop'
-if (-not $Version) { $Version = '0.11' }
+if (-not $Version) { $Version = '0.12' }
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 Set-Location -LiteralPath $root
 $dist = Join-Path $root 'dist'
@@ -67,6 +67,12 @@ foreach ($target in $targets) {
 $occt = Join-Path $root 'bin\mcad_occt.dll'
 if (-not (Test-Path -LiteralPath $occt)) { throw 'DLL obrigatoria ausente: bin\mcad_occt.dll. O setup nao pode ser gerado sem o nucleo do MultiCAD.' }
 Copy-Item -LiteralPath $occt -Destination (Join-Path $app 'mcad_occt.dll') -Force
+# biblioteca de componentes 3D do MultiAssembly (models\components\mec)
+$library = Join-Path $root 'models\components\mec'
+if (-not (Test-Path -LiteralPath $library)) { throw 'Biblioteca ausente: models\components\mec.' }
+$libraryDest = Join-Path $app 'models\components'
+New-Item -ItemType Directory -Force -Path $libraryDest | Out-Null
+Copy-Item -LiteralPath $library -Destination $libraryDest -Recurse -Force
 $strip = Join-Path (Split-Path $env:FPC) 'strip.exe'
 if (Test-Path -LiteralPath $strip) {
   foreach ($exe in Get-ChildItem -LiteralPath $app -Filter '*.exe') {

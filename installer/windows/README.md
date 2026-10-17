@@ -1,10 +1,10 @@
-# Instalador Windows MultiSuite 010
+# Instalador Windows MultiSuite 012
 
 Windows 64 bits, Git, Python 3.9+, Lazarus/Free Pascal 64 bits e Inno Setup 6 ou 7.
 
 ## Gerar
 
-    installer\windows\build_release.bat -Version 0.10 -SetupSeq 010
+    installer\windows\build_release.bat -Version 0.12 -SetupSeq 012
 
 O script procura as ferramentas nas pastas usuais. Os caminhos podem ser definidos
 por LAZBUILD, FPC, PYTHON e ISCC. MULTICNC_CHATGPT_DIR aponta para as dependencias
@@ -13,9 +13,10 @@ AI/AISerial quando estiverem fora da pasta CHATGPT ao lado do repositorio.
 A publicacao exige arvore Git limpa. Para gerar e testar um setup local antes do
 commit, acrescente -AllowDirty; o manifesto registra source_dirty=true.
 
-O build compila os 13 executaveis, executa os testes de console, inclui relatorio de testes e
+O build compila os 13 executaveis, copia a biblioteca de componentes 3D do MultiAssembly
+(models\components\mec, instalada junto com o MultiAssembly), executa os testes de console, inclui relatorio de testes e
 documentacao, valida a arquitetura amd64 e gera manifesto, relatorio e SHA256SUMS.
-Os executaveis atualizados ficam em bin. setup_multcnc_011.exe fica em setup e bin; a copia de staging
+Os executaveis atualizados ficam em bin. setup_multcnc_012.exe fica em setup e bin; a copia de staging
 e os logs ficam em dist. Feche os aplicativos da suite antes de substituir bin.
 
 ## Conteudo e inicializacao

@@ -3,7 +3,7 @@
 #endif
 #include "..\..\dist\version.iss"
 #ifndef SetupSeq
-  #define SetupSeq "011"
+  #define SetupSeq "012"
 #endif
 #ifndef MyAppPublisher
   #define MyAppPublisher "Maurinsoft"
@@ -75,6 +75,7 @@ Source: "..\..\dist\app\SimuCNC.exe"; DestDir: "{app}"; Components: tools\simucn
 Source: "..\..\dist\app\multicad.exe"; DestDir: "{app}"; Components: tools\multicad; Flags: ignoreversion
 Source: "..\..\dist\app\mcad_occt.dll"; DestDir: "{app}"; Components: tools\multicad; Flags: ignoreversion
 Source: "..\..\dist\app\multiassembly.exe"; DestDir: "{app}"; Components: tools\multiassembly; Flags: ignoreversion
+Source: "..\..\dist\app\models\components\mec\*"; DestDir: "{app}\models\components\mec"; Components: tools\multiassembly; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\..\dist\app\multiphysics.exe"; DestDir: "{app}"; Components: tools\multiphysics; Flags: ignoreversion
 Source: "..\..\dist\app\multicam.exe"; DestDir: "{app}"; Components: tools\multicam; Flags: ignoreversion
 Source: "..\..\dist\app\multislicer.exe"; DestDir: "{app}"; Components: tools\multislicer; Flags: ignoreversion

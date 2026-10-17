@@ -179,6 +179,10 @@ class function TAssemblyLibrary.ResolveDefaultFolder: string;
 var
   Cand: string;
 begin
+  { instalacao pelo setup: biblioteca ao lado do executavel }
+  Cand := ExpandFileName(ExtractFilePath(ParamStr(0)) + 'models' + PathDelim + 'components' + PathDelim + 'mec');
+  if DirectoryExists(Cand) then Exit(Cand);
+
   Cand := 'D:\projetos\maurinsoft\multicnc\models\components\mec';
   if DirectoryExists(Cand) then Exit(Cand);
 

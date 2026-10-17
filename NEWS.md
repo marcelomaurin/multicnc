@@ -1,6 +1,13 @@
 # MultiSuite — Notas de Lançamento / News
 
-## [Em desenvolvimento] — MultiAssembly: geometria realista (17/10/2026)
+## [0.12] — Setup 012 (17/10/2026)
+
+### 🌟 Destaques da Versão 0.12
+
+O **MultiAssembly** passa a mostrar as peças com geometria real e a unir peças clicando em faces, furos e eixos, no estilo do SolidWorks Composer. O setup instala a biblioteca de 135 componentes 3D.
+
+---
+
 
 ### 🔩 MultiAssembly: componentes com aparência real
 - **Vista mecânica 3D:** as peças deixam de ser caixas. Cilindros, tubos, cones, setores, prismas com perfil e decalques (furos, LEDs) são desenhados com sombreamento, brilho especular, rotação e ordenação por face.
