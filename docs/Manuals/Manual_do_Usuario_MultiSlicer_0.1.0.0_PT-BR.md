@@ -144,3 +144,16 @@ Ao acionar **Abrir no MultiCNC**, o painel MultiCNC confere se as coordenadas `M
 | `Esc` | Cancelar fatiamento em andamento |
 | `Delete` | Remover peça selecionada da cena |
 | `Ctrl + D` | Duplicar peça selecionada |
+
+## Transformar dimensões de uma peça
+
+Na etapa **2 Modelo**, selecione a peça e clique em **Transformar dimensões...**. O formulário permite escolher entre **Percentual** (por exemplo, 200% dobra o tamanho atual) e **Dimensão final em mm**. Marque os eixos X, Y e/ou Z a transformar.
+
+- Com **Manter as proporções dos três eixos** ativado, o valor informado no primeiro eixo marcado determina um fator único aplicado a X, Y e Z; a forma original é preservada.
+- Com a opção desativada, somente os eixos marcados são alterados, cada um com seu percentual ou dimensão final. Eixos não marcados preservam a escala atual.
+- Clique em **Aplicar e visualizar**: a peça é atualizada na mesa 3D, e o G-code previamente gerado é invalidado. Use **Ctrl+Z / Desfazer** para retornar à escala anterior ou **Ctrl+Y / Refazer** para reaplicá-la.
+- **Cancelar** fecha a janela sem transformar a peça. A transformação não altera o STL/3MF original; altera a instância da peça na cena, que deve ser fatiada novamente.
+
+**Exemplo:** peça de 20 × 30 × 10 mm. Escala uniforme de 200% → 40 × 60 × 20 mm. Escala não uniforme com apenas Z marcado em 200% → 20 × 30 × 20 mm. Dimensão final apenas X = 50 mm → 50 × 30 × 10 mm.
+
+**Estado:** recurso publicado no código da branch `fila`; compilação e validação visual no executável ainda pendentes.
