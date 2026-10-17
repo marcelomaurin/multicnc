@@ -140,7 +140,7 @@ de exportar o G-code. Suportes em árvore permanecem previstos para uma fase pos
 
 Na etapa **2 Modelo**, selecione a peça e clique em **Transformar dimensões...**. O formulário permite escolher entre **Percentual** (por exemplo, 200% dobra o tamanho atual) e **Dimensão final em mm**. Marque os eixos X, Y e/ou Z a transformar.
 
-- Com **Manter as proporções dos três eixos** ativado, o valor informado no primeiro eixo marcado determina um fator único aplicado a X, Y e Z; a forma original é preservada.
+- Com **Escala proporcional nos eixos selecionados** ativado, o valor informado no primeiro eixo marcado determina um fator único aplicado apenas aos eixos marcados; eixos não marcados permanecem inalterados.
 - Com a opção desativada, somente os eixos marcados são alterados, cada um com seu percentual ou dimensão final. Eixos não marcados preservam a escala atual.
 - Clique em **Aplicar e visualizar**: a peça é atualizada na mesa 3D, e o G-code previamente gerado é invalidado. Use **Ctrl+Z / Desfazer** para retornar à escala anterior ou **Ctrl+Y / Refazer** para reaplicá-la.
 - **Cancelar** fecha a janela sem transformar a peça. A transformação não altera o STL/3MF original; altera a instância da peça na cena, que deve ser fatiada novamente.
