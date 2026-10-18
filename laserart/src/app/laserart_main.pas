@@ -20,7 +20,7 @@ uses
   multisuite_icons, multisuite_controls, multisuite_types, multisuite_registry,
   multisuite_launcher, laserart_model, laserart_geom, laserart_imaging,
   laserart_svgimport, laserart_output, laserart_materials, laserart_editor,
-  laserart_widgets, laserart_calibrationform, laserart_bedform;
+  laserart_widgets, laserart_calibrationform, laserart_bedform, laserart_box, laserart_boxform;
 
 type
   TLaserArtForm = class(TForm)
@@ -144,6 +144,7 @@ type
     procedure ZoomFitClick(Sender: TObject);
     procedure CalibrationClick(Sender: TObject);
     procedure BedClick(Sender: TObject);
+    procedure BoxClick(Sender: TObject);
     procedure LockClick(Sender: TObject);
     procedure PropChange(Sender: TObject);
     procedure LayerSelect(Sender: TObject; L: Integer);
@@ -316,7 +317,8 @@ begin
   Btn('', 'Espelhar na vertical', 36, sikMirrorV, @MirrorVClick, 14);
   Btn('Vetorizar', 'Vetorizar imagem selecionada (gera contornos)', 104, sikWand, @TraceClick, 14);
   Btn('Mesa', 'Tamanho da mesa e S maximo', 82, sikGear, @BedClick);
-  Btn('Teste de material', 'Gerar matriz de potencia x velocidade', 176, sikGauge, @CalibrationClick);
+  Btn('Teste de material', 'Gerar matriz de potencia x velocidade', 176, sikGauge, @CalibrationClick, 14);
+  Btn('Caixa com encaixes...', 'Gerar caixa com encaixes (finger joint) para cortar', 170, sikRect, @BoxClick);
 end;
 
 procedure TLaserArtForm.BuildPropBar;
@@ -1396,6 +1398,61 @@ begin
     FInternal := False;
   end;
   RefreshPropBar;
+end;
+
+{ Caixa com encaixes: gera as faces como vetores, lado a lado na mesa, na
+  camada atual (ou na primeira livre) em modo Linha. }
+procedure TLaserArtForm.BoxClick(Sender: TObject);
+var
+  F: TLaserBoxForm;
+  P: TLABoxParams;
+  Faces: TLABoxFaces;
+  Err: string;
+  S: TLAShape;
+  L, I: Integer;
+begin
+  F := TLaserBoxForm.Create(Self);
+  try
+    if F.ShowModal <> mrOK then Exit;
+    P := F.Params;
+  finally
+    F.Free;
+  end;
+  Faces := nil;
+  if not BuildBoxFaces(P, Faces, Err) then
+  begin
+    MessageDlg('Caixa com encaixes', Err, mtError, [mbOK], 0);
+    Exit;
+  end;
+  LayoutBoxFaces(Faces, P.Kerf, Doc.BedW, Doc.BedH, 5);
+  PushUndo;
+  L := Editor.CurrentLayer;
+  if Doc.Layers[L].Mode <> lmLine then
+  begin
+    if Doc.LayerUsed(L) then
+      for I := 0 to LA_LAYER_COUNT - 1 do
+        if not Doc.LayerUsed(I) then begin L := I; Break; end;
+    Doc.Layers[L].Mode := lmLine;
+  end;
+  Editor.ClearSelection;
+  for I := 0 to High(Faces) do
+  begin
+    S := TLAShape.Create(skPath);
+    S.Name := 'Caixa - ' + Faces[I].Name;
+    SetLength(S.Local, 1);
+    S.Local[0] := Faces[I].Outline;
+    S.LocalW := Faces[I].W + P.Kerf;
+    S.LocalH := Faces[I].H + P.Kerf;
+    S.X := Faces[I].X; S.Y := Faces[I].Y;
+    S.W := S.LocalW; S.H := S.LocalH;
+    S.Layer := L;
+    Doc.Add(S);
+    Editor.SelectShape(S, True);
+  end;
+  Editor.CurrentLayer := L;
+  EditorChange(nil);
+  RefreshAll;
+  SetStatus(Format('Caixa: %d faces na camada C%.2d.', [Length(Faces), L]));
 end;
 
 procedure TLaserArtForm.BedClick(Sender: TObject);
