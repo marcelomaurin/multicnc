@@ -342,7 +342,7 @@ Para cada unidade abaixo: reformatar, validar entradas (nada de divisão por zer
 | B5 | Aleta com convecção e ponta adiabática | θ(x)/θ₀ = cosh(m(L−x))/cosh(mL), m = √(h·P/(k·A)) | 3% |
 | B6 | Barra presa nas duas pontas, ΔT = 50 K | σ = −E·α·ΔT | 2% |
 | B7 | Viga em balanço, 1ª frequência | f₁ = (1,875²/(2π))·√(E·I/(ρ·A·L⁴)) | 3% (TET10) |
-| B8 | Barra livre-livre, 1º modo axial | f = (1/(2L))·√(E/ρ) | 2% |
+| B8 | Viga livre-livre 200×10×20 mm: 6 modos rígidos (~0 Hz) e 1ª flexão | f₇ = (4,730²/(2π))·√(E·I/(ρ·A·L⁴)) | 3% |
 | B9 | Circuito RC, degrau | v(t) = V·(1 − e^(−t/RC)) | 0,5% |
 | B10 | Motor DC a vazio | ω∞ = V/Ke (com b = 0) | 1% |
 
@@ -370,12 +370,12 @@ Atualize esta tabela a cada tarefa concluída (data, commit, teste que comprova)
 | Tarefa | Estado | Data | Commit | Teste |
 |---|---|---|---|---|
 | Plano (este arquivo) | feito | 18/10/2026 | — | — |
-| Fase 0 (MP-0.1 a 0.4) | pendente | | | |
+| Fase 0 (MP-0.1 a 0.4) | feito (ver Decisoes: sem .lpi por teste) | 18/10/2026 | (este commit) | `tests/run_all.ps1`, `src/testing/multiphysics_check.pas` |
 | Fase 1 (MP-1.1 a 1.6) | pendente | | | |
-| Fase 2 (MP-2.1 a 2.4) | pendente | | | |
-| Fase 3 (MP-3.1 a 3.7) | pendente | | | |
+| Fase 2 (MP-2.1 a 2.4) | parcial: MP-2.2 e 2.3 feitos; 2.1 e 2.4 pendentes | 18/10/2026 | (este commit) | `test_geometry_mesh` |
+| Fase 3 (MP-3.1 a 3.7) | parcial: MP-3.1, 3.2, 3.4, 3.5 feitos; 3.3, 3.6, 3.7 pendentes | 18/10/2026 | (este commit) | `test_geometry_mesh` |
 | MP-3.8 (P1) | pendente | | | |
-| Fase 4 (MP-4.1 a 4.11) | pendente | | | |
+| Fase 4 (MP-4.1 a 4.11) | parcial: MP-4.1 a 4.7 feitos (Cholesky em perfil + PCG); 4.8 a 4.11 pendentes | 18/10/2026 | (este commit) | `test_fem_benchmarks` (B1, B2, B4-B8) |
 | Fase 5 (MP-5.1 a 5.5) | pendente | | | |
 | Fase 6 (MP-6.1 a 6.7) | pendente | | | |
 | Fase 7 (MP-7.1 a 7.15) | pendente | | | |
@@ -404,4 +404,8 @@ Ao quebrar uma fase em várias sessões, detalhe as linhas por tarefa (ex.: `MP-
 | 18/10/2026 | Malhador estruturado por primitiva em vez de Delaunay 3D genérico | As peças do MultiAssembly já são primitivas (`box`, `cyl`, `prism`); dá malha válida e determinística com muito menos código. STL genérico fica para 0.3 (MP-3.8). |
 | 18/10/2026 | Contato colado por amarração (tie/MPC), sem atrito | Atende S5 com solver linear; contato com atrito exige solver não linear (fora da 0.2). |
 | 18/10/2026 | Solver próprio é o padrão; CalculiX é opcional e de comparação | O setup não distribui o ccx; o app precisa resolver sem dependências externas. |
+| 18/10/2026 | Sem `.lpi` por teste (MP-0.1) | `tools/verify_suite.py` já compila todo `tests/*.lpr` com todas as pastas `src/` no caminho; `tests/run_all.ps1` chama esse script. Testes usam `multiphysics_check` (em `src/testing`). |
+| 18/10/2026 | Integrais dos elementos exatas por monômios baricêntricos | Elementos de lados retos: as tabelas saem da fórmula fechada, sem tabelas de Gauss para errar. |
+| 18/10/2026 | Solver direto (Cholesky em perfil com RCM) como padrão; PCG quando o envelope passa de `MaxEnvelope` | O modal resolve o sistema dezenas de vezes; o direto fatora uma vez. B2: 10.935 graus em 0,7 s. |
+| 18/10/2026 | B8 trocado por viga livre-livre | O modo axial da barra fica no meio de muitos modos de flexão e torção; a viga livre-livre testa o deslocamento espectral e os 6 modos rígidos. |
 | 18/10/2026 | TET10 padrão no estrutural | TET4 trava em flexão (B2 com erro grande); TET10 atinge 3% com malha moderada. |

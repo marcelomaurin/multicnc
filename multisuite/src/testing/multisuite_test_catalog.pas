@@ -77,6 +77,8 @@ function DefaultTestCatalog:TTestDefinitions;begin SetLength(Result,0);
  Add(Result,'LaserArt','Raster: dithering, potencia variavel, overscan','laserpcb/tests/test_raster.lpr','laserpcb/tests/test_raster');
  Add(Result,'MultiSlicer','Fatiador moderno: gyroid, adaptativo, Klipper','multislicer/tests/test_modern_slicer.lpr','multislicer/tests/test_modern_slicer');
  Add(Result,'MultiPhysics','MNA Newton-Raphson e integradores','multiphysics/tests/test_newton_ode.lpr','multiphysics/tests/test_newton_ode');
+ Add(Result,'MultiPhysics','Geometria e malha tetraedrica','multiphysics/tests/test_geometry_mesh.lpr','multiphysics/tests/test_geometry_mesh');
+ Add(Result,'MultiPhysics','FEM: benchmarks analiticos B1-B8','multiphysics/tests/test_fem_benchmarks.lpr','multiphysics/tests/test_fem_benchmarks');
  Add(Result,'MultiCAD','Restricoes, DOF, extrusao, STL/3MF','multicad/tests/test_parametric.lpr','multicad/tests/test_parametric');
  Add(Result,'MultiAssembly','ERC, BOM e configuracao de firmware','multiassembly/tests/test_engineering.lpr','multiassembly/tests/test_engineering');
 end;
