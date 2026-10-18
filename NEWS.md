@@ -1,5 +1,29 @@
 # MultiSuite — Notas de Lançamento / News
 
+## [0.13] — Setup 013 (18/10/2026)
+
+### 🌟 Destaques da Versão 0.13
+
+O **LaserArt** ganha recursos pensados para corte e gravação a laser: caixa com encaixes, pontes no corte, estimativa de potência e novos efeitos de imagem. O **LaserPCB** estima potência pelo laser e grava um gabarito de teste de material.
+
+---
+
+### 📦 LaserArt: caixa com encaixes (finger joint)
+- Botão **Caixa com encaixes...** na barra superior: medidas internas ou externas, espessura do material, largura do dente, compensação de kerf e com ou sem tampa.
+- Gera as 5 ou 6 faces lado a lado na mesa, na camada atual em modo Linha. Os dentes de faces vizinhas se complementam e cada canto pertence a uma face só.
+- O kerf alarga os dentes e estreita as fendas; depois do corte as medidas voltam ao nominal. Teste `laserart/tests/test_laserart_box.lpr` confere a parede inteira em 3D.
+
+### 🔥 LaserArt: corte, potência e imagem
+- **Pontes no corte** por camada Linha (largura e distância), para a peça não cair da chapa.
+- **Estimar potência pelo laser...**: potência, velocidade e passadas pelos W do laser, material e espessura.
+- **Foto recorte (estêncil)**, retícula de jornal, gravura riscada e esboço nas imagens; texto inclinado e em arco; engrenagem por módulo; nova camada/excluir camada na lista.
+
+### 🔌 LaserPCB e MakePCB
+- **LaserPCB:** estimativa de potência pela potência óptica do laser e espessura do cobre; **gabarito de teste de material** (grade potência × passadas); menu de componentes.
+- **MakePCB:** travar componente, menu de contexto com clique direito e galeria atualizada.
+
+---
+
 ## [0.12] — Setup 012 (17/10/2026)
 
 ### 🌟 Destaques da Versão 0.12
