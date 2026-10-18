@@ -377,8 +377,8 @@ Atualize esta tabela a cada tarefa concluída (data, commit, teste que comprova)
 | MP-3.8 (P1) | pendente | | | |
 | Fase 4 (MP-4.1 a 4.11) | parcial: MP-4.1 a 4.7 feitos (Cholesky em perfil + PCG); MP-4.9 feito em `multiphysics_analysis` (malhas h e 1,5h); 4.8, 4.10, 4.11 pendentes | 18/10/2026 | (este commit) | `test_fem_benchmarks` (B1, B2, B4-B8) |
 | Fase 5 (MP-5.1 a 5.5) | pendente | | | |
-| Fase 6 (MP-6.1 a 6.7) | pendente | | | |
-| Fase 7 (MP-7.1 a 7.15) | pendente | | | |
+| Fase 6 (MP-6.1 a 6.7) | parcial: MP-6.1 a 6.6 feitos (10 etapas, ver Decisoes), MP-6.7 so abre `.mphys`; desfazer/refazer pendente | 18/10/2026 | (este commit) | `multiphysics.exe --capture=static|thermal|modal|system|circuit|loads arquivo.png` |
+| Fase 7 (MP-7.1 a 7.15) | parcial: MP-7.7 (netlist SPICE sobre o Newton-MNA, B9) e telas de MP-7.15 feitos; demais pendentes | 18/10/2026 | (este commit) | `test_circuit_netlist` |
 | Fase 8 (MP-8.1 a 8.6, P1) | pendente | | | |
 | Fase 9 (MP-9.1 a 9.4) | pendente | | | |
 | Fase 10 (MP-10.1 a 10.4) | pendente | | | |
@@ -411,4 +411,7 @@ Ao quebrar uma fase em várias sessões, detalhe as linhas por tarefa (ex.: `MP-
 | 18/10/2026 | Sem `TLoadCase` separado (MP-1.1) | O caso de carga é o conjunto de CCs do projeto + a análise escolhida (`TAnalysisKind`); várias combinações ficam para quando a interface pedir. |
 | 18/10/2026 | `.mphys` grava o material completo da peça (MP-1.4) | Mais simples e robusto que gravar só a diferença; o arquivo continua legível. |
 | 18/10/2026 | Convergência compara malha h com 1,5h (MP-4.9) | O resultado mostrado é o da malha mais fina pedida pelo usuário; a malha extra é mais barata. |
+| 18/10/2026 | Interface com 10 etapas em vez de 12 (MP-6.1) | Contatos ficam em Montagem e Degradação em Ambiente; 12 botões não cabem na lateral junto da árvore. |
+| 18/10/2026 | Circuito por netlist de texto (MP-7.15) | Editor de desenho de esquema é trabalho do MakePCB; a netlist cobre os casos de teste sem duplicar o esquema. |
+| 18/10/2026 | `--capture=modo arquivo.png` no executável | Permite conferir as telas sem clicar (e gerar imagens para a documentação). |
 | 18/10/2026 | TET10 padrão no estrutural | TET4 trava em flexão (B2 com erro grande); TET10 atinge 3% com malha moderada. |
