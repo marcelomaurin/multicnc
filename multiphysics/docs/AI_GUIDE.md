@@ -1,5 +1,7 @@
 # MultiPhysics - Guia para IA
 
+Plano de trabalho em andamento: [TAREFA.md](TAREFA.md) (fases, tarefas MP-x.y, benchmarks e progresso).
+
 ## Finalidade
 Simulacao fisica multidominio de uma montagem vinda do MultiAssembly: eletrica/eletronica,
 microcontroladores, motores e atuadores, mecanica, termica, eletromagnetismo, energia,

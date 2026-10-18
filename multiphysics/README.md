@@ -1,4 +1,6 @@
 # MultiPhysics
+
+Plano da versao 0.2 e tarefas detalhadas: [docs/TAREFA.md](docs/TAREFA.md).
 Ferramenta da suite MultiSuite para simular fisicamente uma montagem proveniente do MultiAssembly.
 
 ## Dominios
