@@ -34,8 +34,13 @@ type
   TLAPaths = array of TLAPath;
 
   TLALayerMode = (lmLine, lmFill, lmImage);
-  TLADither = (ldThreshold, ldFloyd, ldJarvis, ldGrayscale);
-  TLAShapeKind = (skRect, skEllipse, skPolygon, skPath, skText, skImage);
+  { novos no fim: os ordinais sao gravados no .lart }
+  TLADither = (ldThreshold, ldFloyd, ldJarvis, ldGrayscale,
+    ldHalftone,   { retícula de jornal: bolinhas numa grade inclinada }
+    ldLines,      { gravura riscada: linhas com largura pelo tom }
+    ldSketch);    { esboco: so as bordas da foto }
+  TLAShapeKind = (skRect, skEllipse, skPolygon, skPath, skText, skImage,
+    skGear, skStar);
   TLAStartFrom = (sfAbsolute, sfUserOrigin, sfWorkZero);
 
   TLALayer = class
@@ -48,8 +53,13 @@ type
     Passes: Integer;
     Interval: Double;    { mm entre linhas (preenchimento / imagem) }
     AirAssist: Boolean;
+    { pontes no corte (Linha): trechos sem laser que seguram a peca }
+    TabWidth: Double;    { mm; 0 = sem pontes }
+    TabSpacing: Double;  { mm de contorno entre pontes }
     Output: Boolean;
     Show: Boolean;
+    { criada pelo usuario (Nova camada / paleta): fica na lista mesmo vazia }
+    Defined: Boolean;
     constructor Create(AIndex: Integer);
     procedure Assign(Src: TLALayer);
     function Calibrated: Boolean;
@@ -65,8 +75,15 @@ type
     Angle: Double;               { graus, anti-horario, em torno do centro }
     MirrorX, MirrorY: Boolean;
     Locked: Boolean;
-    Sides: Integer;              { poligono }
+    Sides: Integer;              { poligono; pontas da estrela }
     CornerRadius: Double;        { retangulo }
+    StarInner: Double;           { estrela: raio interno / externo }
+    GearModule: Double;          { engrenagem: modulo (tamanho do dente), mm }
+    GearBore: Double;            { engrenagem: furo central, mm (0 = sem) }
+    TextSlant: Double;           { texto: inclinacao em graus (+ = para a direita) }
+    TextArc: Double;             { texto: curvatura em graus de arco (+ = arco para cima) }
+    EffectSize: Double;          { imagem: celula da reticula / passo das linhas, mm }
+    EffectAngle: Double;         { imagem: angulo da reticula / linhas, graus }
     Local: TLAPaths;             { caminho/texto: geometria propria }
     LocalW, LocalH: Double;      { tamanho da geometria propria }
     Text, FontName: string;
@@ -102,6 +119,9 @@ type
     UseM3: Boolean;                 { False = M4 (potencia dinamica) }
     RapidSpeed: Double;             { estimativa de tempo }
     Optimize: Boolean;
+    { laser e material para a estimativa de potencia (laserart_powerest) }
+    LaserW, LaserSpot, LaserMaxFeed, MaterialThickness: Double;
+    LaserSource, MaterialIndex: Integer;
     constructor Create;
     destructor Destroy; override;
     procedure Clear;
@@ -188,8 +208,11 @@ begin
   Passes := 1;
   Interval := 0.1;
   AirAssist := False;
+  TabWidth := 0;
+  TabSpacing := 40;
   Output := True;
   Show := True;
+  Defined := False;
 end;
 
 procedure TLALayer.Assign(Src: TLALayer);
@@ -201,8 +224,11 @@ begin
   Passes := Src.Passes;
   Interval := Src.Interval;
   AirAssist := Src.AirAssist;
+  TabWidth := Src.TabWidth;
+  TabSpacing := Src.TabSpacing;
   Output := Src.Output;
   Show := Src.Show;
+  Defined := Src.Defined;
 end;
 
 function TLALayer.Calibrated: Boolean;
@@ -227,6 +253,13 @@ begin
   Dither := ldFloyd;
   W := 20;
   H := 20;
+  StarInner := 0.5;
+  GearModule := 2;
+  GearBore := 5;
+  EffectSize := 0.8;
+  EffectAngle := 45;
+  if AKind = skStar then Sides := 5;
+  if AKind = skGear then begin W := 40; H := 40; end;
 end;
 
 destructor TLAShape.Destroy;
@@ -254,6 +287,10 @@ begin
   Locked := Src.Locked;
   Sides := Src.Sides;
   CornerRadius := Src.CornerRadius;
+  StarInner := Src.StarInner;
+  GearModule := Src.GearModule; GearBore := Src.GearBore;
+  TextSlant := Src.TextSlant; TextArc := Src.TextArc;
+  EffectSize := Src.EffectSize; EffectAngle := Src.EffectAngle;
   SetLength(Local, Length(Src.Local));
   for I := 0 to High(Src.Local) do
   begin
@@ -284,6 +321,8 @@ begin
     skPolygon: Result := 'Poligono';
     skPath:    Result := 'Vetor';
     skText:    Result := 'Texto';
+    skGear:    Result := 'Engrenagem';
+    skStar:    Result := 'Estrela';
   else
     Result := 'Imagem';
   end;
@@ -340,6 +379,8 @@ begin
   UseM3 := False;
   RapidSpeed := 6000;
   Optimize := True;
+  LaserW := 0; LaserSpot := 0.1; LaserMaxFeed := 6000; MaterialThickness := 3;
+  LaserSource := 0; MaterialIndex := 0;
 end;
 
 function TLADocument.GetLayer(I: Integer): TLALayer;
@@ -411,7 +452,8 @@ begin
   LayerOrder[High(LayerOrder)] := L;
 end;
 
-{ Remove da ordem as camadas sem objetos e acrescenta as que faltam }
+{ Remove da ordem as camadas sem objetos (exceto as criadas pelo usuario)
+  e acrescenta as que faltam }
 procedure TLADocument.SyncLayerOrder;
 var
   I, N: Integer;
@@ -419,7 +461,7 @@ var
 begin
   SetLength(Keep, 0);
   for I := 0 to High(LayerOrder) do
-    if LayerUsed(LayerOrder[I]) then
+    if LayerUsed(LayerOrder[I]) or Layers[LayerOrder[I]].Defined then
     begin
       N := Length(Keep);
       SetLength(Keep, N + 1);
@@ -428,6 +470,8 @@ begin
   LayerOrder := Keep;
   for I := 0 to FShapes.Count - 1 do
     EnsureLayerInOrder(TLAShape(FShapes[I]).Layer);
+  for I := 0 to LA_LAYER_COUNT - 1 do
+    if Layers[I].Defined then EnsureLayerInOrder(I);
 end;
 
 procedure TLADocument.MoveLayer(L, Delta: Integer);
@@ -518,6 +562,12 @@ begin
     Root.Add('use_m3', UseM3);
     Root.Add('rapid_speed', RapidSpeed);
     Root.Add('optimize', Optimize);
+    Root.Add('laser_w', LaserW);
+    Root.Add('laser_spot', LaserSpot);
+    Root.Add('laser_max_feed', LaserMaxFeed);
+    Root.Add('laser_source', LaserSource);
+    Root.Add('material', MaterialIndex);
+    Root.Add('material_thickness', MaterialThickness);
 
     A := TJSONArray.Create;
     for I := 0 to High(LayerOrder) do
@@ -537,8 +587,11 @@ begin
       O.Add('passes', L.Passes);
       O.Add('interval', L.Interval);
       O.Add('air', L.AirAssist);
+      O.Add('tab_width', L.TabWidth);
+      O.Add('tab_spacing', L.TabSpacing);
       O.Add('output', L.Output);
       O.Add('show', L.Show);
+      if L.Defined then O.Add('defined', True);
       A.Add(O);
     end;
     Root.Add('layers', A);
@@ -557,6 +610,11 @@ begin
       O.Add('locked', S.Locked);
       O.Add('sides', S.Sides);
       O.Add('corner', S.CornerRadius);
+      if S.Kind = skStar then O.Add('star_inner', S.StarInner);
+      if S.Kind = skGear then
+      begin
+        O.Add('gear_module', S.GearModule); O.Add('gear_bore', S.GearBore);
+      end;
       if Length(S.Local) > 0 then
       begin
         O.Add('local', PathsToJSON(S.Local));
@@ -567,6 +625,7 @@ begin
       begin
         O.Add('text', S.Text); O.Add('font', S.FontName);
         O.Add('bold', S.Bold); O.Add('italic', S.Italic);
+        O.Add('slant', S.TextSlant); O.Add('arc', S.TextArc);
       end;
       if S.Kind = skImage then
       begin
@@ -575,6 +634,7 @@ begin
         O.Add('brightness', S.Brightness);
         O.Add('contrast', S.Contrast);
         O.Add('invert', S.Invert);
+        O.Add('effect_size', S.EffectSize); O.Add('effect_angle', S.EffectAngle);
       end;
       A.Add(O);
     end;
@@ -613,6 +673,12 @@ begin
     UseM3 := Root.Get('use_m3', False);
     RapidSpeed := Root.Get('rapid_speed', 6000.0);
     Optimize := Root.Get('optimize', True);
+    LaserW := Max(0, Root.Get('laser_w', 0.0));
+    LaserSpot := Root.Get('laser_spot', 0.1); if not (LaserSpot > 0) then LaserSpot := 0.1;
+    LaserMaxFeed := Root.Get('laser_max_feed', 6000.0); if not (LaserMaxFeed >= 60) then LaserMaxFeed := 6000;
+    LaserSource := EnsureRange(Root.Get('laser_source', 0), 0, 2);
+    MaterialIndex := Max(0, Root.Get('material', 0));
+    MaterialThickness := Root.Get('material_thickness', 3.0); if not (MaterialThickness > 0) then MaterialThickness := 3;
 
     A := Root.Get('layers', TJSONArray(nil));
     if A <> nil then
@@ -629,8 +695,12 @@ begin
         L.Passes := Max(1, O.Get('passes', 1));
         L.Interval := O.Get('interval', 0.1);
         L.AirAssist := O.Get('air', False);
+        L.TabWidth := Max(0, O.Get('tab_width', 0.0));
+        L.TabSpacing := O.Get('tab_spacing', 40.0);
+        if not (L.TabSpacing > 0) then L.TabSpacing := 40;
         L.Output := O.Get('output', True);
         L.Show := O.Get('show', True);
+        L.Defined := O.Get('defined', False);
       end;
 
     A := Root.Get('shapes', TJSONArray(nil));
@@ -648,6 +718,10 @@ begin
         Sh.Locked := O.Get('locked', False);
         Sh.Sides := O.Get('sides', 6);
         Sh.CornerRadius := O.Get('corner', 0.0);
+        Sh.StarInner := EnsureRange(O.Get('star_inner', 0.5), 0.05, 0.95);
+        Sh.GearModule := O.Get('gear_module', 2.0);
+        if not (Sh.GearModule > 0) then Sh.GearModule := 2;
+        Sh.GearBore := Max(0, O.Get('gear_bore', 0.0));
         Sh.Local := PathsFromJSON(O.Get('local', TJSONArray(nil)));
         Sh.LocalW := O.Get('local_w', 0.0);
         Sh.LocalH := O.Get('local_h', 0.0);
@@ -655,11 +729,16 @@ begin
         Sh.FontName := O.Get('font', 'Arial');
         Sh.Bold := O.Get('bold', False);
         Sh.Italic := O.Get('italic', False);
+        Sh.TextSlant := EnsureRange(O.Get('slant', 0.0), -60, 60);
+        Sh.TextArc := EnsureRange(O.Get('arc', 0.0), -340, 340);
         Sh.ImageFile := O.Get('image', '');
         Sh.Dither := TLADither(EnsureRange(O.Get('dither', 1), 0, Ord(High(TLADither))));
         Sh.Brightness := O.Get('brightness', 0);
         Sh.Contrast := O.Get('contrast', 0);
         Sh.Invert := O.Get('invert', False);
+        Sh.EffectSize := O.Get('effect_size', 0.8);
+        if not (Sh.EffectSize > 0) then Sh.EffectSize := 0.8;
+        Sh.EffectAngle := O.Get('effect_angle', 45.0);
         FShapes.Add(Sh);
       end;
 

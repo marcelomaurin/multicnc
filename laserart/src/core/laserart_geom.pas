@@ -25,6 +25,8 @@ type
 
 { geometria propria (sem posicao/rotacao), em mm, 0..W x 0..H }
 function ShapeLocalPaths(S: TLAShape): TLAPaths;
+{ engrenagem: dentes que cabem no menor lado da caixa com o modulo atual }
+function GearTeeth(S: TLAShape): Integer;
 { geometria no mundo, com espelhamento, rotacao e posicao }
 function ShapeWorldPaths(S: TLAShape): TLAPaths;
 function ShapeCorners(S: TLAShape): TLAPoints;  { 4 cantos no mundo }
@@ -42,6 +44,9 @@ function SimplifyPath(const P: TLAPath; Tolerance: Double): TLAPath;
 { ordena caminhos pelo vizinho mais proximo; caminhos abertos podem inverter }
 procedure OrderPaths(var P: TLAPaths; StartX, StartY: Double);
 function PathLength(const P: TLAPath): Double;
+{ pontes: abre cada contorno fechado em trechos, deixando vaos de TabW mm
+  a cada ~Spacing mm (minimo 1 por contorno). Contornos curtos ficam inteiros. }
+function AddTabs(const P: TLAPaths; TabW, Spacing: Double): TLAPaths;
 function PointInPaths(const P: TLAPaths; X, Y: Double): Boolean;
 function DistanceToPaths(const P: TLAPaths; X, Y: Double): Double;
 function NormalizePaths(var P: TLAPaths; out W, H: Double): Boolean;
@@ -126,6 +131,79 @@ begin
   R[N].Closed := True;
 end;
 
+function GearTeeth(S: TLAShape): Integer;
+var M: Double;
+begin
+  M := S.GearModule; if not (M > 0) then M := 2;
+  { diametro externo = m (N + 2) }
+  Result := Max(6, Floor(Min(S.W, S.H) / M - 2 + 1e-6));
+end;
+
+{ perfil evolvente (angulo de pressao 20 graus), centrado na caixa }
+function GearPaths(S: TLAShape): TLAPaths;
+const
+  K = 6;
+var
+  N, T, I, Cnt: Integer;
+  M, CX, CY, Rp, Ra, Rf, Rb, Rs, AlphaP, C, Ang, R: Double;
+  Pts: array of TLAPoint;
+  function Inv(A: Double): Double; begin Result := Tan(A) - A; end;
+  function Psi(AR: Double): Double;
+  begin
+    if AR < Rb then AR := Rb;
+    Result := Pi / (2 * N) + Inv(AlphaP) - Inv(ArcCos(Rb / AR));
+  end;
+  procedure Add(AR, AA: Double);
+  begin
+    if Cnt >= Length(Pts) then SetLength(Pts, Cnt * 2 + 64);
+    Pts[Cnt] := LAPoint(CX + AR * Cos(AA), CY + AR * Sin(AA));
+    Inc(Cnt);
+  end;
+begin
+  SetLength(Result, 0);
+  M := S.GearModule; if not (M > 0) then M := 2;
+  N := GearTeeth(S);
+  CX := S.W / 2; CY := S.H / 2;
+  AlphaP := DegToRad(20);
+  Rp := M * N / 2; Ra := Rp + M; Rf := Max(Rp - 1.25 * M, 0.1); Rb := Rp * Cos(AlphaP);
+  Rs := Max(Rb, Rf);
+  Cnt := 0; SetLength(Pts, N * (2 * K + 12));
+  for T := 0 to N - 1 do
+  begin
+    C := 2 * Pi * T / N;
+    if Rf < Rb then Add(Rf, C - Psi(Rs));
+    for I := 0 to K do
+    begin
+      R := Rs + (Ra - Rs) * I / K;
+      Add(R, C - Psi(R));
+    end;
+    for I := 1 to 2 do
+      Add(Ra, C - Psi(Ra) + 2 * Psi(Ra) * I / 3);
+    for I := K downto 0 do
+    begin
+      R := Rs + (Ra - Rs) * I / K;
+      Add(R, C + Psi(R));
+    end;
+    if Rf < Rb then Add(Rf, C + Psi(Rs));
+    { fundo do dente ate o proximo }
+    for I := 1 to 3 do
+    begin
+      Ang := C + Psi(Rs) + (2 * Pi / N - 2 * Psi(Rs)) * I / 4;
+      Add(Rf, Ang);
+    end;
+  end;
+  SetLength(Pts, Cnt);
+  AddClosed(Result, Pts);
+  { furo central }
+  if (S.GearBore > 0) and (S.GearBore / 2 < Rf * 0.9) then
+  begin
+    SetLength(Pts, 48);
+    for I := 0 to 47 do
+      Pts[I] := LAPoint(CX + S.GearBore / 2 * Cos(2 * Pi * I / 48), CY + S.GearBore / 2 * Sin(2 * Pi * I / 48));
+    AddClosed(Result, Pts);
+  end;
+end;
+
 function ShapeLocalPaths(S: TLAShape): TLAPaths;
 var
   I, J, N, Seg: Integer;
@@ -178,6 +256,20 @@ begin
         begin
           A := DegToRad(90 + 360 * I / N);
           Pts[I] := LAPoint(S.W / 2 + S.W / 2 * Cos(A), S.H / 2 + S.H / 2 * Sin(A));
+        end;
+        AddClosed(Result, Pts);
+      end;
+    skGear:
+      Result := GearPaths(S);
+    skStar:
+      begin
+        N := EnsureRange(S.Sides, 3, 64);
+        SetLength(Pts, 2 * N);
+        for I := 0 to 2 * N - 1 do
+        begin
+          A := DegToRad(90 + 180 * I / N);
+          if Odd(I) then Rad := EnsureRange(S.StarInner, 0.05, 0.95) else Rad := 1;
+          Pts[I] := LAPoint(S.W / 2 + S.W / 2 * Rad * Cos(A), S.H / 2 + S.H / 2 * Rad * Sin(A));
         end;
         AddClosed(Result, Pts);
       end;
@@ -538,6 +630,74 @@ begin
       Result := Min(Result, SegDist(X, Y, P[I].Pts[J - 1], P[I].Pts[J]));
     if P[I].Closed and (Length(P[I].Pts) > 2) then
       Result := Min(Result, SegDist(X, Y, P[I].Pts[High(P[I].Pts)], P[I].Pts[0]));
+  end;
+end;
+
+function AddTabs(const P: TLAPaths; TabW, Spacing: Double): TLAPaths;
+var
+  I, J, K, N, Count, Out_: Integer;
+  Pts: array of TLAPoint;
+  Cum: array of Double;
+  Len, Step, A, B, D: Double;
+  Piece: TLAPath;
+
+  function PointAt(Dist: Double): TLAPoint;
+  var Q: Integer; F: Double;
+  begin
+    while Dist >= Len do Dist := Dist - Len;
+    while Dist < 0 do Dist := Dist + Len;
+    Q := 1;
+    while (Q < High(Cum)) and (Cum[Q] < Dist) do Inc(Q);
+    if Cum[Q] - Cum[Q - 1] > 1e-12 then F := (Dist - Cum[Q - 1]) / (Cum[Q] - Cum[Q - 1]) else F := 0;
+    Result := LAPoint(Pts[Q - 1].X + (Pts[Q].X - Pts[Q - 1].X) * F, Pts[Q - 1].Y + (Pts[Q].Y - Pts[Q - 1].Y) * F);
+  end;
+
+  procedure Put(const Q: TLAPoint);
+  begin
+    SetLength(Piece.Pts, Length(Piece.Pts) + 1);
+    Piece.Pts[High(Piece.Pts)] := Q;
+  end;
+
+begin
+  SetLength(Result, 0);
+  Out_ := 0;
+  for I := 0 to High(P) do
+  begin
+    N := Length(P[I].Pts);
+    { contorno fechado: repete o 1o ponto no fim }
+    SetLength(Pts, N + 1);
+    for J := 0 to N - 1 do Pts[J] := P[I].Pts[J];
+    if N > 0 then Pts[N] := P[I].Pts[0];
+    SetLength(Cum, N + 1);
+    Len := 0;
+    if N > 0 then Cum[0] := 0;
+    for J := 1 to N do
+    begin
+      Len := Len + Hypot(Pts[J].X - Pts[J - 1].X, Pts[J].Y - Pts[J - 1].Y);
+      Cum[J] := Len;
+    end;
+    if not P[I].Closed or (N < 3) or not (TabW > 0) or (Len < 4 * TabW) then
+    begin
+      SetLength(Result, Out_ + 1); Result[Out_] := P[I]; Inc(Out_);
+      Continue;
+    end;
+    Count := Max(1, Round(Len / Max(Spacing, TabW * 4)));
+    Step := Len / Count;
+    for K := 0 to Count - 1 do
+    begin
+      { trecho entre o fim de uma ponte e o inicio da seguinte }
+      A := K * Step + TabW / 2;
+      B := (K + 1) * Step - TabW / 2;
+      SetLength(Piece.Pts, 0); Piece.Closed := False;
+      Put(PointAt(A));
+      for J := 1 to N - 1 do
+      begin
+        D := Cum[J];
+        if (D > A) and (D < B) then Put(Pts[J]);
+      end;
+      Put(PointAt(B));
+      SetLength(Result, Out_ + 1); Result[Out_] := Piece; Inc(Out_);
+    end;
   end;
 end;
 

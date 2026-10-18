@@ -34,6 +34,12 @@ procedure AdjustGray(var G: TLAGray; Brightness, Contrast: Integer; Invert: Bool
 function ResampleGray(const G: TLAGray; NW, NH: Integer): TLAGray;
 { resultado: intensidade de queima 0..255 por pixel }
 function DitherBurn(const G: TLAGray; Mode: TLADither): TLAGray;
+{ com os efeitos de celula: CellPx = celula da reticula / passo das linhas em
+  pixels, AngleDeg = inclinacao da grade }
+function DitherBurnEx(const G: TLAGray; Mode: TLADither; CellPx, AngleDeg: Double): TLAGray;
+{ estencil: areas claras viram furos a cortar, com pontes horizontais que
+  seguram as ilhas escuras. Medidas em pixels. }
+function StencilMask(const G: TLAGray; BridgePx, SpacingPx: Integer): TLAGray;
 { bitmap de visualizacao (queima = escuro) }
 function BurnToBitmap(const B: TLAGray; InkColor: TColor): TBitmap;
 { texto -> mascara (255 = tinta) com altura de linha aproximada em pixels }
@@ -185,6 +191,104 @@ begin
 end;
 
 function DitherBurn(const G: TLAGray; Mode: TLADither): TLAGray;
+begin
+  Result := DitherBurnEx(G, Mode, 6, 45);
+end;
+
+{ retícula: bolinhas numa grade inclinada, area da bolinha = tom }
+function HalftoneBurn(const G: TLAGray; Cell, AngleDeg: Double): TLAGray;
+var
+  X, Y, GX, GY: Integer;
+  S, C, U, V, CU, CV, D, Rad: Double;
+begin
+  Result := NewGray(G.W, G.H, 0);
+  SinCos(DegToRad(AngleDeg), S, C);
+  for Y := 0 to G.H - 1 do
+    for X := 0 to G.W - 1 do
+    begin
+      { coordenadas na grade girada }
+      U := X * C + Y * S;
+      V := -X * S + Y * C;
+      CU := (Floor(U / Cell) + 0.5) * Cell;
+      CV := (Floor(V / Cell) + 0.5) * Cell;
+      { tom no centro da celula }
+      GX := EnsureRange(Round(CU * C - CV * S), 0, G.W - 1);
+      GY := EnsureRange(Round(CU * S + CV * C), 0, G.H - 1);
+      D := (255 - G.Data[GY * G.W + GX]) / 255;
+      Rad := Cell * Sqrt(D / Pi);
+      if Rad > Cell * 0.72 then Rad := Cell * 0.72;
+      if Hypot(U - CU, V - CV) <= Rad then Result.Data[Y * G.W + X] := 255;
+    end;
+end;
+
+{ gravura riscada: linhas paralelas, mais grossas no escuro }
+function LinesBurn(const G: TLAGray; Pitch, AngleDeg: Double): TLAGray;
+var
+  X, Y: Integer;
+  S, C, V, F, D: Double;
+begin
+  Result := NewGray(G.W, G.H, 0);
+  SinCos(DegToRad(AngleDeg), S, C);
+  for Y := 0 to G.H - 1 do
+    for X := 0 to G.W - 1 do
+    begin
+      V := -X * S + Y * C;
+      F := Abs(Frac(V / Pitch + 1000) - 0.5) * Pitch;   { distancia ao eixo da linha }
+      D := (255 - G.Data[Y * G.W + X]) / 255;
+      if F <= D * Pitch / 2 then Result.Data[Y * G.W + X] := 255;
+    end;
+end;
+
+{ esboco: bordas (Sobel) sobre a imagem suavizada }
+function SketchBurn(const G: TLAGray): TLAGray;
+var
+  B: array of Single;
+  X, Y, I, J: Integer;
+  Sum, GX, GY: Double;
+  function P(AX, AY: Integer): Single; inline;
+  begin
+    Result := B[EnsureRange(AY, 0, G.H - 1) * G.W + EnsureRange(AX, 0, G.W - 1)];
+  end;
+begin
+  Result := NewGray(G.W, G.H, 0);
+  SetLength(B, Length(G.Data));
+  for Y := 0 to G.H - 1 do
+    for X := 0 to G.W - 1 do
+    begin
+      Sum := 0;
+      for J := -1 to 1 do
+        for I := -1 to 1 do
+          Sum := Sum + G.Data[EnsureRange(Y + J, 0, G.H - 1) * G.W + EnsureRange(X + I, 0, G.W - 1)];
+      B[Y * G.W + X] := Sum / 9;
+    end;
+  for Y := 0 to G.H - 1 do
+    for X := 0 to G.W - 1 do
+    begin
+      GX := (P(X + 1, Y - 1) + 2 * P(X + 1, Y) + P(X + 1, Y + 1)) - (P(X - 1, Y - 1) + 2 * P(X - 1, Y) + P(X - 1, Y + 1));
+      GY := (P(X - 1, Y + 1) + 2 * P(X, Y + 1) + P(X + 1, Y + 1)) - (P(X - 1, Y - 1) + 2 * P(X, Y - 1) + P(X + 1, Y - 1));
+      if Hypot(GX, GY) > 90 then Result.Data[Y * G.W + X] := 255;
+    end;
+end;
+
+function StencilMask(const G: TLAGray; BridgePx, SpacingPx: Integer): TLAGray;
+var
+  X, Y: Integer;
+begin
+  Result := NewGray(G.W, G.H, 0);
+  for Y := 0 to G.H - 1 do
+    for X := 0 to G.W - 1 do
+      if G.Data[Y * G.W + X] >= 128 then Result.Data[Y * G.W + X] := 255;
+  { pontes: faixas de material atravessando os furos }
+  if (BridgePx > 0) and (SpacingPx > BridgePx) then
+    for Y := 0 to G.H - 1 do
+      if (Y mod SpacingPx) < BridgePx then
+        for X := 0 to G.W - 1 do Result.Data[Y * G.W + X] := 0;
+  { borda: o recorte nao toca a margem da placa }
+  for X := 0 to G.W - 1 do begin Result.Data[X] := 0; Result.Data[(G.H - 1) * G.W + X] := 0; end;
+  for Y := 0 to G.H - 1 do begin Result.Data[Y * G.W] := 0; Result.Data[Y * G.W + G.W - 1] := 0; end;
+end;
+
+function DitherBurnEx(const G: TLAGray; Mode: TLADither; CellPx, AngleDeg: Double): TLAGray;
 var
   E: array of Single;
   X, Y, I, DX, DY: Integer;
@@ -194,7 +298,11 @@ const
 begin
   Result := NewGray(G.W, G.H, 0);
   if (G.W = 0) or (G.H = 0) then Exit;
+  if not (CellPx >= 2) then CellPx := 2;
   case Mode of
+    ldHalftone: Result := HalftoneBurn(G, CellPx, AngleDeg);
+    ldLines: Result := LinesBurn(G, CellPx, AngleDeg);
+    ldSketch: Result := SketchBurn(G);
     ldGrayscale:
       for I := 0 to High(G.Data) do
         Result.Data[I] := 255 - G.Data[I];
@@ -412,6 +520,45 @@ begin
   end;
 end;
 
+{ inclinacao (cisalhamento) e curvatura em arco do texto, em unidades locais }
+procedure BendText(var P: TLAPaths; var W, H: Double; SlantDeg, ArcDeg: Double);
+var
+  I, J: Integer;
+  T, A, R, Th, X, Y, Rad: Double;
+begin
+  if (SlantDeg = 0) and (ArcDeg = 0) then Exit;
+  T := Tan(DegToRad(EnsureRange(SlantDeg, -60, 60)));
+  A := DegToRad(EnsureRange(ArcDeg, -340, 340));
+  if Abs(A) > 1e-4 then R := W / Abs(A) else R := 0;
+  for I := 0 to High(P) do
+    for J := 0 to High(P[I].Pts) do
+    begin
+      X := P[I].Pts[J].X + P[I].Pts[J].Y * T;
+      Y := P[I].Pts[J].Y;
+      if R > 0 then
+      begin
+        Th := (X / W - 0.5) * Abs(A);
+        if A > 0 then
+        begin
+          { arco para cima: base no circulo, letras para fora }
+          Rad := R + Y;
+          X := W / 2 + Rad * Sin(Th);
+          Y := -R + Rad * Cos(Th);
+        end
+        else
+        begin
+          { arco para baixo (sorriso): topo das letras no circulo }
+          Rad := R + (H - Y);
+          X := W / 2 + Rad * Sin(Th);
+          Y := H + R - Rad * Cos(Th);
+        end;
+      end;
+      P[I].Pts[J].X := X;
+      P[I].Pts[J].Y := Y;
+    end;
+  if not NormalizePaths(P, W, H) then begin W := 0; H := 0; end;
+end;
+
 procedure RebuildTextShape(S: TLAShape);
 var
   W, H, OldH: Double;
@@ -419,6 +566,7 @@ begin
   OldH := S.H;
   if OldH <= 0 then OldH := 10;
   S.Local := TextToPaths(S.Text, S.FontName, S.Bold, S.Italic, W, H);
+  if (W > 0) and (H > 0) then BendText(S.Local, W, H, S.TextSlant, S.TextArc);
   if (W <= 0) or (H <= 0) then
   begin
     { texto vazio: mantem uma caixa minima }

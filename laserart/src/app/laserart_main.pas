@@ -18,7 +18,7 @@ uses
   Classes, SysUtils, Math, StrUtils, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, ComCtrls, Spin, LCLType, LCLIntf, multisuite_numfmt,
   multisuite_icons, multisuite_controls, multisuite_types, multisuite_registry,
-  multisuite_launcher, laserart_model, laserart_geom, laserart_imaging,
+  multisuite_launcher, laserart_model, laserart_geom, laserart_imaging, laserart_powerest, laserart_powerform,
   laserart_svgimport, laserart_output, laserart_materials, laserart_editor,
   laserart_widgets, laserart_calibrationform, laserart_bedform, laserart_box, laserart_boxform;
 
@@ -65,6 +65,9 @@ type
     LblImage: TLabel;
     EdSides: TSpinEdit;
     EdCorner: TFloatSpinEdit;
+    EdTextRot, EdSlant, EdArc, EdEffSize, EdEffAngle: TFloatSpinEdit;
+    EdStarInner, EdGearModule, EdGearBore, EdTabW, EdTabSp: TFloatSpinEdit;
+    LblGear: TLabel;
     ChkLocked: TCheckBox;
     TextTimer: TTimer;
 
@@ -139,10 +142,12 @@ type
     procedure MirrorHClick(Sender: TObject);
     procedure MirrorVClick(Sender: TObject);
     procedure TraceClick(Sender: TObject);
+    procedure StencilClick(Sender: TObject);
     procedure ZoomInClick(Sender: TObject);
     procedure ZoomOutClick(Sender: TObject);
     procedure ZoomFitClick(Sender: TObject);
     procedure CalibrationClick(Sender: TObject);
+    procedure PowerEstimateClick(Sender: TObject);
     procedure BedClick(Sender: TObject);
     procedure BoxClick(Sender: TObject);
     procedure LockClick(Sender: TObject);
@@ -153,6 +158,9 @@ type
     procedure LayerUpClick(Sender: TObject);
     procedure LayerDownClick(Sender: TObject);
     procedure PalettePick(Sender: TObject; L: Integer);
+    procedure LayerNewClick(Sender: TObject);
+    procedure LayerDeleteClick(Sender: TObject);
+    procedure ShowLayer(L: Integer);
     procedure TextChange(Sender: TObject);
     procedure TextTimerFire(Sender: TObject);
     procedure ObjectParamChange(Sender: TObject);
@@ -350,9 +358,11 @@ var
   T: TLATool;
   Y: Integer;
 const
-  Icons: array[TLATool] of TSuiteIconKind = (sikPointer, sikRect, sikCircle, sikPolygon, sikPen, sikText);
+  Icons: array[TLATool] of TSuiteIconKind = (sikPointer, sikRect, sikCircle, sikPolygon, sikPen, sikText,
+    sikGear, sikStar);
   Hints: array[TLATool] of string = ('Selecionar e mover (V)', 'Retangulo (R)', 'Elipse (E)',
-    'Poligono (P)', 'Linha / polilinha: clique os pontos; duplo clique termina (L)', 'Texto (T)');
+    'Poligono (P)', 'Linha / polilinha: clique os pontos; duplo clique termina (L)', 'Texto (T)',
+    'Engrenagem (G): aumentar o tamanho acrescenta dentes do mesmo modulo', 'Estrela (S)');
 begin
   P := NewPanel(Self, alLeft, 54, clSuiteCard);
   P.OnPaint := @CardPaint;
@@ -381,7 +391,9 @@ begin
   TopP := NewPanel(AParent, alTop, 40, clSuiteCard);
   NewButton(TopP, '', 'Executar esta camada antes', 6, 4, 40, 30, sbsSoft, clSuitePrimary, sikArrowUp, @LayerUpClick);
   NewButton(TopP, '', 'Executar esta camada depois', 50, 4, 40, 30, sbsSoft, clSuitePrimary, sikArrowDown, @LayerDownClick);
-  LblLayer := NewLabel(TopP, 'Selecione uma camada', 100, 10, 260);
+  NewButton(TopP, '', 'Nova camada (proxima cor livre da paleta)', 98, 4, 40, 30, sbsSoft, clSuitePrimary, sikNew, @LayerNewClick);
+  NewButton(TopP, '', 'Excluir a camada selecionada', 142, 4, 40, 30, sbsSoft, clSuiteDanger, sikTrash, @LayerDeleteClick);
+  LblLayer := NewLabel(TopP, 'Selecione uma camada', 192, 10, 200);
   LblLayer.Font.Style := [fsBold];
   LblLayer.Font.Color := clSuiteText;
   TopP := NewPanel(AParent, alTop, 156, clSuiteCard);
@@ -428,12 +440,21 @@ begin
   ChkAir.SetBounds(128, Y + 20, 200, 24);
   ChkAir.OnChange := @LayerParamChange;
   Y := Y + 48;
+  NewLabel(LayerEditor, 'Pontes no corte (mm, 0 = sem)', X, Y, 170);
+  EdTabW := NewFloat(LayerEditor, X, Y + 18, 168, 0, 20, 2, @LayerParamChange);
+  EdTabW.Hint := 'Trechos sem laser que seguram a peca na chapa (so camadas Linha)';
+  EdTabW.ShowHint := True;
+  NewLabel(LayerEditor, 'Uma ponte a cada (mm)', 188, Y, 168);
+  EdTabSp := NewFloat(LayerEditor, 188, Y + 18, 168, 5, 1000, 0, @LayerParamChange);
+  Y := Y + 48;
   with NewLabel(LayerEditor, 'Velocidade e potencia dependem da maquina e do material: use o Teste de material e salve o resultado na aba Materiais.', X, Y, 346) do
   begin
     Height := 34;
     WordWrap := True;
     Font.Size := 8;
   end;
+  NewButton(LayerEditor, 'Estimar potencia pelo laser...', 'Calcula potencia, velocidade e passadas pelos W do laser, material e espessura',
+    X, Y + 40, 346, 30, sbsSoft, clSuitePrimary, sikGauge, @PowerEstimateClick);
 end;
 
 procedure TLaserArtForm.BuildObjectTab(AParent: TWinControl);
@@ -449,7 +470,7 @@ begin
   end;
 
   { texto }
-  PnlText := NewPanel(AParent, alTop, 230, clSuiteCard);
+  PnlText := NewPanel(AParent, alTop, 282, clSuiteCard);
   with TSuiteSectionTitle.CreateTitle(Self, 'TEXTO', sikText, ArtAccent) do
   begin
     Parent := PnlText; SetBounds(12, 8, 300, 22);
@@ -473,11 +494,21 @@ begin
   ChkItalic := TCheckBox.Create(Self);
   ChkItalic.Parent := PnlText; ChkItalic.Caption := 'Italico'; ChkItalic.SetBounds(120, 174, 100, 24);
   ChkItalic.OnChange := @ObjectParamChange;
-  Lb := NewLabel(PnlText, 'Altura do texto = campo "Altura" na barra superior.', 12, 202, 344);
+  NewLabel(PnlText, 'Rotacao (graus)', 12, 202, 110);
+  EdTextRot := NewFloat(PnlText, 12, 220, 108, -360, 360, 1, @ObjectParamChange);
+  NewLabel(PnlText, 'Inclinacao (graus)', 128, 202, 110);
+  EdSlant := NewFloat(PnlText, 128, 220, 108, -60, 60, 1, @ObjectParamChange);
+  EdSlant.Hint := 'Inclina as letras (obliquo) em qualquer fonte; + para a direita';
+  EdSlant.ShowHint := True;
+  NewLabel(PnlText, 'Arco (graus)', 244, 202, 112);
+  EdArc := NewFloat(PnlText, 244, 220, 112, -340, 340, 0, @ObjectParamChange);
+  EdArc.Hint := 'Curva o texto num arco: + arco para cima, - arco para baixo';
+  EdArc.ShowHint := True;
+  Lb := NewLabel(PnlText, 'Altura do texto = campo "Altura" na barra superior.', 12, 254, 344);
   Lb.Font.Size := 8;
 
   { imagem }
-  PnlImage := NewPanel(AParent, alTop, 244, clSuiteCard);
+  PnlImage := NewPanel(AParent, alTop, 330, clSuiteCard);
   with TSuiteSectionTitle.CreateTitle(Self, 'IMAGEM', sikImage, ArtAccent) do
   begin
     Parent := PnlImage; SetBounds(12, 8, 300, 22);
@@ -492,8 +523,18 @@ begin
   CbDither.Items.Add('Floyd-Steinberg');
   CbDither.Items.Add('Jarvis');
   CbDither.Items.Add('Tons de cinza (potencia variavel)');
+  CbDither.Items.Add('Reticula de jornal (bolinhas)');
+  CbDither.Items.Add('Gravura riscada (linhas)');
+  CbDither.Items.Add('Esboco (so contornos)');
   CbDither.SetBounds(12, Y + 18, 344, 26);
   CbDither.OnChange := @ObjectParamChange;
+  Y := Y + 52;
+  NewLabel(PnlImage, 'Celula / passo (mm)', 12, Y, 168);
+  EdEffSize := NewFloat(PnlImage, 12, Y + 18, 168, 0.2, 10, 2, @ObjectParamChange);
+  EdEffSize.Hint := 'Tamanho da bolinha da reticula ou distancia entre as linhas';
+  EdEffSize.ShowHint := True;
+  NewLabel(PnlImage, 'Angulo (graus)', 188, Y, 168);
+  EdEffAngle := NewFloat(PnlImage, 188, Y + 18, 168, -180, 180, 0, @ObjectParamChange);
   Y := Y + 52;
   NewLabel(PnlImage, 'Brilho', 12, Y);
   TbBright := TTrackBar.Create(Self);
@@ -515,14 +556,16 @@ begin
   ChkInvert.OnChange := @ObjectParamChange;
   NewButton(PnlImage, 'Vetorizar imagem', 'Gera contornos a partir das areas escuras', 12, Y + 28, 344, 30,
     sbsSoft, ArtAccent, sikWand, @TraceClick);
+  NewButton(PnlImage, 'Foto recorte (estencil)', 'Corta as areas claras: a sombra fica no material e a luz projeta a imagem',
+    12, Y + 62, 344, 30, sbsSoft, ArtAccent, sikFlame, @StencilClick);
 
   { forma }
-  PnlShape := NewPanel(AParent, alTop, 104, clSuiteCard);
+  PnlShape := NewPanel(AParent, alTop, 180, clSuiteCard);
   with TSuiteSectionTitle.CreateTitle(Self, 'FORMA', sikPolygon, ArtAccent) do
   begin
     Parent := PnlShape; SetBounds(12, 6, 300, 22);
   end;
-  NewLabel(PnlShape, 'Lados (poligono)', 12, 28);
+  NewLabel(PnlShape, 'Lados / pontas', 12, 28);
   EdSides := TSpinEdit.Create(Self);
   EdSides.Parent := PnlShape;
   EdSides.SetBounds(12, 46, 110, 26);
@@ -534,7 +577,16 @@ begin
   ChkLocked.Parent := PnlShape;
   ChkLocked.Caption := 'Travar posicao';
   ChkLocked.Hint := 'Nao move nem redimensiona';
-  ChkLocked.SetBounds(12, 76, 340, 24);
+  NewLabel(PnlShape, 'Raio interno (%)', 12, 76, 110);
+  EdStarInner := NewFloat(PnlShape, 12, 94, 108, 5, 95, 0, @ObjectParamChange);
+  NewLabel(PnlShape, 'Modulo (mm)', 128, 76, 110);
+  EdGearModule := NewFloat(PnlShape, 128, 94, 108, 0.3, 20, 2, @ObjectParamChange);
+  EdGearModule.Hint := 'Tamanho do dente. Aumentar a engrenagem acrescenta dentes deste modulo';
+  EdGearModule.ShowHint := True;
+  NewLabel(PnlShape, 'Furo (mm)', 244, 76, 112);
+  EdGearBore := NewFloat(PnlShape, 244, 94, 112, 0, 500, 2, @ObjectParamChange);
+  LblGear := NewLabel(PnlShape, '', 12, 124, 344);
+  ChkLocked.SetBounds(12, 148, 340, 24);
   ChkLocked.OnChange := @ObjectParamChange;
 
   { ordem de cima para baixo: texto, imagem, forma }
@@ -830,6 +882,9 @@ begin
     EdInterval.Enabled := L.Mode <> lmLine;
     EdPMin.Enabled := L.Mode = lmImage;
     ChkAir.Checked := L.AirAssist;
+    EdTabW.Value := L.TabWidth;
+    EdTabSp.Value := L.TabSpacing;
+    EdTabW.Enabled := L.Mode = lmLine; EdTabSp.Enabled := L.Mode = lmLine;
   finally
     FUpdating := False;
   end;
@@ -855,6 +910,9 @@ begin
       CbFont.ItemIndex := CbFont.Items.IndexOf(S.FontName);
       ChkBold.Checked := S.Bold;
       ChkItalic.Checked := S.Italic;
+      EdTextRot.Value := S.Angle;
+      EdSlant.Value := S.TextSlant;
+      EdArc.Value := S.TextArc;
     end;
     if S.Kind = skImage then
     begin
@@ -863,8 +921,22 @@ begin
       TbBright.Position := S.Brightness;
       TbContrast.Position := S.Contrast;
       ChkInvert.Checked := S.Invert;
+      EdEffSize.Value := S.EffectSize;
+      EdEffAngle.Value := S.EffectAngle;
+      EdEffSize.Enabled := S.Dither in [ldHalftone, ldLines];
+      EdEffAngle.Enabled := EdEffSize.Enabled;
     end;
-    EdSides.Enabled := S.Kind = skPolygon;
+    EdStarInner.Enabled := S.Kind = skStar;
+    EdStarInner.Value := S.StarInner * 100;
+    EdGearModule.Enabled := S.Kind = skGear;
+    EdGearBore.Enabled := S.Kind = skGear;
+    EdGearModule.Value := S.GearModule;
+    EdGearBore.Value := S.GearBore;
+    if S.Kind = skGear then
+      LblGear.Caption := Format('%d dentes  |  diametro primitivo %.2f mm  |  externo %.2f mm',
+        [GearTeeth(S), S.GearModule * GearTeeth(S), S.GearModule * (GearTeeth(S) + 2)], InvariantFS)
+    else LblGear.Caption := '';
+    EdSides.Enabled := S.Kind in [skPolygon, skStar];
     EdSides.Value := S.Sides;
     EdCorner.Enabled := S.Kind = skRect;
     EdCorner.Value := S.CornerRadius;
@@ -1147,7 +1219,7 @@ begin
   for I := 0 to LA_LAYER_COUNT - 1 do
     if Doc.Layers[I].Mode = lmImage then Exit(I);
   for I := 0 to LA_LAYER_COUNT - 1 do
-    if not Doc.LayerUsed(I) then Exit(I);
+    if not Doc.LayerUsed(I) and not Doc.Layers[I].Defined then Exit(I);
 end;
 
 procedure TLaserArtForm.ImportFile(const FN: string);
@@ -1348,6 +1420,69 @@ begin
   SetStatus(Format('Vetorizado: %d contornos na camada C%.2d.', [Length(P), S.Layer]));
 end;
 
+{ Foto recorte (estencil): as areas claras viram furos cortados; a sombra fica
+  no material e a luz que passa projeta a imagem. Pontes seguram as ilhas. }
+procedure TLaserArtForm.StencilClick(Sender: TObject);
+var
+  Img, S: TLAShape;
+  G, M: TLAGray;
+  P: TLAPaths;
+  Vals: array of string;
+  Bridge, Spacing, Px, F, W, H: Double;
+  L, I: Integer;
+begin
+  if (Editor.Selection.Count <> 1) or (TLAShape(Editor.Selection[0]).Kind <> skImage) then
+  begin
+    MessageDlg('Foto recorte', 'Selecione uma imagem.', mtInformation, [mbOK], 0);
+    Exit;
+  end;
+  Img := TLAShape(Editor.Selection[0]);
+  SetLength(Vals, 2); Vals[0] := '1.0'; Vals[1] := '8';
+  if not InputQuery('Foto recorte (estencil)', ['Largura das pontes (mm, 0 = sem)', 'Distancia entre pontes (mm)'], Vals) then Exit;
+  if not TryParseFloat(Vals[0], Bridge) or not TryParseFloat(Vals[1], Spacing) or (Bridge < 0) or (Spacing <= Bridge) then
+  begin
+    MessageDlg('Foto recorte', 'Pontes: largura >= 0 e distancia maior que a largura.', mtError, [mbOK], 0);
+    Exit;
+  end;
+  Screen.Cursor := crHourGlass;
+  try
+    G := LoadGray(Img.ImageFile);
+    if G.W = 0 then Exit;
+    F := Max(G.W, G.H) / 800;
+    if F > 1 then G := ResampleGray(G, Round(G.W / F), Round(G.H / F));
+    AdjustGray(G, Img.Brightness, Img.Contrast, Img.Invert);
+    Px := Img.H / G.H;   { mm por pixel }
+    M := StencilMask(G, Round(Bridge / Px), Max(2, Round(Spacing / Px)));
+    P := TraceMask(M, 0.8, 6);
+    W := M.W; H := M.H;
+  finally
+    Screen.Cursor := crDefault;
+  end;
+  if Length(P) = 0 then
+  begin
+    MessageDlg('Foto recorte', 'Nenhuma area clara para cortar (ajuste brilho/contraste).', mtInformation, [mbOK], 0);
+    Exit;
+  end;
+  PushUndo;
+  S := TLAShape.Create(skPath);
+  S.Name := 'Recorte de ' + Img.Name;
+  S.Local := P; S.LocalW := W; S.LocalH := H;
+  S.X := Img.X; S.Y := Img.Y; S.W := Img.W; S.H := Img.H;
+  S.MirrorX := Img.MirrorX; S.MirrorY := Img.MirrorY;
+  S.Angle := Img.Angle;
+  { camada de corte: a atual se for Linha, senao a primeira livre como Linha }
+  L := Editor.CurrentLayer;
+  if Doc.Layers[L].Mode <> lmLine then
+    for I := 0 to LA_LAYER_COUNT - 1 do
+      if not Doc.LayerUsed(I) and not Doc.Layers[I].Defined then begin L := I; Doc.Layers[L].Mode := lmLine; Break; end;
+  S.Layer := L;
+  Doc.Add(S);
+  Editor.SelectShape(S);
+  EditorChange(nil);
+  RefreshAll;
+  SetStatus(Format('Foto recorte: %d contornos de corte na camada C%.2d. Desligue a saida da imagem antes de cortar.', [Length(P), L]));
+end;
+
 procedure TLaserArtForm.ZoomInClick(Sender: TObject);
 begin
   Editor.ZoomBy(1.25);
@@ -1464,9 +1599,64 @@ begin
     if F.ShowModal <> mrOK then Exit;
     PushUndo;
     Doc.BedW := F.WidthMM; Doc.BedH := F.HeightMM; Doc.SMax := F.SMax;
+    if F.OpticalPowerW > 0 then Doc.LaserW := F.OpticalPowerW;
     Editor.ZoomFit;
     RefreshAll;
     SetStatus(Format('Mesa %.2f x %.2f mm, S maximo %.0f', [Doc.BedW, Doc.BedH, Doc.SMax], InvariantFS));
+  finally
+    F.Free;
+  end;
+end;
+
+procedure TLaserArtForm.PowerEstimateClick(Sender: TObject);
+var
+  F: TLaserArtPowerForm;
+  In_: TLAEstimateInput;
+  L: TLALayer;
+  E: TLAEstimate;
+begin
+  if SelectedLayer < 0 then
+  begin
+    MessageDlg('Estimar potencia', 'Selecione uma camada.', mtInformation, [mbOK], 0);
+    Exit;
+  end;
+  L := Doc.Layers[SelectedLayer];
+  In_ := Default(TLAEstimateInput);
+  In_.Source := TLALaserSource(EnsureRange(Doc.LaserSource, 0, Ord(High(TLALaserSource))));
+  In_.OpticalW := Doc.LaserW; In_.SpotMM := Doc.LaserSpot; In_.MaxFeed := Doc.LaserMaxFeed;
+  In_.Material := Doc.MaterialIndex; In_.ThicknessMM := Doc.MaterialThickness;
+  In_.IntervalMM := L.Interval;
+  if L.Mode = lmLine then In_.Goal := lgCut else In_.Goal := lgEngraveLight;
+  F := TLaserArtPowerForm.Create(Self);
+  try
+    F.Configure(In_, L.Caption);
+    if F.ShowModal <> mrOK then
+    begin
+      { guarda o laser/material informados mesmo sem aplicar }
+      In_ := F.Input;
+      Doc.LaserSource := Ord(In_.Source); Doc.MaterialIndex := In_.Material;
+      if In_.OpticalW > 0 then Doc.LaserW := In_.OpticalW;
+      if In_.SpotMM > 0 then Doc.LaserSpot := In_.SpotMM;
+      if In_.MaxFeed > 0 then Doc.LaserMaxFeed := In_.MaxFeed;
+      if In_.ThicknessMM > 0 then Doc.MaterialThickness := In_.ThicknessMM;
+      Exit;
+    end;
+    PushUndo;
+    In_ := F.Input; E := F.Estimate;
+    Doc.LaserSource := Ord(In_.Source); Doc.MaterialIndex := In_.Material;
+    Doc.LaserW := In_.OpticalW; Doc.LaserSpot := In_.SpotMM; Doc.LaserMaxFeed := In_.MaxFeed;
+    if In_.ThicknessMM > 0 then Doc.MaterialThickness := In_.ThicknessMM;
+    L.Speed := E.Feed;
+    L.PowerMax := E.Percent;
+    L.Passes := EnsureRange(E.Passes, 1, 50);
+    if (L.Mode <> lmLine) and (In_.IntervalMM > 0) then L.Interval := In_.IntervalMM;
+    RefreshLayerEditor;
+    LayerList.Invalidate;
+    Editor.PreviewJob := nil;
+    Editor.InvalidatePreviews;
+    SetModified(True);
+    SetStatus(Format('Camada %s: %.0f%%, %.0f mm/min, %d passada(s) (estimativa - confirme no Teste de material).',
+      [L.Caption, E.Percent, E.Feed, L.Passes], InvariantFS));
   finally
     F.Free;
   end;
@@ -1516,7 +1706,10 @@ begin
   L.Passes := EdPasses.Value;
   L.Interval := EdInterval.Value;
   L.AirAssist := ChkAir.Checked;
+  L.TabWidth := EdTabW.Value;
+  L.TabSpacing := EdTabSp.Value;
   EdInterval.Enabled := L.Mode <> lmLine;
+  EdTabW.Enabled := L.Mode = lmLine; EdTabSp.Enabled := L.Mode = lmLine;
   EdPMin.Enabled := L.Mode = lmImage;
   LayerList.Invalidate;
   Editor.PreviewJob := nil;
@@ -1544,12 +1737,78 @@ end;
 
 procedure TLaserArtForm.PalettePick(Sender: TObject; L: Integer);
 begin
-  Editor.CurrentLayer := L;
   if Editor.Selection.Count > 0 then
-    Editor.SetSelectionLayer(L);
+    Editor.SetSelectionLayer(L)
+  else if not Doc.LayerUsed(L) and not Doc.Layers[L].Defined then
+  begin
+    { sem selecao: a cor vira uma camada da lista para os proximos objetos }
+    PushUndo;
+    Doc.Layers[L].Defined := True;
+    SetModified(True);
+  end;
+  ShowLayer(L);
+  SetStatus(Format('Camada atual: C%.2d', [L]));
+end;
+
+procedure TLaserArtForm.ShowLayer(L: Integer);
+begin
+  Editor.CurrentLayer := L;
+  Doc.EnsureLayerInOrder(L);
   LayerList.SelectedLayer := L;
   RefreshAll;
-  SetStatus(Format('Camada atual: C%.2d', [L]));
+  LayerList.EnsureVisible(L);
+  RefreshLayerEditor;
+end;
+
+procedure TLaserArtForm.LayerNewClick(Sender: TObject);
+var
+  I, L: Integer;
+  InList: Boolean;
+begin
+  L := -1;
+  for I := 0 to LA_LAYER_COUNT - 1 do
+  begin
+    InList := Doc.LayerUsed(I) or Doc.Layers[I].Defined;
+    if not InList then begin L := I; Break; end;
+  end;
+  if L < 0 then
+  begin
+    MessageDlg('Camadas', Format('As %d camadas ja estao em uso.', [LA_LAYER_COUNT]), mtInformation, [mbOK], 0);
+    Exit;
+  end;
+  PushUndo;
+  Doc.Layers[L].Defined := True;
+  SetModified(True);
+  ShowLayer(L);
+  SetStatus(Format('Camada C%.2d criada: novos objetos vao para ela. Configure modo, velocidade e potencia.', [L]));
+end;
+
+procedure TLaserArtForm.LayerDeleteClick(Sender: TObject);
+var
+  L, I, N: Integer;
+begin
+  L := SelectedLayer;
+  if L < 0 then Exit;
+  N := 0;
+  for I := 0 to Doc.Count - 1 do
+    if Doc.Shape(I).Layer = L then Inc(N);
+  if (N > 0) and (MessageDlg('Excluir camada',
+    Format('A camada C%.2d tem %d objeto(s). Excluir a camada e os objetos?', [L, N]),
+    mtConfirmation, [mbYes, mbNo], 0) <> mrYes) then Exit;
+  PushUndo;
+  Editor.ClearSelection;
+  for I := Doc.Count - 1 downto 0 do
+    if Doc.Shape(I).Layer = L then Doc.Remove(Doc.Shape(I));
+  Doc.Layers[L].Defined := False;
+  Doc.SyncLayerOrder;
+  if Length(Doc.LayerOrder) > 0 then LayerList.SelectedLayer := Doc.LayerOrder[0]
+  else LayerList.SelectedLayer := -1;
+  if LayerList.SelectedLayer >= 0 then Editor.CurrentLayer := LayerList.SelectedLayer;
+  Editor.PreviewJob := nil;
+  SetModified(True);
+  RefreshAll;
+  RefreshLayerEditor;
+  SetStatus(Format('Camada C%.2d excluida.', [L]));
 end;
 
 { ---------------------------------------------------------------------------- }
@@ -1592,8 +1851,30 @@ begin
     S.Italic := ChkItalic.Checked;
     RebuildTextShape(S);
   end
-  else if (Sender = CbDither) or (Sender = TbBright) or (Sender = TbContrast) or (Sender = ChkInvert) then
+  else if (Sender = EdSlant) or (Sender = EdArc) then
   begin
+    if S.Kind <> skText then Exit;
+    S.TextSlant := EdSlant.Value;
+    S.TextArc := EdArc.Value;
+    RebuildTextShape(S);
+  end
+  else if Sender = EdTextRot then
+    Editor.SetSelectionAngle(EdTextRot.Value)
+  else if Sender = EdStarInner then
+    S.StarInner := EdStarInner.Value / 100
+  else if (Sender = EdGearModule) or (Sender = EdGearBore) then
+  begin
+    S.GearModule := EdGearModule.Value;
+    S.GearBore := EdGearBore.Value;
+    RefreshObjectPanel;
+  end
+  else if (Sender = CbDither) or (Sender = TbBright) or (Sender = TbContrast) or (Sender = ChkInvert) or
+    (Sender = EdEffSize) or (Sender = EdEffAngle) then
+  begin
+    S.EffectSize := EdEffSize.Value;
+    S.EffectAngle := EdEffAngle.Value;
+    EdEffSize.Enabled := TLADither(Max(0, CbDither.ItemIndex)) in [ldHalftone, ldLines];
+    EdEffAngle.Enabled := EdEffSize.Enabled;
     S.Dither := TLADither(Max(0, CbDither.ItemIndex));
     S.Brightness := TbBright.Position;
     S.Contrast := TbContrast.Position;
@@ -1920,6 +2201,8 @@ begin
     VK_P: Editor.Tool := ltPolygon;
     VK_L: Editor.Tool := ltLine;
     VK_T: Editor.Tool := ltText;
+    VK_G: Editor.Tool := ltGear;
+    VK_S: Editor.Tool := ltStar;
   else
     Exit;
   end;

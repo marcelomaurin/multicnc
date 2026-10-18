@@ -32,7 +32,7 @@ type
     sikUndo, sikRedo, sikCopy, sikMirrorH, sikMirrorV, sikImport, sikEye,
     sikWand, sikFit, sikLayers, sikExport, sikNew, sikZoomIn, sikZoomOut,
     { ferramentas novas (no fim: os ordinais aparecem em caches) }
-    sikMakePCB, sikRouterPCB, sikMakeRouter, sikTrim
+    sikMakePCB, sikRouterPCB, sikMakeRouter, sikTrim, sikStar
   );
 
   { sifNone    - apenas o glifo, ocupando toda a area
@@ -336,7 +336,7 @@ end;
 procedure DrawGlyph(Pn: TMaskPainter; AKind: TSuiteIconKind);
 var
   T: Integer;
-  B: Double;
+  B, Rs: Double;
   Pts: array of Double;
 begin
   case AKind of
@@ -712,6 +712,18 @@ begin
     sikCircle:
       Pn.Circle(12, 12, 8.5);
 
+    sikStar:
+      begin
+        SetLength(Pts, 20);
+        for T := 0 to 9 do
+        begin
+          B := DegToRad(-90 + T * 36);
+          if Odd(T) then Rs := 4 else Rs := 9.5;
+          Pts[T * 2] := 12 + Rs * Cos(B);
+          Pts[T * 2 + 1] := 12.5 + Rs * Sin(B);
+        end;
+        Pn.Poly(Pts, True);
+      end;
     sikPolygon:
       begin
         SetLength(Pts, 12);

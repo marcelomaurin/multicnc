@@ -2,8 +2,8 @@ unit laserpcb_main;
 {$mode objfpc}{$H+}
 interface
 uses Classes, SysUtils, Math, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls,
-  Dialogs, Graphics, laserpcb_project, laserpcb_preview, laserpcb_layout,
-  laserpcb_types, laserpcb_layertable, laserpcb_roles, makepcb_model, makepcb_library, makepcb_editor, makepcb_gallery, laserart_widgets, multisuite_controls, multisuite_icons;
+  Dialogs, Graphics, Menus, laserpcb_project, laserpcb_preview, laserpcb_layout,
+  laserpcb_types, laserpcb_layertable, laserpcb_roles, laserpcb_powerest, makepcb_model, makepcb_library, makepcb_editor, makepcb_gallery, makepcb_render, makepcb_select, laserart_widgets, multisuite_controls, multisuite_icons;
 type
   TLaserPCBForm = class(TForm)
   private
@@ -13,6 +13,7 @@ type
     DesignLib: TMPLibrary;
     DesignEditor: TMPEditor;
     DesignGallery: TMPGallery;
+    DesignGalleryBox: TScrollBox;
     DesignSearch: TEdit;
     TrackWidthEdit, ClearanceEdit: TEdit;
     RouteLog: TMemo;
@@ -20,7 +21,18 @@ type
     OperationCopperBox: TComboBox;
     FDesignStamp: string;
     FDesignDirty: Boolean;
+    ComponentMenu: TPopupMenu;
+    FMenuComp: Integer;
     function EnsureDesign: Boolean;
+    function MenuItem(AParent: TMenuItem; const ACaption, AKey: string; ATag: Integer;
+      AEnabled: Boolean): TMenuItem;
+    procedure MenuLine(AParent: TMenuItem);
+    procedure DesignItemContext(Sender: TObject; Kind: TMPSelKind; Index: Integer;
+      const ScreenPos: TPoint);
+    procedure ComponentMenuClick(Sender: TObject);
+    function ComponentTrackHits(CI: Integer; T: TMPTrack): Boolean;
+    procedure RipupSelection;
+    procedure ShowComponentProperties(C: TMPComponent);
     procedure SyncDesign;
     procedure DesignChanged(Sender: TObject);
     procedure DesignStatus(Sender: TObject; const AText: string);
@@ -52,7 +64,7 @@ type
     LayerName: TEdit;
     LayerTitle, Estimate: TLabel;
     Mirror, Copper, Holes, Paths, Locked: TCheckBox;
-    Power, Feed, Spot, Passes, SMax, Res, Overlap: TEdit;
+    Power, Feed, Spot, Passes, SMax, Res, Overlap, RepeatsEdit: TEdit;
     OpticalPower, PowerPercent, TargetWatts: TEdit;
     LaserPowerInfo, LayerPowerInfo: TLabel;
     BedW, BedH, Margin, Spacing, PosX, PosY, Rotation, ScaleX, ScaleY: TEdit;
@@ -64,6 +76,10 @@ type
     FExportedFile: string;
     FEditOp: TLPOperation;   { camada mostrada no editor }
     procedure LaserPowerChanged(Sender: TObject);
+    procedure PowerEstimateClick(Sender: TObject);
+    procedure TestGridClick(Sender: TObject);
+    function EstimateKindFor(Op: TLPOperation): TLPEstimateKind;
+    procedure ApplyEstimate(Op: TLPOperation; const E: TLPEstimate);
     procedure UpdateLaserPower;
     procedure AddHoleLayerClick(Sender: TObject);
     procedure LaserReferencesClick(Sender: TObject);
@@ -134,7 +150,7 @@ type
 implementation
 uses laserpcb_job, laserpcb_gcode, laserpcb_profile, laserpcb_nesting,
   laserpcb_geom, laserpcb_alignment, laserpcb_drill, multisuite_numfmt, multisuite_registry,
-  multisuite_launcher, multisuite_types, multisuite_context, laserart_bedform, laserpcb_boardform, laserpcb_referenceform, laserpcb_componentsform, laserpcb_components, laserpcb_design, makepcb_route, makepcb_drc;
+  multisuite_launcher, multisuite_types, multisuite_context, laserart_bedform, laserpcb_boardform, laserpcb_referenceform, laserpcb_powerform, laserpcb_testgrid, laserpcb_testgridform, laserpcb_componentsform, laserpcb_components, laserpcb_design, makepcb_route, makepcb_drc;
 
 function TLaserPCBForm.Button(ParentControl: TWinControl; const AText: string;
   X,Y,W: Integer; AIcon: TSuiteIconKind; Handler: TNotifyEvent): TSuiteButton;
@@ -254,8 +270,15 @@ begin
         Button(Scroll,'Virar componente (Top / Bottom)',16,218,290,sikMirrorH,@DesignFlipClick);
         DesignSearch:=TEdit.Create(Self);DesignSearch.Parent:=Scroll;
         DesignSearch.SetBounds(16,264,290,28);DesignSearch.TextHint:='Buscar componente';DesignSearch.OnChange:=@DesignFilter;
-        DesignGallery:=TMPGallery.Create(Self);DesignGallery.Parent:=Scroll;
-        DesignGallery.SetBounds(16,304,290,400);DesignGallery.Lib:=DesignLib;DesignGallery.OnPick:=@DesignPick;
+        { a galeria cresce ate caber todos os itens: fica numa caixa propria
+          com rolagem para nao cobrir os botoes abaixo }
+        DesignGalleryBox:=TScrollBox.Create(Self);DesignGalleryBox.Parent:=Scroll;
+        DesignGalleryBox.SetBounds(16,304,290,400);DesignGalleryBox.BorderStyle:=bsNone;
+        DesignGalleryBox.Color:=clSuiteCard;DesignGalleryBox.HorzScrollBar.Visible:=False;
+        DesignGalleryBox.VertScrollBar.Increment:=40;
+        DesignGallery:=TMPGallery.Create(Self);DesignGallery.Parent:=DesignGalleryBox;
+        DesignGallery.Left:=0;DesignGallery.Top:=0;DesignGallery.Width:=270;
+        DesignGallery.Grouped:=True;DesignGallery.Lib:=DesignLib;DesignGallery.OnPick:=@DesignPick;
         Button(Scroll,'Abrir projeto PCB...',16,724,290,sikFolder,@OpenDesignClick);
         Button(Scroll,'Salvar projeto PCB...',16,766,290,sikSave,@SaveDesignClick);
       end;
@@ -321,7 +344,12 @@ begin
         TargetWatts.Text:='0'; TargetWatts.OnChange:=@LaserPowerChanged;
         Feed := Field(Scroll,'Velocidade calibrada (mm/min)','0',714);
         Passes := Field(Scroll,'Passadas / aneis na isolacao','1',770);
-        Overlap := Field(Scroll,'Sobreposicao (%)','20',826);
+        Overlap := Field(Scroll,'Sobreposicao (%)','20',826); Overlap.Width := 135;
+        LabelAt(Scroll,'Repeticoes (isolacao)',166,826,140,18);
+        RepeatsEdit:=TEdit.Create(Self); RepeatsEdit.Parent:=Scroll; RepeatsEdit.Name:='IsolationRepeats';
+        RepeatsEdit.SetBounds(166,846,140,28); RepeatsEdit.Text:='1'; RepeatsEdit.OnChange:=@SettingsChanged;
+        RepeatsEdit.Hint:='Quantas vezes cada anel de isolacao e percorrido (remocao direta do cobre).';
+        RepeatsEdit.ShowHint:=True;
         LabelAt(Scroll,'Marcacao de furos',16,884,260,18);
         MarkKindBox := TComboBox.Create(Self); MarkKindBox.Parent := Scroll;
         MarkKindBox.SetBounds(16,904,290,30); MarkKindBox.Style := csDropDownList;
@@ -343,7 +371,9 @@ begin
         Button(Scroll,'Salvar perfil',16,1400,140,sikSave,@SaveProfileClick);
         Button(Scroll,'Carregar',166,1400,140,sikFolder,@LoadProfileClick);
         Button(Scroll,'Tabela de referencias (web)',16,1446,290,sikTests,@LaserReferencesClick);
-        LayerPowerInfo:=LabelAt(Scroll,'',16,1494,280,120);
+        Button(Scroll,'Estimar pela potencia do laser...',16,1492,290,sikWand,@PowerEstimateClick);
+        Button(Scroll,'Gabarito de teste (aferir)...',16,1534,290,sikTests,@TestGridClick);
+        LayerPowerInfo:=LabelAt(Scroll,'',16,1576,280,52);
         LayerPowerInfo.Name:='LayerPowerInfo';
         LabelAt(Scroll,'Aplicar na camada de cobre',16,1630,290,18);
         OperationCopperBox:=TComboBox.Create(Self);OperationCopperBox.Parent:=Scroll;
@@ -406,6 +436,7 @@ begin
   DesignEditor.Renderer.NormalBackgroundColor:=View.Color;
   DesignEditor.Renderer.NormalBoardColor:=RGBToColor(224,238,231);
   DesignEditor.OnChange:=@DesignChanged;DesignEditor.OnStatus:=@DesignStatus;
+  DesignEditor.OnItemContext:=@DesignItemContext;
   Pages.ActivePageIndex := 0; Nav[0].SetLook(sbsSolid,clSuitePrimary,sikLayers);
   FUpdating := False;
   OnResize := @ResizeUI; OnShow := @ShowUI;
@@ -492,6 +523,7 @@ begin
     Op.Name := Trim(LayerName.Text); if Op.Name = '' then Op.Name := CamModeName(Op.Mode);
     Op.Mode := P.Mode; Op.Process:=Profile.Process; Op.Power := Profile.Power; Op.Feed := Profile.Feed;
     Op.Passes := Profile.Passes; Op.Overlap := O; Op.MarkKind := TLPMarkKind(MarkKindBox.ItemIndex);
+    if TryStrToInt(RepeatsEdit.Text,N) and (N >= 1) and (N <= 1000) then Op.Repeats := N;
     Op.MarkDiameter := MarkD; Op.SourceLayer := SourceBox.ItemIndex;
     Layers.Invalidate;
   end;
@@ -507,6 +539,9 @@ end;
 procedure TLaserPCBForm.SettingsChanged(Sender: TObject);
 begin
   if FUpdating then Exit;
+  { ajuste manual de potencia/velocidade/passadas: deixa de ser estimativa }
+  if (FEditOp <> nil) and ((Sender = PowerPercent) or (Sender = TargetWatts) or (Sender = Feed) or
+    (Sender = Passes) or (Sender = RepeatsEdit)) then FEditOp.Estimated := False;
   CommitLayerEditor;
   UpdateLaserPower;
   FExportedFile := ''; SendButton.Enabled := False; P.InvalidateCAM; View.Invalidate;
@@ -818,7 +853,10 @@ begin
     Op := P.Operation(I);
     if not Op.Output or not P.OperationOnActiveCopper(Op) then Continue;
     if S <> '' then S := S+#10;
-    S := S+Format('%s %s: %.0f mm, %dx',[Op.Caption,Op.Name,Op.CutLength,Max(1,Op.Passes)],InvariantFS);
+    if Op.Mode = cmIsolation then
+      S := S+Format('%s %s: %.0f mm, %d aneis, %dx',[Op.Caption,Op.Name,Op.CutLength,Max(1,Op.Passes),Max(1,Op.Repeats)],InvariantFS)
+    else S := S+Format('%s %s: %.0f mm, %dx',[Op.Caption,Op.Name,Op.CutLength,Max(1,Op.Passes)],InvariantFS);
+    if Op.Estimated then S := S+' (estimado, testar)';
   end;
   if S = '' then S := 'Nenhuma camada com Saida ligada.';
   Summary.Caption := S;
@@ -833,13 +871,18 @@ begin
   except on E: Exception do ShowError(E); end;
 end;
 procedure TLaserPCBForm.ValidateClick(Sender: TObject);
+var I: Integer;
 begin
   FocusPage(4);
   try
     Log.Clear;
     Prepared;
     if CheckDesign(Log.Lines) and P.ValidateOperations(Log.Lines,True) then
-    begin Log.Lines.Add('Pronto para gerar G-code.'); State.Caption := 'Trabalho valido'; State.DotColor := clSuiteSuccess; Status.Caption := 'Geometria e parametros validados.'; end
+    begin
+      for I := 0 to P.OperationCount-1 do
+        if P.Operation(I).Output and P.Operation(I).Estimated then
+          Log.Lines.Add('Aviso: '+P.Operation(I).Name+' usa potencia estimada. Faca um teste de material antes da placa.');
+      Log.Lines.Add('Pronto para gerar G-code.'); State.Caption := 'Trabalho valido'; State.DotColor := clSuiteSuccess; Status.Caption := 'Geometria e parametros validados.'; end
     else begin State.Caption := 'Corrigir antes de exportar'; State.DotColor := clSuiteDanger; Status.Caption := Log.Lines[0]; end;
   except on E: Exception do ShowError(E); end;
 end;
@@ -962,6 +1005,8 @@ begin
   if TryParseFloat(Power.Text,V) and FiniteNumber(V) and (V >= 0) then Op.Power := V;
   if TryParseFloat(Feed.Text,V) and FiniteNumber(V) and (V >= 0) then Op.Feed := V;
   if TryStrToInt(Passes.Text,N) and (N >= 1) and (N <= 1000) then Op.Passes := N;
+  if TryStrToInt(RepeatsEdit.Text,N) and (N >= 1) and (N <= 1000) then Op.Repeats := N;
+  RepeatsEdit.Enabled := Op.Mode = cmIsolation;
   if TryParseFloat(Overlap.Text,V) and FiniteNumber(V) and (V >= 0) and (V <= 90) then Op.Overlap := V/100;
   if TryParseFloat(MarkDia.Text,V) and FiniteNumber(V) and (V > 0) then Op.MarkDiameter := V;
   if OperationCopperBox.ItemIndex>=0 then Op.CopperLayer:=OperationCopperBox.ItemIndex;
@@ -1000,7 +1045,8 @@ begin
     if Op.SourceLayer < SourceBox.Items.Count then SourceBox.ItemIndex := Op.SourceLayer;
     SourceBox.Enabled := Op.Mode = cmLayerHatch;
     Power.Text := FloatToStr(Op.Power,InvariantFS); Feed.Text := FloatToStr(Op.Feed,InvariantFS);
-    Passes.Text := IntToStr(Op.Passes); Overlap.Text := FloatToStr(Round(Op.Overlap*1000)/10,InvariantFS);
+    Passes.Text := IntToStr(Op.Passes); RepeatsEdit.Text := IntToStr(Op.Repeats);
+    RepeatsEdit.Enabled := Op.Mode = cmIsolation; Overlap.Text := FloatToStr(Round(Op.Overlap*1000)/10,InvariantFS);
     MarkKindBox.ItemIndex := Ord(Op.MarkKind); MarkKindBox.Enabled := Op.Mode = cmDrillMarks;
     MarkDia.Text := FloatToStr(Op.MarkDiameter,InvariantFS); MarkDia.Enabled := Op.Mode = cmDrillMarks;
     Palette.Current := Op.ColorIndex; Palette.Invalidate;
@@ -1150,7 +1196,9 @@ begin
   end;
   SettingsChanged(Sender); UpdateLaserPower;
 end;
+{$I laserpcb_powerestui.inc}
 {$I laserpcb_designui.inc}
+{$I laserpcb_componentmenu.inc}
 
 procedure TLaserPCBForm.ShowError(E: Exception);
 begin

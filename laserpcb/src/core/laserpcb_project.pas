@@ -34,6 +34,10 @@ type
     SourceLayer: Integer;      { cmLayerHatch: indice da camada importada }
     Power, Feed, Overlap: Double;
     Passes: Integer;
+    { isolacao: Passes sao aneis; Repeats repete cada anel (cobre direto) }
+    Repeats: Integer;
+    { parametros vindos da estimativa pela potencia, ainda nao testados }
+    Estimated: Boolean;
     MarkKind: TLPMarkKind;
     MarkDiameter: Double;
     Output, Show: Boolean;
@@ -174,7 +178,7 @@ end;
 constructor TLPOperation.Create;
 begin
   inherited Create;
-  SourceLayer := -1; Overlap := 0.2; Passes := 1;
+  SourceLayer := -1; Overlap := 0.2; Passes := 1; Repeats := 1;
   MarkKind := mkCenter; MarkDiameter := 0.4;
   Output := True; Show := True;
   { Potencia e velocidade comecam zeradas: dependem de calibracao. }
@@ -1032,6 +1036,7 @@ begin
     else if Round(Op.Power) < 1 then Errors.Add(Name+'potencia seria arredondada para S0');
     if not FiniteNumber(Op.Feed) or (Op.Feed < 0.001) then Errors.Add(Name+'velocidade nao calibrada');
     if (Op.Passes < 1) or (Op.Passes > 1000) then Errors.Add(Name+'use 1 a 1000 passadas');
+    if (Op.Repeats < 1) or (Op.Repeats > 1000) then Errors.Add(Name+'use 1 a 1000 repeticoes');
     if not Op.Generated then begin Errors.Add(Name+'atualize as trajetorias'); Continue; end;
     for J := 0 to Min(Layout.Count,Length(Op.ItemPaths))-1 do
     begin
@@ -1067,8 +1072,8 @@ begin
     begin
       Op := Operation(I);
       if not (Op.Output and Op.Generated) or not OperationOnActiveCopper(Op) then Continue;
-      { Na isolacao as passadas ja sao aneis de offset. }
-      if Op.Mode = cmIsolation then Repeats := 1 else Repeats := Max(1,Op.Passes);
+      { Na isolacao as passadas ja sao aneis de offset; Repeats repete os aneis. }
+      if Op.Mode = cmIsolation then Repeats := Max(1,Op.Repeats) else Repeats := Max(1,Op.Passes);
       for R := 1 to Repeats do
         for J := 0 to Min(Layout.Count,Length(Op.ItemPaths))-1 do
         begin
@@ -1093,7 +1098,7 @@ begin
   begin
     Op := Operation(I);
     if not (Op.Output and Op.Generated) or not OperationOnActiveCopper(Op) then Continue;
-    if Op.Mode = cmIsolation then Repeats := 1 else Repeats := Max(1,Op.Passes);
+    if Op.Mode = cmIsolation then Repeats := Max(1,Op.Repeats) else Repeats := Max(1,Op.Passes);
     for R := 1 to Repeats do
       for J := 0 to Min(Layout.Count,Length(Op.ItemPaths))-1 do
       begin

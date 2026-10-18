@@ -35,3 +35,19 @@ Com a potência óptica nominal Wmax informada e S-max conferido em $30:
 - Energia nominal por passada = potência nominal × 60 / velocidade em mm/min.
 
 Exemplo aritmético: 1 W nominal em módulo de 10 W corresponde a 10%; com S-max 1000, S100. Não é comprovação de linearidade do driver, medição de saída, nem equivalência de processo entre comprimentos de onda. M4 pode reduzir a saída durante as acelerações. Velocidade, foco, revestimento, substrato e passadas continuam exigindo calibração.
+
+## Estimativa pela potência do laser
+
+Em **Camadas e laser**, o botão **Estimar pela potência do laser...** calcula um ponto de partida para cada processo (`src/core/laserpcb_powerest.pas`):
+
+- Energia necessária por mm = Ev × largura do sulco × profundidade. A profundidade vem da tinta (0,02 mm), da espessura do cobre (18/35/70/105 µm) ou da espessura da PCB (corte).
+- Ev (J/mm³) depende do tipo de laser: diodo azul, IR 1064 nm pulsado ou CO2. Tinta e marcação foram ancoradas nos ensaios J Tech acima. O cobre usa a energia de vaporização (~53 J/mm³) dividida pela absorção e pela eficiência térmica. O FR4 usa a ordem de grandeza dos relatos de corte. O CO2 não remove cobre.
+- Tinta e marcação: uma passada, com a potência ajustada para a velocidade preferida. Cobre e corte: potência cheia, com as passadas necessárias para chegar perto da velocidade preferida.
+- Na isolação, **Passadas** continuam sendo anéis. A estimativa preenche **Repetições (isolação)**, que repete cada anel.
+- Os valores aplicados ficam marcados como estimados no resumo e na validação, até serem alterados manualmente.
+
+## Gabarito de teste (aferição)
+
+O botão **Gabarito de teste (aferir)...** gera uma grade numa placa pequena (padrão 100 × 50 mm): linhas de potência (40/60/80/100%) × colunas de passadas (1/2/4/6/8), todas a 1 mm/s. Os rótulos com os W do laser, a velocidade, as potências e as passadas são gravados primeiro, com potência baixa. Depois vêm as células, da menor para a maior energia (`src/core/laserpcb_testgrid.pas`).
+
+Depois de executar, clique em cada célula da prévia para marcar **Nada / Marcou / Trilha (cobre removido) / Cortou**. **Aplicar aferição** pega a menor energia que fez trilha e a menor que cortou, acrescenta 15% de margem e grava Ev de cobre e de corte no perfil (`copper_ev`, `cut_ev`). A partir daí, a estimativa de cobre e de corte passa a usar esses valores e mostra "Aferido". **Salvar relatório...** grava a grade e os resultados em CSV.

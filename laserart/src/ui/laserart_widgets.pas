@@ -203,7 +203,7 @@ begin
   if Length(FDoc.LayerOrder) = 0 then
   begin
     C.Font.Color := RGBToColor(148, 163, 184);
-    C.TextOut(10, HEAD_H + 10, 'Nenhuma camada em uso. Desenhe ou importe um objeto.');
+    C.TextOut(10, HEAD_H + 10, 'Nenhuma camada. Use + (Nova camada), a paleta ou desenhe um objeto.');
     Exit;
   end;
   ClampScroll;
