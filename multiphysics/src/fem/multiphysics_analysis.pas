@@ -1,0 +1,373 @@
+unit multiphysics_analysis;
+
+{ Executa as analises do projeto: gera a malha das pecas, traduz as
+  condicoes de contorno em cargas do FEM, resolve e decide a fidelidade.
+
+  Fidelidade (README / AI_GUIDE):
+  - ENGENHARIA: malha sem elemento invertido e estudo de convergencia com
+    variacao < 5% da grandeza principal entre a malha h e a malha h/1,5;
+  - ESTIMATIVA: convergencia nao verificada ou acima de 5%, ou malha ruim;
+  - VALIDADO: nunca e atribuido automaticamente.
+
+  Contato entre pecas: nesta versao as pecas sao malhadas separadamente e
+  nao ha amarracao (MP-3.3 pendente); uma peca sem fixacao propria deixa a
+  estrutura livre e a analise avisa. }
+
+{$mode objfpc}{$H+}
+
+interface
+
+uses
+  Classes, SysUtils, Math, multiphysics_types, multiphysics_vector,
+  multiphysics_geometry, multiphysics_mesh, multiphysics_sparse, multiphysics_fem,
+  multiphysics_project, multiphysics_scenario;
+
+type
+  TAnalysisKind = (akStatic, akThermal, akThermoMechanical, akModal);
+
+  TAnalysisRun = class
+  private
+    FProject: TPhysicsProject;
+    function BuildMesh(M: TFEMMesh; H: Double): Boolean;
+    function ResolveTags(M: TFEMMesh; const B: TBoundaryCondition): TIntArray;
+    procedure SetupModel(F: TFEMModel; M: TFEMMesh; ThermalLoads: Boolean);
+    function SolveOnce(M: TFEMMesh; H: Double; Kind: TAnalysisKind; out Main: Double): Boolean;
+  public
+    Mesh: TFEMMesh;                 { malha do ultimo resultado }
+    Kind: TAnalysisKind;
+    Ok: Boolean;
+    Message: string;
+    Log: TStringList;
+    Fidelity: TFidelityLevel;
+    FidelityReason: string;
+    Convergence: Double;            { variacao relativa entre malhas; -1 = nao verificada }
+    StaticRes: TStaticResult;
+    ThermalRes: TThermalResult;
+    ModalRes: TModalResult;
+    ElapsedMs: Int64;
+    constructor Create(AProject: TPhysicsProject);
+    destructor Destroy; override;
+    function Run(AKind: TAnalysisKind): Boolean;
+    { so a malha (para conferir antes de resolver) }
+    function MeshOnly(out Q: TMeshQuality): Boolean;
+    function Summary: TPhysicsResult;
+  end;
+
+function AnalysisKindName(K: TAnalysisKind): string;
+function ToFEMMaterial(const M: TMaterial): TFEMMaterial;
+
+implementation
+
+uses DateUtils;
+
+function AnalysisKindName(K: TAnalysisKind): string;
+begin
+  case K of
+    akStatic: Result := 'Estatica linear';
+    akThermal: Result := 'Termica permanente';
+    akThermoMechanical: Result := 'Termomecanica';
+    else Result := 'Modal';
+  end;
+end;
+
+function ToFEMMaterial(const M: TMaterial): TFEMMaterial;
+begin
+  Result := FEMMaterial(M.Name, M.YoungModulus, M.Poisson, M.Density,
+    M.ThermalConductivity, M.ThermalExpansion, M.YieldStrength);
+end;
+
+constructor TAnalysisRun.Create(AProject: TPhysicsProject);
+begin
+  inherited Create;
+  FProject := AProject;
+  Log := TStringList.Create;
+  Mesh := TFEMMesh.Create;
+  Convergence := -1;
+end;
+
+destructor TAnalysisRun.Destroy;
+begin
+  Mesh.Free;
+  Log.Free;
+  inherited Destroy;
+end;
+
+function TAnalysisRun.BuildMesh(M: TFEMMesh; H: Double): Boolean;
+var
+  I, J, PI_: Integer;
+  P: TPhysicsPart;
+  Hp: Double;
+  T: TGeoTransform;
+begin
+  M.Clear;
+  for I := 0 to FProject.PartCount - 1 do
+  begin
+    P := FProject.Part(I);
+    PI_ := M.AddPart(P.ID);
+    if P.Suppressed then Continue;
+    if P.MeshSize > 0 then Hp := Min(P.MeshSize, H * P.MeshSize / FProject.Settings.MeshSize) else Hp := H;
+    T := P.Transform;
+    for J := 0 to High(P.Primitives) do
+      M.AddPrimitive(PI_, P.Primitives[J], T, Hp);
+  end;
+  M.Finalize;
+  if FProject.Settings.Quadratic then M.ConvertToTet10;
+  Result := M.ElemCount > 0;
+end;
+
+{ faces alvo de uma condicao: 'PECA/prim/face' exata, 'PECA/face' em todas
+  as primitivas, ou todas as faces da peca }
+function TAnalysisRun.ResolveTags(M: TFEMMesh; const B: TBoundaryCondition): TIntArray;
+var
+  I, N: Integer;
+  Name, PartPrefix: string;
+  Hit: Boolean;
+begin
+  Result := nil;
+  N := 0;
+  PartPrefix := B.TargetID + '/';
+  for I := 0 to M.FaceNames.Count - 1 do
+  begin
+    Name := M.FaceNames[I];
+    if not SameText(Copy(Name, 1, Length(PartPrefix)), PartPrefix) then Continue;
+    if B.TargetFace = '' then
+      Hit := True
+    else if Pos('/', B.TargetFace) > 0 then
+      Hit := SameText(Name, B.TargetFace)
+    else
+      { so o nome da face: vale em todas as primitivas da peca }
+      Hit := SameText(Copy(Name, LastDelimiter('/', Name) + 1, MaxInt), B.TargetFace);
+    if Hit then
+    begin
+      SetLength(Result, N + 1);
+      Result[N] := I;
+      Inc(N);
+    end;
+  end;
+end;
+
+procedure TAnalysisRun.SetupModel(F: TFEMModel; M: TFEMMesh; ThermalLoads: Boolean);
+var
+  I, J, Pi_: Integer;
+  B: TBoundaryCondition;
+  Tags: TIntArray;
+  L: TFEMLoad;
+  Total: Double;
+begin
+  SetLength(F.Materials, FProject.PartCount);
+  for I := 0 to FProject.PartCount - 1 do
+    F.Materials[I] := ToFEMMaterial(FProject.Part(I).Material);
+  F.ClearLoads;
+  F.Gravity := V3(0, 0, 0);
+  F.RefTemperature := FProject.Environment.AmbientTemperature;
+  for I := 0 to FProject.BCCount - 1 do
+  begin
+    B := FProject.BC(I);
+    if B.Kind = bkGravity then
+    begin
+      if not ThermalLoads then F.Gravity := V3(B.X, B.Y, B.Z);
+      Continue;
+    end;
+    if B.Kind = bkHeatPower then
+    begin
+      Pi_ := FProject.FindPart(B.TargetID);
+      if ThermalLoads and (Pi_ >= 0) then F.AddLoad(HeatPowerLoad(Pi_, B.Value));
+      Continue;
+    end;
+    if ThermalLoads <> (B.Kind in [bkTemperature, bkHeatFlux, bkConvection]) then Continue;
+    Tags := ResolveTags(M, B);
+    if Length(Tags) = 0 then
+    begin
+      Log.Add(Format('Aviso: condicao "%s" nao encontrou a face "%s" da peca %s.', [B.Name, B.TargetFace, B.TargetID]));
+      Continue;
+    end;
+    Total := 0;
+    for J := 0 to High(Tags) do Total := Total + M.TagArea(Tags[J]);
+    for J := 0 to High(Tags) do
+    begin
+      case B.Kind of
+        bkFixed:
+          begin
+            L := FixLoad(Tags[J]);
+            if B.DofMask <> 0 then
+            begin
+              L.Mask[0] := (B.DofMask and 1) <> 0;
+              L.Mask[1] := (B.DofMask and 2) <> 0;
+              L.Mask[2] := (B.DofMask and 4) <> 0;
+            end;
+          end;
+        bkDisplacement:
+          begin
+            L := FixLoad(Tags[J]);
+            L.Kind := flDisplacement;
+            L.Vec := V3(B.X, B.Y, B.Z);
+            if B.DofMask <> 0 then
+            begin
+              L.Mask[0] := (B.DofMask and 1) <> 0;
+              L.Mask[1] := (B.DofMask and 2) <> 0;
+              L.Mask[2] := (B.DofMask and 4) <> 0;
+            end;
+          end;
+        { forca total repartida pela area de cada face }
+        bkForce: L := ForceLoad(Tags[J], VScale(V3(B.X, B.Y, B.Z), M.TagArea(Tags[J]) / Max(Total, 1e-300)));
+        bkPressure: L := PressureLoad(Tags[J], B.Value);
+        bkTemperature: L := TemperatureLoad(Tags[J], B.Value);
+        bkHeatFlux: L := HeatFluxLoad(Tags[J], B.Value);
+        bkConvection: L := ConvectionLoad(Tags[J], B.Value, B.Value2);
+        else Continue;
+      end;
+      F.AddLoad(L);
+    end;
+  end;
+end;
+
+function TAnalysisRun.SolveOnce(M: TFEMMesh; H: Double; Kind: TAnalysisKind; out Main: Double): Boolean;
+var
+  F: TFEMModel;
+  TR: TThermalResult;
+begin
+  Main := 0;
+  Result := False;
+  if not BuildMesh(M, H) then
+  begin
+    Message := 'Nenhuma peca com geometria para malhar.';
+    Exit;
+  end;
+  F := TFEMModel.Create(M);
+  try
+    case Kind of
+      akThermal:
+        begin
+          SetupModel(F, M, True);
+          Result := F.SolveThermal(ThermalRes);
+          Message := ThermalRes.Message;
+          Main := ThermalRes.MaxT - ThermalRes.MinT;
+        end;
+      akStatic, akThermoMechanical:
+        begin
+          if Kind = akThermoMechanical then
+          begin
+            SetupModel(F, M, True);
+            if not F.SolveThermal(TR) then
+            begin
+              Message := 'Etapa termica: ' + TR.Message;
+              Exit;
+            end;
+            ThermalRes := TR;
+            F.Temperature := TR.T;
+          end;
+          SetupModel(F, M, False);
+          if Kind = akThermoMechanical then F.Temperature := ThermalRes.T;
+          Result := F.SolveStatic(StaticRes);
+          Message := StaticRes.Message;
+          Main := StaticRes.MaxDisp;
+        end;
+      akModal:
+        begin
+          SetupModel(F, M, False);
+          Result := F.SolveModal(Max(1, FProject.Settings.Modes), ModalRes);
+          Message := ModalRes.Message;
+          if Result and (Length(ModalRes.Freq) > 0) then Main := ModalRes.Freq[0];
+        end;
+    end;
+  finally
+    F.Free;
+  end;
+end;
+
+function TAnalysisRun.MeshOnly(out Q: TMeshQuality): Boolean;
+begin
+  Result := BuildMesh(Mesh, FProject.Settings.MeshSize);
+  Q := Mesh.Quality;
+end;
+
+function TAnalysisRun.Run(AKind: TAnalysisKind): Boolean;
+var
+  T0: TDateTime;
+  H, Coarse, Fine: Double;
+  CM: TFEMMesh;
+  Q: TMeshQuality;
+  SaveStatic: TStaticResult;
+  SaveThermal: TThermalResult;
+  SaveModal: TModalResult;
+begin
+  T0 := Now;
+  Kind := AKind;
+  Ok := False;
+  Log.Clear;
+  Fidelity := flEstimate;
+  FidelityReason := '';
+  Convergence := -1;
+  if not FProject.Validate(Log) then
+  begin
+    Message := 'Projeto incompleto: ' + Log.Text;
+    Exit(False);
+  end;
+  H := FProject.Settings.MeshSize;
+  if not SolveOnce(Mesh, H, AKind, Fine) then
+  begin
+    Log.Add(Message);
+    ElapsedMs := MilliSecondsBetween(Now, T0);
+    Exit(False);
+  end;
+  Ok := True;
+  Q := Mesh.Quality;
+  Log.Add(Format('Malha: %d nos, %d elementos TET%d, forma minima %.2f, %d ruins',
+    [Mesh.NodeCount, Mesh.ElemCount, Mesh.NodesPerElement, Q.MinShape, Q.Poor]));
+  Log.Add(Message);
+  if Q.Inverted > 0 then
+    FidelityReason := 'malha com elementos invertidos'
+  else if not FProject.Settings.CheckConvergence then
+    FidelityReason := 'convergencia de malha nao verificada'
+  else if Mesh.NodeCount * 1.5 * 1.5 * 1.5 > 400000 then
+    FidelityReason := 'modelo grande demais para o estudo de convergencia automatico'
+  else
+  begin
+    { malha mais grossa (1,5 h) para comparar; o resultado exibido e o da malha h }
+    SaveStatic := StaticRes; SaveThermal := ThermalRes; SaveModal := ModalRes;
+    CM := TFEMMesh.Create;
+    try
+      if SolveOnce(CM, H * 1.5, AKind, Coarse) and (Abs(Fine) > 1e-300) then
+      begin
+        Convergence := Abs(Fine - Coarse) / Abs(Fine);
+        Log.Add(Format('Convergencia: grandeza principal %.6g (h) x %.6g (1,5 h): variacao %.2f%%',
+          [Fine, Coarse, Convergence * 100]));
+        if Convergence < 0.05 then Fidelity := flEngineering
+        else FidelityReason := Format('variacao de %.1f%% entre malhas (refine a malha)', [Convergence * 100]);
+      end
+      else
+        FidelityReason := 'estudo de convergencia nao pode ser feito';
+    finally
+      CM.Free;
+    end;
+    StaticRes := SaveStatic; ThermalRes := SaveThermal; ModalRes := SaveModal;
+  end;
+  if FProject.ContactCount > 0 then
+    Log.Add('Aviso: contatos entre pecas ainda nao sao amarrados na malha (MP-3.3); cada peca e resolvida com suas proprias condicoes.');
+  if Fidelity = flEngineering then
+    Log.Add('Fidelidade: ENGENHARIA (FEM com malha verificada e convergencia < 5%)')
+  else
+    Log.Add('Fidelidade: ESTIMATIVA (' + FidelityReason + ')');
+  ElapsedMs := MilliSecondsBetween(Now, T0);
+  Result := True;
+end;
+
+function TAnalysisRun.Summary: TPhysicsResult;
+begin
+  Result.Solved := Ok;
+  Result.MaxDisplacement := StaticRes.MaxDisp;
+  Result.MaxVonMises := StaticRes.MaxVonMises;
+  Result.MaxTemperature := ThermalRes.MaxT;
+  Result.MinTemperature := ThermalRes.MinT;
+  Result.MaxStrain := 0;
+  Result.MaxContactPressure := 0;
+  if Length(ModalRes.Freq) > 0 then Result.FundamentalFrequency := ModalRes.Freq[0] else Result.FundamentalFrequency := 0;
+  Result.MaxDragForce := 0;
+  Result.Message := Message;
+  Result.Fidelity := FidelityName(Fidelity);
+  Result.MeshNodes := Mesh.NodeCount;
+  Result.MeshElements := Mesh.ElemCount;
+  Result.SolverName := 'MultiPhysics FEM (TET' + IntToStr(Mesh.NodesPerElement) + ')';
+end;
+
+end.
