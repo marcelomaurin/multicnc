@@ -1,6 +1,6 @@
 # MultiPhysics 0.2
 Ferramenta da suite MultiSuite para simular fisicamente uma montagem proveniente do MultiAssembly.
-Manual do usuario: [docs/MANUAL.md](docs/MANUAL.md). Plano, tarefas e progresso: [docs/TAREFA.md](docs/TAREFA.md).
+Manual do usuario: [manual ilustrado (PDF)](../docs/Manuals/Manual_do_Usuario_MultiPhysics_0.2.0.0_PT-BR.pdf) · [resumo tecnico](docs/MANUAL.md). Plano, tarefas e progresso: [docs/TAREFA.md](docs/TAREFA.md).
 Exemplos: [models/multiphysics](../models/multiphysics/README.md).
 
 ## O que faz (e com que fidelidade)

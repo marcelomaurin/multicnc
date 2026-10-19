@@ -74,3 +74,15 @@ A versão é a do executável MultiCAD. O número do instalador da MultiSuite é
 - Inclui exercício guiado do suporte mecânico, guia de calibração de fluxo, diagnóstico de problemas e tabela de atalhos.
 
 [Guia do MultiSlicer](../../multislicer/README.md) · [Capturas da interface](../../imgs/README.md#multislicer)
+
+## MultiPhysics
+
+[Abrir o manual ilustrado em português](Manual_do_Usuario_MultiPhysics_0.2.0.0_PT-BR.pdf) · [Versão em texto](Manual_do_Usuario_MultiPhysics_0.2.0.0_PT-BR.md)
+
+- Versão de referência: **MultiPhysics 0.2.0.0**, Windows x64 (setup 014).
+- Edição: **19/10/2026**.
+- Formato: PDF A4, **33 páginas**, **29 capítulos**, sumário clicável, **12 figuras** e marcadores de navegação.
+- Conteúdo: fidelidade dos resultados, interface, vista 3D, projetos, peças, importação do MultiAssembly, contatos colados, materiais, cargas e fixações, faces, malha, resolver, resultados, exportação (CSV, HTML, VTK), sistema eletromecânico, CNC virtual e falhas, circuitos por netlist, ambiente, atmosfera ISA, flutuação e CalculiX.
+- Inclui quatro exercícios guiados com resultados de referência, mensagens e solução de problemas, boas práticas, termos e limites.
+
+[12 capturas completas](../../imgs/manual_multiphysics_0_2_0_0/README.md) · [Guia do MultiPhysics](../../multiphysics/README.md) · [Exemplos](../../models/multiphysics/README.md)

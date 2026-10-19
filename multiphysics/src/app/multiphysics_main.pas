@@ -288,7 +288,8 @@ end;
 function TMultiPhysicsForm.Num(AParent: TWinControl; const ACaption: string; X, Y, W: Integer;
   AMin, AMax, AValue: Double; ADec: Integer): TFloatSpinEdit;
 begin
-  if ACaption <> '' then Lbl(AParent, ACaption, X, Y, Max(W + 40, 306 - X), 18).BringToFront;
+  { campos em duas colunas (140 px): o rotulo nao invade a coluna vizinha }
+  if ACaption <> '' then Lbl(AParent, ACaption, X, Y, IfThen(W <= 140, W + 8, Max(W + 40, 306 - X)), 18).BringToFront;
   Result := TFloatSpinEdit.Create(Self);
   Result.Parent := AParent;
   Result.SetBounds(X, Y + 19, W, 26);
@@ -789,7 +790,7 @@ begin
   Btn(S, 'Flutuacao da montagem (calado e GM)', 16, 372, 290, 32, sikAssembly, @AssemblyFlotationClick);
   Lbl(S, 'Formulas reduzidas (pressao dinamica, arrasto Cd, empuxo hidrostatico): ESTIMATIVA, nao e CFD. ' +
     'Acima de Mach 0,3 a hipotese incompressivel nao vale. A flutuacao da montagem usa a malha e as massas ' +
-    'das pecas: calado de equilibrio, centro de empuxo e altura metacentrica (inclinacao em torno de X).', 16, 414, 290, 110);
+    'das pecas: calado de equilibrio, centro de empuxo e altura metacentrica (inclinacao em torno de X).', 16, 414, 290, 170);
 end;
 
 { ---------------- utilidades ---------------- }
@@ -1161,7 +1162,32 @@ begin
   TTimer(Sender).Enabled := False;
   Mode := LowerCase(Application.GetOptionValue('capture'));
   FN := ParamStr(ParamCount);
-  if Pos('assembly', Mode) = 1 then
+  if Mode = 'environment' then
+  begin
+    { o casco veio por --file; flutuacao na etapa Ambiente }
+    ShowStep(9);
+    AssemblyFlotationClick(nil);
+  end
+  else if Mode = 'materials' then
+  begin
+    DemoClick(nil);
+    ShowStep(1);
+    LbMatParts.ItemIndex := 0;
+    MatPartListClick(nil);
+  end
+  else if Mode = 'mesh' then
+  begin
+    DemoClick(nil);
+    ShowStep(3);
+    MeshClick(Self);
+  end
+  else if Mode = 'cnc' then
+  begin
+    ShowStep(7);
+    MachineCreateClick(nil);
+    MachineMoveClick(nil);
+  end
+  else if Pos('assembly', Mode) = 1 then
   begin
     { a montagem veio por --file; resolve com a estrutura FRAME presa }
     if Mode = 'assemblysolve' then
@@ -1180,7 +1206,7 @@ begin
   end
   else
     DemoClick(nil);
-  if Pos('assembly', Mode) = 1 then
+  if (Pos('assembly', Mode) = 1) or (Mode = 'environment') or (Mode = 'materials') or (Mode = 'mesh') or (Mode = 'cnc') then
   else if Mode = 'system' then
   begin
     ShowStep(6);

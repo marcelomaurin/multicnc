@@ -17,6 +17,7 @@ Documentação oficial completa com ilustrações, diagramas e procedimentos ope
 - [LaserArt 0.02.1 - manual ilustrado (PDF)](docs/Manuals/Manual_do_Usuario_LaserArt_0.02.1_PT-BR.pdf) · [Guia do LaserArt](laserart/README.md) · [Capturas atuais](imgs/manual_laserart_0_02_1/README.md)
 - [MakePCB 0.1.0.0 - manual ilustrado (PDF)](docs/Manuals/Manual_do_Usuario_MakePCB_0.1.0.0_PT-BR.pdf) · [Versão em texto](docs/Manuals/Manual_do_Usuario_MakePCB_0.1.0.0_PT-BR.md) · [Guia do MakePCB](makepcb/README.md) · [Capturas atuais](imgs/README.md#makepcb)
 - [MakeRouter 0.1.0.0 - manual ilustrado (PDF)](docs/Manuals/Manual_do_Usuario_MakeRouter_0.1.0.0_PT-BR.pdf) · [Versão em texto](docs/Manuals/Manual_do_Usuario_MakeRouter_0.1.0.0_PT-BR.md) · [Guia do MakeRouter](makerouter/README.md) · [Capturas atuais](imgs/README.md#makerouter)
+- [MultiPhysics 0.2.0.0 - manual ilustrado (PDF)](docs/Manuals/Manual_do_Usuario_MultiPhysics_0.2.0.0_PT-BR.pdf) · [Versão em texto](docs/Manuals/Manual_do_Usuario_MultiPhysics_0.2.0.0_PT-BR.md) · [Guia do MultiPhysics](multiphysics/README.md) · [Capturas atuais](imgs/manual_multiphysics_0_2_0_0/README.md)
 - [MultiSlicer 0.1.0.0 - manual ilustrado (PDF)](docs/Manuals/Manual_do_Usuario_MultiSlicer_0.1.0.0_PT-BR.pdf) · [Versão em texto](docs/Manuals/Manual_do_Usuario_MultiSlicer_0.1.0.0_PT-BR.md) · [Guia do MultiSlicer](multislicer/README.md) · [Capturas atuais](imgs/README.md#multislicer)
 
 [Índice geral dos manuais da MultiSuite](docs/Manuals/README.md)
