@@ -116,6 +116,8 @@ type
     function SolveStatic(out R: TStaticResult): Boolean;
     function SolveThermal(out R: TThermalResult): Boolean;
     function SolveModal(Modes: Integer; out R: TModalResult): Boolean;
+    { forcas nodais equivalentes das cargas de forca total (3 por no), para exportar *CLOAD }
+    function ForceLoadVector: TDoubleArray;
   end;
 
 function FEMMaterial(const Name: string; E, Nu, Rho, K, Alpha, Yield: Double): TFEMMaterial;
@@ -1037,6 +1039,33 @@ begin
       S := Vv[I * N + J];
       for K := I + 1 to N - 1 do S := S - L[K * N + I] * Z[K * N + J];
       Z[I * N + J] := S / L[I * N + I];
+    end;
+end;
+
+function TFEMModel.ForceLoadVector: TDoubleArray;
+var
+  L, Fc, A, D, O, FNn: Integer;
+  Area, TotalArea: Double;
+  T: TVector3;
+begin
+  Result := nil;
+  SetLength(Result, 3 * Mesh.NodeCount);
+  O := Mesh.Order;
+  FNn := Tab[O].FN;
+  for L := 0 to High(Loads) do
+    if Loads[L].Kind = flForce then
+    begin
+      TotalArea := Mesh.TagArea(Loads[L].Tag);
+      if TotalArea <= 0 then Continue;
+      T := VScale(Loads[L].Vec, 1 / TotalArea);
+      for Fc := 0 to Mesh.FaceCount - 1 do
+      begin
+        if Mesh.Faces[Fc].Tag <> Loads[L].Tag then Continue;
+        Area := Mesh.FaceArea(Fc);
+        for A := 0 to FNn - 1 do
+          for D := 0 to 2 do
+            Result[3 * Mesh.Faces[Fc].N[A] + D] := Result[3 * Mesh.Faces[Fc].N[A] + D] + Comp(T, D) * Area * Tab[O].FQ[A];
+      end;
     end;
 end;
 

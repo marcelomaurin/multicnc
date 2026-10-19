@@ -14,7 +14,7 @@ interface
 
 uses
   Classes, SysUtils, Math, StrUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, ExtCtrls,
-  ComCtrls, Spin, LCLType, multisuite_numfmt, multisuite_controls, multisuite_icons,
+  ComCtrls, Spin, LCLType, IniFiles, multisuite_numfmt, multisuite_controls, multisuite_icons,
   multisuite_context, multiphysics_types, multiphysics_materials, multiphysics_vector,
   multiphysics_geometry, multiphysics_mesh, multiphysics_project, multiphysics_analysis,
   multiphysics_scenario, multiphysics_environment, multiphysics_rigidbody,
@@ -72,8 +72,9 @@ type
     CkQuadratic, CkConvergence: TCheckBox;
     LbMeshInfo: TLabel;
     { 5 resolver }
-    CbAnalysis: TComboBox;
+    CbAnalysis, CbSolver: TComboBox;
     EdModes: TSpinEdit;
+    EdCCX: TEdit;
     { 6 resultados }
     CbField: TComboBox;
     EdScale: TFloatSpinEdit;
@@ -160,6 +161,9 @@ type
     procedure ViewPickFace(Sender: TObject; FaceTag: Integer; const TagName: string);
     procedure MeshClick(Sender: TObject);
     procedure SolveClick(Sender: TObject);
+    procedure BrowseCCXClick(Sender: TObject);
+    procedure SaveConfig;
+    procedure LoadConfig;
     procedure FieldChange(Sender: TObject);
     procedure ExportCSVClick(Sender: TObject);
     procedure ReportClick(Sender: TObject);
@@ -405,6 +409,7 @@ begin
   Log.Lines.Add('MultiPhysics 0.2: FEM proprio (TET4/TET10) estatico, termico, termomecanico e modal;');
   Log.Lines.Add('sistema eletromecanico, CNC virtual e circuitos com modelos reduzidos (ESTIMATIVA).');
   FUpdating := False;
+  LoadConfig;
   RefreshAll;
   ShowStep(0);
 
@@ -633,11 +638,20 @@ begin
   EdModes.Parent := S;
   EdModes.SetBounds(16, 115, 140, 26);
   EdModes.MinValue := 1; EdModes.MaxValue := 30; EdModes.Value := 6;
-  B := Btn(S, 'Resolver', 16, 156, 290, 36, sikPlay, @SolveClick);
+  CbSolver := Combo(S, 'Solver', 166, 96, 140);
+  CbSolver.Items.CommaText := '"FEM proprio","CalculiX (ccx)"';
+  CbSolver.ItemIndex := 0;
+  Lbl(S, 'Executavel do CalculiX (ccx)', 16, 146, 290, 18);
+  EdCCX := TEdit.Create(Self);
+  EdCCX.Parent := S;
+  EdCCX.SetBounds(16, 165, 220, 26);
+  Btn(S, '...', 242, 162, 64, 30, sikFolder, @BrowseCCXClick);
+  B := Btn(S, 'Resolver', 16, 204, 290, 36, sikPlay, @SolveClick);
   B.SetLook(sbsSolid, clSuitePrimary, sikPlay);
-  Lbl(S, 'Solver: FEM proprio (Cholesky em perfil ou gradiente conjugado). A comparacao com CalculiX ' +
-    '(ccx) entra na Fase 5 do plano. Resultado sem convergencia verificada sai como ESTIMATIVA.',
-    16, 204, 290, 90);
+  Lbl(S, 'FEM proprio: Cholesky esparso ou em perfil (o de menor custo), ou gradiente conjugado em modelos ' +
+    'grandes. CalculiX: o mesmo modelo vai para o ccx (.inp) e o resultado volta do .frd; o ccx nao vem no ' +
+    'instalador (baixe em calculix.de). Resultado sem convergencia verificada sai como ESTIMATIVA.',
+    16, 252, 290, 120);
 end;
 
 procedure TMultiPhysicsForm.BuildResultsPage(S: TScrollBox);
@@ -771,6 +785,7 @@ begin
     CkQuadratic.Checked := P.Settings.Quadratic;
     CkConvergence.Checked := P.Settings.CheckConvergence;
     EdModes.Value := Max(1, P.Settings.Modes);
+    CbSolver.ItemIndex := EnsureRange(P.Settings.Solver, 0, 1);
   finally
     FUpdating := False;
   end;
@@ -1066,6 +1081,8 @@ begin
   P.Settings.Quadratic := CkQuadratic.Checked;
   P.Settings.CheckConvergence := CkConvergence.Checked;
   P.Settings.Modes := EdModes.Value;
+  P.Settings.Solver := Max(0, CbSolver.ItemIndex);
+  Run.CCXExe := Trim(EdCCX.Text);
   case CbAnalysis.ItemIndex of
     1: P.Settings.Physics := [pkThermal];
     2: P.Settings.Physics := [pkStructural, pkThermal];
@@ -1164,6 +1181,64 @@ end;
 procedure TMultiPhysicsForm.HeaderResize(Sender: TObject);
 begin
   Badge.Left := Max(400, Header.ClientWidth - Badge.Width - 24);
+end;
+
+function ConfigFile: string;
+begin
+  Result := GetAppConfigDir(False) + 'multiphysics.ini';
+end;
+
+procedure TMultiPhysicsForm.LoadConfig;
+var
+  Ini: TIniFile;
+begin
+  EdCCX.Text := Run.CCXExe;
+  try
+    Ini := TIniFile.Create(ConfigFile);
+    try
+      if Ini.ReadString('calculix', 'exe', '') <> '' then EdCCX.Text := Ini.ReadString('calculix', 'exe', '');
+    finally
+      Ini.Free;
+    end;
+  except
+    { configuracao e opcional }
+  end;
+  Run.CCXExe := EdCCX.Text;
+end;
+
+procedure TMultiPhysicsForm.SaveConfig;
+var
+  Ini: TIniFile;
+begin
+  try
+    ForceDirectories(GetAppConfigDir(False));
+    Ini := TIniFile.Create(ConfigFile);
+    try
+      Ini.WriteString('calculix', 'exe', Trim(EdCCX.Text));
+    finally
+      Ini.Free;
+    end;
+  except
+    { sem permissao: segue sem guardar }
+  end;
+end;
+
+procedure TMultiPhysicsForm.BrowseCCXClick(Sender: TObject);
+var
+  D: TOpenDialog;
+begin
+  D := TOpenDialog.Create(Self);
+  try
+    D.Filter := 'CalculiX (ccx*.exe)|ccx*.exe|Executaveis (*.exe)|*.exe|Todos|*.*';
+    if D.Execute then
+    begin
+      EdCCX.Text := D.FileName;
+      Run.CCXExe := D.FileName;
+      SaveConfig;
+    end;
+  finally
+    D.Free;
+  end;
 end;
 
 procedure TMultiPhysicsForm.NewClick(Sender: TObject);
@@ -1610,6 +1685,14 @@ begin
     3: K := akModal;
     else K := akStatic;
   end;
+  if (P.Settings.Solver = 1) and not FileExists(Run.CCXExe) then
+  begin
+    MessageDlg('CalculiX', 'Informe o executavel do CalculiX (ccx) na etapa Resolver, ou use o FEM proprio.',
+      mtWarning, [mbOK], 0);
+    ShowStep(4);
+    Exit;
+  end;
+  SaveConfig;
   SetStatus('Resolvendo ' + AnalysisKindName(K) + '...');
   Application.ProcessMessages;
   Screen.Cursor := crHourGlass;

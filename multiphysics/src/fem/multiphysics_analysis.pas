@@ -18,9 +18,9 @@ unit multiphysics_analysis;
 interface
 
 uses
-  Classes, SysUtils, Math, multiphysics_types, multiphysics_vector,
+  Classes, SysUtils, Math, StrUtils, multiphysics_types, multiphysics_vector,
   multiphysics_geometry, multiphysics_mesh, multiphysics_sparse, multiphysics_fem,
-  multiphysics_project, multiphysics_scenario, multiphysics_contact;
+  multiphysics_project, multiphysics_scenario, multiphysics_contact, multiphysics_ccx;
 
 type
   TAnalysisKind = (akStatic, akThermal, akThermoMechanical, akModal);
@@ -33,7 +33,10 @@ type
     procedure SetupModel(F: TFEMModel; M: TFEMMesh; ThermalLoads: Boolean);
     function SolveOnce(M: TFEMMesh; H: Double; Kind: TAnalysisKind; out Main: Double): Boolean;
     function BuildTies(M: TFEMMesh; H: Double; Verbose: Boolean): TMeshTies;
+    function SolveCCX(F: TFEMModel; M: TFEMMesh; Kind: TAnalysisKind; out Main: Double): Boolean;
   public
+    CCXExe: string;                 { caminho do ccx (Settings.Solver = 1) }
+    CCXTimeout: Integer;            { s }
     Mesh: TFEMMesh;                 { malha do ultimo resultado }
     Kind: TAnalysisKind;
     Ok: Boolean;
@@ -84,6 +87,109 @@ begin
   Log := TStringList.Create;
   Mesh := TFEMMesh.Create;
   Convergence := -1;
+  CCXExe := FindCCX;
+  CCXTimeout := 900;
+end;
+
+{ resolve pelo CalculiX: mesmo modelo (malha, cargas, amarracoes) escrito em
+  .inp, executado e lido do .frd }
+function TAnalysisRun.SolveCCX(F: TFEMModel; M: TFEMMesh; Kind: TAnalysisKind; out Main: Double): Boolean;
+var
+  Dir, Inp: string;
+  R: TFRDResult;
+  I, E, A, NN: Integer;
+  V, Y: Double;
+  Cnt: array of Integer;
+
+  function RunStep(Step: TCCXStep; const Name: string; out FR: TFRDResult): Boolean;
+  begin
+    Inp := Dir + Name + '.inp';
+    DeleteFile(ChangeFileExt(Inp, '.frd'));
+    Result := WriteDeck(F, Step, FProject.Settings.Modes, Inp, Log) and RunCCX(CCXExe, Inp, CCXTimeout, Log);
+    if Result then
+    begin
+      FR := ReadFRD(ChangeFileExt(Inp, '.frd'), M.NodeCount);
+      Result := FR.Ok;
+      if not Result then Message := 'CalculiX: ' + FR.Message;
+    end
+    else
+      Message := 'CalculiX nao resolveu (veja o registro). ccx: ' + IfThen(CCXExe = '', 'nao encontrado', CCXExe);
+  end;
+
+begin
+  Result := False;
+  Main := 0;
+  NN := M.NodeCount;
+  Dir := GetTempDir + 'multiphysics_ccx' + PathDelim + IntToStr(GetProcessID) + PathDelim;
+  ForceDirectories(Dir);
+  if Kind in [akThermal, akThermoMechanical] then
+  begin
+    SetupModel(F, M, True);
+    if not RunStep(csHeat, 'termico', R) or (Length(R.Temp) <> NN) then Exit;
+    FillChar(ThermalRes, SizeOf(ThermalRes), 0);
+    ThermalRes.T := Copy(R.Temp);
+    ThermalRes.MaxT := -MaxDouble; ThermalRes.MinT := MaxDouble;
+    for I := 0 to NN - 1 do
+    begin
+      ThermalRes.MaxT := Max(ThermalRes.MaxT, R.Temp[I]);
+      ThermalRes.MinT := Min(ThermalRes.MinT, R.Temp[I]);
+    end;
+    ThermalRes.Ok := True;
+    ThermalRes.Message := 'Termico permanente pelo CalculiX';
+    Main := ThermalRes.MaxT - ThermalRes.MinT;
+    Message := ThermalRes.Message;
+    if Kind = akThermal then Exit(True);
+  end;
+  SetupModel(F, M, False);
+  if Kind = akThermoMechanical then F.Temperature := ThermalRes.T;
+  if Kind = akModal then
+  begin
+    if not RunStep(csFrequency, 'modal', R) then Exit;
+    FillChar(ModalRes, SizeOf(ModalRes), 0);
+    ModalRes.Freq := Copy(R.Freq);
+    SetLength(ModalRes.Shapes, Length(R.Disp));
+    for I := 0 to High(R.Disp) do ModalRes.Shapes[I] := Copy(R.Disp[I]);
+    ModalRes.Ok := True;
+    ModalRes.Message := Format('Modal pelo CalculiX: %d modos', [Length(R.Freq)]);
+    Message := ModalRes.Message;
+    if Length(R.Freq) > 0 then Main := R.Freq[0];
+    Exit(True);
+  end;
+  if not RunStep(csStatic, 'estatico', R) then Exit;
+  FillChar(StaticRes, SizeOf(StaticRes), 0);
+  StaticRes.U := Copy(R.Disp[High(R.Disp)]);
+  SetLength(StaticRes.VonMises, NN);
+  StaticRes.MinSafety := MaxDouble;
+  if Length(R.Stress) > 0 then
+    for I := 0 to NN - 1 do
+      StaticRes.VonMises[I] := VonMisesOf(Copy(R.Stress[High(R.Stress)], 6 * I, 6));
+  { fator de seguranca pelo material das pecas que usam o no }
+  SetLength(Cnt, NN);
+  for E := 0 to M.ElemCount - 1 do
+  begin
+    if M.Elems[E].Part > High(F.Materials) then Continue;
+    Y := F.Materials[M.Elems[E].Part].Yield;
+    if Y <= 0 then Continue;
+    for A := 0 to M.NodesPerElement - 1 do
+      StaticRes.MinSafety := Min(StaticRes.MinSafety, Y / Max(StaticRes.VonMises[M.Elems[E].N[A]], 1e-30));
+  end;
+  for I := 0 to NN - 1 do
+  begin
+    V := Sqrt(Sqr(StaticRes.U[3 * I]) + Sqr(StaticRes.U[3 * I + 1]) + Sqr(StaticRes.U[3 * I + 2]));
+    if V > StaticRes.MaxDisp then begin StaticRes.MaxDisp := V; StaticRes.MaxDispNode := I; end;
+    if StaticRes.VonMises[I] > StaticRes.MaxVonMises then
+    begin
+      StaticRes.MaxVonMises := StaticRes.VonMises[I];
+      StaticRes.MaxVonMisesNode := I;
+    end;
+  end;
+  StaticRes.Ok := True;
+  StaticRes.Dofs := 3 * NN;
+  StaticRes.Solve.Method := 'CalculiX (ccx)';
+  StaticRes.Message := Format('Estatico linear pelo CalculiX: %d nos, %d elementos', [NN, M.ElemCount]);
+  Message := StaticRes.Message;
+  Main := StaticRes.MaxDisp;
+  Result := True;
 end;
 
 destructor TAnalysisRun.Destroy;
@@ -275,6 +381,11 @@ begin
   F := TFEMModel.Create(M);
   try
     F.Ties := BuildTies(M, H, M = Mesh);
+    if FProject.Settings.Solver = 1 then
+    begin
+      Result := SolveCCX(F, M, Kind, Main);
+      Exit;
+    end;
     case Kind of
       akThermal:
         begin
@@ -405,7 +516,8 @@ begin
   Result.Fidelity := FidelityName(Fidelity);
   Result.MeshNodes := Mesh.NodeCount;
   Result.MeshElements := Mesh.ElemCount;
-  Result.SolverName := 'MultiPhysics FEM (TET' + IntToStr(Mesh.NodesPerElement) + ')';
+  if FProject.Settings.Solver = 1 then Result.SolverName := 'CalculiX (C3D' + IntToStr(Mesh.NodesPerElement) + ')'
+  else Result.SolverName := 'MultiPhysics FEM (TET' + IntToStr(Mesh.NodesPerElement) + ')';
 end;
 
 end.

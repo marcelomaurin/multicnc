@@ -376,7 +376,7 @@ Atualize esta tabela a cada tarefa concluída (data, commit, teste que comprova)
 | Fase 3 (MP-3.1 a 3.7) | parcial: MP-3.1 a 3.5 feitos (contato colado), 3.6 tamanho por peca feito; 3.7 pendente | 18/10/2026 | (este commit) | `test_geometry_mesh`, `test_assembly_contact` |
 | MP-3.8 (P1) | pendente | | | |
 | Fase 4 (MP-4.1 a 4.11) | parcial: MP-4.1 a 4.7 e 4.9 feitos; 4.10 parcial (direto escolhe perfil/RCM ou esparso/disseccao aninhada pelo custo simbolico); 4.8, 4.11 pendentes | 18/10/2026 | (este commit) | `test_fem_benchmarks` (B1, B2, B4-B8) |
-| Fase 5 (MP-5.1 a 5.5) | pendente | | | |
+| Fase 5 (MP-5.1 a 5.5) | feito, **com ressalva**: MP-5.3 testado com `.frd` montado no formato do ccx e MP-5.4 so roda com ccx instalado (aqui saiu IGNORADO) | 18/10/2026 | (este commit) | `test_ccx` |
 | Fase 6 (MP-6.1 a 6.7) | parcial: MP-6.1 a 6.6 feitos (10 etapas, ver Decisoes), MP-6.7 so abre `.mphys`; desfazer/refazer pendente | 18/10/2026 | (este commit) | `multiphysics.exe --capture=static|thermal|modal|system|circuit|loads arquivo.png` |
 | Fase 7 (MP-7.1 a 7.15) | parcial: MP-7.7 (netlist SPICE sobre o Newton-MNA, B9) e telas de MP-7.15 feitos; demais pendentes | 18/10/2026 | (este commit) | `test_circuit_netlist` |
 | Fase 8 (MP-8.1 a 8.6, P1) | pendente | | | |
@@ -418,4 +418,6 @@ Ao quebrar uma fase em várias sessões, detalhe as linhas por tarefa (ex.: `MP-
 | 18/10/2026 | Primitivas da mesma peça são corpos separados, sempre colados entre si | O MultiAssembly monta peças com primitivas sobrepostas (corpo + eixo); colar por volume (nó dentro do tetraedro) e por face cobre os dois casos. |
 | 18/10/2026 | Importação usa o núcleo do MultiAssembly (`multiassembly/src/core`) | Mesma leitura, mesma geometria padrão por tipo e mesma transformação (escala para o tamanho, giro Z·Y·X no centro) da vista do MultiAssembly. |
 | 18/10/2026 | Linhas fixas (Dirichlet) mantêm a própria rigidez na diagonal | Com 1 na diagonal o pivô ficava minúsculo perto das penalidades e o Cholesky recusava. |
+| 18/10/2026 | `.frd` de teste escrito à mão no formato do ccx (MP-5.3) | O ccx não está instalado nesta máquina. **Pendente:** com o ccx, rodar `test_ccx` (comparação B2) e conferir se o valor do bloco `100CL` no modal é a frequência em Hz; se não for, corrigir `ReadFRD`. |
+| 18/10/2026 | Contatos para o ccx como `*EQUATION` (cada nó dependente uma vez, nunca fixo) | Reproduz as amarrações do solver próprio; `*TIE` não cobre volumes sobrepostos. |
 | 18/10/2026 | TET10 padrão no estrutural | TET4 trava em flexão (B2 com erro grande); TET10 atinge 3% com malha moderada. |
