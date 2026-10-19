@@ -22,7 +22,7 @@ uses
   multiphysics_graph, multiphysics_graph_runtime, multiphysics_machine_runtime,
   multiphysics_machine_faults, multiphysics_netlist, multiphysics_units,
   multiphysics_view3d, multiphysics_chart, multiphysics_assembly_import, multiphysics_coupling,
-  multiphysics_sparse, DateUtils;
+  multiphysics_sparse, DateUtils, multiphysics_hydro;
 
 const
   STEP_COUNT = 10;
@@ -114,7 +114,8 @@ type
     { 10 ambiente }
     Scenario: TSimulationScenario;
     CbEnv: TComboBox;
-    EdFlow, EdArea, EdVolume, EdCd, EdMass: TFloatSpinEdit;
+    EdFlow, EdArea, EdVolume, EdCd, EdMass, EdAltitude: TFloatSpinEdit;
+    SoundSpeed: Double;
 
     function Btn(AParent: TWinControl; const AText: string; X, Y, W, H: Integer;
       AIcon: TSuiteIconKind; Handler: TNotifyEvent): TSuiteButton;
@@ -208,6 +209,8 @@ type
     procedure EnvChange(Sender: TObject);
     procedure EstimateClick(Sender: TObject);
     procedure FloatTestClick(Sender: TObject);
+    procedure ISAClick(Sender: TObject);
+    procedure AssemblyFlotationClick(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure CaptureTick(Sender: TObject);
     procedure HeaderResize(Sender: TObject);
@@ -779,10 +782,14 @@ begin
   EdVolume := Num(S, 'Volume deslocado (m3)', 16, 146, 140, 0, 1e6, 0.1, 4);
   EdCd := Num(S, 'Coeficiente de arrasto', 166, 146, 140, 0, 10, 0.8, 3);
   EdMass := Num(S, 'Massa do corpo (kg)', 16, 196, 140, 0, 1e9, 100, 2);
-  Btn(S, 'Estimar arrasto e empuxo', 16, 252, 290, 32, sikPulse, @EstimateClick);
-  Btn(S, 'Teste de flutuacao', 16, 292, 290, 32, sikTarget, @FloatTestClick);
+  EdAltitude := Num(S, 'Altitude (m, atmosfera ISA)', 166, 196, 140, 0, 20000, 0, 0);
+  Btn(S, 'Atmosfera ISA na altitude', 16, 252, 290, 32, sikThermo, @ISAClick);
+  Btn(S, 'Estimar arrasto e empuxo', 16, 292, 290, 32, sikPulse, @EstimateClick);
+  Btn(S, 'Teste de flutuacao (volume informado)', 16, 332, 290, 32, sikTarget, @FloatTestClick);
+  Btn(S, 'Flutuacao da montagem (calado e GM)', 16, 372, 290, 32, sikAssembly, @AssemblyFlotationClick);
   Lbl(S, 'Formulas reduzidas (pressao dinamica, arrasto Cd, empuxo hidrostatico): ESTIMATIVA, nao e CFD. ' +
-    'Acima de Mach 0,3 a hipotese incompressivel nao vale.', 16, 336, 290, 70);
+    'Acima de Mach 0,3 a hipotese incompressivel nao vale. A flutuacao da montagem usa a malha e as massas ' +
+    'das pecas: calado de equilibrio, centro de empuxo e altura metacentrica (inclinacao em torno de X).', 16, 414, 290, 110);
 end;
 
 { ---------------- utilidades ---------------- }
@@ -2381,15 +2388,70 @@ procedure TMultiPhysicsForm.EstimateClick(Sender: TObject);
 var
   R: TFluidEstimate;
 begin
-  EnvChange(nil);
   Scenario.Environment.FlowX := EdFlow.Value;
   R := EstimateFluidLoads(Scenario.Environment, EdArea.Value, EdCd.Value, EdVolume.Value);
   Log.Lines.Add('--- ESTIMATIVA, NAO E CFD ---');
   Log.Lines.Add(Format('Velocidade %.3f m/s, pressao dinamica %.2f Pa', [R.Speed, R.DynamicPressure]));
   Log.Lines.Add(Format('Arrasto estimado %.2f N, empuxo %.2f N', [R.DragForce, R.BuoyancyForce]));
-  if (CbEnv.ItemIndex = 0) and (Abs(EdFlow.Value) > 0.3 * 343) then
-    Log.Lines.Add('Aviso: acima de Mach 0,3 a hipotese incompressivel nao vale.');
+  if CbEnv.ItemIndex = 0 then
+  begin
+    if SoundSpeed <= 0 then SoundSpeed := ISAAtmosphere(0).SoundSpeed;
+    if CompressibilityWarning(MachNumber(EdFlow.Value, SoundSpeed)) <> '' then
+      Log.Lines.Add('Aviso: ' + CompressibilityWarning(MachNumber(EdFlow.Value, SoundSpeed)));
+  end;
   SetStatus(Format('Arrasto %.2f N, empuxo %.2f N (ESTIMATIVA)', [R.DragForce, R.BuoyancyForce]));
+end;
+
+procedure TMultiPhysicsForm.ISAClick(Sender: TObject);
+var
+  A: TAtmosphere;
+begin
+  A := ISAAtmosphere(EdAltitude.Value);
+  CbEnv.ItemIndex := 0;
+  Scenario.Environment := AirEnvironment;
+  Scenario.Environment.Name := Format('Ar ISA a %.0f m', [A.Altitude]);
+  Scenario.Environment.Temperature := A.Temperature - 273.15;
+  Scenario.Environment.Pressure := A.Pressure;
+  Scenario.Environment.Density := A.Density;
+  Scenario.Environment.DynamicViscosity := A.Viscosity;
+  SoundSpeed := A.SoundSpeed;
+  Log.Lines.Add(Format('--- Atmosfera ISA a %.0f m: %.2f K (%.1f C), %.1f Pa, %.4f kg/m3, viscosidade %.3e Pa s, som %.1f m/s ---',
+    [A.Altitude, A.Temperature, A.Temperature - 273.15, A.Pressure, A.Density, A.Viscosity, A.SoundSpeed]));
+  SetStatus(Format('Ar ISA a %.0f m: densidade %.4f kg/m3', [A.Altitude, A.Density]));
+end;
+
+procedure TMultiPhysicsForm.AssemblyFlotationClick(Sender: TObject);
+var
+  I: Integer;
+  Mass, Rho: Double;
+  G: TVector3;
+  MP: TMassProperties;
+  F: TFlotation;
+  Q: TMeshQuality;
+begin
+  if P.PartCount = 0 then begin SetStatus('Adicione ou importe pecas antes.'); Exit; end;
+  ApplySettingsFromUI;
+  if Run.Mesh.ElemCount = 0 then Run.MeshOnly(Q);
+  Mass := 0; G := V3(0, 0, 0);
+  for I := 0 to P.PartCount - 1 do
+  begin
+    if P.Part(I).Suppressed then Continue;
+    MP := Run.Mesh.MassProperties(I, P.Part(I).Material.Density);
+    Mass := Mass + MP.Mass;
+    G := VAdd(G, VScale(MP.Center, MP.Mass));
+  end;
+  if Mass <= 0 then begin SetStatus('Massa nula: confira materiais e malha.'); Exit; end;
+  G := VScale(G, 1 / Mass);
+  Rho := Scenario.Environment.Density;
+  F := SolveFlotation(Run.Mesh, Mass, Rho, G, 2);
+  Log.Lines.Add('--- FLUTUACAO DA MONTAGEM (ESTIMATIVA, nao e CFD) ---');
+  Log.Lines.Add(Format('Massa %.3f kg, centro de gravidade (%.1f, %.1f, %.1f) mm, fluido %.1f kg/m3',
+    [Mass, G.X * 1000, G.Y * 1000, G.Z * 1000, Rho]));
+  Log.Lines.Add(F.Message);
+  if F.Ok then
+    Log.Lines.Add(Format('Linha d''agua z = %.1f mm, deslocamento %.4g m3, centro de empuxo (%.1f, %.1f, %.1f) mm',
+      [F.WaterlineZ * 1000, F.Displacement, F.CenterOfBuoyancy.X * 1000, F.CenterOfBuoyancy.Y * 1000, F.CenterOfBuoyancy.Z * 1000]));
+  SetStatus(F.Message);
 end;
 
 procedure TMultiPhysicsForm.FloatTestClick(Sender: TObject);
@@ -2397,7 +2459,6 @@ var
   Body: TRigidBodyState;
   R: TBuoyancyResult;
 begin
-  EnvChange(nil);
   FillChar(Body, SizeOf(Body), 0);
   Body.Mass := EdMass.Value;
   Body.CenterOfMass := V3(0, 0, 0.2);

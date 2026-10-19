@@ -379,7 +379,7 @@ Atualize esta tabela a cada tarefa concluída (data, commit, teste que comprova)
 | Fase 5 (MP-5.1 a 5.5) | feito, **com ressalva**: MP-5.3 testado com `.frd` montado no formato do ccx e MP-5.4 so roda com ccx instalado (aqui saiu IGNORADO) | 18/10/2026 | (este commit) | `test_ccx` |
 | Fase 6 (MP-6.1 a 6.7) | parcial: MP-6.1 a 6.6 feitos (10 etapas, ver Decisoes), MP-6.7 so abre `.mphys`; desfazer/refazer pendente | 18/10/2026 | (este commit) | `multiphysics.exe --capture=static|thermal|modal|system|circuit|loads arquivo.png` |
 | Fase 7 (MP-7.1 a 7.15) | parcial: feitos MP-7.1 (indutancia, malha aberta, PI), 7.3, 7.5 (rampa, torque x velocidade, homing), 7.6, 7.7 (fonte de corrente, no flutuante, netlist), 7.8 (testes), 7.10, 7.11, 7.12, 7.13, 7.15; pendentes 7.2 (validacao do grafo), 7.4 (fases documentadas), 7.9 (MCU por eventos), 7.14 | 18/10/2026 | (este commit) | `test_system_models`, `test_circuit_netlist` |
-| Fase 8 (MP-8.1 a 8.6, P1) | pendente | | | |
+| Fase 8 (MP-8.1 a 8.6, P1) | feito (GM pela inclinacao pequena, geral para qualquer malha) | 18/10/2026 | (este commit) | `test_hydro` |
 | Fase 9 (MP-9.1 a 9.4) | pendente | | | |
 | Fase 10 (MP-10.1 a 10.4) | pendente | | | |
 
