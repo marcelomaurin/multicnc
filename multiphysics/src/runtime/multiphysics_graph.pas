@@ -32,5 +32,38 @@ function TSimulationGraph.AddComponent(C:TSimComponent):Boolean;begin Result:=(C
 function TSimulationGraph.Find(const ID:string):TSimComponent;var I:Integer;begin Result:=nil;for I:=0 to FComponents.Count-1 do if SameText(TSimComponent(FComponents[I]).ID,ID) then Exit(TSimComponent(FComponents[I]));end;
 function TSimulationGraph.Connect(const FC,FP,TC,TP:string;K:TPortKind):Boolean;var A,B:TSimComponent;PA,PB:TSimPort;C:TSimConnection;begin Result:=False;A:=Find(FC);B:=Find(TC);if (A=nil)or(B=nil)then Exit;PA:=A.Port(FP);PB:=B.Port(TP);if (PA=nil)or(PB=nil)or(PA.Kind<>K)or(PB.Kind<>K)then Exit;C:=TSimConnection.Create;C.FromComponent:=FC;C.FromPort:=FP;C.ToComponent:=TC;C.ToPort:=TP;C.Kind:=K;FConnections.Add(C);Result:=True;end;
 function TSimulationGraph.ComponentCount:Integer;begin Result:=FComponents.Count;end;function TSimulationGraph.ComponentAt(I:Integer):TSimComponent;begin Result:=TSimComponent(FComponents[I]);end;function TSimulationGraph.ConnectionCount:Integer;begin Result:=FConnections.Count;end;function TSimulationGraph.ConnectionAt(I:Integer):TSimConnection;begin Result:=TSimConnection(FConnections[I]);end;
-function TSimulationGraph.Validate(Log:TStrings):Boolean;var I:Integer;C:TSimConnection;begin Result:=True;if FComponents.Count=0 then begin Log.Add('ERRO: grafo vazio');Exit(False);end;for I:=0 to FConnections.Count-1 do begin C:=ConnectionAt(I);if (Find(C.FromComponent)=nil)or(Find(C.ToComponent)=nil)then begin Log.Add('ERRO: conexao com componente inexistente');Result:=False;end;end;if Result then Log.Add('Grafo valido: '+IntToStr(ComponentCount)+' componentes, '+IntToStr(ConnectionCount)+' conexoes');end;
+{ erros: grafo vazio, conexao com componente ou porta inexistente, tipos de
+  porta diferentes. Avisos: componente sem nenhuma ligacao, conexao repetida. }
+function TSimulationGraph.Validate(Log:TStrings):Boolean;
+var
+  I,J:Integer;
+  C,D:TSimConnection;
+  A,B:TSimComponent;
+  PA,PB:TSimPort;
+  Used:array of Boolean;
+begin
+  Result:=True;
+  if FComponents.Count=0 then begin Log.Add('ERRO: grafo vazio');Exit(False);end;
+  SetLength(Used,FComponents.Count);
+  for I:=0 to FConnections.Count-1 do
+  begin
+    C:=ConnectionAt(I);
+    A:=Find(C.FromComponent);B:=Find(C.ToComponent);
+    if (A=nil)or(B=nil) then begin Log.Add(Format('ERRO: conexao %s.%s -> %s.%s com componente inexistente',[C.FromComponent,C.FromPort,C.ToComponent,C.ToPort]));Result:=False;Continue;end;
+    Used[FComponents.IndexOf(A)]:=True;Used[FComponents.IndexOf(B)]:=True;
+    PA:=A.Port(C.FromPort);PB:=B.Port(C.ToPort);
+    if (PA=nil)or(PB=nil) then begin Log.Add(Format('ERRO: porta inexistente em %s.%s -> %s.%s',[C.FromComponent,C.FromPort,C.ToComponent,C.ToPort]));Result:=False;Continue;end;
+    if (PA.Kind<>PB.Kind)or(PA.Kind<>C.Kind) then begin Log.Add(Format('ERRO: tipos de porta diferentes em %s.%s -> %s.%s',[C.FromComponent,C.FromPort,C.ToComponent,C.ToPort]));Result:=False;end;
+    for J:=0 to I-1 do
+    begin
+      D:=ConnectionAt(J);
+      if SameText(D.FromComponent,C.FromComponent) and SameText(D.FromPort,C.FromPort) and SameText(D.ToComponent,C.ToComponent) and SameText(D.ToPort,C.ToPort) then
+        Log.Add(Format('Aviso: conexao repetida %s.%s -> %s.%s',[C.FromComponent,C.FromPort,C.ToComponent,C.ToPort]));
+    end;
+  end;
+  if FConnections.Count>0 then
+    for I:=0 to FComponents.Count-1 do
+      if not Used[I] then Log.Add('Aviso: componente sem ligacao: '+ComponentAt(I).ID);
+  if Result then Log.Add('Grafo valido: '+IntToStr(ComponentCount)+' componentes, '+IntToStr(ConnectionCount)+' conexoes');
+end;
 end.

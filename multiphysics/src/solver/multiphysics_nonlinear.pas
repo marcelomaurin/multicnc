@@ -1,4 +1,7 @@
 unit multiphysics_nonlinear;
+{ Diodo e MOSFET isolados por Newton (um elemento so). Mantida porque o teste
+  test_transient_nonlinear e modelos reduzidos a usam; circuitos completos usam
+  multiphysics_circuit_newton (iteracao global). }
 {$mode objfpc}{$H+}
 interface
 uses Math;

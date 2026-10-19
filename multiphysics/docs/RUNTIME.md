@@ -18,6 +18,20 @@ Maquina CNC: perfil trapezoidal (v <= sqrt(2 a d)), torque do passo a passo cain
 
 Acoplamento com o FEM: `multiphysics_coupling.ApplyRuntimeHeat` leva as perdas I2R do instante para a peca do motor como potencia dissipada (analise termica).
 
+## Agendador multifisico (`multiphysics_scheduler`)
+Para grafos com atuadores (passo a passo, servo, BLDC, engrenagem, fuso) o passo e dividido em fases fixas,
+nesta ordem: 1 eletrica (MNA), 2 controle, 3 atuadores, 4 mecanica, 5 termica, 6 sensores, 7 protecao.
+Cada fase le o estado deixado pela anterior no mesmo passo; sensores e protecao veem o estado ja integrado.
+
+## MCU virtual
+Programa sequencial com Delay ou eventos com hora marcada (`AddAt`, `AddPulseTrain`); `StepPulse` gera um
+pulso de um passo e conta as bordas por pino. PWM com a resolucao do perfil (ATmega328P 8 bits, ESP32 10,
+RP2040/STM32 16) e ADC com a resolucao e a referencia. Teste: `tests/test_mcu_graph.lpr`.
+
+## Validacao do grafo
+Erros: grafo vazio, componente ou porta inexistente, tipos de porta diferentes. Avisos: componente sem
+ligacao, conexao repetida.
+
 ## Limites
 Nao e SPICE. Nao simula semicondutores em nivel fisico.
 Nao e FEM transitorio.

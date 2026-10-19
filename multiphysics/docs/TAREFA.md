@@ -378,9 +378,9 @@ Atualize esta tabela a cada tarefa concluída (data, commit, teste que comprova)
 | Fase 4 (MP-4.1 a 4.11) | feito, exceto a meta numerica de MP-4.10 (50 mil nos em < 60 s) ainda nao medida; MP-4.8 massa efetiva (61,3% no 1o modo da viga), MP-4.11 thread com Cancelar | 18/10/2026 | (este commit) | `test_fem_benchmarks` (B1, B2, B4-B8) |
 | Fase 5 (MP-5.1 a 5.5) | feito, **com ressalva**: MP-5.3 testado com `.frd` montado no formato do ccx e MP-5.4 so roda com ccx instalado (aqui saiu IGNORADO) | 18/10/2026 | (este commit) | `test_ccx` |
 | Fase 6 (MP-6.1 a 6.7) | parcial: MP-6.1 a 6.6 feitos (10 etapas, ver Decisoes), MP-6.7 so abre `.mphys`; desfazer/refazer pendente | 18/10/2026 | (este commit) | `multiphysics.exe --capture=static|thermal|modal|system|circuit|loads arquivo.png` |
-| Fase 7 (MP-7.1 a 7.15) | parcial: feitos MP-7.1 (indutancia, malha aberta, PI), 7.3, 7.5 (rampa, torque x velocidade, homing), 7.6, 7.7 (fonte de corrente, no flutuante, netlist), 7.8 (testes), 7.10, 7.11, 7.12, 7.13, 7.15; pendentes 7.2 (validacao do grafo), 7.4 (fases documentadas), 7.9 (MCU por eventos), 7.14 | 18/10/2026 | (este commit) | `test_system_models`, `test_circuit_netlist` |
+| Fase 7 (MP-7.1 a 7.15) | feito | 19/10/2026 | (este commit) | `test_system_models`, `test_circuit_netlist`, `test_mcu_graph` |
 | Fase 8 (MP-8.1 a 8.6, P1) | feito (GM pela inclinacao pequena, geral para qualquer malha) | 18/10/2026 | (este commit) | `test_hydro` |
-| Fase 9 (MP-9.1 a 9.4) | quase feito: MP-9.1 (botao MultiPhysics no MultiAssembly), 9.2 (exemplos em `models/multiphysics`), 9.3 (`docs/MANUAL.md`), 9.4 (versao 0.2.0.0 no .lpi); falta atualizar README.md/AI_GUIDE.md/INTEGRATION_ROADMAP.md e NEWS | 18/10/2026 | (este commit) | — |
+| Fase 9 (MP-9.1 a 9.4) | feito (MANUAL, exemplos, README/AI_GUIDE/roadmap/NEWS, versao 0.2.0.0) | 19/10/2026 | 302c39c | — |
 | Fase 10 (MP-10.1 a 10.4) | pendente | | | |
 
 Ao quebrar uma fase em várias sessões, detalhe as linhas por tarefa (ex.: `MP-4.4 | feito | ... | B1, B2`).
