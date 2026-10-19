@@ -128,7 +128,7 @@ begin
   H := Abs(H) * Dir;
   SetLength(YNew, N);
   Steps := 0;
-  while (T1 - T) * Dir > 1e-15 * Max(1, Abs(T1)) do begin
+  while (T1 - T) * Dir > 1e-15 * Max(1.0, Abs(T1)) do begin
     if Steps >= MaxSteps then Exit;
     Inc(Steps);
     if (T + H - T1) * Dir > 0 then H := T1 - T;
@@ -147,7 +147,7 @@ begin
         E6 * K[5][I] + E7 * K[6][I]) / Sc);
     end;
     Err := Sqrt(Err / N);
-    if (Err <= 1) or (Abs(H) < 1e-14 * Max(1, Abs(T))) then begin
+    if (Err <= 1) or (Abs(H) < 1e-14 * Max(1.0, Abs(T))) then begin
       T := T + H;
       Y := Copy(YNew);
       K[0] := Copy(K[6]); // FSAL: ultima avaliacao vira a primeira do proximo passo

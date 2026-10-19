@@ -21,7 +21,7 @@ uses
   multiphysics_buoyancy, multiphysics_runtime, multiphysics_runtime_types,
   multiphysics_graph, multiphysics_graph_runtime, multiphysics_machine_runtime,
   multiphysics_machine_faults, multiphysics_netlist, multiphysics_units,
-  multiphysics_view3d, multiphysics_chart, multiphysics_assembly_import;
+  multiphysics_view3d, multiphysics_chart, multiphysics_assembly_import, multiphysics_coupling;
 
 const
   STEP_COUNT = 10;
@@ -178,6 +178,9 @@ type
     procedure MachineCreateClick(Sender: TObject);
     procedure MachineMoveClick(Sender: TObject);
     procedure MachineFaultClick(Sender: TObject);
+    procedure MachineHomeClick(Sender: TObject);
+    procedure MachineClearFaultsClick(Sender: TObject);
+    procedure RuntimeToFEMClick(Sender: TObject);
     procedure CircuitSolveClick(Sender: TObject);
     procedure EnvChange(Sender: TObject);
     procedure EstimateClick(Sender: TObject);
@@ -684,10 +687,12 @@ begin
   Btn(S, 'Pausar', 115, 84, 92, 32, sikPause, @RuntimePauseClick);
   Btn(S, 'Desligar', 214, 84, 92, 32, sikStop, @RuntimeStopClick);
   Btn(S, 'Exportar CSV', 16, 124, 140, 32, sikExport, @ChartCSVClick);
+  Btn(S, 'Perdas -> termica', 166, 124, 140, 32, sikFlame, @RuntimeToFEMClick);
   LbRuntime := Lbl(S, '', 16, 168, 290, 120);
   LbRuntime.Font.Color := clSuiteText;
-  Lbl(S, 'Fonte -> driver PWM -> motor DC -> carga -> sensor -> controlador, em passos de tempo. ' +
-    'Modelo reduzido e deterministico: ESTIMATIVA (ver docs/RUNTIME.md).', 16, 296, 290, 80);
+  Lbl(S, 'Fonte -> driver PWM -> motor DC (com indutancia) -> carga -> sensor -> controlador PI, em passos de tempo. ' +
+    'Modelo reduzido e deterministico: ESTIMATIVA (ver docs/RUNTIME.md). "Perdas -> termica" leva a potencia I2R ' +
+    'do instante atual para a peca selecionada na etapa Montagem, como potencia dissipada.', 16, 296, 290, 110);
 end;
 
 procedure TMultiPhysicsForm.BuildMachinePage(S: TScrollBox);
@@ -707,7 +712,9 @@ begin
   CbFault.Items.CommaText := '"Circuito aberto","Curto-circuito","Eixo travado","Sensor falhou","Fim de curso preso","Corrosao","Oxidacao","Sobrecorrente"';
   CbFault.ItemIndex := 2;
   Btn(S, 'Injetar falha', 16, 248, 140, 32, sikFlame, @MachineFaultClick);
-  LbMachine := Lbl(S, '', 16, 290, 290, 140);
+  Btn(S, 'Limpar falhas', 166, 248, 140, 32, sikClose, @MachineClearFaultsClick);
+  Btn(S, 'Homing (X, Y, Z)', 16, 288, 290, 32, sikHome, @MachineHomeClick);
+  LbMachine := Lbl(S, '', 16, 330, 290, 140);
   LbMachine.Font.Color := clSuiteText;
 end;
 
@@ -784,7 +791,7 @@ begin
     EdMeshSize.Value := MToMm(P.Settings.MeshSize);
     CkQuadratic.Checked := P.Settings.Quadratic;
     CkConvergence.Checked := P.Settings.CheckConvergence;
-    EdModes.Value := Max(1, P.Settings.Modes);
+    EdModes.Value := Max(1.0, P.Settings.Modes);
     CbSolver.ItemIndex := EnsureRange(P.Settings.Solver, 0, 1);
   finally
     FUpdating := False;
@@ -2052,9 +2059,9 @@ end;
 procedure TMultiPhysicsForm.MachineCreateClick(Sender: TObject);
 begin
   Machine.Clear;
-  Machine.AddAxis('X', 0, 300, 80, 1.2);
-  Machine.AddAxis('Y', 0, 200, 80, 1.2);
-  Machine.AddAxis('Z', 0, 100, 400, 1.5);
+  with Machine.AddAxis('X', 0, 300, 80, 1.2) do begin Accel := 500; NoLoadSpeed := 150; end;
+  with Machine.AddAxis('Y', 0, 200, 80, 1.2) do begin Accel := 500; NoLoadSpeed := 150; end;
+  with Machine.AddAxis('Z', 0, 100, 400, 1.5) do begin Accel := 300; NoLoadSpeed := 40; end;
   Machine.SetSpindle(12000);
   Machine.Start;
   Chart.Clear;
@@ -2063,7 +2070,7 @@ begin
   Chart.AddSeries('Y', 'mm', clSuiteAxisY);
   Chart.AddSeries('Z', 'mm', clSuiteAxisZ);
   Chart.AddSeries('Spindle', 'rpm', clDefault);
-  LbMachine.Caption := 'CNC energizada: X 0-300, Y 0-200, Z 0-100 mm, spindle alvo 12000 rpm.';
+  LbMachine.Caption := 'CNC energizada: X 0-300, Y 0-200, Z 0-100 mm, rampa 500 mm/s2, spindle alvo 12000 rpm.';
   SetStatus('CNC virtual criada.');
 end;
 
@@ -2097,11 +2104,62 @@ begin
   Log.Lines.Add(StringReplace(Txt, #13#10, ' | ', [rfReplaceAll]));
 end;
 
+procedure TMultiPhysicsForm.MachineHomeClick(Sender: TObject);
+var
+  K: Integer;
+  Txt: string;
+begin
+  if Machine.AxisCount = 0 then MachineCreateClick(nil);
+  Machine.Start;
+  Txt := '';
+  for K := 0 to Machine.AxisCount - 1 do
+    if Machine.HomeAxis(Machine.Axis(K).Name, 30) then
+      Txt := Txt + Format('%s: referenciado (posicao real %.3f mm)'#13#10, [Machine.Axis(K).Name, Machine.Axis(K).State.PositionMM])
+    else
+      Txt := Txt + Machine.Axis(K).Name + ': fim de curso nao encontrado'#13#10;
+  if Machine.TripReason <> '' then Txt := Txt + 'DESARME: ' + Machine.TripReason;
+  LbMachine.Caption := Txt;
+  Log.Lines.Add('--- Homing ---');
+  Log.Lines.Add(StringReplace(Txt, #13#10, ' | ', [rfReplaceAll]));
+end;
+
+procedure TMultiPhysicsForm.MachineClearFaultsClick(Sender: TObject);
+var
+  K: Integer;
+begin
+  for K := 0 to Machine.AxisCount - 1 do
+  begin
+    ClearAxisFaults(Machine.Axis(K));
+    Machine.Axis(K).Motor.RunningTorque := IfThen(K = 2, 1.5, 1.2);
+    Machine.Axis(K).Command.Enabled := True;
+  end;
+  Machine.Start;
+  SetStatus('Falhas removidas; maquina religada.');
+end;
+
+procedure TMultiPhysicsForm.RuntimeToFEMClick(Sender: TObject);
+var
+  Part: TPhysicsPart;
+  S: TSimulationSnapshot;
+  K: Integer;
+begin
+  if GraphRuntime = nil then begin SetStatus('Ligue a simulacao do sistema antes.'); Exit; end;
+  Part := SelectedPart;
+  if (Part = nil) and (P.PartCount > 0) then Part := P.Part(0);
+  if Part = nil then begin SetStatus('Adicione ou selecione uma peca (etapa Montagem) para receber as perdas.'); Exit; end;
+  S := GraphRuntime.Snapshot;
+  K := ApplyRuntimeHeat(P, Part.ID, S);
+  RefreshBCList;
+  RefreshTree;
+  SetStatus(Format('Potencia dissipada de %.3f W aplicada em %s (condicao "%s"). Resolva a termica.',
+    [S.Thermal.HeatPower, Part.ID, P.BC(K).Name]));
+end;
+
 procedure TMultiPhysicsForm.MachineFaultClick(Sender: TObject);
 begin
   if Machine.AxisCount = 0 then MachineCreateClick(nil);
   InjectAxisFault(Machine.Axis(CbFaultAxis.ItemIndex), TMachineFault(CbFault.ItemIndex + 1));
-  Log.Lines.Add(Format('Falha injetada no eixo %s: %s', [CbFaultAxis.Text, CbFault.Text]));
+  Log.Lines.Add(Format('Falha injetada no eixo %s: %s', [CbFaultAxis.Text, MachineFaultName(TMachineFault(CbFault.ItemIndex + 1))]));
   SetStatus('Falha injetada. Execute um movimento para ver o efeito.');
 end;
 

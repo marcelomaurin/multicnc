@@ -114,7 +114,7 @@ begin
     Hi := Max(Hi, FSeries[S].V[I]);
   end;
   if FCount = 0 then begin Lo := 0; Hi := 1; end;
-  if Hi - Lo < 1e-12 * Max(1, Abs(Hi)) then begin Lo := Lo - 0.5; Hi := Hi + 0.5; end;
+  if Hi - Lo < 1e-12 * Max(1.0, Abs(Hi)) then begin Lo := Lo - 0.5; Hi := Hi + 0.5; end;
 end;
 
 procedure TPhysicsChart.Paint;

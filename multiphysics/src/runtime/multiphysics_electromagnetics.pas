@@ -17,6 +17,8 @@ function HallVoltage(Current,B,Thickness,CarrierDensity,Charge:Double):Double;
 function MutualInductance(L1,L2,K:Double):Double;
 function TransformerInducedVoltage(M,DeltaCurrent,Dt:Double):Double;
 procedure CoilStep(var C:TCoilModel;Voltage,Dt:Double);
+{ saturacao suave do nucleo: B = Bsat tanh(Blinear/Bsat) (Bsat <= 0: sem saturacao) }
+function SaturatedField(BLinear,BSat:Double):Double;
 implementation
 function SolenoidField(const C:TCoilModel):Double;begin if C.Length<=0 then Exit(0);Result:=MU0*Max(1e-9,C.RelativePermeability)*C.Turns*C.Current/C.Length;end;
 function MagneticFlux(B,Area:Double):Double;begin Result:=B*Area;end;
@@ -24,7 +26,8 @@ function CoilInductance(const C:TCoilModel):Double;begin if C.Length<=0 then Exi
 function FaradayEMF(Turns:Integer;FluxNow,FluxPrevious,Dt:Double):Double;begin if Dt<=0 then Exit(0);Result:=-Turns*(FluxNow-FluxPrevious)/Dt;end;
 function MagneticForce(B,Area,MuR:Double):Double;begin if MuR<=0 then MuR:=1;Result:=Sqr(B)*Area/(2*MU0*MuR);end;
 function HallVoltage(Current,B,Thickness,CarrierDensity,Charge:Double):Double;begin if(Thickness<=0)or(CarrierDensity<=0)or(Charge=0)then Exit(0);Result:=Current*B/(CarrierDensity*Charge*Thickness);end;
-function MutualInductance(L1,L2,K:Double):Double;begin Result:=Max(0,Min(1,K))*Sqrt(Max(0,L1)*Max(0,L2));end;
+function MutualInductance(L1,L2,K:Double):Double;begin Result:=Max(0.0,Min(1.0,K))*Sqrt(Max(0.0,L1)*Max(0.0,L2));end;
 function TransformerInducedVoltage(M,DeltaCurrent,Dt:Double):Double;begin if Dt<=0 then Exit(0);Result:=-M*DeltaCurrent/Dt;end;
 procedure CoilStep(var C:TCoilModel;Voltage,Dt:Double);var OldFlux,DI,B:Double;begin if(Dt<=0)or(C.Resistance<=0)then Exit;if C.Inductance<=0 then C.Inductance:=CoilInductance(C);if C.Inductance>0 then DI:=(Voltage-C.Resistance*C.Current)/C.Inductance*Dt else DI:=0;OldFlux:=C.Flux;C.Current:=C.Current+DI;B:=SolenoidField(C);C.Flux:=MagneticFlux(B,C.Area);C.FluxLinkage:=C.Turns*C.Flux;end;
+function SaturatedField(BLinear,BSat:Double):Double;begin if BSat<=0 then Exit(BLinear);Result:=BSat*Tanh(BLinear/BSat);end;
 end.

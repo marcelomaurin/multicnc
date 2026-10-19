@@ -291,7 +291,7 @@ begin
       if BestE >= 0 then
       begin
         T.Slave := I; T.Gap := 0;
-        for J := 0 to 3 do BL[J] := Max(0, BL[J]);
+        for J := 0 to 3 do BL[J] := Max(0.0, BL[J]);
         if M.Order = 2 then
         begin
           T.NM := 10;

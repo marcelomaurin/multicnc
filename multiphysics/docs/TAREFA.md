@@ -378,7 +378,7 @@ Atualize esta tabela a cada tarefa concluída (data, commit, teste que comprova)
 | Fase 4 (MP-4.1 a 4.11) | parcial: MP-4.1 a 4.7 e 4.9 feitos; 4.10 parcial (direto escolhe perfil/RCM ou esparso/disseccao aninhada pelo custo simbolico); 4.8, 4.11 pendentes | 18/10/2026 | (este commit) | `test_fem_benchmarks` (B1, B2, B4-B8) |
 | Fase 5 (MP-5.1 a 5.5) | feito, **com ressalva**: MP-5.3 testado com `.frd` montado no formato do ccx e MP-5.4 so roda com ccx instalado (aqui saiu IGNORADO) | 18/10/2026 | (este commit) | `test_ccx` |
 | Fase 6 (MP-6.1 a 6.7) | parcial: MP-6.1 a 6.6 feitos (10 etapas, ver Decisoes), MP-6.7 so abre `.mphys`; desfazer/refazer pendente | 18/10/2026 | (este commit) | `multiphysics.exe --capture=static|thermal|modal|system|circuit|loads arquivo.png` |
-| Fase 7 (MP-7.1 a 7.15) | parcial: MP-7.7 (netlist SPICE sobre o Newton-MNA, B9) e telas de MP-7.15 feitos; demais pendentes | 18/10/2026 | (este commit) | `test_circuit_netlist` |
+| Fase 7 (MP-7.1 a 7.15) | parcial: feitos MP-7.1 (indutancia, malha aberta, PI), 7.3, 7.5 (rampa, torque x velocidade, homing), 7.6, 7.7 (fonte de corrente, no flutuante, netlist), 7.8 (testes), 7.10, 7.11, 7.12, 7.13, 7.15; pendentes 7.2 (validacao do grafo), 7.4 (fases documentadas), 7.9 (MCU por eventos), 7.14 | 18/10/2026 | (este commit) | `test_system_models`, `test_circuit_netlist` |
 | Fase 8 (MP-8.1 a 8.6, P1) | pendente | | | |
 | Fase 9 (MP-9.1 a 9.4) | pendente | | | |
 | Fase 10 (MP-10.1 a 10.4) | pendente | | | |
@@ -420,4 +420,5 @@ Ao quebrar uma fase em várias sessões, detalhe as linhas por tarefa (ex.: `MP-
 | 18/10/2026 | Linhas fixas (Dirichlet) mantêm a própria rigidez na diagonal | Com 1 na diagonal o pivô ficava minúsculo perto das penalidades e o Cholesky recusava. |
 | 18/10/2026 | `.frd` de teste escrito à mão no formato do ccx (MP-5.3) | O ccx não está instalado nesta máquina. **Pendente:** com o ccx, rodar `test_ccx` (comparação B2) e conferir se o valor do bloco `100CL` no modal é a frequência em Hz; se não for, corrigir `ReadFRD`. |
 | 18/10/2026 | Contatos para o ccx como `*EQUATION` (cada nó dependente uma vez, nunca fixo) | Reproduz as amarrações do solver próprio; `*TIE` não cobre volumes sobrepostos. |
+| 18/10/2026 | **Nunca `Max(0, x)` / `Min(1, x)` com `x` real**: usar `Max(0.0, x)` | Com literal inteiro o FPC escolhe a versão `Single` de `Max`/`Min` e o valor perde precisão (a bateria errava 0,007% e o acoplamento runtime → FEM no 7º dígito). Corrigido em todo o MultiPhysics. |
 | 18/10/2026 | TET10 padrão no estrutural | TET4 trava em flexão (B2 com erro grande); TET10 atinge 3% com malha moderada. |

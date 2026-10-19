@@ -23,7 +23,7 @@ procedure TMCU.PinMode(Pin:Integer;OutputMode:Boolean);begin if(Pin>=0)and(Pin<L
 procedure TMCU.DigitalWrite(Pin:Integer;Value:Boolean);begin if(Pin>=0)and(Pin<Length(FPins))and FPins[Pin].OutputMode then FPins[Pin].DigitalValue:=Value;end;
 function TMCU.DigitalRead(Pin:Integer):Boolean;begin Result:=(Pin>=0)and(Pin<Length(FPins))and FPins[Pin].DigitalValue;end;
 procedure TMCU.AnalogInput(Pin:Integer;Voltage:Double);begin if(Pin>=0)and(Pin<Length(FPins))then FPins[Pin].AnalogValue:=Voltage;end;
-function TMCU.AnalogRead(Pin:Integer;VRef:Double):Integer;var M:Integer;begin Result:=0;if(Pin<0)or(Pin>=Length(FPins))or(VRef<=0)then Exit;M:=(1 shl FProfile.ADCBits)-1;Result:=Round(Max(0,Min(VRef,FPins[Pin].AnalogValue))/VRef*M);end;
-procedure TMCU.PWMWrite(Pin:Integer;Duty:Double);begin if(Pin>=0)and(Pin<Length(FPins))then FPins[Pin].PWM:=Max(0,Min(1,Duty));end;
+function TMCU.AnalogRead(Pin:Integer;VRef:Double):Integer;var M:Integer;begin Result:=0;if(Pin<0)or(Pin>=Length(FPins))or(VRef<=0)then Exit;M:=(1 shl FProfile.ADCBits)-1;Result:=Round(Max(0.0,Min(VRef,FPins[Pin].AnalogValue))/VRef*M);end;
+procedure TMCU.PWMWrite(Pin:Integer;Duty:Double);begin if(Pin>=0)and(Pin<Length(FPins))then FPins[Pin].PWM:=Max(0.0,Min(1.0,Duty));end;
 function TMCU.PWMRead(Pin:Integer):Double;begin if(Pin>=0)and(Pin<Length(FPins))then Result:=FPins[Pin].PWM else Result:=0;end;
 end.

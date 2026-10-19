@@ -37,6 +37,8 @@ MultiCNC continua sendo o unico dono da execucao fisica.
 3. Modelos simplificados (nao e SPICE, nao e FEM transitorio) devem dizer isso na saida.
 4. Simulacao deterministica: mesma entrada, mesmo resultado (testes dependem disso).
 5. Toda formula nova com teste contra caso analitico conhecido.
+6. Com numeros reais, escreva `Max(0.0, x)` e `Min(1.0, x)`: com literal inteiro o Free Pascal
+   escolhe a versao `Single` e o resultado perde precisao.
 
 ## Nao pertence aqui
 Controle de porta serial/protocolo, geracao de G-code, CAD de pecas e projeto de PCB.
