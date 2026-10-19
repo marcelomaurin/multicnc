@@ -3,7 +3,7 @@
 #endif
 #include "..\..\dist\version.iss"
 #ifndef SetupSeq
-  #define SetupSeq "013"
+  #define SetupSeq "014"
 #endif
 #ifndef MyAppPublisher
   #define MyAppPublisher "Maurinsoft"

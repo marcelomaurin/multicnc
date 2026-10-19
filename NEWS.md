@@ -1,6 +1,6 @@
 # MultiSuite — Notas de Lançamento / News
 
-## [Próxima] — MultiPhysics 0.2 (ainda sem setup)
+## [0.14] — Setup 014 (19/10/2026)
 
 ### 🧪 MultiPhysics: simulação física de verdade
 - **FEM próprio** (tetraedros TET4/TET10) para análise **estática**, **térmica**, **termomecânica** e **modal**, com reações, fator de segurança e massa efetiva. Conferido contra soluções analíticas: flecha de viga 0,6%, frequência 0,4%, aleta térmica 0,01%.
