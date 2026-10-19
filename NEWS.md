@@ -1,5 +1,18 @@
 # MultiSuite — Notas de Lançamento / News
 
+## [Próxima] — MultiPhysics 0.2 (ainda sem setup)
+
+### 🧪 MultiPhysics: simulação física de verdade
+- **FEM próprio** (tetraedros TET4/TET10) para análise **estática**, **térmica**, **termomecânica** e **modal**, com reações, fator de segurança e massa efetiva. Conferido contra soluções analíticas: flecha de viga 0,6%, frequência 0,4%, aleta térmica 0,01%.
+- **Fidelidade sempre visível**: ENGENHARIA só com estudo de convergência de malha (< 5%); o resto sai como ESTIMATIVA.
+- **Montagem do MultiAssembly**: o botão MultiPhysics abre a montagem direto; peças, geometria, fixos, gravidade e contatos colados entram sozinhos.
+- **Interface nova** no padrão da suíte: 10 etapas, vista 3D com mapa de cores, deformada e modos animados, seleção de face pelo clique, cálculo em segundo plano com Cancelar, relatório HTML, CSV e VTK (ParaView).
+- **CalculiX opcional** para comparação (deck `.inp`, execução e leitura do `.frd`).
+- **Sistema e máquina**: motor DC com indutância e controle PI, CNC virtual com rampa, curva de torque, homing e falhas; circuitos por netlist SPICE; atmosfera ISA; flutuação com calado e altura metacêntrica.
+- Exemplos em `models/multiphysics` e manual em `multiphysics/docs/MANUAL.md`.
+
+---
+
 ## [0.13] — Setup 013 (18/10/2026)
 
 ### 🌟 Destaques da Versão 0.13

@@ -1,32 +1,31 @@
-# MultiPhysics
-
-Plano da versao 0.2 e tarefas detalhadas: [docs/TAREFA.md](docs/TAREFA.md).
+# MultiPhysics 0.2
 Ferramenta da suite MultiSuite para simular fisicamente uma montagem proveniente do MultiAssembly.
+Manual do usuario: [docs/MANUAL.md](docs/MANUAL.md). Plano, tarefas e progresso: [docs/TAREFA.md](docs/TAREFA.md).
+Exemplos: [models/multiphysics](../models/multiphysics/README.md).
 
-## Dominios
-- Estrutural: tracao, compressao, flexao, cisalhamento, deslocamento, tensao de von Mises e deformacao.
-- Termico: calor, frio, conducao, conveccao, expansao termica e acoplamento termo-mecanico.
-- Contato: contato entre pecas, pressao de contato e atrito.
-- Dinamico: vibracao, frequencias naturais/modal, cargas variaveis e aceleracao.
-- Fluido: ambiente, velocidade, densidade, viscosidade e arrasto; CFD/FSI sera backend separado.
+## O que faz (e com que fidelidade)
+| Area | Como | Fidelidade |
+|---|---|---|
+| Estrutural estatica linear | FEM proprio TET4/TET10, fixacao, deslocamento, forca, pressao, gravidade | ENGENHARIA com convergencia < 5% |
+| Termica permanente | conducao, temperatura, fluxo, conveccao, potencia dissipada | ENGENHARIA com convergencia < 5% |
+| Termomecanica | campo termico como carga de dilatacao | ENGENHARIA com convergencia < 5% |
+| Modal | iteracao em subespaco, frequencias, formas, massa efetiva | ENGENHARIA com convergencia < 5% |
+| Contato | colado (sem atrito/separacao) entre pecas e entre primitivas | idem a analise |
+| CalculiX (opcional) | mesmo modelo em .inp, executa o ccx, le o .frd | ENGENHARIA (externo) |
+| Sistema eletromecanico | fonte, PWM, motor DC com indutancia, carga, sensor, PI | ESTIMATIVA |
+| CNC virtual | rampa, torque x velocidade, estol, homing, falhas | ESTIMATIVA |
+| Circuitos | netlist SPICE sobre MNA Newton-Raphson, transitorio | ENGENHARIA nos casos conferidos (RC) |
+| Fluido, atmosfera, flutuacao | arrasto/empuxo reduzidos, ISA, calado e GM pela malha | ESTIMATIVA (nao e CFD) |
 
 ## Arquitetura
-MultiAssembly define a montagem. MultiPhysics acrescenta materiais, malha, contatos, cargas e condicoes de contorno. O solver produz campos de temperatura, deslocamento, tensao, deformacao, contato e frequencias.
+`src/geometry` (primitivas, importacao do MultiAssembly) -> `src/mesh` (malha tetraedrica, contato) ->
+`src/fem` (matrizes esparsas, Cholesky/PCG, elementos, analise) e `src/ccx` (CalculiX); `src/ui` (vista 3D,
+grafico) e `src/app` (janela). O programa nao inventa resultado: sem malha, material ou fixacao o calculo e
+recusado com a mensagem do que falta.
 
-O primeiro backend preparado e CalculiX. O programa nao inventa resultado se nao houver malha/solver: o solve permanece bloqueado ate o pre-processamento produzir uma malha FEM valida.
-
-## Proximas etapas numericas
-1. importar geometria/assembly;
-2. gerar malha tetraedrica;
-3. mapear faces/volumes para sets FEM;
-4. gerar deck CalculiX completo;
-5. executar ccx;
-6. importar FRD/DAT;
-7. mapa de cores sobre a montagem;
-8. animacao de deformacao e modos de vibracao;
-9. backend CFD/FSI para arrasto;
-10. validacao contra casos analiticos.
-
+## Limites
+Lados retos (cilindros poligonais), material linear, pequenos deslocamentos, contato so colado, geometria por
+primitivas (STL ainda nao), sem CFD/FSI.
 
 ## Ambientes fisicos
 O projeto possui presets Ar, Agua e Vacuo, alem da arquitetura para ambiente personalizado. Cada ambiente carrega temperatura, pressao, densidade, viscosidade dinamica, gravidade e vetor de escoamento.
