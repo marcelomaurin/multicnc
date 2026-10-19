@@ -11,6 +11,9 @@ uses
   multiphysics_vector, multiphysics_geometry, multiphysics_project,
   multiphysics_scenario, multiphysics_analysis, multiphysics_units, multiphysics_check;
 
+var
+  Ok: Boolean;
+
 procedure TestMaterials;
 var
   I: Integer;
@@ -139,7 +142,7 @@ begin
     B.Z := -100;
     P.AddBC(B);
     P.Settings.MeshSize := 0.005;
-    Check(R.Run(akStatic), 'estatica resolve: ' + R.Message);
+    Ok := R.Run(akStatic); Check(Ok, 'estatica resolve: ' + R.Message);
     I := 0.01 * Power(0.02, 3) / 12;
     G := 200e9 / 2.6;
     Ref := 100 * Power(0.2, 3) / (3 * 200e9 * I) + 100 * 0.2 / (5 / 6 * G * 2e-4);
@@ -149,7 +152,7 @@ begin
     Check(R.Summary.Fidelity = 'ENGENHARIA', 'resumo carrega a fidelidade');
     { modal }
     P.Settings.Modes := 2;
-    Check(R.Run(akModal), 'modal resolve: ' + R.Message);
+    Ok := R.Run(akModal); Check(Ok, 'modal resolve: ' + R.Message);
     CheckNear(R.ModalRes.Freq[0], 203.8, 0.03, 'f1 pelo projeto');
     { sem convergencia pedida: ESTIMATIVA }
     P.Settings.CheckConvergence := False;
@@ -168,9 +171,9 @@ begin
     B := NewBC('Rx1', 'VIGA', 'xmax', bkFixed); B.DofMask := 1; P.AddBC(B);
     B := NewBC('Ry', 'VIGA', 'ymin', bkFixed); B.DofMask := 2; P.AddBC(B);
     B := NewBC('Rz', 'VIGA', 'zmin', bkFixed); B.DofMask := 4; P.AddBC(B);
-    Check(R.Run(akThermal), 'termica resolve: ' + R.Message);
+    Ok := R.Run(akThermal); Check(Ok, 'termica resolve: ' + R.Message);
     CheckNear(R.ThermalRes.MaxT, 70, 1e-6, 'temperatura uniforme 70 C');
-    Check(R.Run(akThermoMechanical), 'termomecanica resolve: ' + R.Message);
+    Ok := R.Run(akThermoMechanical); Check(Ok, 'termomecanica resolve: ' + R.Message);
     CheckNear(R.StaticRes.MaxVonMises, 200e9 * P.Part(0).Material.ThermalExpansion * 50, 0.02, 'tensao termica E alfa dT');
   finally
     R.Free; P.Free;

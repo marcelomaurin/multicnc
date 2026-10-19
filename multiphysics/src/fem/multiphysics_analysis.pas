@@ -9,9 +9,9 @@ unit multiphysics_analysis;
   - ESTIMATIVA: convergencia nao verificada ou acima de 5%, ou malha ruim;
   - VALIDADO: nunca e atribuido automaticamente.
 
-  Contato entre pecas: nesta versao as pecas sao malhadas separadamente e
-  nao ha amarracao (MP-3.3 pendente); uma peca sem fixacao propria deixa a
-  estrutura livre e a analise avisa. }
+  Contato entre pecas: as pecas sao malhadas separadamente e cada contato
+  do projeto vira amarracao colada (multiphysics_contact, penalidade no
+  FEM), como o *TIE do CalculiX. Sem atrito nem separacao. }
 
 {$mode objfpc}{$H+}
 
@@ -20,7 +20,7 @@ interface
 uses
   Classes, SysUtils, Math, multiphysics_types, multiphysics_vector,
   multiphysics_geometry, multiphysics_mesh, multiphysics_sparse, multiphysics_fem,
-  multiphysics_project, multiphysics_scenario;
+  multiphysics_project, multiphysics_scenario, multiphysics_contact;
 
 type
   TAnalysisKind = (akStatic, akThermal, akThermoMechanical, akModal);
@@ -32,6 +32,7 @@ type
     function ResolveTags(M: TFEMMesh; const B: TBoundaryCondition): TIntArray;
     procedure SetupModel(F: TFEMModel; M: TFEMMesh; ThermalLoads: Boolean);
     function SolveOnce(M: TFEMMesh; H: Double; Kind: TAnalysisKind; out Main: Double): Boolean;
+    function BuildTies(M: TFEMMesh; H: Double; Verbose: Boolean): TMeshTies;
   public
     Mesh: TFEMMesh;                 { malha do ultimo resultado }
     Kind: TAnalysisKind;
@@ -221,6 +222,44 @@ begin
   end;
 end;
 
+{ amarracoes dos contatos colados do projeto: a peca com mais nos na
+  interface vira a escrava }
+function TAnalysisRun.BuildTies(M: TFEMMesh; H: Double; Verbose: Boolean): TMeshTies;
+var
+  I, J, A, B, N: Integer;
+  C: TContact;
+  T, T2: TMeshTies;
+  Tol: Double;
+begin
+  Tol := 0.1 * H + 1e-6;
+  { primitivas da mesma peca (corpo e eixo, por exemplo) sempre coladas }
+  Result := IntraPartTies(M, Tol);
+  if Verbose and (Length(Result) > 0) then
+    Log.Add(Format('Primitivas da mesma peca coladas: %d nos amarrados', [Length(Result)]));
+  for I := 0 to FProject.ContactCount - 1 do
+  begin
+    C := FProject.Contact(I);
+    A := FProject.FindPart(C.PartA);
+    B := FProject.FindPart(C.PartB);
+    if (A < 0) or (B < 0) or (A = B) or FProject.Part(A).Suppressed or FProject.Part(B).Suppressed then Continue;
+    { nos dois sentidos (ver IntraPartTies) }
+    T := FindTies(M, A, B, Tol);
+    T2 := FindTies(M, B, A, Tol);
+    AppendTies(T, T2);
+    if Verbose then
+    begin
+      if Length(T) = 0 then
+        Log.Add(Format('Aviso: contato "%s" (%s-%s) nao encontrou faces encostadas (folga > %.3g mm).',
+          [C.Name, C.PartA, C.PartB, Tol * 1000]))
+      else
+        Log.Add(Format('Contato colado "%s": %d nos amarrados', [C.Name, Length(T)]));
+    end;
+    N := Length(Result);
+    SetLength(Result, N + Length(T));
+    for J := 0 to High(T) do Result[N + J] := T[J];
+  end;
+end;
+
 function TAnalysisRun.SolveOnce(M: TFEMMesh; H: Double; Kind: TAnalysisKind; out Main: Double): Boolean;
 var
   F: TFEMModel;
@@ -235,6 +274,7 @@ begin
   end;
   F := TFEMModel.Create(M);
   try
+    F.Ties := BuildTies(M, H, M = Mesh);
     case Kind of
       akThermal:
         begin
@@ -342,8 +382,6 @@ begin
     end;
     StaticRes := SaveStatic; ThermalRes := SaveThermal; ModalRes := SaveModal;
   end;
-  if FProject.ContactCount > 0 then
-    Log.Add('Aviso: contatos entre pecas ainda nao sao amarrados na malha (MP-3.3); cada peca e resolvida com suas proprias condicoes.');
   if Fidelity = flEngineering then
     Log.Add('Fidelidade: ENGENHARIA (FEM com malha verificada e convergencia < 5%)')
   else

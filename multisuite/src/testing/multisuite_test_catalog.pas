@@ -81,6 +81,7 @@ function DefaultTestCatalog:TTestDefinitions;begin SetLength(Result,0);
  Add(Result,'MultiPhysics','FEM: benchmarks analiticos B1-B8','multiphysics/tests/test_fem_benchmarks.lpr','multiphysics/tests/test_fem_benchmarks');
  Add(Result,'MultiPhysics','Projeto .mphys e analise com fidelidade','multiphysics/tests/test_project_analysis.lpr','multiphysics/tests/test_project_analysis');
  Add(Result,'MultiPhysics','Netlist SPICE e transitorio RC','multiphysics/tests/test_circuit_netlist.lpr','multiphysics/tests/test_circuit_netlist');
+ Add(Result,'MultiPhysics','Contato colado e importacao da montagem','multiphysics/tests/test_assembly_contact.lpr','multiphysics/tests/test_assembly_contact');
  Add(Result,'MultiCAD','Restricoes, DOF, extrusao, STL/3MF','multicad/tests/test_parametric.lpr','multicad/tests/test_parametric');
  Add(Result,'MultiAssembly','ERC, BOM e configuracao de firmware','multiassembly/tests/test_engineering.lpr','multiassembly/tests/test_engineering');
 end;

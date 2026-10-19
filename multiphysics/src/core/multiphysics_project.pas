@@ -29,8 +29,11 @@ type
     Primitives: array of TGeoPrimitive; { coordenadas da peca, em metros }
     Position: TVector3;                 { m }
     RotX, RotY, RotZ: Double;           { graus }
+    Scale: TVector3;                    { escala por eixo (montagem: geometria -> tamanho da peca) }
+    Pivot: TVector3;                    { centro de rotacao, m (montagem: meio da caixa) }
     MeshSize: Double;                   { m; 0 = usa o tamanho global }
     Suppressed: Boolean;                { fora da analise }
+    constructor Create;
     procedure AddPrimitive(const P: TGeoPrimitive);
     function Transform: TGeoTransform;
     function Volume: Double;
@@ -85,6 +88,13 @@ end;
 
 { ---------------- TPhysicsPart ---------------- }
 
+constructor TPhysicsPart.Create;
+begin
+  inherited Create;
+  Scale := V3(1, 1, 1);
+  Pivot := V3(0, 0, 0);
+end;
+
 procedure TPhysicsPart.AddPrimitive(const P: TGeoPrimitive);
 begin
   SetLength(Primitives, Length(Primitives) + 1);
@@ -93,7 +103,7 @@ end;
 
 function TPhysicsPart.Transform: TGeoTransform;
 begin
-  Result := EulerTransform(Position, RotX, RotY, RotZ);
+  Result := AffineTransform(Position, Pivot, Scale, RotX, RotY, RotZ);
 end;
 
 function TPhysicsPart.Volume: Double;
@@ -102,6 +112,7 @@ var
 begin
   Result := 0;
   for I := 0 to High(Primitives) do Result := Result + PrimVolume(Primitives[I]);
+  Result := Result * Abs(Scale.X * Scale.Y * Scale.Z);
 end;
 
 function TPhysicsPart.Mass: Double;
@@ -374,6 +385,8 @@ begin
       O.Add('material', MaterialJSON(P.Material));
       O.Add('position', Vec3JSON(P.Position));
       O.Add('rotation', TJSONArray.Create([P.RotX, P.RotY, P.RotZ]));
+      O.Add('scale', Vec3JSON(P.Scale));
+      O.Add('pivot', Vec3JSON(P.Pivot));
       O.Add('mesh_size', P.MeshSize);
       O.Add('suppressed', P.Suppressed);
       PA := TJSONArray.Create;
@@ -465,6 +478,8 @@ begin
         P.Position := JSONVec3(O.Get('position', TJSONArray(nil)));
         V := O.Get('rotation', TJSONArray(nil));
         if (V <> nil) and (V.Count = 3) then begin P.RotX := V.Floats[0]; P.RotY := V.Floats[1]; P.RotZ := V.Floats[2]; end;
+        if O.Find('scale') <> nil then P.Scale := JSONVec3(O.Get('scale', TJSONArray(nil)));
+        P.Pivot := JSONVec3(O.Get('pivot', TJSONArray(nil)));
         P.MeshSize := O.Get('mesh_size', 0.0);
         P.Suppressed := O.Get('suppressed', False);
         PA := O.Get('geometry', TJSONArray(nil));

@@ -20,12 +20,14 @@ unit multiphysics_fem;
   decidida por quem chama (ver multiphysics_analysis). }
 
 {$mode objfpc}{$H+}
+{ laços numericos pesados: otimiza mesmo quando o projeto compila com -O1 }
+{$OPTIMIZATION LEVEL3}
 
 interface
 
 uses
   Classes, SysUtils, Math, multiphysics_vector, multiphysics_geometry,
-  multiphysics_mesh, multiphysics_sparse;
+  multiphysics_mesh, multiphysics_sparse, multiphysics_contact;
 
 type
   TFEMMaterial = record
@@ -85,13 +87,16 @@ type
 
   TFEMModel = class
   private
+    FLastMethod: string;
     function Mat(Part: Integer): TFEMMaterial;
     procedure ElemGeometry(E: Integer; out V: Double; out G: array of TVector3);
     procedure AssembleStiffness(K: TCSRMatrix);
     procedure AssembleMass(M: TCSRMatrix);
     procedure FixedDofs(out Fixed: TBoolArrayHelper; out Values: TDoubleArray);
     procedure ElasticLoads(var F: TDoubleArray);
-    function Factorize(K: TCSRMatrix; Block: Integer; Ch: TSkylineCholesky; out Direct: Boolean): Boolean;
+    function Factorize(K: TCSRMatrix; Block: Integer; Ch: TDirectCholesky; out Direct: Boolean): Boolean;
+    function TieGroups: TIntGroups;
+    procedure AddTiePenalty(K: TCSRMatrix; Block: Integer);
   public
     Mesh: TFEMMesh;            { nao e liberada pelo modelo }
     Materials: array of TFEMMaterial;   { por peca }
@@ -102,7 +107,9 @@ type
     Tolerance: Double;
     MaxIterations: Integer;
     ForceIterative: Boolean;   { testes: usa PCG mesmo quando o direto caberia }
-    MaxEnvelope: Int64;        { limite do Cholesky direto (valores) }
+    MaxEnvelope: Int64;        { limite de valores do fator de Cholesky (memoria) }
+    Ties: TMeshTies;           { contatos colados (penalidade) }
+    TiePenalty: Double;        { fator sobre a maior rigidez da diagonal }
     constructor Create(AMesh: TFEMMesh);
     procedure AddLoad(const L: TFEMLoad);
     procedure ClearLoads;
@@ -400,7 +407,54 @@ begin
   RefTemperature := 20;
   Tolerance := 1e-10;
   MaxIterations := 20000;
-  MaxEnvelope := 60000000;
+  MaxEnvelope := 80000000;
+  TiePenalty := 1e3;
+end;
+
+function TFEMModel.TieGroups: TIntGroups;
+var
+  I, J: Integer;
+begin
+  Result := nil;
+  SetLength(Result, Length(Ties));
+  for I := 0 to High(Ties) do
+  begin
+    SetLength(Result[I], Ties[I].NM + 1);
+    Result[I][0] := Ties[I].Slave;
+    for J := 0 to Ties[I].NM - 1 do Result[I][J + 1] := Ties[I].Masters[J];
+  end;
+end;
+
+{ penalidade kp (c c^T) por grau, c = (1, -w1, ..., -wn); kp proporcional
+  a rigidez local (diagonal dos nos da amarracao), nao a maxima global:
+  pecas com elementos de tamanhos muito diferentes nao perdem precisao }
+procedure TFEMModel.AddTiePenalty(K: TCSRMatrix; Block: Integer);
+var
+  I, A, B, D, NA, NB: Integer;
+  Kloc, Kp, CA, CB: Double;
+  Dg: TDoubleArray;
+begin
+  if Length(Ties) = 0 then Exit;
+  Dg := K.Diagonal;   { antes das penalidades: nao acumula entre amarracoes }
+  for I := 0 to High(Ties) do
+  begin
+    Kloc := Dg[Block * Ties[I].Slave];
+    for A := 0 to Ties[I].NM - 1 do
+      Kloc := Max(Kloc, Dg[Block * Ties[I].Masters[A]]);
+    Kp := TiePenalty * Kloc;
+    for A := 0 to Ties[I].NM do
+    begin
+      if A = 0 then begin NA := Ties[I].Slave; CA := 1; end
+      else begin NA := Ties[I].Masters[A - 1]; CA := -Ties[I].W[A - 1]; end;
+      for B := 0 to Ties[I].NM do
+      begin
+        if B = 0 then begin NB := Ties[I].Slave; CB := 1; end
+        else begin NB := Ties[I].Masters[B - 1]; CB := -Ties[I].W[B - 1]; end;
+        for D := 0 to Block - 1 do
+          K.Add(Block * NA + D, Block * NB + D, Kp * CA * CB);
+      end;
+    end;
+  end;
 end;
 
 procedure TFEMModel.AddLoad(const L: TFEMLoad);
@@ -628,14 +682,22 @@ begin
   end;
 end;
 
-function TFEMModel.Factorize(K: TCSRMatrix; Block: Integer; Ch: TSkylineCholesky; out Direct: Boolean): Boolean;
+{ direto (Cholesky esparso com disseccao aninhada) quando o fator cabe na
+  memoria; senao gradiente conjugado }
+function TFEMModel.Factorize(K: TCSRMatrix; Block: Integer; Ch: TDirectCholesky; out Direct: Boolean): Boolean;
 begin
   Direct := False;
   Result := True;
   if ForceIterative then Exit;
-  if TSkylineCholesky.EnvelopeSize(K, Block) > MaxEnvelope then Exit;
+  Ch.MaxNonZeros := MaxEnvelope;
   Direct := True;
-  Result := Ch.Factor(K, Block);
+  Result := Ch.Factor(K, Block, Copy(Mesh.Nodes, 0, Mesh.NodeCount));
+  FLastMethod := Ch.Method;
+  if not Result and Ch.TooBig then
+  begin
+    Direct := False;
+    Result := True;
+  end;
 end;
 
 function TFEMModel.SolveStatic(out R: TStaticResult): Boolean;
@@ -643,7 +705,7 @@ var
   K, K0: TCSRMatrix;
   F, F0, Values, KU: TDoubleArray;
   Fixed: TBoolArrayHelper;
-  Ch: TSkylineCholesky;
+  Ch: TDirectCholesky;
   Direct, AnyFix: Boolean;
   I, E, A, B, D, J, O, N, NN: Integer;
   V, Lam, Mu, DT, Tr, Sf: Double;
@@ -668,10 +730,11 @@ begin
     R.Message := 'Nenhuma fixacao: a estrutura esta livre (movimento de corpo rigido). Fixe ao menos uma face.';
     Exit(False);
   end;
-  K := TCSRMatrix.Create; K0 := TCSRMatrix.Create; Ch := TSkylineCholesky.Create;
+  K := TCSRMatrix.Create; K0 := TCSRMatrix.Create; Ch := TDirectCholesky.Create;
   try
-    K.BuildFromMesh(Mesh, 3);
+    K.BuildFromMesh(Mesh, 3, TieGroups);
     AssembleStiffness(K);
+    AddTiePenalty(K, 3);
     K0.CopyPatternFrom(K);
     K0.Val := Copy(K.Val);
     SetLength(F, 3 * NN);
@@ -686,7 +749,7 @@ begin
     if Direct then
     begin
       Ch.Solve(F, R.U);
-      R.Solve.Method := 'Cholesky (perfil, RCM)';
+      R.Solve.Method := FLastMethod;
       R.Solve.Converged := True;
     end
     else
@@ -771,7 +834,7 @@ var
   K, K0: TCSRMatrix;
   F, F0, Values, KT: TDoubleArray;
   Fixed: TBoolArrayHelper;
-  Ch: TSkylineCholesky;
+  Ch: TDirectCholesky;
   Direct, AnyFix: Boolean;
   I, E, A, B, L, Fc, N, O, FNn, NN: Integer;
   V, Kc, Tr, Area, PV: Double;
@@ -802,9 +865,9 @@ begin
     R.Message := 'Sem temperatura fixa nem conveccao: o problema termico nao tem solucao unica.';
     Exit(False);
   end;
-  K := TCSRMatrix.Create; K0 := TCSRMatrix.Create; Ch := TSkylineCholesky.Create;
+  K := TCSRMatrix.Create; K0 := TCSRMatrix.Create; Ch := TDirectCholesky.Create;
   try
-    K.BuildFromMesh(Mesh, 1);
+    K.BuildFromMesh(Mesh, 1, TieGroups);
     SetLength(F, NN);
     SetLength(H, N * N * 9);
     for E := 0 to Mesh.ElemCount - 1 do
@@ -847,6 +910,7 @@ begin
             end;
           end;
         end;
+    AddTiePenalty(K, 1);
     K0.CopyPatternFrom(K);
     K0.Val := Copy(K.Val);
     F0 := Copy(F);
@@ -859,7 +923,7 @@ begin
     if Direct then
     begin
       Ch.Solve(F, R.T);
-      R.Solve.Method := 'Cholesky (perfil, RCM)';
+      R.Solve.Method := FLastMethod;
       R.Solve.Converged := True;
     end
     else
@@ -982,7 +1046,7 @@ var
   Fixed: TBoolArrayHelper;
   Values, Lam, LamOld, Zm, Tmp, Mx: TDoubleArray;
   X, Y, KY, MY: array of TDoubleArray;
-  Ch: TSkylineCholesky;
+  Ch: TDirectCholesky;
   Direct, AnyFix, Conv: Boolean;
   N, Q, I, J, C, It, NFree, Seed: Integer;
   Kr, Mr: array of Double;
@@ -997,10 +1061,11 @@ begin
   for I := 0 to N - 1 do if Fixed[I] then AnyFix := True else Inc(NFree);
   Modes := Max(1, Min(Modes, NFree - 1));
   Q := Min(NFree, Max(2 * Modes, Modes + 8));
-  K := TCSRMatrix.Create; M := TCSRMatrix.Create; KS := TCSRMatrix.Create; Ch := TSkylineCholesky.Create;
+  K := TCSRMatrix.Create; M := TCSRMatrix.Create; KS := TCSRMatrix.Create; Ch := TDirectCholesky.Create;
   try
-    K.BuildFromMesh(Mesh, 3);
+    K.BuildFromMesh(Mesh, 3, TieGroups);
     AssembleStiffness(K);
+    AddTiePenalty(K, 3);
     M.CopyPatternFrom(K);
     AssembleMass(M);
     { graus fixos: K com 1 na diagonal, M nula (modo de frequencia infinita) }
@@ -1095,7 +1160,7 @@ begin
       Conv := True;
       for I := 0 to Modes - 1 do
       begin
-        if Abs(Lam[Order[I]] - LamOld[I]) > 1e-9 * Max(Abs(Lam[Order[I]]), 1e-300) then Conv := False;
+        if Abs(Lam[Order[I]] - LamOld[I]) > 1e-7 * Max(Abs(Lam[Order[I]]), 1e-300) then Conv := False;
         LamOld[I] := Lam[Order[I]];
       end;
       for I := Modes to Q - 1 do LamOld[I] := Lam[Order[I]];

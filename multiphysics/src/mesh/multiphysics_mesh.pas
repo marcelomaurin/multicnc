@@ -27,6 +27,7 @@ type
   TMeshElement = record
     N: array[0..9] of Integer;
     Part: Integer;
+    Body: Integer;               { primitiva de origem (malhas separadas, amarradas pelo contato) }
   end;
 
   TMeshFace = record
@@ -50,6 +51,7 @@ type
     FTagHi: array of Integer;
     FTagVals: array of Integer;
     FTagCount: Integer;
+    FCurBody: Integer;
     procedure AddTet(A, B, C, D, Part: Integer);
     procedure TagTri(A, B, C, Tag: Integer);
     function FaceTagId(const Name: string): Integer;
@@ -61,6 +63,8 @@ type
     Faces: array of TMeshFace;
     FaceCount: Integer;
     Order: Integer;              { 1 = TET4, 2 = TET10 }
+    BodyCount: Integer;
+    BodyPart: array of Integer;  { peca de cada corpo (primitiva) }
     PartNames: TStringList;
     FaceNames: TStringList;
     constructor Create;
@@ -376,6 +380,8 @@ begin
   Faces := nil; FaceCount := 0;
   FTagKeys := nil; FTagHi := nil; FTagVals := nil; FTagCount := 0;
   Order := 1;
+  BodyCount := 0;
+  BodyPart := nil;
   PartNames.Clear;
   FaceNames.Clear;
 end;
@@ -406,6 +412,7 @@ begin
   Elems[ElemCount].N[0] := A; Elems[ElemCount].N[1] := B;
   Elems[ElemCount].N[2] := C; Elems[ElemCount].N[3] := D;
   Elems[ElemCount].Part := Part;
+  Elems[ElemCount].Body := FCurBody;
   Inc(ElemCount);
 end;
 
@@ -543,6 +550,10 @@ begin
   if (N2 = 0) or (Height <= 0) then Exit;
   NW := Max(1, Ceil(Height / H - 1e-9));
   Base := NodeCount;
+  FCurBody := BodyCount;
+  Inc(BodyCount);
+  SetLength(BodyPart, BodyCount);
+  BodyPart[FCurBody] := Part;
   Prefix := PartNames[Part] + '/' + Prim.ID + '/';
   { nos: camadas ao longo do eixo; no cone o raio externo varia com a altura }
   for L := 0 to NW do

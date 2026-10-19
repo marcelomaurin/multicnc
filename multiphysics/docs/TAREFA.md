@@ -372,10 +372,10 @@ Atualize esta tabela a cada tarefa concluída (data, commit, teste que comprova)
 | Plano (este arquivo) | feito | 18/10/2026 | — | — |
 | Fase 0 (MP-0.1 a 0.4) | feito (ver Decisoes: sem .lpi por teste) | 18/10/2026 | (este commit) | `tests/run_all.ps1`, `src/testing/multiphysics_check.pas` |
 | Fase 1 (MP-1.1 a 1.6) | feito (ver Decisoes: casos de carga e material completo) | 18/10/2026 | (este commit) | `test_project_analysis` |
-| Fase 2 (MP-2.1 a 2.4) | parcial: MP-2.2 e 2.3 feitos; 2.1 e 2.4 pendentes | 18/10/2026 | (este commit) | `test_geometry_mesh` |
-| Fase 3 (MP-3.1 a 3.7) | parcial: MP-3.1, 3.2, 3.4, 3.5 feitos; 3.3, 3.6, 3.7 pendentes | 18/10/2026 | (este commit) | `test_geometry_mesh` |
+| Fase 2 (MP-2.1 a 2.4) | parcial: MP-2.1, 2.2, 2.3 feitos; 2.4 so massa (inercia pendente) | 18/10/2026 | (este commit) | `test_geometry_mesh`, `test_assembly_contact` |
+| Fase 3 (MP-3.1 a 3.7) | parcial: MP-3.1 a 3.5 feitos (contato colado), 3.6 tamanho por peca feito; 3.7 pendente | 18/10/2026 | (este commit) | `test_geometry_mesh`, `test_assembly_contact` |
 | MP-3.8 (P1) | pendente | | | |
-| Fase 4 (MP-4.1 a 4.11) | parcial: MP-4.1 a 4.7 feitos (Cholesky em perfil + PCG); MP-4.9 feito em `multiphysics_analysis` (malhas h e 1,5h); 4.8, 4.10, 4.11 pendentes | 18/10/2026 | (este commit) | `test_fem_benchmarks` (B1, B2, B4-B8) |
+| Fase 4 (MP-4.1 a 4.11) | parcial: MP-4.1 a 4.7 e 4.9 feitos; 4.10 parcial (direto escolhe perfil/RCM ou esparso/disseccao aninhada pelo custo simbolico); 4.8, 4.11 pendentes | 18/10/2026 | (este commit) | `test_fem_benchmarks` (B1, B2, B4-B8) |
 | Fase 5 (MP-5.1 a 5.5) | pendente | | | |
 | Fase 6 (MP-6.1 a 6.7) | parcial: MP-6.1 a 6.6 feitos (10 etapas, ver Decisoes), MP-6.7 so abre `.mphys`; desfazer/refazer pendente | 18/10/2026 | (este commit) | `multiphysics.exe --capture=static|thermal|modal|system|circuit|loads arquivo.png` |
 | Fase 7 (MP-7.1 a 7.15) | parcial: MP-7.7 (netlist SPICE sobre o Newton-MNA, B9) e telas de MP-7.15 feitos; demais pendentes | 18/10/2026 | (este commit) | `test_circuit_netlist` |
@@ -414,4 +414,8 @@ Ao quebrar uma fase em várias sessões, detalhe as linhas por tarefa (ex.: `MP-
 | 18/10/2026 | Interface com 10 etapas em vez de 12 (MP-6.1) | Contatos ficam em Montagem e Degradação em Ambiente; 12 botões não cabem na lateral junto da árvore. |
 | 18/10/2026 | Circuito por netlist de texto (MP-7.15) | Editor de desenho de esquema é trabalho do MakePCB; a netlist cobre os casos de teste sem duplicar o esquema. |
 | 18/10/2026 | `--capture=modo arquivo.png` no executável | Permite conferir as telas sem clicar (e gerar imagens para a documentação). |
+| 18/10/2026 | Contato colado por penalidade local (1e3 x diagonal dos nós da amarração), nos dois sentidos | Penalidade pela diagonal global estragava a precisão em montagens com elementos de tamanhos muito diferentes; amarrar só num sentido deixava um disco largo sobre uma haste fina girar em torno do nó central. |
+| 18/10/2026 | Primitivas da mesma peça são corpos separados, sempre colados entre si | O MultiAssembly monta peças com primitivas sobrepostas (corpo + eixo); colar por volume (nó dentro do tetraedro) e por face cobre os dois casos. |
+| 18/10/2026 | Importação usa o núcleo do MultiAssembly (`multiassembly/src/core`) | Mesma leitura, mesma geometria padrão por tipo e mesma transformação (escala para o tamanho, giro Z·Y·X no centro) da vista do MultiAssembly. |
+| 18/10/2026 | Linhas fixas (Dirichlet) mantêm a própria rigidez na diagonal | Com 1 na diagonal o pivô ficava minúsculo perto das penalidades e o Cholesky recusava. |
 | 18/10/2026 | TET10 padrão no estrutural | TET4 trava em flexão (B2 com erro grande); TET10 atinge 3% com malha moderada. |

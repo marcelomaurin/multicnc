@@ -58,6 +58,9 @@ function PrismPrim(const ID: string; Axis: Char; const At: TVector3; H: Double;
 function IdentityTransform: TGeoTransform;
 { rotacoes em graus aplicadas na ordem X, depois Y, depois Z (eixos fixos) }
 function EulerTransform(const Pos: TVector3; RX, RY, RZ: Double): TGeoTransform;
+{ como o MultiAssembly: escala por eixo, gira (Z*Y*X) em torno do pivo e
+  desloca: X_mundo = Pos + Pivo + R (S . X - Pivo) }
+function AffineTransform(const Pos, Pivot, Scale: TVector3; RX, RY, RZ: Double): TGeoTransform;
 function ApplyTransform(const T: TGeoTransform; const P: TVector3): TVector3;
 function ApplyRotation(const T: TGeoTransform; const P: TVector3): TVector3;
 
@@ -173,6 +176,22 @@ begin
     for J := 0 to 2 do
       Result.M[I, J] := T2[I * 3 + J];
   Result.Pos := Pos;
+end;
+
+function AffineTransform(const Pos, Pivot, Scale: TVector3; RX, RY, RZ: Double): TGeoTransform;
+var
+  R: TGeoTransform;
+  I: Integer;
+begin
+  R := EulerTransform(V3(0, 0, 0), RX, RY, RZ);
+  Result := R;
+  for I := 0 to 2 do
+  begin
+    Result.M[I, 0] := R.M[I, 0] * Scale.X;
+    Result.M[I, 1] := R.M[I, 1] * Scale.Y;
+    Result.M[I, 2] := R.M[I, 2] * Scale.Z;
+  end;
+  Result.Pos := VSub(VAdd(Pos, Pivot), ApplyRotation(R, Pivot));
 end;
 
 function ApplyRotation(const T: TGeoTransform; const P: TVector3): TVector3;

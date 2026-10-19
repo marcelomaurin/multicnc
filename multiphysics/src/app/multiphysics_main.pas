@@ -21,7 +21,7 @@ uses
   multiphysics_buoyancy, multiphysics_runtime, multiphysics_runtime_types,
   multiphysics_graph, multiphysics_graph_runtime, multiphysics_machine_runtime,
   multiphysics_machine_faults, multiphysics_netlist, multiphysics_units,
-  multiphysics_view3d, multiphysics_chart;
+  multiphysics_view3d, multiphysics_chart, multiphysics_assembly_import;
 
 const
   STEP_COUNT = 10;
@@ -54,6 +54,7 @@ type
     LbParts: TListBox;
     EdPos, EdRot: array[0..2] of TFloatSpinEdit;
     CkSuppressed: TCheckBox;
+    LbContacts: TListBox;
     { 2 materiais }
     LbMatParts: TListBox;
     CbMaterial: TComboBox;
@@ -141,6 +142,11 @@ type
     procedure PartListClick(Sender: TObject);
     procedure ApplyPartClick(Sender: TObject);
     procedure DeletePartClick(Sender: TObject);
+    procedure ImportAssemblyClick(Sender: TObject);
+    procedure ImportAssemblyFile(const FN: string);
+    procedure DetectContactsClick(Sender: TObject);
+    procedure DeleteContactClick(Sender: TObject);
+    procedure RefreshContacts;
     procedure MatPartListClick(Sender: TObject);
     procedure MaterialChange(Sender: TObject);
     procedure ApplyMaterialClick(Sender: TObject);
@@ -413,8 +419,11 @@ begin
     end;
 
   Ctx := ReadSuiteContext;
-  if (Ctx.FileName <> '') and SameText(ExtractFileExt(Ctx.FileName), MPHYS_EXT) and FileExists(Ctx.FileName) then
-    LoadProjectFile(Ctx.FileName);
+  if (Ctx.FileName <> '') and FileExists(Ctx.FileName) then
+  begin
+    if SameText(ExtractFileExt(Ctx.FileName), MPHYS_EXT) then LoadProjectFile(Ctx.FileName)
+    else if SameText(ExtractFileExt(Ctx.FileName), '.massembly') then ImportAssemblyFile(Ctx.FileName);
+  end;
 end;
 
 destructor TMultiPhysicsForm.Destroy;
@@ -508,9 +517,15 @@ begin
   CkSuppressed.Caption := 'Suprimida (fora da analise)';
   Btn(S, 'Aplicar', 16, 600, 140, 32, sikSave, @ApplyPartClick);
   Btn(S, 'Excluir peca', 166, 600, 140, 32, sikTrash, @DeletePartClick);
-  Lbl(S, 'Pecas da montagem do MultiAssembly entram por "Importar" (em breve nesta etapa). ' +
-    'Pecas sao malhadas separadamente: cada uma precisa da sua fixacao ate a amarracao de contatos (MP-3.3).',
-    16, 642, 290, 70);
+  Lbl(S, 'MONTAGEM E CONTATOS', 16, 646, 290, 18).Font.Style := [fsBold];
+  Btn(S, 'Importar montagem (.massembly)', 16, 668, 290, 32, sikImport, @ImportAssemblyClick);
+  LbContacts := TListBox.Create(Self);
+  LbContacts.Parent := S;
+  LbContacts.SetBounds(16, 708, 290, 90);
+  Btn(S, 'Detectar contatos', 16, 806, 140, 32, sikSearch, @DetectContactsClick);
+  Btn(S, 'Excluir contato', 166, 806, 140, 32, sikTrash, @DeleteContactClick);
+  Lbl(S, 'Contato colado: as faces encostadas (ou volumes sobrepostos) das duas pecas se movem juntas, ' +
+    'sem atrito nem separacao. Primitivas da mesma peca sao sempre coladas.', 16, 846, 290, 60);
   UpdatePrimLabels;
 end;
 
@@ -761,7 +776,51 @@ begin
   end;
   RefreshPartLists;
   RefreshBCList;
+  RefreshContacts;
   RefreshTree;
+end;
+
+procedure TMultiPhysicsForm.RefreshContacts;
+var
+  I: Integer;
+begin
+  LbContacts.Items.BeginUpdate;
+  try
+    LbContacts.Items.Clear;
+    for I := 0 to P.ContactCount - 1 do
+      LbContacts.Items.Add(P.Contact(I).Name + ' (colado)');
+  finally
+    LbContacts.Items.EndUpdate;
+  end;
+end;
+
+procedure TMultiPhysicsForm.ImportAssemblyFile(const FN: string);
+var
+  L: TStringList;
+  I: Integer;
+begin
+  L := TStringList.Create;
+  try
+    Screen.Cursor := crHourGlass;
+    try
+      if not multiphysics_assembly_import.ImportAssemblyFile(FN, P, L) then
+      begin
+        MessageDlg('Importar montagem', 'Nenhuma peca com geometria na montagem.'#13#10 + L.Text, mtWarning, [mbOK], 0);
+        Exit;
+      end;
+    finally
+      Screen.Cursor := crDefault;
+    end;
+    Log.Lines.Add('--- Importacao ---');
+    for I := 0 to L.Count - 1 do Log.Lines.Add(L[I]);
+    HasResult := False;
+    RefreshAll;
+    MeshClick(nil);
+    SetStatus(Format('Montagem importada: %d pecas, %d contatos. Confira materiais e fixacoes.', [P.PartCount, P.ContactCount]));
+  except
+    on E: Exception do MessageDlg('Nao foi possivel importar', E.Message, mtError, [mbOK], 0);
+  end;
+  L.Free;
 end;
 
 procedure TMultiPhysicsForm.RefreshTree;
@@ -1035,8 +1094,27 @@ begin
   TTimer(Sender).Enabled := False;
   Mode := LowerCase(Application.GetOptionValue('capture'));
   FN := ParamStr(ParamCount);
-  DemoClick(nil);
-  if Mode = 'system' then
+  if Pos('assembly', Mode) = 1 then
+  begin
+    { a montagem veio por --file; resolve com a estrutura FRAME presa }
+    if Mode = 'assemblysolve' then
+    begin
+      if P.FindPart('FRAME') >= 0 then P.AddBC(NewBC('Base', 'FRAME', 'zmin', bkFixed));
+      EdMeshSize.Value := 6;
+      CkQuadratic.Checked := False;
+      CkConvergence.Checked := False;
+      CbAnalysis.ItemIndex := 0;
+      SolveClick(nil);
+      CbField.ItemIndex := 0;
+      ShowResultField;
+    end
+    else
+      ShowStep(0);
+  end
+  else
+    DemoClick(nil);
+  if Pos('assembly', Mode) = 1 then
+  else if Mode = 'system' then
   begin
     ShowStep(6);
     LoadMachineClick(nil);
@@ -1279,6 +1357,40 @@ begin
   RefreshPartLists;
   RefreshTree;
   MeshClick(nil);
+end;
+
+procedure TMultiPhysicsForm.ImportAssemblyClick(Sender: TObject);
+var
+  D: TOpenDialog;
+begin
+  if P.Modified and (MessageDlg('Importar montagem', 'Substituir o projeto atual pela montagem?',
+    mtConfirmation, [mbYes, mbNo], 0) <> mrYes) then Exit;
+  D := TOpenDialog.Create(Self);
+  try
+    D.Filter := 'Montagem MultiAssembly (*.massembly)|*.massembly|Todos os arquivos|*.*';
+    if D.Execute then ImportAssemblyFile(D.FileName);
+  finally
+    D.Free;
+  end;
+end;
+
+procedure TMultiPhysicsForm.DetectContactsClick(Sender: TObject);
+var
+  N: Integer;
+begin
+  N := P.ContactCount;
+  DetectContacts(P, 0.0002, nil);
+  RefreshContacts;
+  RefreshTree;
+  SetStatus(Format('%d contato(s) novo(s) pelas caixas envolventes que se tocam.', [P.ContactCount - N]));
+end;
+
+procedure TMultiPhysicsForm.DeleteContactClick(Sender: TObject);
+begin
+  if (LbContacts.ItemIndex < 0) or (LbContacts.ItemIndex >= P.ContactCount) then Exit;
+  P.DeleteContact(LbContacts.ItemIndex);
+  RefreshContacts;
+  RefreshTree;
 end;
 
 procedure TMultiPhysicsForm.DeletePartClick(Sender: TObject);
