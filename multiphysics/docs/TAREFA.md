@@ -1,7 +1,7 @@
 # TAREFA: MultiPhysics 0.2: simulação física da montagem, utilizável de ponta a ponta
 
 - **Aberta em:** 18/10/2026.
-- **Estado:** plano detalhado escrito; implementação ainda não começou (ver **Progresso**).
+- **Estado:** versão 0.2 implementada (ver **Progresso**); pendente só a comparação com o CalculiX instalado e itens P1/P2.
 - **Solicitação do usuário:** "com base nos documentos apresentados, crie uma versão deste projeto para atender tudo o que foi apresentado". Escopo confirmado pelo usuário: **interface completa**, **solver FEM próprio**, **integração CalculiX**, **completar os modelos que hoje são esqueleto** e "o que achar necessário para as simulações pretendidas".
 - **Documentos-base (especificação):** [README.md](../README.md), [AI_GUIDE.md](AI_GUIDE.md), [RUNTIME.md](RUNTIME.md), [INTEGRATION_ROADMAP.md](INTEGRATION_ROADMAP.md).
 - **Base conferida:** branch `fila`, commit `f836f89` (release 0.13 preparada).
@@ -381,7 +381,7 @@ Atualize esta tabela a cada tarefa concluída (data, commit, teste que comprova)
 | Fase 7 (MP-7.1 a 7.15) | feito | 19/10/2026 | (este commit) | `test_system_models`, `test_circuit_netlist`, `test_mcu_graph` |
 | Fase 8 (MP-8.1 a 8.6, P1) | feito (GM pela inclinacao pequena, geral para qualquer malha) | 18/10/2026 | (este commit) | `test_hydro` |
 | Fase 9 (MP-9.1 a 9.4) | feito (MANUAL, exemplos, README/AI_GUIDE/roadmap/NEWS, versao 0.2.0.0) | 19/10/2026 | 302c39c | — |
-| Fase 10 (MP-10.1 a 10.4) | pendente | | | |
+| Fase 10 (MP-10.1 a 10.4) | feito, com ressalva: 35 testes passando; telas conferidas por `--capture` (demo, montagem importada resolvida, modal, circuito); MP-10.3 (comparacao com ccx) pendente por falta do ccx; `bin/multiphysics.exe` e `bin/multiassembly.exe` sem simbolos | 19/10/2026 | (este commit) | `tests/run_all.ps1` |
 
 Ao quebrar uma fase em várias sessões, detalhe as linhas por tarefa (ex.: `MP-4.4 | feito | ... | B1, B2`).
 
