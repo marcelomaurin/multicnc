@@ -119,6 +119,8 @@ type
     FError, FMethod: string;
   public
     MaxNonZeros: Int64;
+    MaxFlops: Double;         { acima disso o direto nao compensa (0 = sem limite) }
+    Flops: Double;            { custo estimado da ordem escolhida }
     destructor Destroy; override;
     function Factor(A: TCSRMatrix; BlockSize: Integer; const Coords: array of TVector3): Boolean;
     procedure Solve(const B: TDoubleArray; var X: TDoubleArray);
@@ -888,6 +890,15 @@ begin
   FSp.MaxNonZeros := MaxNonZeros;
   FSp.Analyze(A, BlockSize, Coords);
   FUseSparse := (FSp.Flops < SkyFlops) and not FSp.TooBig;
+  if FUseSparse then Flops := FSp.Flops else Flops := SkyFlops;
+  { o PCG resolve blocos 3D compactos muito mais rapido que um fator caro }
+  if (MaxFlops > 0) and (Flops > MaxFlops) then
+  begin
+    FreeAndNil(FSp);
+    FTooBig := True;
+    FError := Format('Fator direto caro demais (%.2g operacoes)', [Flops]);
+    Exit(False);
+  end;
   if not FUseSparse then
   begin
     FreeAndNil(FSp);

@@ -375,7 +375,7 @@ Atualize esta tabela a cada tarefa concluída (data, commit, teste que comprova)
 | Fase 2 (MP-2.1 a 2.4) | feito (MP-2.4: massa, centro e tensor de inercia exatos pela malha) | 18/10/2026 | (este commit) | `test_geometry_mesh`, `test_assembly_contact` |
 | Fase 3 (MP-3.1 a 3.7) | feito (MP-3.7: VTK legado para o ParaView; `.inp` pelo deck do CalculiX) | 18/10/2026 | (este commit) | `test_geometry_mesh`, `test_assembly_contact` |
 | MP-3.8 (P1) | pendente | | | |
-| Fase 4 (MP-4.1 a 4.11) | feito, exceto a meta numerica de MP-4.10 (50 mil nos em < 60 s) ainda nao medida; MP-4.8 massa efetiva (61,3% no 1o modo da viga), MP-4.11 thread com Cancelar | 18/10/2026 | (este commit) | `test_fem_benchmarks` (B1, B2, B4-B8) |
+| Fase 4 (MP-4.1 a 4.11) | feito: MP-4.10 medido em 19/10/2026: bloco 120 x 120 x 60 mm TET10, 60.025 nos (180 mil graus), estatico em 54 s pelo PCG | 19/10/2026 | (este commit) | `test_fem_benchmarks` |
 | Fase 5 (MP-5.1 a 5.5) | feito, **com ressalva**: MP-5.3 testado com `.frd` montado no formato do ccx e MP-5.4 so roda com ccx instalado (aqui saiu IGNORADO) | 18/10/2026 | (este commit) | `test_ccx` |
 | Fase 6 (MP-6.1 a 6.7) | parcial: MP-6.1 a 6.6 feitos (10 etapas, ver Decisoes), MP-6.7 so abre `.mphys`; desfazer/refazer pendente | 18/10/2026 | (este commit) | `multiphysics.exe --capture=static|thermal|modal|system|circuit|loads arquivo.png` |
 | Fase 7 (MP-7.1 a 7.15) | feito | 19/10/2026 | (este commit) | `test_system_models`, `test_circuit_netlist`, `test_mcu_graph` |
@@ -422,4 +422,5 @@ Ao quebrar uma fase em várias sessões, detalhe as linhas por tarefa (ex.: `MP-
 | 18/10/2026 | Contatos para o ccx como `*EQUATION` (cada nó dependente uma vez, nunca fixo) | Reproduz as amarrações do solver próprio; `*TIE` não cobre volumes sobrepostos. |
 | 18/10/2026 | **Nunca `Max(0, x)` / `Min(1, x)` com `x` real**: usar `Max(0.0, x)` | Com literal inteiro o FPC escolhe a versão `Single` de `Max`/`Min` e o valor perde precisão (a bateria errava 0,007% e o acoplamento runtime → FEM no 7º dígito). Corrigido em todo o MultiPhysics. |
 | 18/10/2026 | Seção de prisma por Delaunay (contorno + grade hexagonal), com verificação e volta à subdivisão uniforme | O perfil em L caiu de 39.984 para 4.131 elementos com forma melhor; a subdivisão uniforme refinava tudo pela diagonal mais longa. |
+| 19/10/2026 | Direto só abaixo de um custo estimado (4e9 operações no estático/térmico, 4e10 no modal); acima, PCG | Num bloco 3D compacto de 16 mil nós o Cholesky levou 333 s e o PCG 10 s; o modal reaproveita o fator, por isso aceita um custo maior. |
 | 18/10/2026 | TET10 padrão no estrutural | TET4 trava em flexão (B2 com erro grande); TET10 atinge 3% com malha moderada. |

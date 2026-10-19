@@ -96,7 +96,8 @@ type
     procedure AssembleMass(M: TCSRMatrix);
     procedure FixedDofs(out Fixed: TBoolArrayHelper; out Values: TDoubleArray);
     procedure ElasticLoads(var F: TDoubleArray);
-    function Factorize(K: TCSRMatrix; Block: Integer; Ch: TDirectCholesky; out Direct: Boolean): Boolean;
+    function Factorize(K: TCSRMatrix; Block: Integer; Ch: TDirectCholesky; out Direct: Boolean;
+      MaxFlops: Double): Boolean;
     function TieGroups: TIntGroups;
     procedure AddTiePenalty(K: TCSRMatrix; Block: Integer);
   public
@@ -111,7 +112,8 @@ type
     ForceIterative: Boolean;   { testes: usa PCG mesmo quando o direto caberia }
     MaxEnvelope: Int64;        { limite de valores do fator de Cholesky (memoria) }
     Ties: TMeshTies;           { contatos colados (penalidade) }
-    TiePenalty: Double;        { fator sobre a maior rigidez da diagonal }
+    TiePenalty: Double;        { fator sobre a rigidez local }
+    MaxFlopsSolve, MaxFlopsModal: Double;  { direto so abaixo desses custos; senao PCG }
     constructor Create(AMesh: TFEMMesh);
     procedure AddLoad(const L: TFEMLoad);
     procedure ClearLoads;
@@ -413,6 +415,8 @@ begin
   MaxIterations := 20000;
   MaxEnvelope := 80000000;
   TiePenalty := 1e3;
+  MaxFlopsSolve := 4e9;
+  MaxFlopsModal := 4e10;
 end;
 
 function TFEMModel.TieGroups: TIntGroups;
@@ -688,8 +692,10 @@ end;
 
 { direto (Cholesky esparso com disseccao aninhada) quando o fator cabe na
   memoria; senao gradiente conjugado }
-function TFEMModel.Factorize(K: TCSRMatrix; Block: Integer; Ch: TDirectCholesky; out Direct: Boolean): Boolean;
+function TFEMModel.Factorize(K: TCSRMatrix; Block: Integer; Ch: TDirectCholesky; out Direct: Boolean;
+  MaxFlops: Double): Boolean;
 begin
+  Ch.MaxFlops := MaxFlops;
   Direct := False;
   Result := True;
   if ForceIterative then Exit;
@@ -745,7 +751,7 @@ begin
     ElasticLoads(F);
     F0 := Copy(F);
     K.ApplyDirichlet(Fixed, Values, F);
-    if not Factorize(K, 3, Ch, Direct) then
+    if not Factorize(K, 3, Ch, Direct, MaxFlopsSolve) then
     begin
       R.Message := Ch.LastError;
       Exit(False);
@@ -919,7 +925,7 @@ begin
     K0.Val := Copy(K.Val);
     F0 := Copy(F);
     K.ApplyDirichlet(Fixed, Values, F);
-    if not Factorize(K, 1, Ch, Direct) then
+    if not Factorize(K, 1, Ch, Direct, MaxFlopsSolve) then
     begin
       R.Message := Ch.LastError;
       Exit(False);
@@ -1113,7 +1119,7 @@ begin
     end;
     KS.CopyPatternFrom(K);
     for I := 0 to High(KS.Val) do KS.Val[I] := K.Val[I] + Sigma * M.Val[I];
-    if not Factorize(KS, 3, Ch, Direct) then
+    if not Factorize(KS, 3, Ch, Direct, MaxFlopsModal) then
     begin
       R.Message := Ch.LastError;
       Exit(False);
