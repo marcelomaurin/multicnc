@@ -1,0 +1,709 @@
+{
+  "schema_version" : "1.0",
+  "name" : "CNC Router demonstracao",
+  "version" : "1.0",
+  "author" : "Maurinsoft",
+  "units" : "mm",
+  "components" : [
+    {
+      "id" : "FRAME",
+      "name" : "Estrutura CNC",
+      "model" : "",
+      "source_ref" : "",
+      "category" : "Geral",
+      "material" : "Aco",
+      "kind" : 0,
+      "fixed" : false,
+      "color" : 0,
+      "position" : {
+        "x" : 0.0000000000000000E+000,
+        "y" : 0.0000000000000000E+000,
+        "z" : 0.0000000000000000E+000
+      },
+      "rotation" : {
+        "x" : 0.0000000000000000E+000,
+        "y" : 0.0000000000000000E+000,
+        "z" : 0.0000000000000000E+000
+      },
+      "size" : {
+        "x" : 1.6000000000000000E+002,
+        "y" : 1.0000000000000000E+002,
+        "z" : 1.0000000000000000E+001
+      },
+      "ports" : [
+      ]
+    },
+    {
+      "id" : "CTRL",
+      "name" : "Controladora",
+      "model" : "",
+      "source_ref" : "",
+      "category" : "Geral",
+      "material" : "Aco",
+      "kind" : 8,
+      "fixed" : false,
+      "color" : 0,
+      "position" : {
+        "x" : 1.0000000000000000E+001,
+        "y" : 1.0000000000000000E+001,
+        "z" : 1.0000000000000000E+001
+      },
+      "rotation" : {
+        "x" : 0.0000000000000000E+000,
+        "y" : 0.0000000000000000E+000,
+        "z" : 0.0000000000000000E+000
+      },
+      "size" : {
+        "x" : 2.5000000000000000E+001,
+        "y" : 2.0000000000000000E+001,
+        "z" : 5.0000000000000000E+000
+      },
+      "ports" : [
+      ]
+    },
+    {
+      "id" : "PSU",
+      "name" : "Fonte 24V",
+      "model" : "",
+      "source_ref" : "",
+      "category" : "Geral",
+      "material" : "Aco",
+      "kind" : 10,
+      "fixed" : false,
+      "color" : 0,
+      "position" : {
+        "x" : 1.0000000000000000E+001,
+        "y" : 3.5000000000000000E+001,
+        "z" : 1.0000000000000000E+001
+      },
+      "rotation" : {
+        "x" : 0.0000000000000000E+000,
+        "y" : 0.0000000000000000E+000,
+        "z" : 0.0000000000000000E+000
+      },
+      "size" : {
+        "x" : 3.0000000000000000E+001,
+        "y" : 2.0000000000000000E+001,
+        "z" : 1.0000000000000000E+001
+      },
+      "ports" : [
+      ]
+    },
+    {
+      "id" : "DRVX",
+      "name" : "Driver X",
+      "model" : "",
+      "source_ref" : "",
+      "category" : "Geral",
+      "material" : "Aco",
+      "kind" : 9,
+      "fixed" : false,
+      "color" : 0,
+      "position" : {
+        "x" : 5.0000000000000000E+001,
+        "y" : 1.0000000000000000E+001,
+        "z" : 1.0000000000000000E+001
+      },
+      "rotation" : {
+        "x" : 0.0000000000000000E+000,
+        "y" : 0.0000000000000000E+000,
+        "z" : 0.0000000000000000E+000
+      },
+      "size" : {
+        "x" : 2.0000000000000000E+001,
+        "y" : 1.5000000000000000E+001,
+        "z" : 5.0000000000000000E+000
+      },
+      "ports" : [
+      ]
+    },
+    {
+      "id" : "DRVY",
+      "name" : "Driver Y",
+      "model" : "",
+      "source_ref" : "",
+      "category" : "Geral",
+      "material" : "Aco",
+      "kind" : 9,
+      "fixed" : false,
+      "color" : 0,
+      "position" : {
+        "x" : 5.0000000000000000E+001,
+        "y" : 3.0000000000000000E+001,
+        "z" : 1.0000000000000000E+001
+      },
+      "rotation" : {
+        "x" : 0.0000000000000000E+000,
+        "y" : 0.0000000000000000E+000,
+        "z" : 0.0000000000000000E+000
+      },
+      "size" : {
+        "x" : 2.0000000000000000E+001,
+        "y" : 1.5000000000000000E+001,
+        "z" : 5.0000000000000000E+000
+      },
+      "ports" : [
+      ]
+    },
+    {
+      "id" : "DRVZ",
+      "name" : "Driver Z",
+      "model" : "",
+      "source_ref" : "",
+      "category" : "Geral",
+      "material" : "Aco",
+      "kind" : 9,
+      "fixed" : false,
+      "color" : 0,
+      "position" : {
+        "x" : 5.0000000000000000E+001,
+        "y" : 5.0000000000000000E+001,
+        "z" : 1.0000000000000000E+001
+      },
+      "rotation" : {
+        "x" : 0.0000000000000000E+000,
+        "y" : 0.0000000000000000E+000,
+        "z" : 0.0000000000000000E+000
+      },
+      "size" : {
+        "x" : 2.0000000000000000E+001,
+        "y" : 1.5000000000000000E+001,
+        "z" : 5.0000000000000000E+000
+      },
+      "ports" : [
+      ]
+    },
+    {
+      "id" : "MX",
+      "name" : "Motor X",
+      "model" : "",
+      "source_ref" : "",
+      "category" : "Geral",
+      "material" : "Aco",
+      "kind" : 1,
+      "fixed" : false,
+      "color" : 0,
+      "position" : {
+        "x" : 9.0000000000000000E+001,
+        "y" : 1.0000000000000000E+001,
+        "z" : 1.0000000000000000E+001
+      },
+      "rotation" : {
+        "x" : 0.0000000000000000E+000,
+        "y" : 0.0000000000000000E+000,
+        "z" : 0.0000000000000000E+000
+      },
+      "size" : {
+        "x" : 2.0000000000000000E+001,
+        "y" : 2.0000000000000000E+001,
+        "z" : 2.0000000000000000E+001
+      },
+      "ports" : [
+      ]
+    },
+    {
+      "id" : "MY",
+      "name" : "Motor Y",
+      "model" : "",
+      "source_ref" : "",
+      "category" : "Geral",
+      "material" : "Aco",
+      "kind" : 1,
+      "fixed" : false,
+      "color" : 0,
+      "position" : {
+        "x" : 9.0000000000000000E+001,
+        "y" : 3.5000000000000000E+001,
+        "z" : 1.0000000000000000E+001
+      },
+      "rotation" : {
+        "x" : 0.0000000000000000E+000,
+        "y" : 0.0000000000000000E+000,
+        "z" : 0.0000000000000000E+000
+      },
+      "size" : {
+        "x" : 2.0000000000000000E+001,
+        "y" : 2.0000000000000000E+001,
+        "z" : 2.0000000000000000E+001
+      },
+      "ports" : [
+      ]
+    },
+    {
+      "id" : "MZ",
+      "name" : "Motor Z",
+      "model" : "",
+      "source_ref" : "",
+      "category" : "Geral",
+      "material" : "Aco",
+      "kind" : 1,
+      "fixed" : false,
+      "color" : 0,
+      "position" : {
+        "x" : 9.0000000000000000E+001,
+        "y" : 6.0000000000000000E+001,
+        "z" : 1.0000000000000000E+001
+      },
+      "rotation" : {
+        "x" : 0.0000000000000000E+000,
+        "y" : 0.0000000000000000E+000,
+        "z" : 0.0000000000000000E+000
+      },
+      "size" : {
+        "x" : 2.0000000000000000E+001,
+        "y" : 2.0000000000000000E+001,
+        "z" : 2.0000000000000000E+001
+      },
+      "ports" : [
+      ]
+    },
+    {
+      "id" : "SP",
+      "name" : "Spindle",
+      "model" : "",
+      "source_ref" : "",
+      "category" : "Geral",
+      "material" : "Aco",
+      "kind" : 2,
+      "fixed" : false,
+      "color" : 0,
+      "position" : {
+        "x" : 1.2500000000000000E+002,
+        "y" : 4.0000000000000000E+001,
+        "z" : 1.0000000000000000E+001
+      },
+      "rotation" : {
+        "x" : 0.0000000000000000E+000,
+        "y" : 0.0000000000000000E+000,
+        "z" : 0.0000000000000000E+000
+      },
+      "size" : {
+        "x" : 2.0000000000000000E+001,
+        "y" : 3.0000000000000000E+001,
+        "z" : 6.0000000000000000E+001
+      },
+      "ports" : [
+      ]
+    },
+    {
+      "id" : "ESTOP",
+      "name" : "E-Stop",
+      "model" : "",
+      "source_ref" : "",
+      "category" : "Geral",
+      "material" : "Aco",
+      "kind" : 15,
+      "fixed" : false,
+      "color" : 0,
+      "position" : {
+        "x" : 1.0000000000000000E+001,
+        "y" : 7.0000000000000000E+001,
+        "z" : 1.0000000000000000E+001
+      },
+      "rotation" : {
+        "x" : 0.0000000000000000E+000,
+        "y" : 0.0000000000000000E+000,
+        "z" : 0.0000000000000000E+000
+      },
+      "size" : {
+        "x" : 2.0000000000000000E+001,
+        "y" : 2.0000000000000000E+001,
+        "z" : 1.0000000000000000E+001
+      },
+      "ports" : [
+      ]
+    }
+  ],
+  "wires" : [
+    {
+      "from_component" : "CTRL",
+      "from_port" : "STEP_X",
+      "to_component" : "DRVX",
+      "to_port" : "STEP",
+      "caption" : "STEP X"
+    },
+    {
+      "from_component" : "CTRL",
+      "from_port" : "DIR_X",
+      "to_component" : "DRVX",
+      "to_port" : "DIR",
+      "caption" : "DIR X"
+    },
+    {
+      "from_component" : "DRVX",
+      "from_port" : "MOTOR",
+      "to_component" : "MX",
+      "to_port" : "COIL",
+      "caption" : "Motor X"
+    },
+    {
+      "from_component" : "CTRL",
+      "from_port" : "STEP_Y",
+      "to_component" : "DRVY",
+      "to_port" : "STEP",
+      "caption" : "STEP Y"
+    },
+    {
+      "from_component" : "DRVY",
+      "from_port" : "MOTOR",
+      "to_component" : "MY",
+      "to_port" : "COIL",
+      "caption" : "Motor Y"
+    },
+    {
+      "from_component" : "CTRL",
+      "from_port" : "STEP_Z",
+      "to_component" : "DRVZ",
+      "to_port" : "STEP",
+      "caption" : "STEP Z"
+    },
+    {
+      "from_component" : "DRVZ",
+      "from_port" : "MOTOR",
+      "to_component" : "MZ",
+      "to_port" : "COIL",
+      "caption" : "Motor Z"
+    },
+    {
+      "from_component" : "PSU",
+      "from_port" : "24V",
+      "to_component" : "DRVX",
+      "to_port" : "VMOT",
+      "caption" : "24V"
+    },
+    {
+      "from_component" : "PSU",
+      "from_port" : "24V",
+      "to_component" : "DRVY",
+      "to_port" : "VMOT",
+      "caption" : "24V"
+    },
+    {
+      "from_component" : "PSU",
+      "from_port" : "24V",
+      "to_component" : "DRVZ",
+      "to_port" : "VMOT",
+      "caption" : "24V"
+    },
+    {
+      "from_component" : "ESTOP",
+      "from_port" : "NC",
+      "to_component" : "CTRL",
+      "to_port" : "ESTOP",
+      "caption" : "Seguranca"
+    }
+  ],
+  "relations" : [
+    {
+      "a" : "MX",
+      "b" : "FRAME",
+      "kind" : 1,
+      "axis" : {
+        "x" : 1.0000000000000000E+000,
+        "y" : 0.0000000000000000E+000,
+        "z" : 0.0000000000000000E+000
+      },
+      "ratio" : 1.0000000000000000E+000,
+      "pitch_mm" : 0.0000000000000000E+000,
+      "distance" : 0.0000000000000000E+000,
+      "min_limit" : 2.1220173386502844E-314,
+      "max_limit" : 9.8813129168249309E-324,
+      "current_value" : 6.9527998786699809E-310,
+      "flipped" : true,
+      "offset" : {
+        "x" : 1.1431131272302547E-310,
+        "y" : 1.0360623786218774E-316,
+        "z" : 1.0360438017535938E-316
+      },
+      "ref_a" : {
+        "has_plane" : false,
+        "plane_point" : [
+          6.9527998786699809E-310,
+          1.1431131272278832E-310,
+          6.9527978959567282E-310
+        ],
+        "plane_normal" : [
+          5.2846447236729749E-318,
+          2.1220322643734453E-314,
+          0.0000000000000000E+000
+        ],
+        "has_axis" : true,
+        "axis_point" : [
+          1.1431131272318357E-310,
+          0.0000000000000000E+000,
+          1.4821969375237396E-323
+        ],
+        "axis_dir" : [
+          2.1223420677426044E-314,
+          1.0360572403391607E-316,
+          2.1220300020468529E-314
+        ],
+        "radius" : 1.0360623786218774E-316,
+        "prim" : 1064664,
+        "part" : 0
+      },
+      "ref_b" : {
+        "has_plane" : true,
+        "plane_point" : [
+          5.0527797160796779E-318,
+          4.7430302000759668E-322,
+          2.1220306300042888E-314
+        ],
+        "plane_normal" : [
+          0.0000000000000000E+000,
+          0.0000000000000000E+000,
+          4.7430302000759668E-322
+        ],
+        "has_axis" : true,
+        "axis_point" : [
+          1.0360572403391607E-316,
+          2.1220303133082098E-314,
+          6.1857018859324067E-321
+        ],
+        "axis_dir" : [
+          5.0348253705098070E-318,
+          2.1223420677426044E-314,
+          1.0360975560958613E-316
+        ],
+        "radius" : 0.0000000000000000E+000,
+        "prim" : 0,
+        "part" : 0
+      },
+      "spin_deg" : 0.0000000000000000E+000
+    },
+    {
+      "a" : "MY",
+      "b" : "FRAME",
+      "kind" : 1,
+      "axis" : {
+        "x" : 0.0000000000000000E+000,
+        "y" : 1.0000000000000000E+000,
+        "z" : 0.0000000000000000E+000
+      },
+      "ratio" : 1.0000000000000000E+000,
+      "pitch_mm" : 0.0000000000000000E+000,
+      "distance" : 0.0000000000000000E+000,
+      "min_limit" : 2.1220173386502844E-314,
+      "max_limit" : 9.8813129168249309E-324,
+      "current_value" : 6.9527998786699809E-310,
+      "flipped" : true,
+      "offset" : {
+        "x" : 1.1431131272302547E-310,
+        "y" : 1.0360623786218774E-316,
+        "z" : 1.0360438017535938E-316
+      },
+      "ref_a" : {
+        "has_plane" : false,
+        "plane_point" : [
+          6.9527998786699809E-310,
+          1.1431131272278832E-310,
+          6.9527978959567282E-310
+        ],
+        "plane_normal" : [
+          5.2846447236729749E-318,
+          2.1220322643734453E-314,
+          0.0000000000000000E+000
+        ],
+        "has_axis" : true,
+        "axis_point" : [
+          1.1431131272318357E-310,
+          0.0000000000000000E+000,
+          1.4821969375237396E-323
+        ],
+        "axis_dir" : [
+          2.1223420677426044E-314,
+          1.0360572403391607E-316,
+          2.1220300020468529E-314
+        ],
+        "radius" : 1.0360623786218774E-316,
+        "prim" : 1064664,
+        "part" : 0
+      },
+      "ref_b" : {
+        "has_plane" : true,
+        "plane_point" : [
+          5.0527797160796779E-318,
+          4.7430302000759668E-322,
+          2.1220306300042888E-314
+        ],
+        "plane_normal" : [
+          0.0000000000000000E+000,
+          0.0000000000000000E+000,
+          4.7430302000759668E-322
+        ],
+        "has_axis" : true,
+        "axis_point" : [
+          1.0360572403391607E-316,
+          2.1220303133082098E-314,
+          6.1857018859324067E-321
+        ],
+        "axis_dir" : [
+          5.0348253705098070E-318,
+          2.1223420677426044E-314,
+          1.0360975560958613E-316
+        ],
+        "radius" : 0.0000000000000000E+000,
+        "prim" : 0,
+        "part" : 0
+      },
+      "spin_deg" : 0.0000000000000000E+000
+    },
+    {
+      "a" : "MZ",
+      "b" : "FRAME",
+      "kind" : 1,
+      "axis" : {
+        "x" : 0.0000000000000000E+000,
+        "y" : 0.0000000000000000E+000,
+        "z" : 1.0000000000000000E+000
+      },
+      "ratio" : 1.0000000000000000E+000,
+      "pitch_mm" : 0.0000000000000000E+000,
+      "distance" : 0.0000000000000000E+000,
+      "min_limit" : 2.1220173386502844E-314,
+      "max_limit" : 9.8813129168249309E-324,
+      "current_value" : 6.9527998786699809E-310,
+      "flipped" : true,
+      "offset" : {
+        "x" : 1.1431131272302547E-310,
+        "y" : 1.0360623786218774E-316,
+        "z" : 1.0360438017535938E-316
+      },
+      "ref_a" : {
+        "has_plane" : false,
+        "plane_point" : [
+          6.9527998786699809E-310,
+          1.1431131272278832E-310,
+          6.9527978959567282E-310
+        ],
+        "plane_normal" : [
+          5.2846447236729749E-318,
+          2.1220322643734453E-314,
+          0.0000000000000000E+000
+        ],
+        "has_axis" : true,
+        "axis_point" : [
+          1.1431131272318357E-310,
+          0.0000000000000000E+000,
+          1.4821969375237396E-323
+        ],
+        "axis_dir" : [
+          2.1223420677426044E-314,
+          1.0360572403391607E-316,
+          2.1220300020468529E-314
+        ],
+        "radius" : 1.0360623786218774E-316,
+        "prim" : 1064664,
+        "part" : 0
+      },
+      "ref_b" : {
+        "has_plane" : true,
+        "plane_point" : [
+          5.0527797160796779E-318,
+          4.7430302000759668E-322,
+          2.1220306300042888E-314
+        ],
+        "plane_normal" : [
+          0.0000000000000000E+000,
+          0.0000000000000000E+000,
+          4.7430302000759668E-322
+        ],
+        "has_axis" : true,
+        "axis_point" : [
+          1.0360572403391607E-316,
+          2.1220303133082098E-314,
+          6.1857018859324067E-321
+        ],
+        "axis_dir" : [
+          5.0348253705098070E-318,
+          2.1223420677426044E-314,
+          1.0360975560958613E-316
+        ],
+        "radius" : 0.0000000000000000E+000,
+        "prim" : 0,
+        "part" : 0
+      },
+      "spin_deg" : 0.0000000000000000E+000
+    }
+  ],
+  "manual_steps" : [
+    {
+      "id" : "STEP_1",
+      "order" : 1,
+      "title" : "Montagem da Estrutura Base",
+      "instructions" : "Posicionar a estrutura de aluminio FRAME sobre bancada nivelada.",
+      "tools" : "Chave Allen 3mm, Esquadro de precisao",
+      "checks" : "Verificar esquadro perpendicular entre os perfis.",
+      "components" : [
+        "FRAME"
+      ]
+    },
+    {
+      "id" : "STEP_2",
+      "order" : 2,
+      "title" : "Instalação dos Motores de Passo",
+      "instructions" : "Fixar os motores MX, MY e MZ nos suportes da estrutura.",
+      "tools" : "Chave Allen 2.5mm",
+      "checks" : "Conferir alinhamento dos eixos.",
+      "components" : [
+        "MX",
+        "MY",
+        "MZ"
+      ]
+    },
+    {
+      "id" : "STEP_3",
+      "order" : 3,
+      "title" : "Montagem do Spindle",
+      "instructions" : "Encaixar o Spindle SP no carro Z e apertar os parafusos de fixacao.",
+      "tools" : "Chave Allen 4mm",
+      "checks" : "Verificar perpendicularidade com a mesa.",
+      "components" : [
+        "SP"
+      ]
+    },
+    {
+      "id" : "STEP_4",
+      "order" : 4,
+      "title" : "Instalação do Painel Elétrico",
+      "instructions" : "Fixar controladora CTRL, fonte PSU e drivers DRVX, DRVY, DRVZ.",
+      "tools" : "Chave Philips PH1",
+      "checks" : "Garantir refrigeracao e ventilacao.",
+      "components" : [
+        "CTRL",
+        "PSU",
+        "DRVX",
+        "DRVY",
+        "DRVZ"
+      ]
+    },
+    {
+      "id" : "STEP_5",
+      "order" : 5,
+      "title" : "Instalação do Botão E-Stop",
+      "instructions" : "Instalar o botao E-Stop no painel frontal.",
+      "tools" : "Chave de fenda 3mm",
+      "checks" : "Testar acionamento mecanico.",
+      "components" : [
+        "ESTOP"
+      ]
+    },
+    {
+      "id" : "STEP_6",
+      "order" : 6,
+      "title" : "Conferência e Energização",
+      "instructions" : "Verificar continuidade, tensoes e ligar no MultiCNC.",
+      "tools" : "Multimetro digital",
+      "checks" : "Confirmar parada no E-Stop.",
+      "components" : [
+        "CTRL",
+        "PSU",
+        "MX",
+        "MY",
+        "MZ",
+        "SP",
+        "ESTOP"
+      ]
+    }
+  ]
+}

@@ -11,7 +11,8 @@ uses
   multiassembly_demo, multiassembly_engineering, multiassembly_physics_export,
   multiassembly_manual, multiassembly_mechanical_canvas, multiassembly_electrical_canvas,
   multisuite_controls, multisuite_icons, multisuite_context, multisuite_numfmt,
-  multisuite_component_contract, fpjson, jsonparser;
+  multisuite_component_contract, fpjson, jsonparser, multisuite_types, multisuite_registry,
+  multisuite_launcher;
 
 const
   MA_STEPS: array[0..5] of string = (
@@ -1727,25 +1728,30 @@ begin
   end;
 end;
 
+{ salva a montagem e abre o MultiPhysics com ela (--file): o MultiPhysics
+  importa pecas, geometria, posicoes, fixos e contatos }
 procedure TMultiAssemblyForm.ExportMultiPhysicsClick(Sender: TObject);
 var
-  U: TUnifiedMachine;
-  SD: TSaveDialog;
+  Reg: TSuiteRegistry;
+  Idx: Integer;
+  Err: string;
 begin
-  U := TUnifiedMachine.Create;
-  SD := TSaveDialog.Create(Self);
+  SaveProjectClick(nil);
+  if P.FileName = '' then
+  begin
+    StatusLabel.Caption := 'Salve a montagem para simular no MultiPhysics.';
+    Exit;
+  end;
+  Reg := TSuiteRegistry.Create;
   try
-    ExportAssemblyToUnified(P, U);
-    SD.Filter := 'Contrato MultiPhysics (*.json)|*.json';
-    SD.FileName := 'Machine_' + P.Name + '.json';
-    if SD.Execute then
-    begin
-      SaveUnifiedToFile(U, SD.FileName);
-      ShowMessage(Format('Exportado para MultiPhysics com sucesso: %d componentes, %d vínculos.', [U.Count, U.LinkCount]));
-    end;
+    Idx := Reg.Find(stiMultiPhysics);
+    if (Idx < 0) or not TSuiteLauncher.LaunchArtifact(Reg.Tool(Idx), '', '', P.FileName, Err) then
+      MessageDlg('MultiPhysics', 'Montagem salva em:' + LineEnding + P.FileName + LineEnding + LineEnding +
+        'Nao foi possivel abrir o MultiPhysics: ' + Err, mtWarning, [mbOK], 0)
+    else
+      StatusLabel.Caption := 'Montagem aberta no MultiPhysics: ' + ExtractFileName(P.FileName);
   finally
-    U.Free;
-    SD.Free;
+    Reg.Free;
   end;
 end;
 

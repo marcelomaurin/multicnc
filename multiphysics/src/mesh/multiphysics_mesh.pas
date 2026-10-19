@@ -306,9 +306,211 @@ begin
   Result := NT = 3 * (Length(Poly) - 2);
 end;
 
+procedure PolySectionUniform(const Poly: array of TVector2; H: Double; out S: TSection); forward;
+
+{ poligono por Delaunay: pontos no contorno (espacamento <= H) e numa grade
+  hexagonal interna, triangulacao de Bowyer-Watson, descarte dos triangulos
+  com centro fora do poligono. So vale se o contorno ficou inteiro (cada
+  segmento do contorno e aresta de um triangulo) e a area bate; senao usa a
+  subdivisao uniforme (sempre conforme, porem mais fina). }
+function DelaunaySection(const Poly: array of TVector2; H: Double; out S: TSection): Boolean;
+type
+  TTri = record
+    A, B, C: Integer;
+    Cx, Cy, R2: Double;
+    Alive: Boolean;
+  end;
+var
+  Pts: array of TVector2;
+  NB: Integer;                      { os NB primeiros pontos sao o contorno, em ordem }
+  Tris: array of TTri;
+  NT, I, J, K, N, Ni, E, NE, Hit: Integer;
+  Lo, Hi: TVector2;
+  Area, D, Len, X, Y, Dy, MinD: Double;
+  EA, EB: array of Integer;
+  Inside: Boolean;
+  PI0: TVector2;
+
+  function PointInPoly(const P: TVector2): Boolean;
+  var
+    Q, R: Integer;
+  begin
+    Result := False;
+    R := High(Poly);
+    for Q := 0 to High(Poly) do
+    begin
+      if ((Poly[Q].V > P.V) <> (Poly[R].V > P.V)) and
+         (P.U < (Poly[R].U - Poly[Q].U) * (P.V - Poly[Q].V) / (Poly[R].V - Poly[Q].V) + Poly[Q].U) then
+        Result := not Result;
+      R := Q;
+    end;
+  end;
+
+  function SegDist(const P, A, B: TVector2): Double;
+  var
+    Qx, Qy, L2, T: Double;
+  begin
+    Qx := B.U - A.U; Qy := B.V - A.V;
+    L2 := Qx * Qx + Qy * Qy;
+    if L2 <= 0 then Exit(Hypot(P.U - A.U, P.V - A.V));
+    T := EnsureRange(((P.U - A.U) * Qx + (P.V - A.V) * Qy) / L2, 0, 1);
+    Result := Hypot(P.U - (A.U + T * Qx), P.V - (A.V + T * Qy));
+  end;
+
+  procedure AddP(U, V: Double);
+  begin
+    SetLength(Pts, Length(Pts) + 1);
+    Pts[High(Pts)] := V2(U, V);
+  end;
+
+  procedure MakeTri(A, B, C: Integer);
+  var
+    Ax, Ay, Bx, By, Cx_, Cy_, Dd, Ux, Uy: Double;
+  begin
+    if NT >= Length(Tris) then SetLength(Tris, Max(64, 2 * Length(Tris)));
+    Ax := Pts[A].U; Ay := Pts[A].V; Bx := Pts[B].U; By := Pts[B].V; Cx_ := Pts[C].U; Cy_ := Pts[C].V;
+    Dd := 2 * (Ax * (By - Cy_) + Bx * (Cy_ - Ay) + Cx_ * (Ay - By));
+    if Abs(Dd) < 1e-300 then Dd := 1e-300;
+    Ux := ((Ax * Ax + Ay * Ay) * (By - Cy_) + (Bx * Bx + By * By) * (Cy_ - Ay) + (Cx_ * Cx_ + Cy_ * Cy_) * (Ay - By)) / Dd;
+    Uy := ((Ax * Ax + Ay * Ay) * (Cx_ - Bx) + (Bx * Bx + By * By) * (Ax - Cx_) + (Cx_ * Cx_ + Cy_ * Cy_) * (Bx - Ax)) / Dd;
+    Tris[NT].A := A; Tris[NT].B := B; Tris[NT].C := C;
+    Tris[NT].Cx := Ux; Tris[NT].Cy := Uy;
+    Tris[NT].R2 := Sqr(Ax - Ux) + Sqr(Ay - Uy);
+    Tris[NT].Alive := True;
+    Inc(NT);
+  end;
+
+  procedure AddEdge(A, B: Integer);
+  var
+    Q: Integer;
+  begin
+    { aresta repetida (compartilhada por dois triangulos ruins) sai da borda da cavidade }
+    for Q := 0 to NE - 1 do
+      if ((EA[Q] = A) and (EB[Q] = B)) or ((EA[Q] = B) and (EB[Q] = A)) then
+      begin
+        EA[Q] := EA[NE - 1]; EB[Q] := EB[NE - 1];
+        Dec(NE);
+        Exit;
+      end;
+    if NE >= Length(EA) then begin SetLength(EA, Max(32, 2 * NE)); SetLength(EB, Length(EA)); end;
+    EA[NE] := A; EB[NE] := B;
+    Inc(NE);
+  end;
+
+begin
+  Result := False;
+  S.Pts := nil; S.Tris := nil;
+  if Length(Poly) < 3 then Exit;
+  Area := Abs(PolygonArea(Poly));
+  { contorno }
+  for I := 0 to High(Poly) do
+  begin
+    J := (I + 1) mod Length(Poly);
+    Len := Hypot(Poly[J].U - Poly[I].U, Poly[J].V - Poly[I].V);
+    Ni := Max(1, Ceil(Len / H - 1e-9));
+    for K := 0 to Ni - 1 do
+      AddP(Poly[I].U + (Poly[J].U - Poly[I].U) * K / Ni, Poly[I].V + (Poly[J].V - Poly[I].V) * K / Ni);
+  end;
+  NB := Length(Pts);
+  { grade hexagonal interna afastada do contorno }
+  Lo := Poly[0]; Hi := Lo;
+  for I := 1 to High(Poly) do
+  begin
+    Lo := V2(Min(Lo.U, Poly[I].U), Min(Lo.V, Poly[I].V));
+    Hi := V2(Max(Hi.U, Poly[I].U), Max(Hi.V, Poly[I].V));
+  end;
+  Dy := H * Sqrt(3) / 2;
+  J := 0;
+  Y := Lo.V + Dy;
+  while Y < Hi.V - 1e-12 do
+  begin
+    if Odd(J) then X := Lo.U + H else X := Lo.U + H / 2;
+    while X < Hi.U - 1e-12 do
+    begin
+      if PointInPoly(V2(X, Y)) then
+      begin
+        MinD := MaxDouble;
+        for I := 0 to High(Poly) do
+          MinD := Min(MinD, SegDist(V2(X, Y), Poly[I], Poly[(I + 1) mod Length(Poly)]));
+        if MinD >= 0.6 * H then AddP(X, Y);
+      end;
+      X := X + H;
+    end;
+    Y := Y + Dy;
+    Inc(J);
+  end;
+  if Length(Pts) > 20000 then Exit;
+  { super triangulo }
+  N := Length(Pts);
+  D := Max(Hi.U - Lo.U, Hi.V - Lo.V) * 20 + 1;
+  AddP(Lo.U - D, Lo.V - D);
+  AddP(Hi.U + 2 * D, Lo.V - D);
+  AddP(Lo.U - D, Hi.V + 2 * D);
+  NT := 0;
+  MakeTri(N, N + 1, N + 2);
+  for I := 0 to N - 1 do
+  begin
+    NE := 0;
+    for K := 0 to NT - 1 do
+      if Tris[K].Alive and (Sqr(Pts[I].U - Tris[K].Cx) + Sqr(Pts[I].V - Tris[K].Cy) < Tris[K].R2 * (1 - 1e-12)) then
+      begin
+        Tris[K].Alive := False;
+        AddEdge(Tris[K].A, Tris[K].B);
+        AddEdge(Tris[K].B, Tris[K].C);
+        AddEdge(Tris[K].C, Tris[K].A);
+      end;
+    for E := 0 to NE - 1 do MakeTri(EA[E], EB[E], I);
+    { compacta de vez em quando }
+    if NT > 4 * (I + 8) then
+    begin
+      J := 0;
+      for K := 0 to NT - 1 do
+        if Tris[K].Alive then begin Tris[J] := Tris[K]; Inc(J); end;
+      NT := J;
+    end;
+  end;
+  { mantem os triangulos sem vertice do super triangulo e com centro dentro }
+  SetLength(S.Pts, N);
+  for I := 0 to N - 1 do S.Pts[I] := Pts[I];
+  D := 0;
+  for K := 0 to NT - 1 do
+  begin
+    if not Tris[K].Alive then Continue;
+    if (Tris[K].A >= N) or (Tris[K].B >= N) or (Tris[K].C >= N) then Continue;
+    PI0 := V2((Pts[Tris[K].A].U + Pts[Tris[K].B].U + Pts[Tris[K].C].U) / 3,
+              (Pts[Tris[K].A].V + Pts[Tris[K].B].V + Pts[Tris[K].C].V) / 3);
+    if not PointInPoly(PI0) then Continue;
+    D := D + Abs((Pts[Tris[K].B].U - Pts[Tris[K].A].U) * (Pts[Tris[K].C].V - Pts[Tris[K].A].V) -
+                 (Pts[Tris[K].C].U - Pts[Tris[K].A].U) * (Pts[Tris[K].B].V - Pts[Tris[K].A].V)) / 2;
+    SecAddTri(S, Tris[K].A, Tris[K].B, Tris[K].C);
+  end;
+  { verificacao: area e cada segmento do contorno presente }
+  if Abs(D - Area) > 1e-9 * Max(Area, 1e-30) then Exit;
+  for I := 0 to NB - 1 do
+  begin
+    J := (I + 1) mod NB;
+    Hit := 0;
+    for K := 0 to Length(S.Tris) div 3 - 1 do
+    begin
+      Inside := False;
+      for E := 0 to 2 do
+        if ((S.Tris[3 * K + E] = I) and (S.Tris[3 * K + (E + 1) mod 3] = J)) or
+           ((S.Tris[3 * K + E] = J) and (S.Tris[3 * K + (E + 1) mod 3] = I)) then Inside := True;
+      if Inside then Inc(Hit);
+    end;
+    if Hit <> 1 then Exit;
+  end;
+  Result := Length(S.Tris) > 0;
+end;
+
+procedure PolySection(const Poly: array of TVector2; H: Double; out S: TSection);
+begin
+  if not DelaunaySection(Poly, H, S) then PolySectionUniform(Poly, H, S);
+end;
+
 { poligono: ear clipping e subdivisao uniforme de cada triangulo em M^2
   (M igual para todos: arestas compartilhadas recebem os mesmos nos) }
-procedure PolySection(const Poly: array of TVector2; H: Double; out S: TSection);
+procedure PolySectionUniform(const Poly: array of TVector2; H: Double; out S: TSection);
 var
   T: TIntArray;
   Keys: TStringList;

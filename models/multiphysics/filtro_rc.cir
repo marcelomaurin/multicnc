@@ -1,0 +1,6 @@
+* Filtro RC passa-baixas com degrau de 10 V (tau = 1 ms)
+V1 in 0 10
+R1 in out 1k
+C1 out 0 1u
+.tran 10u 5m
+.probe in out
