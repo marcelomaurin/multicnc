@@ -129,13 +129,24 @@ type
 
 function SolvePCG(A: TCSRMatrix; const B: TDoubleArray; var X: TDoubleArray;
   Tol: Double; MaxIter: Integer): TSolveInfo;
+{ cancelamento cooperativo (resolucao em segundo plano): os laços longos
+  chamam CheckCancel, que levanta EAbort quando FEMCancelRequested = True }
+procedure CheckCancel;
 function Dot(const A, B: TDoubleArray): Double;
 { ordem RCM dos nos (Cuthill-McKee reverso) pelo padrao em blocos }
 function RCMOrder(A: TCSRMatrix; BlockSize: Integer): TIntArray;
 { ordem dos nos por disseccao aninhada geometrica }
 function NestedDissectionOrder(A: TCSRMatrix; BlockSize: Integer; const Coords: array of TVector3): TIntArray;
 
+var
+  FEMCancelRequested: Boolean = False;
+
 implementation
+
+procedure CheckCancel;
+begin
+  if FEMCancelRequested then raise EAbort.Create('Calculo cancelado pelo usuario');
+end;
 
 function Dot(const A, B: TDoubleArray): Double;
 var
@@ -400,6 +411,7 @@ begin
   Rz := Dot(R, Z);
   for K := 1 to MaxIter do
   begin
+    if K and 63 = 0 then CheckCancel;
     A.MulVec(P, Q);
     Alpha := Dot(P, Q);
     if Alpha <= 0 then Break;     { matriz nao positiva definida }
@@ -766,6 +778,7 @@ begin
   for K := 0 to N - 1 do begin Cnt[K] := 0; Flag[K] := -1; end;
   for K := 0 to N - 1 do
   begin
+    if K and 255 = 0 then CheckCancel;
     Top := N;
     Flag[K] := K;
     for P := FCp[K] to FCp[K + 1] - 1 do
@@ -988,6 +1001,7 @@ begin
   { Cholesky linha a linha no envelope }
   for I := 0 to FN - 1 do
   begin
+    if I and 255 = 0 then CheckCancel;
     RI := FStart[I] - FFirst[I];
     for J := FFirst[I] to I do
     begin

@@ -372,10 +372,10 @@ Atualize esta tabela a cada tarefa concluída (data, commit, teste que comprova)
 | Plano (este arquivo) | feito | 18/10/2026 | — | — |
 | Fase 0 (MP-0.1 a 0.4) | feito (ver Decisoes: sem .lpi por teste) | 18/10/2026 | (este commit) | `tests/run_all.ps1`, `src/testing/multiphysics_check.pas` |
 | Fase 1 (MP-1.1 a 1.6) | feito (ver Decisoes: casos de carga e material completo) | 18/10/2026 | (este commit) | `test_project_analysis` |
-| Fase 2 (MP-2.1 a 2.4) | parcial: MP-2.1, 2.2, 2.3 feitos; 2.4 so massa (inercia pendente) | 18/10/2026 | (este commit) | `test_geometry_mesh`, `test_assembly_contact` |
-| Fase 3 (MP-3.1 a 3.7) | parcial: MP-3.1 a 3.5 feitos (contato colado), 3.6 tamanho por peca feito; 3.7 pendente | 18/10/2026 | (este commit) | `test_geometry_mesh`, `test_assembly_contact` |
+| Fase 2 (MP-2.1 a 2.4) | feito (MP-2.4: massa, centro e tensor de inercia exatos pela malha) | 18/10/2026 | (este commit) | `test_geometry_mesh`, `test_assembly_contact` |
+| Fase 3 (MP-3.1 a 3.7) | feito (MP-3.7: VTK legado para o ParaView; `.inp` pelo deck do CalculiX) | 18/10/2026 | (este commit) | `test_geometry_mesh`, `test_assembly_contact` |
 | MP-3.8 (P1) | pendente | | | |
-| Fase 4 (MP-4.1 a 4.11) | parcial: MP-4.1 a 4.7 e 4.9 feitos; 4.10 parcial (direto escolhe perfil/RCM ou esparso/disseccao aninhada pelo custo simbolico); 4.8, 4.11 pendentes | 18/10/2026 | (este commit) | `test_fem_benchmarks` (B1, B2, B4-B8) |
+| Fase 4 (MP-4.1 a 4.11) | feito, exceto a meta numerica de MP-4.10 (50 mil nos em < 60 s) ainda nao medida; MP-4.8 massa efetiva (61,3% no 1o modo da viga), MP-4.11 thread com Cancelar | 18/10/2026 | (este commit) | `test_fem_benchmarks` (B1, B2, B4-B8) |
 | Fase 5 (MP-5.1 a 5.5) | feito, **com ressalva**: MP-5.3 testado com `.frd` montado no formato do ccx e MP-5.4 so roda com ccx instalado (aqui saiu IGNORADO) | 18/10/2026 | (este commit) | `test_ccx` |
 | Fase 6 (MP-6.1 a 6.7) | parcial: MP-6.1 a 6.6 feitos (10 etapas, ver Decisoes), MP-6.7 so abre `.mphys`; desfazer/refazer pendente | 18/10/2026 | (este commit) | `multiphysics.exe --capture=static|thermal|modal|system|circuit|loads arquivo.png` |
 | Fase 7 (MP-7.1 a 7.15) | parcial: feitos MP-7.1 (indutancia, malha aberta, PI), 7.3, 7.5 (rampa, torque x velocidade, homing), 7.6, 7.7 (fonte de corrente, no flutuante, netlist), 7.8 (testes), 7.10, 7.11, 7.12, 7.13, 7.15; pendentes 7.2 (validacao do grafo), 7.4 (fases documentadas), 7.9 (MCU por eventos), 7.14 | 18/10/2026 | (este commit) | `test_system_models`, `test_circuit_netlist` |

@@ -243,6 +243,9 @@ begin
     CheckNear(R.Freq[0], Ref, 0.03, 'f1 = 1,875^2/(2 pi) sqrt(E I / (rho A L^4))');
     { segunda: flexao na direcao alta (z), I 4x maior: f2 = 2 f1 }
     CheckNear(R.Freq[1], 2 * Ref, 0.03, 'f2 (flexao em z) = 2 f1');
+    { massa efetiva do 1o modo de flexao da viga em balanco: 61,3% da massa }
+    CheckNear(R.EffMass[0][1], 0.613, 0.03, 'massa efetiva do 1o modo (y) = 61,3%');
+    Check(R.EffMass[0][0] < 0.01, 'modo de flexao em y quase nao mobiliza massa em x');
   finally
     F.Free;
   end;

@@ -21,14 +21,31 @@ uses
   multiphysics_buoyancy, multiphysics_runtime, multiphysics_runtime_types,
   multiphysics_graph, multiphysics_graph_runtime, multiphysics_machine_runtime,
   multiphysics_machine_faults, multiphysics_netlist, multiphysics_units,
-  multiphysics_view3d, multiphysics_chart, multiphysics_assembly_import, multiphysics_coupling;
+  multiphysics_view3d, multiphysics_chart, multiphysics_assembly_import, multiphysics_coupling,
+  multiphysics_sparse, DateUtils;
 
 const
   STEP_COUNT = 10;
 
 type
+  { resolve em segundo plano: a janela continua respondendo e pode cancelar }
+  TSolveThread = class(TThread)
+  private
+    FRun: TAnalysisRun;
+    FKind: TAnalysisKind;
+  public
+    Ok: Boolean;
+    constructor Create(ARun: TAnalysisRun; AKind: TAnalysisKind);
+    procedure Execute; override;
+  end;
+
   TMultiPhysicsForm = class(TForm)
   private
+    SolveThread: TSolveThread;
+    SolveTimer: TTimer;
+    SolveKind: TAnalysisKind;
+    SolveStart: TDateTime;
+    FooterSolveBtn, PageSolveBtn: TSuiteButton;
     P: TPhysicsProject;
     Run: TAnalysisRun;
     HasResult: Boolean;
@@ -161,12 +178,18 @@ type
     procedure ViewPickFace(Sender: TObject; FaceTag: Integer; const TagName: string);
     procedure MeshClick(Sender: TObject);
     procedure SolveClick(Sender: TObject);
+    function PrepareSolve(out K: TAnalysisKind): Boolean;
+    procedure SolveSync;
+    procedure FinishSolve(K: TAnalysisKind; Ok: Boolean);
+    procedure SolveTimerTick(Sender: TObject);
+    procedure SetBusy(Busy: Boolean);
     procedure BrowseCCXClick(Sender: TObject);
     procedure SaveConfig;
     procedure LoadConfig;
     procedure FieldChange(Sender: TObject);
     procedure ExportCSVClick(Sender: TObject);
     procedure ReportClick(Sender: TObject);
+    procedure ExportVTKClick(Sender: TObject);
     procedure ViewFitClick(Sender: TObject);
     procedure ViewDirClick(Sender: TObject);
     procedure LoadMachineClick(Sender: TObject);
@@ -336,6 +359,11 @@ begin
   B.Anchors := [akTop, akRight];
   B.Left := Footer.ClientWidth - 156;
   B.SetLook(sbsSolid, clSuitePrimary, sikPlay);
+  FooterSolveBtn := B;
+  SolveTimer := TTimer.Create(Self);
+  SolveTimer.Enabled := False;
+  SolveTimer.Interval := 200;
+  SolveTimer.OnTimer := @SolveTimerTick;
 
   Sidebar := TPanel.Create(Self);
   Sidebar.Parent := Self;
@@ -436,6 +464,12 @@ end;
 
 destructor TMultiPhysicsForm.Destroy;
 begin
+  if SolveThread <> nil then
+  begin
+    FEMCancelRequested := True;
+    SolveThread.WaitFor;
+    FreeAndNil(SolveThread);
+  end;
   RuntimeTimer.Enabled := False;
   GraphRuntime.Free;
   Graph.Free;
@@ -651,6 +685,7 @@ begin
   Btn(S, '...', 242, 162, 64, 30, sikFolder, @BrowseCCXClick);
   B := Btn(S, 'Resolver', 16, 204, 290, 36, sikPlay, @SolveClick);
   B.SetLook(sbsSolid, clSuitePrimary, sikPlay);
+  PageSolveBtn := B;
   Lbl(S, 'FEM proprio: Cholesky esparso ou em perfil (o de menor custo), ou gradiente conjugado em modelos ' +
     'grandes. CalculiX: o mesmo modelo vai para o ccx (.inp) e o resultado volta do .frd; o ccx nao vem no ' +
     'instalador (baixe em calculix.de). Resultado sem convergencia verificada sai como ESTIMATIVA.',
@@ -678,6 +713,7 @@ begin
   LbSummary.Font.Color := clSuiteText;
   Btn(S, 'Exportar CSV', 16, 450, 140, 32, sikExport, @ExportCSVClick);
   Btn(S, 'Relatorio HTML', 166, 450, 140, 32, sikFile, @ReportClick);
+  Btn(S, 'VTK (ParaView)', 16, 490, 140, 32, sikExport, @ExportVTKClick);
 end;
 
 procedure TMultiPhysicsForm.BuildSystemPage(S: TScrollBox);
@@ -1128,7 +1164,7 @@ begin
       CkQuadratic.Checked := False;
       CkConvergence.Checked := False;
       CbAnalysis.ItemIndex := 0;
-      SolveClick(nil);
+      SolveSync;
       CbField.ItemIndex := 0;
       ShowResultField;
     end
@@ -1158,7 +1194,18 @@ begin
     else if Mode = 'thermomech' then CbAnalysis.ItemIndex := 2
     else if Mode = 'modal' then CbAnalysis.ItemIndex := 3
     else CbAnalysis.ItemIndex := 0;
-    SolveClick(nil);
+    if Mode = 'thread' then
+    begin
+      { mesmo caminho do botao: thread + temporizador }
+      SolveClick(nil);
+      while (SolveThread <> nil) or SolveTimer.Enabled do
+      begin
+        Application.ProcessMessages;
+        Sleep(20);
+      end;
+    end
+    else
+      SolveSync;
     if Mode = 'modal' then CkAnimate.Checked := False;
     if Mode = 'static' then begin CbField.ItemIndex := 1; ShowResultField; end;
   end;
@@ -1424,6 +1471,10 @@ begin
   EdPos[2].Value := MToMm(Part.Position.Z);
   EdRot[0].Value := Part.RotX; EdRot[1].Value := Part.RotY; EdRot[2].Value := Part.RotZ;
   CkSuppressed.Checked := Part.Suppressed;
+  if (Run.Mesh.ElemCount > 0) and (LbParts.ItemIndex < Run.Mesh.PartNames.Count) then
+    with Run.Mesh.MassProperties(LbParts.ItemIndex, Part.Material.Density) do
+      SetStatus(Format('%s: massa %.4f kg, centro (%.1f, %.1f, %.1f) mm, Ixx %.3g Iyy %.3g Izz %.3g kg m2 (malha)',
+        [Part.ID, Mass, Center.X * 1000, Center.Y * 1000, Center.Z * 1000, Ixx, Iyy, Izz]));
 end;
 
 procedure TMultiPhysicsForm.ApplyPartClick(Sender: TObject);
@@ -1680,11 +1731,21 @@ begin
   if Sender <> nil then SetStatus('Malha gerada.');
 end;
 
-procedure TMultiPhysicsForm.SolveClick(Sender: TObject);
-var
-  K: TAnalysisKind;
-  I: Integer;
+constructor TSolveThread.Create(ARun: TAnalysisRun; AKind: TAnalysisKind);
 begin
+  FRun := ARun;
+  FKind := AKind;
+  inherited Create(False);
+end;
+
+procedure TSolveThread.Execute;
+begin
+  Ok := FRun.Run(FKind);
+end;
+
+function TMultiPhysicsForm.PrepareSolve(out K: TAnalysisKind): Boolean;
+begin
+  Result := False;
   ApplySettingsFromUI;
   case CbAnalysis.ItemIndex of
     1: K := akThermal;
@@ -1700,31 +1761,106 @@ begin
     Exit;
   end;
   SaveConfig;
+  Result := True;
+end;
+
+procedure TMultiPhysicsForm.SetBusy(Busy: Boolean);
+var
+  I: Integer;
+begin
+  Pages.Enabled := not Busy;
+  for I := 0 to STEP_COUNT - 1 do Nav[I].Enabled := not Busy;
+  if Busy then
+  begin
+    FooterSolveBtn.Caption := 'Cancelar';
+    FooterSolveBtn.SetLook(sbsSolid, clSuiteDanger, sikStop);
+    PageSolveBtn.Caption := 'Cancelar';
+  end
+  else
+  begin
+    FooterSolveBtn.Caption := 'Resolver';
+    FooterSolveBtn.SetLook(sbsSolid, clSuitePrimary, sikPlay);
+    PageSolveBtn.Caption := 'Resolver';
+  end;
+end;
+
+{ Resolver: em segundo plano; clicar de novo durante o calculo cancela }
+procedure TMultiPhysicsForm.SolveClick(Sender: TObject);
+var
+  K: TAnalysisKind;
+begin
+  if SolveThread <> nil then
+  begin
+    FEMCancelRequested := True;
+    SetStatus('Cancelando...');
+    Exit;
+  end;
+  if not PrepareSolve(K) then Exit;
+  SolveKind := K;
+  SolveStart := Now;
   SetStatus('Resolvendo ' + AnalysisKindName(K) + '...');
-  Application.ProcessMessages;
+  SetBusy(True);
+  { a thread reconstroi Run.Mesh: a vista nao pode pinta-la durante o calculo }
+  View.SetMesh(nil);
+  View.Message := 'Resolvendo ' + AnalysisKindName(K) + '...';
+  SolveThread := TSolveThread.Create(Run, K);
+  SolveTimer.Enabled := True;
+end;
+
+procedure TMultiPhysicsForm.SolveTimerTick(Sender: TObject);
+var
+  Ok: Boolean;
+begin
+  if SolveThread = nil then begin SolveTimer.Enabled := False; Exit; end;
+  if not SolveThread.Finished then
+  begin
+    SetStatus(Format('Resolvendo %s... %d s (clique em Cancelar para interromper)',
+      [AnalysisKindName(SolveKind), SecondsBetween(Now, SolveStart)]));
+    Exit;
+  end;
+  SolveTimer.Enabled := False;
+  SolveThread.WaitFor;
+  Ok := SolveThread.Ok;
+  FreeAndNil(SolveThread);
+  SetBusy(False);
+  FinishSolve(SolveKind, Ok);
+end;
+
+{ mesma resolucao sem thread (captura de tela por linha de comando) }
+procedure TMultiPhysicsForm.SolveSync;
+var
+  K: TAnalysisKind;
+  Ok: Boolean;
+begin
+  if not PrepareSolve(K) then Exit;
   Screen.Cursor := crHourGlass;
   try
-    HasResult := Run.Run(K);
+    Ok := Run.Run(K);
   finally
     Screen.Cursor := crDefault;
   end;
+  FinishSolve(K, Ok);
+end;
+
+procedure TMultiPhysicsForm.FinishSolve(K: TAnalysisKind; Ok: Boolean);
+var
+  I: Integer;
+begin
+  HasResult := Ok;
   Log.Lines.Add('--- ' + AnalysisKindName(K) + ' ---');
   for I := 0 to Run.Log.Count - 1 do Log.Lines.Add(Run.Log[I]);
   if not HasResult then
   begin
     SetStatus('Nao resolvido: ' + Run.Message);
     SetBadge('Nao resolvido', clSuiteDanger);
+    View.SetMesh(Run.Mesh);
     RefreshTree;
     Exit;
   end;
   if Run.Fidelity = flEngineering then
-  begin
-    SetBadge(AnalysisKindName(K) + ': ENGENHARIA', clSuiteSuccess);
-  end
+    SetBadge(AnalysisKindName(K) + ': ENGENHARIA', clSuiteSuccess)
   else
-  begin
     SetBadge(AnalysisKindName(K) + ': ESTIMATIVA', clSuiteWarning);
-  end;
   SetStatus(Format('%s resolvida em %d ms (%s).', [AnalysisKindName(K), Run.ElapsedMs, FidelityName(Run.Fidelity)]));
   View.SetMesh(Run.Mesh);
   CbField.Items.Clear;
@@ -1835,7 +1971,13 @@ begin
     akModal:
       begin
         Txt := Txt + #13#10;
-        for I := 0 to High(Run.ModalRes.Freq) do Txt := Txt + Format(#13#10'Modo %d: %.2f Hz', [I + 1, Run.ModalRes.Freq[I]]);
+        for I := 0 to High(Run.ModalRes.Freq) do
+        begin
+          Txt := Txt + Format(#13#10'Modo %d: %.2f Hz', [I + 1, Run.ModalRes.Freq[I]]);
+          if I <= High(Run.ModalRes.EffMass) then
+            Txt := Txt + Format('  (massa efetiva x %.0f%% y %.0f%% z %.0f%%)', [100 * Run.ModalRes.EffMass[I][0],
+              100 * Run.ModalRes.EffMass[I][1], 100 * Run.ModalRes.EffMass[I][2]]);
+        end;
       end;
   end;
   LbSummary.Caption := Txt;
@@ -1950,6 +2092,29 @@ begin
     SetStatus('Relatorio salvo em ' + D.FileName);
   finally
     H.Free;
+    D.Free;
+  end;
+end;
+
+procedure TMultiPhysicsForm.ExportVTKClick(Sender: TObject);
+var
+  D: TSaveDialog;
+  Empty: array of Double;
+begin
+  if Run.Mesh.ElemCount = 0 then begin SetStatus('Gere a malha ou resolva antes.'); Exit; end;
+  D := TSaveDialog.Create(Self);
+  try
+    D.Filter := 'VTK legado (*.vtk)|*.vtk';
+    D.DefaultExt := 'vtk';
+    D.FileName := P.Name + '.vtk';
+    if not D.Execute then Exit;
+    Empty := nil;
+    if HasResult then
+      Run.Mesh.SaveVTK(D.FileName, Run.StaticRes.U, Run.StaticRes.VonMises, Run.ThermalRes.T)
+    else
+      Run.Mesh.SaveVTK(D.FileName, Empty, Empty, Empty);
+    SetStatus('VTK salvo em ' + D.FileName + ' (abra no ParaView).');
+  finally
     D.Free;
   end;
 end;

@@ -45,6 +45,14 @@ type
 
   TIntArray = array of Integer;
 
+  { propriedades de massa de uma peca; inercia em relacao ao centro de massa,
+    eixos do mundo (kg m2) }
+  TMassProperties = record
+    Volume, Mass: Double;
+    Center: TVector3;
+    Ixx, Iyy, Izz, Ixy, Iyz, Ixz: Double;
+  end;
+
   TFEMMesh = class
   private
     FTagKeys: array of Int64;    { chaves dos triangulos etiquetados durante a geracao }
@@ -90,6 +98,10 @@ type
     function TagArea(Tag: Integer): Double;
     function FaceArea(F: Integer): Double;
     function FaceNormal(F: Integer): TVector3;   { unitaria, para fora }
+    { exata para tetraedros de lados retos: int x x^T dV = V/20 (soma vi vi^T + s s^T) }
+    function MassProperties(Part: Integer; Density: Double): TMassProperties;
+    { malha em VTK legado (ParaView): pontos, tetraedros (10 ou 24) e campos nodais }
+    procedure SaveVTK(const FN: string; const Disp, VonMises, Temp: array of Double);
   end;
 
 { triangula um poligono simples (ear clipping); devolve triangulos com
@@ -932,6 +944,121 @@ begin
   Result := 0;
   for F := 0 to FaceCount - 1 do
     if Faces[F].Tag = Tag then Result := Result + FaceArea(F);
+end;
+
+function TFEMMesh.MassProperties(Part: Integer; Density: Double): TMassProperties;
+var
+  E, K: Integer;
+  V: Double;
+  P: array[0..3] of TVector3;
+  S, C1: TVector3;
+  Cxx, Cyy, Czz, Cxy, Cyz, Cxz: Double;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  Cxx := 0; Cyy := 0; Czz := 0; Cxy := 0; Cyz := 0; Cxz := 0;
+  C1 := V3(0, 0, 0);
+  for E := 0 to ElemCount - 1 do
+  begin
+    if (Part >= 0) and (Elems[E].Part <> Part) then Continue;
+    for K := 0 to 3 do P[K] := Nodes[Elems[E].N[K]];
+    V := ElemVolume(E);
+    S := VAdd(VAdd(P[0], P[1]), VAdd(P[2], P[3]));
+    Result.Volume := Result.Volume + V;
+    C1 := VAdd(C1, VScale(S, V / 4));
+    { segundo momento: V/20 (soma vi vi^T + s s^T) }
+    for K := 0 to 3 do
+    begin
+      Cxx := Cxx + V / 20 * P[K].X * P[K].X;
+      Cyy := Cyy + V / 20 * P[K].Y * P[K].Y;
+      Czz := Czz + V / 20 * P[K].Z * P[K].Z;
+      Cxy := Cxy + V / 20 * P[K].X * P[K].Y;
+      Cyz := Cyz + V / 20 * P[K].Y * P[K].Z;
+      Cxz := Cxz + V / 20 * P[K].X * P[K].Z;
+    end;
+    Cxx := Cxx + V / 20 * S.X * S.X;
+    Cyy := Cyy + V / 20 * S.Y * S.Y;
+    Czz := Czz + V / 20 * S.Z * S.Z;
+    Cxy := Cxy + V / 20 * S.X * S.Y;
+    Cyz := Cyz + V / 20 * S.Y * S.Z;
+    Cxz := Cxz + V / 20 * S.X * S.Z;
+  end;
+  if Result.Volume <= 0 then Exit;
+  Result.Mass := Density * Result.Volume;
+  Result.Center := VScale(C1, 1 / Result.Volume);
+  { para o centro de massa: C' = C - V c c^T }
+  with Result.Center do
+  begin
+    Cxx := Cxx - Result.Volume * X * X; Cyy := Cyy - Result.Volume * Y * Y; Czz := Czz - Result.Volume * Z * Z;
+    Cxy := Cxy - Result.Volume * X * Y; Cyz := Cyz - Result.Volume * Y * Z; Cxz := Cxz - Result.Volume * X * Z;
+  end;
+  Result.Ixx := Density * (Cyy + Czz);
+  Result.Iyy := Density * (Cxx + Czz);
+  Result.Izz := Density * (Cxx + Cyy);
+  Result.Ixy := -Density * Cxy;
+  Result.Iyz := -Density * Cyz;
+  Result.Ixz := -Density * Cxz;
+end;
+
+procedure TFEMMesh.SaveVTK(const FN: string; const Disp, VonMises, Temp: array of Double);
+var
+  L: TStringList;
+  I, K, NPE: Integer;
+  Line: string;
+  FS: TFormatSettings;
+const
+  { VTK_QUADRATIC_TETRA: meios em (0,1),(1,2),(0,2),(0,3),(1,3),(2,3); C3D10 usa (2,0) no 7o: mesma aresta }
+  ORD10: array[0..9] of Integer = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+begin
+  FS := DefaultFormatSettings;
+  FS.DecimalSeparator := '.';
+  NPE := NodesPerElement;
+  L := TStringList.Create;
+  try
+    L.Add('# vtk DataFile Version 3.0');
+    L.Add('MultiPhysics');
+    L.Add('ASCII');
+    L.Add('DATASET UNSTRUCTURED_GRID');
+    L.Add(Format('POINTS %d double', [NodeCount]));
+    for I := 0 to NodeCount - 1 do
+      L.Add(FloatToStr(Nodes[I].X, FS) + ' ' + FloatToStr(Nodes[I].Y, FS) + ' ' + FloatToStr(Nodes[I].Z, FS));
+    L.Add(Format('CELLS %d %d', [ElemCount, ElemCount * (NPE + 1)]));
+    for I := 0 to ElemCount - 1 do
+    begin
+      Line := IntToStr(NPE);
+      for K := 0 to NPE - 1 do Line := Line + ' ' + IntToStr(Elems[I].N[ORD10[K]]);
+      L.Add(Line);
+    end;
+    L.Add(Format('CELL_TYPES %d', [ElemCount]));
+    for I := 0 to ElemCount - 1 do
+      if NPE = 10 then L.Add('24') else L.Add('10');
+    L.Add(Format('CELL_DATA %d', [ElemCount]));
+    L.Add('SCALARS peca int 1');
+    L.Add('LOOKUP_TABLE default');
+    for I := 0 to ElemCount - 1 do L.Add(IntToStr(Elems[I].Part));
+    if (Length(Disp) = 3 * NodeCount) or (Length(VonMises) = NodeCount) or (Length(Temp) = NodeCount) then
+      L.Add(Format('POINT_DATA %d', [NodeCount]));
+    if Length(Disp) = 3 * NodeCount then
+    begin
+      L.Add('VECTORS deslocamento double');
+      for I := 0 to NodeCount - 1 do
+        L.Add(FloatToStr(Disp[3 * I], FS) + ' ' + FloatToStr(Disp[3 * I + 1], FS) + ' ' + FloatToStr(Disp[3 * I + 2], FS));
+    end;
+    if Length(VonMises) = NodeCount then
+    begin
+      L.Add('SCALARS von_mises double 1');
+      L.Add('LOOKUP_TABLE default');
+      for I := 0 to NodeCount - 1 do L.Add(FloatToStr(VonMises[I], FS));
+    end;
+    if Length(Temp) = NodeCount then
+    begin
+      L.Add('SCALARS temperatura double 1');
+      L.Add('LOOKUP_TABLE default');
+      for I := 0 to NodeCount - 1 do L.Add(FloatToStr(Temp[I], FS));
+    end;
+    L.SaveToFile(FN);
+  finally
+    L.Free;
+  end;
 end;
 
 end.

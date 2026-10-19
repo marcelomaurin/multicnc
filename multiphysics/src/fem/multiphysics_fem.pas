@@ -81,6 +81,8 @@ type
     Freq: TDoubleArray;         { Hz }
     Shapes: array of TDoubleArray;   { normalizadas pela massa }
     Iterations: Integer;
+    EffMass: array of array[0..2] of Double;   { fracao da massa total em x, y, z por modo }
+    TotalMass: Double;
   end;
 
   TBoolArrayHelper = array of Boolean;
@@ -1136,6 +1138,7 @@ begin
     Conv := False;
     for It := 1 to 60 do
     begin
+      CheckCancel;
       for J := 0 to Q - 1 do
       begin
         M.MulVec(X[J], Mx);
@@ -1198,12 +1201,26 @@ begin
     end;
     SetLength(R.Freq, Modes);
     SetLength(R.Shapes, Modes);
+    SetLength(R.EffMass, Modes);
     for I := 0 to Modes - 1 do
     begin
       S := LamOld[I] - Sigma;
       if S < 0 then S := 0;
       R.Freq[I] := Sqrt(S) / (2 * Pi);
       R.Shapes[I] := Copy(X[I]);
+    end;
+    { massa efetiva: Gamma = phi^T M r (r = translacao unitaria na direcao),
+      fracao = Gamma^2 / (r^T M r); phi normalizado pela massa }
+    SetLength(Tmp, N);
+    for C := 0 to 2 do
+    begin
+      for I := 0 to N - 1 do
+        if I mod 3 = C then Tmp[I] := 1 else Tmp[I] := 0;
+      M.MulVec(Tmp, Mx);
+      Rm := Dot(Tmp, Mx);
+      if C = 0 then R.TotalMass := Rm;
+      for I := 0 to Modes - 1 do
+        if Rm > 0 then R.EffMass[I][C] := Sqr(Dot(R.Shapes[I], Mx)) / Rm else R.EffMass[I][C] := 0;
     end;
     R.Ok := True;
     if Conv then

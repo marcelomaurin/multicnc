@@ -34,6 +34,7 @@ type
     function SolveOnce(M: TFEMMesh; H: Double; Kind: TAnalysisKind; out Main: Double): Boolean;
     function BuildTies(M: TFEMMesh; H: Double; Verbose: Boolean): TMeshTies;
     function SolveCCX(F: TFEMModel; M: TFEMMesh; Kind: TAnalysisKind; out Main: Double): Boolean;
+    function DoRun(AKind: TAnalysisKind): Boolean;
   public
     CCXExe: string;                 { caminho do ccx (Settings.Solver = 1) }
     CCXTimeout: Integer;            { s }
@@ -433,6 +434,29 @@ begin
 end;
 
 function TAnalysisRun.Run(AKind: TAnalysisKind): Boolean;
+begin
+  FEMCancelRequested := False;
+  try
+    Result := DoRun(AKind);
+  except
+    on E: EAbort do
+    begin
+      Ok := False;
+      Message := 'Calculo cancelado pelo usuario.';
+      Log.Add(Message);
+      Result := False;
+    end;
+    on E: Exception do
+    begin
+      Ok := False;
+      Message := 'Erro no calculo: ' + E.Message;
+      Log.Add(Message);
+      Result := False;
+    end;
+  end;
+end;
+
+function TAnalysisRun.DoRun(AKind: TAnalysisKind): Boolean;
 var
   T0: TDateTime;
   H, Coarse, Fine: Double;
@@ -476,6 +500,7 @@ begin
   begin
     { malha mais grossa (1,5 h) para comparar; o resultado exibido e o da malha h }
     SaveStatic := StaticRes; SaveThermal := ThermalRes; SaveModal := ModalRes;
+    CheckCancel;
     CM := TFEMMesh.Create;
     try
       if SolveOnce(CM, H * 1.5, AKind, Coarse) and (Abs(Fine) > 1e-300) then

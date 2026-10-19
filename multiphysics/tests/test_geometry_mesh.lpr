@@ -7,7 +7,7 @@ program test_geometry_mesh;
 {$mode objfpc}{$H+}
 
 uses
-  SysUtils, Math, multiphysics_vector, multiphysics_geometry, multiphysics_mesh,
+  Classes, SysUtils, Math, multiphysics_vector, multiphysics_geometry, multiphysics_mesh,
   multiphysics_check;
 
 procedure TestAnalytic;
@@ -75,6 +75,9 @@ var
   Part, T, I: Integer;
   Ids: TIntArray;
   Ok: Boolean;
+  MP: TMassProperties;
+  FN: string;
+  VTK: TStringList;
 begin
   Section('Malha das primitivas');
   M := TFEMMesh.Create;
@@ -146,6 +149,36 @@ begin
       2 * Abs(PolygonArea(P.Poly)) + 2 * (0.04 + 0.03) * 0.05, 1e-9);
     Check(M.FindTag('L/p/lado3') >= 0, 'faces laterais do prisma nomeadas');
     CheckNear(M.TagArea(M.FindTag('L/p/lado0')), 0.04 * 0.05, 1e-9, 'area do lado0');
+
+    { massa e inercia }
+    M.Clear;
+    M.AddPart('BLOCO');
+    M.AddPrimitive(0, BoxPrim('b', V3(0, 0, 0), V3(0.2, 0.1, 0.05)), IdentityTransform, 0.025);
+    M.Finalize;
+    MP := M.MassProperties(0, 7850);
+    CheckNear(MP.Mass, 7850 * 0.001, 1e-9, 'massa da caixa');
+    Check(VLength(VSub(MP.Center, V3(0.1, 0.05, 0.025))) < 1e-12, 'centro de massa no meio da caixa');
+    CheckNear(MP.Izz, MP.Mass * (Sqr(0.2) + Sqr(0.1)) / 12, 1e-9, 'Izz da caixa = m (a2 + b2) / 12');
+    CheckNear(MP.Ixx, MP.Mass * (Sqr(0.1) + Sqr(0.05)) / 12, 1e-9, 'Ixx da caixa = m (b2 + c2) / 12');
+    Check(Abs(MP.Ixy) < 1e-12 * MP.Izz, 'produto de inercia nulo na caixa alinhada');
+    M.Clear;
+    M.AddPart('DISCO');
+    M.AddPrimitive(0, CylPrim('c', 'z', V3(0, 0, 0), 0.05, 0.02), IdentityTransform, 0.004);
+    M.Finalize;
+    MP := M.MassProperties(0, 2700);
+    CheckNear(MP.Izz, MP.Mass * Sqr(0.05) / 2, 0.01, 'Izz do cilindro = m r2 / 2 (malha poligonal)');
+    FN := GetTempDir + 'mp_test.vtk';
+    M.ConvertToTet10;
+    M.SaveVTK(FN, [], [], []);
+    VTK := TStringList.Create;
+    try
+      VTK.LoadFromFile(FN);
+      Check((VTK[0] = '# vtk DataFile Version 3.0') and (VTK.IndexOf(Format('CELLS %d %d', [M.ElemCount, M.ElemCount * 11])) > 0),
+        'VTK legado com tetraedros quadraticos');
+    finally
+      VTK.Free;
+    end;
+    DeleteFile(FN);
 
     { duas pecas na mesma malha: volumes por peca }
     M.Clear;
