@@ -205,6 +205,8 @@ type
     procedure UpdateStatus;
     procedure MarkModified;
   public
+    { abre uma montagem .massembly (menu Abrir e --file da suite) }
+    procedure OpenFile(const FN: string);
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
   end;
@@ -872,6 +874,18 @@ begin
   StatusLabel.Caption := 'Nova montagem criada. Insira o primeiro componente (base fixa).';
 end;
 
+procedure TMultiAssemblyForm.OpenFile(const FN: string);
+begin
+  try
+    P.LoadFromFile(FN);
+    Caption := 'MultiAssembly • ' + ExtractFileName(FN);
+    RefreshAll;
+    ShowStep(0);
+  except
+    on E: Exception do MessageDlg('Nao foi possivel abrir', E.Message, mtError, [mbOK], 0);
+  end;
+end;
+
 procedure TMultiAssemblyForm.OpenProjectClick(Sender: TObject);
 var
   OD: TOpenDialog;
@@ -879,12 +893,7 @@ begin
   OD := TOpenDialog.Create(Self);
   try
     OD.Filter := 'Montagem MultiAssembly (*.massembly)|*.massembly|Todos os arquivos (*.*)|*.*';
-    if OD.Execute then
-    begin
-      P.LoadFromFile(OD.FileName);
-      RefreshAll;
-      ShowStep(0);
-    end;
+    if OD.Execute then OpenFile(OD.FileName);
   finally
     OD.Free;
   end;

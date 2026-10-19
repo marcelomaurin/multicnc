@@ -134,6 +134,19 @@ Ao acionar **Abrir no MultiCNC**, o painel MultiCNC confere se as coordenadas `M
 
 ---
 
+## 26. Exercício Guiado: Da Malha à Impressão
+
+1. Na etapa **1 Impressora**, escolha o perfil da impressora.
+2. Na etapa **2 Modelo**, clique em **Abrir modelo...** e abra `models/printer3d/cubo_calibracao_20mm.stl` (na instalação, `documentation\models\printer3d`).
+3. Em **3 Material** escolha PLA; em **4 Qualidade**, camada de 0,2 mm; em **5 Suportes**, nenhum.
+4. Em **6 Prévia**, clique em **Fatiar e visualizar** e percorra as camadas.
+5. Em **7 Saída**, clique em **Gerar G-code...** ou **Abrir no MultiCNC**.
+6. Imprima e meça o cubo: 20 × 20 × 20 mm.
+
+Mais exercícios (anel, cantoneira e a cantoneira do MultiCAD) em `models/multislicer/README.md`.
+
+---
+
 ## 28. Teclas de Atalho de Referência Rápida
 
 | Atalho | Função |

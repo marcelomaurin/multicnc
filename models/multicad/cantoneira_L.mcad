@@ -1,0 +1,152 @@
+{
+  "format" : "multicad",
+  "version" : 1,
+  "name" : "Cantoneira L",
+  "units" : "mm",
+  "material" : "Aço 1020",
+  "next_id" : 7,
+  "rollback" : -1,
+  "features" : [
+    {
+      "id" : 1,
+      "kind" : "plane",
+      "name" : "Plano Frontal",
+      "suppressed" : false,
+      "params" : {
+        "type" : "standard",
+        "std" : "frontal"
+      }
+    },
+    {
+      "id" : 2,
+      "kind" : "plane",
+      "name" : "Plano Superior",
+      "suppressed" : false,
+      "params" : {
+        "type" : "standard",
+        "std" : "superior"
+      }
+    },
+    {
+      "id" : 3,
+      "kind" : "plane",
+      "name" : "Plano Lateral",
+      "suppressed" : false,
+      "params" : {
+        "type" : "standard",
+        "std" : "lateral"
+      }
+    },
+    {
+      "id" : 4,
+      "kind" : "origin",
+      "name" : "Origem",
+      "suppressed" : false,
+      "params" : {}
+    },
+    {
+      "id" : 5,
+      "kind" : "sketch",
+      "name" : "Perfil L",
+      "suppressed" : false,
+      "params" : {
+        "plane" : "plane:1",
+        "next_entity" : 7,
+        "next_dim" : 1,
+        "entities" : [
+          {
+            "id" : 1,
+            "kind" : "line",
+            "p1" : [
+              0.0000000000000000E+000,
+              0.0000000000000000E+000
+            ],
+            "p2" : [
+              3.0000000000000000E+001,
+              0.0000000000000000E+000
+            ]
+          },
+          {
+            "id" : 2,
+            "kind" : "line",
+            "p1" : [
+              3.0000000000000000E+001,
+              0.0000000000000000E+000
+            ],
+            "p2" : [
+              3.0000000000000000E+001,
+              3.0000000000000000E+000
+            ]
+          },
+          {
+            "id" : 3,
+            "kind" : "line",
+            "p1" : [
+              3.0000000000000000E+001,
+              3.0000000000000000E+000
+            ],
+            "p2" : [
+              3.0000000000000000E+000,
+              3.0000000000000000E+000
+            ]
+          },
+          {
+            "id" : 4,
+            "kind" : "line",
+            "p1" : [
+              3.0000000000000000E+000,
+              3.0000000000000000E+000
+            ],
+            "p2" : [
+              3.0000000000000000E+000,
+              3.0000000000000000E+001
+            ]
+          },
+          {
+            "id" : 5,
+            "kind" : "line",
+            "p1" : [
+              3.0000000000000000E+000,
+              3.0000000000000000E+001
+            ],
+            "p2" : [
+              0.0000000000000000E+000,
+              3.0000000000000000E+001
+            ]
+          },
+          {
+            "id" : 6,
+            "kind" : "line",
+            "p1" : [
+              0.0000000000000000E+000,
+              3.0000000000000000E+001
+            ],
+            "p2" : [
+              0.0000000000000000E+000,
+              0.0000000000000000E+000
+            ]
+          }
+        ],
+        "constraints" : [
+        ]
+      }
+    },
+    {
+      "id" : 6,
+      "kind" : "extrude",
+      "name" : "Ressalto-Extrusão1",
+      "suppressed" : false,
+      "params" : {
+        "sketch" : 5,
+        "start" : "sketch_plane",
+        "dir1" : {
+          "end" : "blind",
+          "depth" : 4.0000000000000000E+001,
+          "reverse" : false
+        },
+        "merge" : true,
+        "scope_all" : true
+      }
+    }
+  ]
+}

@@ -385,11 +385,13 @@ Para fresagem mecânica de circuito impresso em fresadoras CNC (como CNC 3018):
 
 ## 25. Exercício guiado: Projetando o oscilador 555
 
+Os arquivos de cada fase estão em `models/makepcb` (na instalação, `documentation\models\makepcb`): `pisca_555_sem_trilhas.mpcb` (antes do roteamento), `pisca_555_roteado.mpcb` (15 ligações, 13 trilhas, 0 vias, DRC sem erros) e `pisca_555_gerber/` (Gerber + Excellon). O README da pasta continua o exercício no RouterPCB e no LaserPCB.
+
 1. **Nova Placa:** Defina Nome: *Pisca_555*, Largura: *50.8 mm*, Altura: *38.1 mm*, Face simples e Grade: *2.54 mm*.
 2. **Carga do Exemplo:** Clique no botão **555** na barra lateral ou monte os símbolos no esquema.
 3. **Conversão:** Clique em **Converter para a placa**.
 4. **Disposição:** Posicione o CI 555 no centro, conectores na lateral e passivos ao redor.
-5. **Roteamento:** Na etapa **4 Trilhas**, clique em **Roteamento automático**.
+5. **Roteamento:** Na etapa **4 Trilhas**, clique em **Rotear automaticamente**.
 6. **Validação:** Clique em **Verificar (DRC)** e obtenha o status *DRC OK*.
 7. **Fabricação:** Exporte os Gerbers na etapa 5 e realize a impressão 1:1.
 

@@ -324,8 +324,10 @@ Emissão de código GRBL / RS-274:
 1. Abra o MakeRouter e clique no botão **Demo** na lateral.
 2. Confira as dimensões na etapa 1 (320 x 220 x 18 mm, Zero BL).
 3. Na etapa 4, clique em **Calcular** para gerar as trajetórias.
-4. Na etapa 5, clique em **Simular tudo** e acompanhe a usinagem 3D.
+4. Na etapa 5, clique em **Simular todos** e acompanhe a usinagem 3D.
 5. Na etapa 6, clique em **Validar**, depois em **Gerar G-code** e em **Abrir no MultiCNC**.
+
+O projeto da demonstração está salvo em `models/makerouter/placa_exemplo.mrouter`; `models/makerouter/porta_copos.mrouter` é um segundo exercício (bolsão, gravação e contorno com pontes), com passo a passo no README da pasta.
 
 ---
 

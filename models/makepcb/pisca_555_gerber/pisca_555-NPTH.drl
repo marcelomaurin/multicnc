@@ -1,0 +1,16 @@
+M48
+; DRILL file {MakePCB} NPTH
+; FORMAT={-:-/ absolute / metric / decimal}
+;TF.FileFunction,NonPlated,1,2,NPTH
+FMAT,2
+METRIC
+T1C3.200
+%
+G90
+G05
+T1
+X3.810Y34.290
+X46.990Y34.290
+X46.990Y3.810
+T0
+M30

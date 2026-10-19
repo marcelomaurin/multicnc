@@ -50,6 +50,17 @@ editável: ele não é inferido da potência em watts nem do nome do equipamento
 Cadastros sem área válida não aparecem; cadastro ausente ou inválido permite
 continuar com o ajuste manual.
 
+## Recursos acrescentados depois do manual 0.02.1
+- **Caixa com encaixes...** (barra superior): gera as faces de uma caixa com dentes nas
+  arestas a partir das medidas (internas ou externas), da espessura do material e do kerf, com
+  ou sem tampa (6 ou 5 faces). Os dentes são alargados pelo kerf para o encaixe ficar justo.
+- **Pontes no corte:** no editor da camada (modo Linha), *Pontes no corte (mm, 0 = sem)* e
+  *Uma ponte a cada (mm)* deixam trechos sem laser que seguram a peça na chapa.
+- **Estimar potência pelo laser...:** sugere potência e velocidade pela potência do laser, o
+  material e a espessura; **Aplicar na camada selecionada** copia os valores para a camada.
+  Confirme com o **Teste de material** antes do trabalho real.
+- Exercícios com arquivos prontos: [`models/laserart`](../models/laserart/README.md).
+
 ## Seguranca
 Potencia e velocidade nao sao universais. Camadas novas comecam zeradas e o
 G-code so e gerado com camadas calibradas para a maquina e o material. O

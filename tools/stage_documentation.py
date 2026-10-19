@@ -68,6 +68,9 @@ footer{border-top:1px solid #d5dfeb;margin-top:28px;padding-top:16px}code{backgr
 <h2>Modelos de teste para CNC Router</h2>
 <p>Os 12 programas GRBL de exemplo incluem quadrados, círculos, furação, bolsão, gravação e superfície 3D. Estão disponíveis na pasta <code>documentation/models/cnc_router</code> da instalação.</p>
 <p><a href="../models/cnc_router/README.md">Instruções de uso (texto)</a> · <a href="../models/cnc_router/previas.png">Catálogo visual dos modelos</a> · <a href="../models/cnc_router/relatorio_validacao.csv">Relatório de validação</a></p>
+<h2>Exercícios por programa</h2>
+<p>Cada programa da suíte tem arquivos de exercício e um passo a passo na pasta <code>documentation/models</code> da instalação: LaserArt, MakePCB, RouterPCB, LaserPCB, MakeRouter, MultiCAM, MultiCAD, MultiSlicer, MultiAssembly, MultiCNC e MultiPhysics.</p>
+<p><a href="../models/README.md">Índice dos exercícios (texto)</a></p>
 <footer>A versão de referência de cada manual está indicada em seu nome e em sua capa. O número do setup é independente da versão de cada aplicativo.</footer>
 </main></html>'''
     page = page.replace("@@SLICER_VERSION@@", html.escape(slicer_version))
