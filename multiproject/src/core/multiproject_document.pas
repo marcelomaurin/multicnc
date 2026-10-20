@@ -25,10 +25,12 @@ interface
 
 uses
   Classes, SysUtils, Contnrs, fpjson, aiprojectduration, aiundohistory, aitaskgraph,
-  multiproject_types;
+  aiworkcalendar, aicpmscheduler, multiproject_types;
 
 const
   PJ_UNDO_LIMIT = 100;
+  PJ_CAL_STANDARD = 'padrao';
+  PJ_CAL_24H = '24h';
 
 type
   TPJTask = class
@@ -45,6 +47,12 @@ type
     State: TPJTaskState;
     Mode: TPJScheduleMode;
     Duration: TAIDuration;
+    { cronograma (fase 3, PJ-S01..S05, PJ-T16, PJ-C04) }
+    Constraint: TAIConstraintType;
+    ConstraintDate: TDateTime;
+    Deadline: TDateTime;           // 0 = sem data limite
+    ManualStart, ManualFinish: TDateTime;
+    CalendarName: string;          // '' = calendario do projeto
     Notes: string;
     Level: Integer;
     { objeto JSON lido do arquivo: preserva campos que esta versao nao conhece }
@@ -72,9 +80,12 @@ type
   private
     FTasks: TFPObjectList;
     FLinks: TFPObjectList;
+    FCalendars: TFPObjectList;
     FLastError: string;
     FHistory: TAIUndoHistory;
     FModified: Boolean;
+    function GetCalendarCount: Integer;
+    function GetCalendar(I: Integer): TAIWorkCalendar;
     function GetLinkCount: Integer;
     function GetLink(I: Integer): TPJLink;
     function IdExists(const AId: string): Boolean;
@@ -99,6 +110,8 @@ type
     MinutesPerDay: Integer;
     MinutesPerWeek: Integer;
     NextNumber: Integer;
+    ProjectCalendarName: string;
+    CriticalSlack: Int64;          // minutos; critica = margem total <= limiar
     Raw: TJSONObject;
     constructor Create;
     destructor Destroy; override;
@@ -144,6 +157,14 @@ type
     function SetPredecessorsText(const ATaskId, AText: string; out Err: string): Boolean;
     function CheckLinks(out Err: string): Boolean;
 
+    { --- calendarios (PJ-C01..C05) --- }
+    function FindCalendar(const AName: string): TAIWorkCalendar;
+    function IndexOfCalendar(const AName: string): Integer;
+    function ProjectCalendar: TAIWorkCalendar;
+    function AddCalendar(const AName: string; ATemplate: TAIWorkCalendar = nil): TAIWorkCalendar;
+    procedure ResetCalendars;
+    procedure AdoptCalendars(AList: TFPObjectList);
+
     { edicao livre de campos: BeginChange antes, EndChange depois }
     procedure BeginChange(const Desc: string);
     procedure EndChange;
@@ -166,6 +187,8 @@ type
 
     property Count: Integer read GetCount;
     property Tasks[I: Integer]: TPJTask read GetTask; default;
+    property CalendarCount: Integer read GetCalendarCount;
+    property Calendars[I: Integer]: TAIWorkCalendar read GetCalendar;
     property LinkCount: Integer read GetLinkCount;
     property Links[I: Integer]: TPJLink read GetLink;
     { motivo da ultima recusa de Indent/Outdent }
@@ -196,6 +219,7 @@ begin
   State := tsPlanned;
   Mode := smAuto;
   Duration := AIMakeDuration(AI_DEFAULT_MINUTES_PER_DAY, aduDay, False, True);
+  Constraint := actASAP;
   Level := 1;
 end;
 
@@ -237,6 +261,7 @@ begin
   inherited Create;
   FTasks := TFPObjectList.Create(True);
   FLinks := TFPObjectList.Create(True);
+  FCalendars := TFPObjectList.Create(True);
   FHistory := TAIUndoHistory.Create(PJ_UNDO_LIMIT);
   Clear;
 end;
@@ -245,6 +270,7 @@ destructor TPJProject.Destroy;
 begin
   FLinks.Free;
   FTasks.Free;
+  FCalendars.Free;
   FHistory.Free;
   Raw.Free;
   inherited Destroy;
@@ -269,6 +295,9 @@ begin
   MinutesPerDay := AI_DEFAULT_MINUTES_PER_DAY;
   MinutesPerWeek := AI_DEFAULT_MINUTES_PER_WEEK;
   NextNumber := 1;
+  ProjectCalendarName := PJ_CAL_STANDARD;
+  CriticalSlack := 0;
+  ResetCalendars;
   ClearHistory;
   FModified := False;
 end;
@@ -712,6 +741,83 @@ begin
   for I := 0 to AList.Count - 1 do FTasks.Add(AList[I]);
 end;
 
+{ ---------------- calendarios ---------------- }
+
+function TPJProject.GetCalendarCount: Integer;
+begin
+  Result := FCalendars.Count;
+end;
+
+function TPJProject.GetCalendar(I: Integer): TAIWorkCalendar;
+begin
+  Result := TAIWorkCalendar(FCalendars[I]);
+end;
+
+function TPJProject.IndexOfCalendar(const AName: string): Integer;
+var I: Integer;
+begin
+  for I := 0 to CalendarCount - 1 do
+    if SameText(Calendars[I].Name, AName) then Exit(I);
+  Result := -1;
+end;
+
+function TPJProject.FindCalendar(const AName: string): TAIWorkCalendar;
+var I: Integer;
+begin
+  I := IndexOfCalendar(AName);
+  if I < 0 then Result := nil else Result := Calendars[I];
+end;
+
+function TPJProject.ProjectCalendar: TAIWorkCalendar;
+begin
+  Result := FindCalendar(ProjectCalendarName);
+  if Result = nil then Result := FindCalendar(PJ_CAL_STANDARD);
+  if Result = nil then
+    raise EPJError.CreateFmt('calendario do projeto "%s" inexistente', [ProjectCalendarName]);
+end;
+
+function TPJProject.AddCalendar(const AName: string; ATemplate: TAIWorkCalendar): TAIWorkCalendar;
+begin
+  if Trim(AName) = '' then raise EPJError.Create('calendario sem nome');
+  if IndexOfCalendar(AName) >= 0 then
+    raise EPJError.CreateFmt('ja existe o calendario "%s"', [AName]);
+  BeginChange('Novo calendario');
+  try
+    Result := TAIWorkCalendar.Create(AName);
+    if ATemplate <> nil then
+    begin
+      Result.Assign(ATemplate);
+      Result.Name := AName;
+    end;
+    FCalendars.Add(Result);
+  finally
+    EndChange;
+  end;
+end;
+
+procedure TPJProject.ResetCalendars;
+var C: TAIWorkCalendar; Y: Word; M, D: Word;
+begin
+  { Padrao (seg-sex 08-12/13-17) com feriados nacionais e 24 Horas (maquinas) }
+  FCalendars.Clear;
+  DecodeDate(StartDate, Y, M, D);
+  C := TAIWorkCalendar.Create(PJ_CAL_STANDARD);
+  C.SetStandard;
+  C.AddBrazilianHolidays(Y - 1, Y + 5);
+  FCalendars.Add(C);
+  C := TAIWorkCalendar.Create(PJ_CAL_24H);
+  C.Set24Hours;
+  FCalendars.Add(C);
+end;
+
+procedure TPJProject.AdoptCalendars(AList: TFPObjectList);
+var I: Integer;
+begin
+  FCalendars.Clear;
+  AList.OwnsObjects := False;
+  for I := 0 to AList.Count - 1 do FCalendars.Add(AList[I]);
+end;
+
 { ---------------- vinculos ---------------- }
 
 function TPJProject.GetLinkCount: Integer;
@@ -1002,6 +1108,8 @@ var
   Ids: TStringList;
 begin
   Result := nil;
+  if IndexOfCalendar(ProjectCalendarName) < 0 then
+    AddIssue(Result, '', svError, Format('calendario do projeto "%s" inexistente', [ProjectCalendarName]));
   if Trim(ObjectiveShort) = '' then
     AddIssue(Result, '', svWarning, 'o objetivo nao tem descricao curta');
   if not CheckOutline(Msg) then
@@ -1032,6 +1140,12 @@ begin
           [T.Id, KindCaption(T.Kind)]))
       else if (T.Kind = tkSummary) and not HasChildren(I) then
         AddIssue(Result, T.Id, svWarning, T.Id + ': resumo sem subtarefas');
+      if (T.CalendarName <> '') and (IndexOfCalendar(T.CalendarName) < 0) then
+        AddIssue(Result, T.Id, svError, Format('%s usa o calendario inexistente "%s"', [T.Id, T.CalendarName]));
+      if (T.Constraint in [actSNET, actSNLT, actFNET, actFNLT, actMSO, actMFO]) and (T.ConstraintDate = 0) then
+        AddIssue(Result, T.Id, svError, Format('%s: restricao %s sem data', [T.Id, AIConstraintCode(T.Constraint)]));
+      if (T.Mode = smManual) and (T.ManualStart = 0) then
+        AddIssue(Result, T.Id, svWarning, T.Id + ': tarefa manual sem data de inicio');
       if (T.Kind = tkPart) and (T.Process = prNone) then
         AddIssue(Result, T.Id, svWarning, T.Id + ': peca sem processo de fabricacao definido');
       for J := 0 to High(T.FuncSpec) do

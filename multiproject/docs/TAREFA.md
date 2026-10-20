@@ -2,7 +2,7 @@
 
 - **Aberta em:** 20/10/2026.
 - **Estado:** decisões D1 a D12 **aprovadas como propostas** pelo Marcelo (20/10/2026).
-  Fases 1 e 2 concluídas no Linux (20/10); a conferência no Win64 está pendente.
+  Fases 1, 2 e 3 concluídas no Linux (20/10); a conferência no Win64 está pendente.
 - **Solicitação:** um gerenciador de projeto em que se define um **objetivo** (exemplo:
   construir um motor). Uma pessoa ou a IA divide o objetivo em tarefas de peça e de eletrônica.
   As tarefas se relacionam por uma **lista de grafos**, em cadeia ou em paralelo, e têm Nome,
@@ -28,7 +28,7 @@
 | 0 Especificação | concluída | README, REQUISITOS, ARCHITECTURE, LAYOUT, TAREFA, AI_GUIDE |
 | 1 Documento e tarefas | concluída no Linux (20/10); Win64 pendente | `multiproject_types`, `multiproject_document`, `multiproject_json`; `test_multiproject_core.lpr` com 102 checks; usa `aiprojectduration`, `aiundohistory` e `aijsonutils` do CHATGPT |
 | 2 Grafo | concluída no Linux (20/10); Win64 pendente | `aitaskgraph` no CHATGPT (`ec5cccf`, 61 checks) + `multiproject_graph` (adaptador com expansão dos resumos) e vínculos no documento e no `.mproj`; `test_multiproject_graph.lpr` com 88 checks |
-| 3 Calendário e cronograma | pendente | calendários, CPM, restrições, margens, crítico, avisos |
+| 3 Calendário e cronograma | concluída no Linux (20/10); Win64 pendente | `aiworkcalendar` (`c9ad854`, 57 checks) e `aicpmscheduler` (`3557a7b`, 47 checks) no CHATGPT + `multiproject_schedule`, calendários e restrições no documento e no `.mproj`; `test_multiproject_schedule.lpr` com 82 checks |
 | 4 Tela e registro na suíte | pendente | layout da suíte, Gantt, Rede, Quadro, painel da tarefa, bandeja |
 | 5 Vínculo com as ferramentas | pendente | `--new`/`--task`, `.task.json`, detecção, verificadores, Abrir na ferramenta |
 | 6 Regras de geração e modelos | pendente | PJ-A01..A08, exemplo Motor DC, modelos |
@@ -61,7 +61,7 @@ Por isso os componentes genéricos entram no pacote `openai_project_core` (pasta
 |---|---|---|
 | 1 | `aiprojectduration` (`TAIDuration`), `aiundohistory` (`TAIUndoHistory`), `aijsonutils` (leitura tipada, mescla que preserva campos, ISO 8601, gravação atômica) | publicados em `35203a3`; `tests/test_aiprojectcore_utils.lpr` com 59 checks |
 | 2 | `aitaskgraph`: grafo de tarefas com os 4 tipos de vínculo e latência, ciclo com caminho, ordem topológica, cadeias, em cadeia × em paralelo, coluna Predecessoras | publicado em `ec5cccf`; `tests/test_aitaskgraph.lpr` com 61 checks |
-| 3 | `aiworkcalendar` (expediente, exceções, feriados BR, minuto útil) e `aicpmscheduler` (CPM, restrições, margens, crítico) | a fazer |
+| 3 | `aiworkcalendar` (expediente, exceções, feriados BR, minuto útil) e `aicpmscheduler` (CPM, restrições, margens, crítico) | publicados em `c9ad854` e `3557a7b`; 57 + 47 checks |
 | 9 | `aiplancontract`: contrato e parser determinístico de plano de tarefas gerado por IA | a fazer |
 
 Ficam no MultiProject só o modelo da tarefa, os tipos ligados às ferramentas da suíte, as regras
@@ -178,25 +178,45 @@ Resultado da fase 2:
 
 ### Fase 3: calendário e cronograma (≈ 4 h)
 
-- [ ] 3.0 Criar `aiworkcalendar` e `aicpmscheduler` no CHATGPT, com testes, e sincronizar a
+- [x] 3.0 Criar `aiworkcalendar` e `aicpmscheduler` no CHATGPT, com testes, e sincronizar a
       cópia. O MultiProject só adapta as tarefas e os vínculos.
 
-- [ ] 3.1 `multiproject_calendar`:
+- [x] 3.1 `multiproject_calendar`:
       - calendários Padrão e 24 Horas e as exceções;
       - feriados brasileiros fixos e móveis (Páscoa pelo algoritmo de Meeus);
       - minuto útil ↔ data e soma de duração (PJ-C01..C03, C05).
-- [ ] 3.2 `multiproject_schedule`:
+- [x] 3.2 `multiproject_schedule`:
       - passagem de ida e de volta com os quatro tipos de vínculo e latência;
       - restrições ASAP/ALAP/SNET/SNLT/FNET/FNLT/MSO/MFO;
       - data limite (PJ-S01..S06).
-- [ ] 3.3 Margem total e livre, crítico pelo limiar e agregação dos resumos (PJ-S07, S08).
-- [ ] 3.4 Avisos com tarefa, problema e correção (PJ-S10).
-- [ ] 3.5 Teste `test_multiproject_schedule.lpr`:
+- [x] 3.3 Margem total e livre, crítico pelo limiar e agregação dos resumos (PJ-S07, S08).
+- [x] 3.4 Avisos com tarefa, problema e correção (PJ-S10).
+- [x] 3.5 Teste `test_multiproject_schedule.lpr`:
       - um caso mínimo por tipo de vínculo e restrição;
       - o exemplo do motor com datas, margens e críticas esperadas, calculadas à mão;
       - feriado no meio de uma tarefa;
       - impressão decorrida atravessando o fim de semana;
       - 2.000 tarefas em menos de 200 ms (PJ-Q03).
+
+Resultado da fase 3:
+- **Calendários no documento.** O projeto nasce com **padrao** (seg–sex 08–12/13–17, feriados
+  nacionais do ano anterior até 5 anos à frente, Carnaval e Corpus Christi incluídos) e **24h**
+  (máquinas). Os calendários vão inteiros para o `.mproj`, com as exceções. Um arquivo antigo sem
+  calendários recebe os dois.
+- **Campos novos na tarefa:** restrição e data, data limite, início e término manuais, e
+  calendário próprio. No arquivo ficam `constraint {type, date}`, `deadline`, `manual_start`,
+  `manual_finish` e `calendar`. As opções ganham `critical_slack` (minutos).
+- **Convenção do Project para os horários:** uma tarefa termina às 17:00 e a sucessora começa às
+  08:00 do próximo dia útil. O marco fica no término da predecessora. A tarefa decorrida (14eh)
+  não é encaixada no expediente.
+- **Data limite** não move a tarefa: reduz a margem, que pode ficar negativa, e gera aviso. ALAP
+  vai para o fim da margem livre, sem atrasar as sucessoras.
+- **Exemplo do motor conferido à mão.** O projeto termina na terça 03/11 10:00, porque Finados
+  cai na segunda. Caminho crítico: driver → montagem → validação → liberação → torno/placa →
+  montagem física → teste.
+- **Desempenho:** 2000 tarefas e 4000 vínculos em cerca de 55 ms (meta PJ-Q03: 200 ms).
+- **Fica para depois:** agendar a partir do término (PJ-T02, P1), restrição em tarefa de resumo
+  e recálculo manual (F9) na tela.
 
 ### Fase 4: tela e registro na suíte (≈ 6 h)
 

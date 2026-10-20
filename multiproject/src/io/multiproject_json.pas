@@ -40,7 +40,8 @@ procedure LoadProjectFile(P: TPJProject; const FileName: string);
 implementation
 
 uses
-  Contnrs, aijsonutils, aiprojectduration, aitaskgraph, multiproject_graph;
+  Contnrs, aijsonutils, aiprojectduration, aitaskgraph, aiworkcalendar, aicpmscheduler,
+  multiproject_graph;
 
 { ---------------- gravacao ---------------- }
 
@@ -81,6 +82,14 @@ begin
   O.Add('duration_unit', AIDurationUnitName(T.Duration.DisplayUnit));
   O.Add('elapsed', T.Duration.Elapsed);
   O.Add('estimated', T.Duration.Estimated);
+  Spec := TJSONObject.Create;
+  Spec.Add('type', AIConstraintCode(T.Constraint));
+  Spec.Add('date', AIDateToISO(T.ConstraintDate));
+  O.Add('constraint', Spec);
+  O.Add('deadline', AIDateToISO(T.Deadline));
+  O.Add('manual_start', AIDateToISO(T.ManualStart));
+  O.Add('manual_finish', AIDateToISO(T.ManualFinish));
+  O.Add('calendar', T.CalendarName);
   Spec := TJSONObject.Create;
   Items := TJSONArray.Create;
   for I := 0 to High(T.TechItems) do
@@ -137,10 +146,15 @@ begin
   O.Add('start', AIDateToISO(P.StartDate));
   O.Add('status_date', AIDateToISO(P.StatusDate));
   O.Add('schedule_from', ScheduleFromName(P.ScheduleFrom));
+  O.Add('calendar', P.ProjectCalendarName);
   Opt := TJSONObject.Create;
   Opt.Add('minutes_per_day', P.MinutesPerDay);
   Opt.Add('minutes_per_week', P.MinutesPerWeek);
+  Opt.Add('critical_slack', AIJSONInt(P.CriticalSlack));
   O.Add('options', Opt);
+  Arr := TJSONArray.Create;
+  for I := 0 to P.CalendarCount - 1 do Arr.Add(P.Calendars[I].ToJSON);
+  O.Add('calendars', Arr);
   O.Add('next_task_number', P.NextNumber);
   Arr := TJSONArray.Create;
   for I := 0 to P.Count - 1 do Arr.Add(TaskToJSON(P, I));
@@ -227,6 +241,18 @@ begin
       raise EPJFormat.CreateFmt('%s: unidade de duracao desconhecida "%s"', [Result.Id, S]);
     Result.Duration.Elapsed := AIJSONBool(O, 'elapsed', False);
     Result.Duration.Estimated := AIJSONBool(O, 'estimated', False);
+    Spec := AIJSONObj(O, 'constraint');
+    if Spec <> nil then
+    begin
+      S := AIJSONStr(Spec, 'type', 'ASAP');
+      if not AITryConstraintFromCode(S, Result.Constraint) then
+        raise EPJFormat.CreateFmt('%s: restricao desconhecida "%s"', [Result.Id, S]);
+      Result.ConstraintDate := AIJSONDate(Spec, 'date');
+    end;
+    Result.Deadline := AIJSONDate(O, 'deadline');
+    Result.ManualStart := AIJSONDate(O, 'manual_start');
+    Result.ManualFinish := AIJSONDate(O, 'manual_finish');
+    Result.CalendarName := Trim(AIJSONStr(O, 'calendar'));
     Spec := AIJSONObj(O, 'tech_spec');
     if Spec <> nil then
     begin
@@ -295,7 +321,11 @@ var
   NSuccess: TPJCriteria;
   NStart, NStatus: TDateTime;
   NFrom: TPJScheduleFrom;
-  NMpd, NMpw, NNext: Int64;
+  NMpd, NMpw, NNext, NCrit: Int64;
+  NCalName: string;
+  CalList: TFPObjectList;
+  Cal: TAIWorkCalendar;
+  K: Integer;
 begin
   Fmt := AIJSONStr(Obj, 'format');
   if Fmt <> PJ_FORMAT then
@@ -329,18 +359,23 @@ begin
     raise EPJFormat.CreateFmt('schedule_from desconhecido "%s"', [S]);
   NMpd := AI_DEFAULT_MINUTES_PER_DAY;
   NMpw := AI_DEFAULT_MINUTES_PER_WEEK;
+  NCrit := 0;
   Opt := AIJSONObj(Obj, 'options');
   if Opt <> nil then
   begin
     NMpd := AIJSONInt64(Opt, 'minutes_per_day', NMpd);
     NMpw := AIJSONInt64(Opt, 'minutes_per_week', NMpw);
+    NCrit := AIJSONInt64(Opt, 'critical_slack', 0);
   end;
+  NCalName := Trim(AIJSONStr(Obj, 'calendar', PJ_CAL_STANDARD));
+  if NCalName = '' then NCalName := PJ_CAL_STANDARD;
   if (NMpd <= 0) or (NMpd > 24 * 60) or (NMpw <= 0) or (NMpw > 7 * 24 * 60) then
     raise EPJFormat.Create('options: minutos por dia/semana fora da faixa');
   NNext := AIJSONInt64(Obj, 'next_task_number', 1);
 
   List := TFPObjectList.Create(True);
   LinkList := TFPObjectList.Create(True);
+  CalList := nil;
   Stack := TStringList.Create;
   Ids := TStringList.Create;
   try
@@ -387,6 +422,29 @@ begin
            SameText(TPJLink(LinkList[I]).ToId, TPJLink(LinkList[Num]).ToId) then
           raise EPJFormat.CreateFmt('vinculo repetido: %s -> %s',
             [TPJLink(LinkList[I]).FromId, TPJLink(LinkList[I]).ToId]);
+    { calendarios: lidos antes de trocar o documento; ausentes = padrao + 24 h }
+    Arr := AIJSONArr(Obj, 'calendars');
+    if Arr <> nil then
+    begin
+      CalList := TFPObjectList.Create(True);
+      for I := 0 to Arr.Count - 1 do
+      begin
+        if Arr.Items[I].JSONType <> jtObject then
+          raise EPJFormat.CreateFmt('calendario %d invalido', [I + 1]);
+        Cal := TAIWorkCalendar.Create;
+        CalList.Add(Cal);
+        try
+          Cal.FromJSON(TJSONObject(Arr.Items[I]));
+        except
+          on E: EAIWorkCalendar do raise EPJFormat.Create(E.Message);
+        end;
+        if Trim(Cal.Name) = '' then raise EPJFormat.CreateFmt('calendario %d sem nome', [I + 1]);
+        for K := 0 to CalList.Count - 2 do
+          if SameText(TAIWorkCalendar(CalList[K]).Name, Cal.Name) then
+            raise EPJFormat.CreateFmt('calendario repetido: %s', [Cal.Name]);
+      end;
+    end;
+
     { ciclo, tarefa inexistente ou resumo ligado a subtarefa: recusa o arquivo }
     G := BuildTaskGraphFrom(List, LinkList, GErr);
     if G = nil then raise EPJFormat.Create('vinculos invalidos: ' + GErr);
@@ -399,6 +457,9 @@ begin
     P.StartDate := NStart; P.StatusDate := NStatus; P.ScheduleFrom := NFrom;
     P.MinutesPerDay := NMpd; P.MinutesPerWeek := NMpw;
     P.NextNumber := NNext;
+    P.ProjectCalendarName := NCalName;
+    P.CriticalSlack := NCrit;
+    if CalList <> nil then P.AdoptCalendars(CalList) else P.ResetCalendars;
     P.Raw.Free;
     P.Raw := TJSONObject(Obj.Clone);
     P.AdoptTasks(List);
@@ -406,6 +467,7 @@ begin
   finally
     List.Free;
     LinkList.Free;
+    CalList.Free;
     Stack.Free;
     Ids.Free;
   end;

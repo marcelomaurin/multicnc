@@ -241,13 +241,16 @@ de cada tipo de vínculo e restrição.
   "start": "2026-10-26T08:00:00",
   "status_date": "2026-10-26",
   "calendar": "padrao",
+  "calendar": "padrao",
   "options": { "minutes_per_day": 480, "minutes_per_week": 2400, "critical_slack": 0,
                "fabrication_gate": true, "rules": ["A01","A02","A03","A04","A05","A06","A07"] },
   "next_task_number": 33,
   "tasks": [
     { "id": "T-0002", "name": "Carcaça do estator", "short": "Carcaça que fixa os ímãs",
       "long": "", "kind": "part", "process": "print3d", "state": "planned", "mode": "auto",
-      "duration": 480, "parent": "T-0001",
+      "duration": 480, "duration_unit": "d", "elapsed": false, "estimated": false, "parent": "T-0001",
+      "constraint": { "type": "SNET", "date": "2026-10-27T08:00:00" }, "deadline": "",
+      "manual_start": "", "manual_finish": "", "calendar": "",
       "tech_spec": { "items": [ { "key": "material", "value": "PETG", "unit": "" },
                                 { "key": "diametro_externo", "value": "60", "unit": "mm" } ],
                      "text": "Encaixe H7 para o rolamento 608." },
@@ -256,11 +259,15 @@ de cada tipo de vínculo e restrição.
                     "status": "none" },
       "origin": { "by": "user" } }
   ],
-  "links": [ { "from": "T-0002", "to": "T-0020", "type": "FS", "lag": 0, "artifact": true } ],
+  "links": [ { "from": "T-0002", "to": "T-0020", "type": "FS", "lag": 0, "lag_unit": "d",
+               "lag_elapsed": false, "lag_is_percent": false, "lag_percent": 0, "artifact": true } ],
   "resources": [ { "id": "R-001", "name": "Ender-3", "type": "machine", "machine_type": "printer3d",
                    "equipment": "Ender-3", "max_units": 1, "calendar": "24h" } ],
   "assignments": [ { "task": "T-0020", "resource": "R-001", "units": 1 } ],
-  "calendars": [], "baselines": [], "custom_fields": []
+  "calendars": [ { "name": "padrao", "week": [[], [[480,720],[780,1020]], "...", []],
+                   "exceptions": [ { "date": "2026-11-02", "name": "Finados", "intervals": [] } ] },
+                 { "name": "24h", "week": [[[0,1440]], "..."], "exceptions": [] } ],
+  "baselines": [], "custom_fields": []
 }
 ```
 

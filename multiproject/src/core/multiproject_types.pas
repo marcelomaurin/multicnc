@@ -30,8 +30,7 @@ type
 
   { vinculos: TAITaskLinkType (aitaskgraph, CHATGPT / AI Project Core) }
 
-  { restricoes (fase 3) }
-  TPJConstraint = (pcASAP, pcALAP, pcSNET, pcSNLT, pcFNET, pcFNLT, pcMSO, pcMFO);
+  { restricoes: TAIConstraintType (aicpmscheduler, CHATGPT / AI Project Core) }
 
   TPJResourceType = (rtPerson, rtAI, rtMachine, rtMaterial, rtCost);
 
@@ -74,8 +73,6 @@ function TryStateFromName(const S: string; out V: TPJTaskState): Boolean;
 function StateCaption(S: TPJTaskState): string;
 function ModeName(M: TPJScheduleMode): string;
 function TryModeFromName(const S: string; out M: TPJScheduleMode): Boolean;
-function ConstraintName(C: TPJConstraint): string;
-function TryConstraintFromName(const S: string; out C: TPJConstraint): Boolean;
 function ResourceTypeName(R: TPJResourceType): string;
 function TryResourceTypeFromName(const S: string; out R: TPJResourceType): Boolean;
 function CriterionStateName(C: TPJCriterionState): string;
@@ -107,8 +104,6 @@ const
     'Em andamento', 'Pronta para revisao', 'Concluida', 'Bloqueada',
     'Desatualizada', 'Cancelada');
   MODE_NAMES: array[TPJScheduleMode] of string = ('auto', 'manual');
-  CONSTRAINT_NAMES: array[TPJConstraint] of string = ('ASAP', 'ALAP', 'SNET',
-    'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO');
   RESOURCE_NAMES: array[TPJResourceType] of string = ('person', 'ai', 'machine',
     'material', 'cost');
   CRITERION_NAMES: array[TPJCriterionState] of string = ('pending', 'passed',
@@ -178,20 +173,6 @@ begin
   for I := Low(I) to High(I) do
     if SameText(S, MODE_NAMES[I]) then begin M := I; Exit(True); end;
   M := smAuto;
-  Result := False;
-end;
-
-function ConstraintName(C: TPJConstraint): string;
-begin
-  Result := CONSTRAINT_NAMES[C];
-end;
-
-function TryConstraintFromName(const S: string; out C: TPJConstraint): Boolean;
-var I: TPJConstraint;
-begin
-  for I := Low(I) to High(I) do
-    if SameText(S, CONSTRAINT_NAMES[I]) then begin C := I; Exit(True); end;
-  C := pcASAP;
   Result := False;
 end;
 
