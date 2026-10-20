@@ -52,6 +52,7 @@ FABRICAÇÃO
 
 | Aplicação | Visão |
 |---|---|
+| **MultiProject** | Gestão do objetivo em tarefas, grafo e cronograma, no estilo do MS Project (em especificação: [multiproject](multiproject/README.md)) |
 | **MultiCNC** | Operação e controle das máquinas |
 | **MultiSuite Bandeja** | Atalhos para abrir os aplicativos instalados |
 | **MultiCAD** | Projeto e preparação geométrica |

@@ -1,5 +1,17 @@
 # Pendências da suíte (atualizado 12/10/2026)
 
+## MultiProject (20/10/2026) - especificacao, fase 0
+
+- Novo modulo `multiproject/`: gerenciador de projeto a partir de um objetivo (ex.: construir
+  um motor), com tarefas de peca (MultiCAD), eletronica (MakePCB), montagem (MultiAssembly),
+  validacao (MultiPhysics) e fabricacao (impressao 3D, router, corte e arte laser, torno,
+  placa) em grafo de dependencias TI/II/TT/IT, cronograma CPM e referencia no Microsoft Project.
+- Documentos: `multiproject/README.md` e `multiproject/docs/` (REQUISITOS, ARCHITECTURE,
+  LAYOUT, TAREFA, AI_GUIDE).
+- Falta: decisoes D1 a D12 do Marcelo; depois fases 1 a 6 (primeira entrega) e 7 a 10.
+  Dependencias em outras ferramentas: `--new`/`--task` no contexto da suite, importacao DXF no
+  LaserArt e ferramenta/maquina de torno.
+
 ## Sincronização de 12/10/2026
 
 - Integrados os dez commits publicados em `origin/fila` até `0f67b3e`, incluindo

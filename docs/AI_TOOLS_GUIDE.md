@@ -10,6 +10,7 @@ Antes de escrever codigo, identifique qual ferramenta e dona da responsabilidade
 
 | Ferramenta | Responsabilidade |
 |---|---|
+| MultiProject | (em especificacao) Planejamento do objetivo: tarefas de peca/eletronica/montagem/validacao/fabricacao em grafo, cronograma estilo MS Project e vinculo de cada tarefa ao arquivo da ferramenta (pasta `multiproject/`, decisoes em `multiproject/docs/TAREFA.md`); nao executa nada |
 | MultiCAD | CAD parametrico de pecas (fluxo SolidWorks 2014): sketch, operacoes, arvore; STL/DXF/.mcad. Em analise, ver `multicad/docs/TAREFA.md` |
 | MakePCB | Placa do zero estilo PCB Wizard: esquema, componentes (furados e SMD), trilhas, autoroteamento, DRC, BOM, impressao 1:1 e Gerber + Excellon para o LaserPCB (pasta `makepcb/`) |
 | RouterPCB | Fresagem de PCB na CNC Router: isolacao com fresa V, furacao por broca, recorte com pontes e nivelamento por sondagem, a partir do Gerber + Excellon (pasta `routerpcb/`, andamento em `routerpcb/docs/TAREFA.md`) |
@@ -25,6 +26,7 @@ Antes de escrever codigo, identifique qual ferramenta e dona da responsabilidade
 | MultiSuite Bandeja | Atalho das ferramentas ao lado do relogio (pasta `multisuite/src/tray/`) |
 
 ## Fluxo conceitual
+MultiProject (objetivo -> tarefas) -> abre cada ferramenta abaixo e acompanha os arquivos
 MultiCAD -> MultiAssembly -> MultiCAM -> MultiCNC
 MakePCB -> (pasta Gerber + Excellon) -> LaserPCB -> MultiCNC (CNC Laser)
 MakePCB -> (pasta Gerber + Excellon) -> RouterPCB -> MultiCNC (CNC Router)
@@ -59,4 +61,5 @@ Imagem/Vetor -> LaserArt -> MultiCNC
 - routerpcb/docs/AI_GUIDE.md
 - makerouter/docs/AI_GUIDE.md (em analise)
 - multiphysics/docs/AI_GUIDE.md
+- multiproject/docs/AI_GUIDE.md (em especificacao)
 - src/core/AI_GUIDE.md
