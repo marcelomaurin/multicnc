@@ -1,6 +1,6 @@
 # MultiProject — Especificação do projeto
 
-**Estado:** especificação, fase 0 (20/10/2026). Ainda não há código.
+**Estado:** decisões D1–D12 aprovadas (20/10/2026). Fase 1 (documento e tarefas) concluída no Linux, usando componentes genéricos novos da suíte CHATGPT (`AI Project Core`).
 **Pasta do módulo:** [`multiproject/`](../multiproject/README.md).
 
 Este é o documento único de referência do MultiProject na pasta `docs`. Ele reúne objetivo,
@@ -243,7 +243,7 @@ Próprios do MultiProject:
 | Fase | Entrega | Prioridade |
 |---|---|---|
 | 0 Especificação | Este documento e os do módulo — **concluída** | — |
-| 1 Documento e tarefas | Tarefa com os 6 campos, EAP, `.mproj`, desfazer | P0 |
+| 1 Documento e tarefas | Tarefa com os 6 campos, EAP, `.mproj`, desfazer — **concluída no Linux** | P0 |
 | 2 Grafo | Lista de adjacência, 4 tipos de vínculo, latência, ciclo, cadeias | P0 |
 | 3 Calendário e cronograma | Calendários, CPM, restrições, margens, caminho crítico, avisos | P0 |
 | 4 Tela e registro na suíte | Layout da suíte, Gantt, Rede, Quadro, página da tarefa, bandeja | P0 |
@@ -254,6 +254,10 @@ Próprios do MultiProject:
 | 9 IA | Decomposição do objetivo pela suíte CHATGPT | P1 |
 | 10 Intercâmbio e multiprojeto | XML do Project, CSV, CLI, subprojetos, pool | P1/P2 |
 
+Componentes genéricos (grafo, calendário, cronograma, duração, desfazer, JSON, contrato de
+plano da IA) entram primeiro na suíte CHATGPT (`pacote/AI Project Core`), e o MultiProject só os
+adapta ([TAREFA](../multiproject/docs/TAREFA.md#reuso-da-suíte-chatgpt)).
+
 Cada fase termina com:
 - testes no Linux e no Win64;
 - commit e push na `fila`;
@@ -261,7 +265,7 @@ Cada fase termina com:
 
 ---
 
-## 9. Decisões pendentes
+## 9. Decisões (aprovadas em 20/10/2026)
 
 | # | Assunto | Proposta |
 |---|---|---|

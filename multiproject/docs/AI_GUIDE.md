@@ -29,7 +29,11 @@ Referencia funcional: Microsoft Project. Requisitos em `REQUISITOS.md` (IDs `PJ-
 10. Verificador sem informacao suficiente responde "nao verificado", nunca "aprovado".
 11. Tela no padrao da suite (`LAYOUT.md`): `TSuiteHeader`, lateral 214 px, painel 336 px,
     rodape 66 px, `TSuiteButton`, cores `clSuite*`, janela criada com `Application.CreateForm`.
-12. Nao declare fase concluida sem compilar e rodar os testes no Linux e no Win64; registre o
+12. Use primeiro o que existe na suite CHATGPT. Funcionalidade generica (grafo, calendario,
+    cronograma, duracao, desfazer, JSON, contrato de plano da IA) vira componente em
+    `CHATGPT/pacote/AI Project Core` (somente FCL, com teste), e o MultiProject so adapta.
+    Depois sincronize a copia `third_party/chatgpt/AIProjectCore`.
+13. Nao declare fase concluida sem compilar e rodar os testes no Linux e no Win64; registre o
     progresso em `TAREFA.md`.
 
 ## Nao pertence aqui

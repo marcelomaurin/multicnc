@@ -1,8 +1,8 @@
 # TAREFA: MultiProject — gerenciador de projetos mecânicos e eletrônicos
 
 - **Aberta em:** 20/10/2026.
-- **Estado:** fase 0 (especificação) concluída. As decisões D1 a D12 aguardam o Marcelo; o
-  código começa na fase 1 depois delas.
+- **Estado:** decisões D1 a D12 **aprovadas como propostas** pelo Marcelo (20/10/2026).
+  Fase 1 concluída no Linux (20/10); a conferência no Win64 está pendente.
 - **Solicitação:** um gerenciador de projeto em que se define um **objetivo** (exemplo:
   construir um motor). Uma pessoa ou a IA divide o objetivo em tarefas de peça e de eletrônica.
   As tarefas se relacionam por uma **lista de grafos**, em cadeia ou em paralelo, e têm Nome,
@@ -26,7 +26,7 @@
 | Fase | Estado em 20/10/2026 | Entrega |
 |---|---|---|
 | 0 Especificação | concluída | README, REQUISITOS, ARCHITECTURE, LAYOUT, TAREFA, AI_GUIDE |
-| 1 Documento e tarefas | pendente | tipos, tarefa com os 6 campos, EAP, `.mproj`, desfazer |
+| 1 Documento e tarefas | concluída no Linux (20/10); Win64 pendente | `multiproject_types`, `multiproject_document`, `multiproject_json`; `test_multiproject_core.lpr` com 102 checks; usa `aiprojectduration`, `aiundohistory` e `aijsonutils` do CHATGPT |
 | 2 Grafo | pendente | lista de adjacência, 4 tipos de vínculo, latência, ciclo, cadeias |
 | 3 Calendário e cronograma | pendente | calendários, CPM, restrições, margens, crítico, avisos |
 | 4 Tela e registro na suíte | pendente | layout da suíte, Gantt, Rede, Quadro, painel da tarefa, bandeja |
@@ -41,7 +41,39 @@
 P2. Nenhuma fase conta como concluída sem o teste rodando no Linux e no Win64 (regra 9 do
 guia da suíte).
 
+## Reuso da suíte CHATGPT
+
+Regra do Marcelo (20/10/2026): usar o que já existe na suíte CHATGPT. O que der para tornar
+genérico vira **componente do CHATGPT primeiro** e depois é usado no MultiProject.
+
+Conferido em `marcelomaurin/CHATGPT` (`main`, 20/10/2026):
+- **AI Project** e **AI Project Core** modelam projetos de software (tarefas com commits e
+  arquivos, ações de agente). O `TAIProjectGantt` só desenha barras. Não há cronograma, vínculos
+  TI/II/TT/IT nem estrutura de tópicos.
+- **AI Graph** (`TAIDependencyGraph`) inventaria dependências de repositório. Não há ordem
+  topológica, ciclo com caminho nem componentes conexos.
+- **AI Schedule** (`TIASchedule`) é uma lista de tarefas com "depende de" e "pronta".
+
+Por isso os componentes genéricos entram no pacote `openai_project_core` (pasta
+`pacote/AI Project Core`, somente FCL), e o MultiProject usa esses componentes:
+
+| Fase | Componente no CHATGPT | Estado |
+|---|---|---|
+| 1 | `aiprojectduration` (`TAIDuration`), `aiundohistory` (`TAIUndoHistory`), `aijsonutils` (leitura tipada, mescla que preserva campos, ISO 8601, gravação atômica) | publicados em `35203a3`; `tests/test_aiprojectcore_utils.lpr` com 59 checks |
+| 2 | `aitaskgraph`: grafo de tarefas com os 4 tipos de vínculo e latência, ciclo com caminho, ordem topológica, cadeias, em cadeia × em paralelo | a fazer |
+| 3 | `aiworkcalendar` (expediente, exceções, feriados BR, minuto útil) e `aicpmscheduler` (CPM, restrições, margens, crítico) | a fazer |
+| 9 | `aiplancontract`: contrato e parser determinístico de plano de tarefas gerado por IA | a fazer |
+
+Ficam no MultiProject só o modelo da tarefa, os tipos ligados às ferramentas da suíte, as regras
+de geração e a tela.
+
+A suíte compila com a pasta externa `../CHATGPT/pacote/AI Project Core` quando ela tem as units.
+Senão, usa a cópia `third_party/chatgpt/AIProjectCore`, porque o CI fixa uma revisão antiga do
+CHATGPT. É o mesmo padrão do AIJoystick: altere primeiro no CHATGPT e depois sincronize a cópia.
+
 ## Decisões para o Marcelo
+
+Aprovadas como propostas em 20/10/2026.
 
 | # | Pergunta | Proposta |
 |---|---|---|
@@ -71,25 +103,27 @@ confira o aceite.
 
 ### Fase 1: documento e tarefas (≈ 3 h)
 
-- [ ] 1.1 Árvore `multiproject/src/{core,io,integration,ai,view,app}` e `tests/`, além do
-      `multiproject/tests/run.sh` chamado por `tests/run_all.sh multiproject`.
-- [ ] 1.2 `multiproject_types`:
+- [x] 1.1 `multiproject/src/{core,io}` e `tests/`. O módulo entrou em `MODULES` de
+      `tools/verify_suite.py`, então `tests/run_all.sh multiproject` descobre os testes. As
+      pastas `integration`, `ai`, `view` e `app` nascem nas fases delas.
+- [x] 1.2 `multiproject_types`:
       - enums `TPJTaskKind`, `TPJProcess`, `TPJTaskState`, `TPJLinkType`, `TPJConstraint` e
         `TPJResourceType`, com nomes em texto para o arquivo;
       - registros de especificação técnica e de critério de aceite.
-- [ ] 1.3 `multiproject_document`:
+- [x] 1.3 `multiproject_document`:
       - projeto e objetivo;
       - tarefas com os seis campos (PJ-T10..T12);
       - árvore `parent`/ordem, recuar/avançar/mover, código EAP (PJ-T13, T14);
       - marco e modo manual/auto (PJ-T15, T16);
       - geração de IDs que não reaproveita número.
-- [ ] 1.4 Comandos com desfazer e refazer (PJ-U01): inserir, excluir, editar campo, mover,
+- [x] 1.4 Comandos com desfazer e refazer (PJ-U01): inserir, excluir, editar campo, mover,
       recuar e em lote.
-- [ ] 1.5 Duração: interpretar e formatar `30min`, `4h`, `2d`, `1sem`, `14eh` e `?`
+- [x] 1.5 Duração: interpretar e formatar `30min`, `4h`, `2d`, `1sem`, `14eh` e `?`
       (PJ-T17, T18).
-- [ ] 1.6 `multiproject_json`: salvar e ler o `.mproj` com salvamento atômico, preservação
+- [x] 1.6 `multiproject_json`: salvar e ler o `.mproj` com salvamento atômico, preservação
       de campos desconhecidos e recusa de versão futura (PJ-X01, Q02, Q04).
-- [ ] 1.7 Teste `test_multiproject_core.lpr`:
+- [x] 1.7 Teste `test_multiproject_core.lpr` (102 checks no Linux, inclusive com `-Cr -gt -Ci -Co`
+      e com a cópia de reserva das units do CHATGPT; Win64 pendente):
       - EAP depois de recuar e mover;
       - ID não reaproveitado depois de excluir;
       - desfazer de cada comando;
@@ -97,7 +131,18 @@ confira o aceite.
       - vírgula decimal regional sem efeito;
       - validação recusa tarefa sem nome ou sem descrição curta.
 
+Resultado da fase 1:
+- **ID nunca volta, nem com o desfazer.** O desfazer restaura o documento, mas o contador fica
+  no maior valor já usado, porque o ID pode ter dado nome a um arquivo (`T-0008_peca.mcad`).
+- **Avançar uma tarefa** faz as irmãs seguintes virarem filhas dela, como no Project.
+- O arquivo grava `options.minutes_per_day` e `minutes_per_week` (inteiros) em vez de horas,
+  para não gravar números com casas decimais.
+
 ### Fase 2: grafo (≈ 3 h)
+
+- [ ] 2.0 Criar `aitaskgraph` no CHATGPT (`pacote/AI Project Core`), com teste próprio, publicar
+      e sincronizar a cópia em `third_party/chatgpt/AIProjectCore`. O `multiproject_graph`
+      passa a ser só o adaptador do documento para o grafo.
 
 - [ ] 2.1 Vínculos TI/II/TT/IT, latência em duração ou %, antecipação, latência decorrida e
       "entrega artefato" (PJ-G01, G02, G06).
@@ -118,6 +163,9 @@ confira o aceite.
       - ida e volta da sintaxe de predecessoras.
 
 ### Fase 3: calendário e cronograma (≈ 4 h)
+
+- [ ] 3.0 Criar `aiworkcalendar` e `aicpmscheduler` no CHATGPT, com testes, e sincronizar a
+      cópia. O MultiProject só adapta as tarefas e os vínculos.
 
 - [ ] 3.1 `multiproject_calendar`:
       - calendários Padrão e 24 Horas e as exceções;
@@ -238,6 +286,9 @@ confira o aceite.
 - [ ] 8.6 Vistas Calendário e Linha do tempo (PJ-V04, V05).
 
 ### Fase 9: IA (≈ 4 h)
+
+- [ ] 9.0 Criar `aiplancontract` no CHATGPT. A chamada ao modelo usa os componentes de
+      provedor já existentes na suíte, sem implementação própria de HTTP.
 
 - [ ] 9.1 `multiproject_ai_contract`: esquema e `ParsePlan` com as 8 validações de
       ARCHITECTURE (PJ-I02).

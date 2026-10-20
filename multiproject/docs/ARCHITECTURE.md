@@ -13,7 +13,15 @@ são **requisitos de arquitetura**, não APIs existentes.
    promove uma proposta a plano.
 4. **Nada de máquina aqui.** O MultiProject abre o MultiCNC com o arquivo; não fala com
    transporte nem protocolo (regra 3 do [guia da suíte](../../docs/AI_TOOLS_GUIDE.md)).
-5. **Reutilizar a suíte:** `multisuite_controls`/`icons` (tela), `multisuite_context`/
+5. **Reutilizar o CHATGPT primeiro.** O que é genérico vira componente em
+   `CHATGPT/pacote/AI Project Core` e o MultiProject só adapta:
+   - `aiprojectduration`, `aiundohistory` e `aijsonutils` (fase 1);
+   - `aitaskgraph` (fase 2);
+   - `aiworkcalendar` e `aicpmscheduler` (fase 3);
+   - `aiplancontract` (fase 9).
+
+   Veja [TAREFA.md](TAREFA.md#reuso-da-suíte-chatgpt).
+6. **Reutilizar a MultiSuite:** `multisuite_controls`/`icons` (tela), `multisuite_context`/
    `launcher`/`registry` (abrir ferramentas), `multisuite_workspace` (artefatos), `multisuite_numfmt`
    (números), `multicnc_equipment` (máquinas), `multisuite_gcode_writer.SuiteCheckGCode` e
    `multicnc_gcode_preflight` (validar e estimar G-code).
@@ -25,10 +33,10 @@ multiproject/
   README.md
   docs/               REQUISITOS, ARCHITECTURE, LAYOUT, TAREFA, AI_GUIDE
   src/core/           multiproject_types        enums, registros, IDs
-                      multiproject_document     projeto, objetivo, árvore EAP, comandos + desfazer
-                      multiproject_graph        lista de adjacência, ciclo, ordem topológica, cadeias
-                      multiproject_calendar     calendários base, exceções, feriados BR, aritmética de minutos úteis
-                      multiproject_schedule     CPM (ida/volta), restrições, margens, crítico, avisos
+                      multiproject_document     projeto, objetivo, árvore EAP, comandos + desfazer (TAIUndoHistory)
+                      multiproject_graph        adaptador documento -> aitaskgraph (CHATGPT)
+                      multiproject_calendar     adaptador -> aiworkcalendar (CHATGPT)
+                      multiproject_schedule     adaptador -> aicpmscheduler (CHATGPT), avisos com a tarefa
                       multiproject_resources    recursos, atribuições, superalocação, nivelamento
                       multiproject_cost         taxas, custo fixo, acumulação
                       multiproject_tracking     linhas de base, progresso, atualizar projeto
@@ -70,7 +78,7 @@ models/multiproject/  modelos .mproj (Peça impressa, Placa, Motor DC, Máquina 
 | `objective` | Objetivo | `short`, `long`, `scope`, `success` (critérios do objetivo) |
 | `start`, `status_date` | data ISO | `schedule_from`: `start` ou `finish` |
 | `calendar` | ID de calendário | calendário do projeto |
-| `options` | registro | horas/dia, horas/semana, limiar crítico, recalcular automático, regras ativas, `fabrication_gate` (D6) |
+| `options` | registro | `minutes_per_day`, `minutes_per_week` (inteiros), limiar crítico, recalcular automático, regras ativas, `fabrication_gate` (D6) |
 | `next_task_number` | inteiro | gera `T-0001…`, nunca reaproveitado |
 | `tasks`, `links`, `resources`, `assignments`, `calendars`, `baselines`, `custom_fields` | listas | |
 
@@ -183,6 +191,9 @@ type
 
 ## Cronograma (CPM)
 
+O algoritmo genérico fica no `aicpmscheduler` do CHATGPT (fase 3). O MultiProject entrega as
+tarefas, os vínculos e os calendários e recebe as datas.
+
 Unidade interna: **minuto útil** (`Int64`), contado a partir da data de início do projeto em
 cada calendário. `multiproject_calendar` converte entre data/hora e minuto útil e soma
 durações respeitando o expediente e as exceções. Duração decorrida usa o calendário 24 Horas.
@@ -230,7 +241,7 @@ de cada tipo de vínculo e restrição.
   "start": "2026-10-26T08:00:00",
   "status_date": "2026-10-26",
   "calendar": "padrao",
-  "options": { "hours_per_day": 8, "hours_per_week": 40, "critical_slack": 0,
+  "options": { "minutes_per_day": 480, "minutes_per_week": 2400, "critical_slack": 0,
                "fabrication_gate": true, "rules": ["A01","A02","A03","A04","A05","A06","A07"] },
   "next_task_number": 33,
   "tasks": [

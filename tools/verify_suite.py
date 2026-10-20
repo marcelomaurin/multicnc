@@ -17,7 +17,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 MODULES = [".", "multisuite", "multiphysics", "multicam",
-           "laserpcb", "multislicer", "multiassembly", "multicad", "laserart", "makepcb", "makerouter", "routerpcb"]
+           "laserpcb", "multislicer", "multiassembly", "multicad", "laserart", "makepcb", "makerouter", "routerpcb", "multiproject"]
 
 
 def execute(command, cwd=ROOT, timeout=120):
@@ -33,6 +33,12 @@ def dependency_flags():
     joystick = chatgpt / "pacote/AI Input/AIJoystick"
     if not joystick.is_dir():
         extra.append("-Fu" + str(ROOT / "third_party/chatgpt/AIJoystick"))
+    # AI Project Core (MultiProject): external copy when it has the units, else snapshot.
+    project_core = chatgpt / "pacote/AI Project Core"
+    if (project_core / "aiprojectduration.pas").is_file():
+        extra.append("-Fu" + str(project_core))
+    else:
+        extra.append("-Fu" + str(ROOT / "third_party/chatgpt/AIProjectCore"))
     for folder in ("pacote/AI Input/AIJoystick", "pacote/AI", "pacote/AI Input/AISerial", "pacote/AI Simulation/Marlin", "pacote/AI Input/AISockets", "pacote/AI Input/AIVirtualSerial"):
         path = chatgpt / folder
         if path.is_dir(): extra.append("-Fu" + str(path))
