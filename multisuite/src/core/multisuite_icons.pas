@@ -32,7 +32,7 @@ type
     sikUndo, sikRedo, sikCopy, sikMirrorH, sikMirrorV, sikImport, sikEye,
     sikWand, sikFit, sikLayers, sikExport, sikNew, sikZoomIn, sikZoomOut,
     { ferramentas novas (no fim: os ordinais aparecem em caches) }
-    sikMakePCB, sikRouterPCB, sikMakeRouter, sikTrim, sikStar
+    sikMakePCB, sikRouterPCB, sikMakeRouter, sikTrim, sikStar, sikProject
   );
 
   { sifNone    - apenas o glifo, ocupando toda a area
@@ -698,6 +698,18 @@ begin
         Pn.Line(13.5, 5.5, 13.5, 10.5);
         Pn.Line(10.5, 10.5, 13.5, 10.5);
         Pn.Line(10.5, 7, 13.5, 9);
+      end;
+
+    sikProject:
+      begin
+        { tres barras de Gantt deslocadas, ligadas, e o marco final }
+        Pn.RoundBox(2.5, 4, 11, 7.5, 1, False);
+        Pn.RoundBox(7.5, 10.25, 15.5, 13.75, 1, False);
+        Pn.RoundBox(4.5, 16.5, 12.5, 20, 1, False);
+        Pn.Line(11, 5.75, 12.5, 5.75);
+        Pn.Line(12.5, 5.75, 12.5, 10.25);
+        Pn.Poly([19, 14.25, 21.5, 16.75, 19, 19.25, 16.5, 16.75], True);
+        Pn.Line(12.5, 18.25, 16.5, 16.75);
       end;
 
     sikPen:

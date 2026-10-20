@@ -6,7 +6,7 @@ uses Classes, SysUtils, StrUtils, multisuite_types;
 type
   // Novos tipos ficam no fim: os ordinais fazem parte do formato legado.
   TArtifactKind = (akCAD, akPCB, akAssembly, akCAM, akSlicer, akLaserPCB,
-    akLaserArt, akGCode, akOther, akPhysics);
+    akLaserArt, akGCode, akOther, akPhysics, akProject);
   TProjectArtifact = record
     Name, FileName: string;
     Kind: TArtifactKind;
@@ -52,6 +52,7 @@ begin
     akSlicer: Result := 'Slicer'; akLaserPCB: Result := 'LaserPCB';
     akLaserArt: Result := 'LaserArt'; akGCode: Result := 'G-code';
     akPhysics: Result := 'Physics';
+    akProject: Result := 'Project';
   else Result := 'Outro'; end;
 end;
 function StageName(S: TWorkflowStage): string;

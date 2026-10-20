@@ -140,7 +140,8 @@ def gui(args):
         else:
             print("OK", project.relative_to(ROOT))
     if args.run and not failed:
-        for name in ("tests/test_app", "multisuite/tests/test_suite_app", "multislicer/tests/test_slicer_app"):
+        for name in ("tests/test_app", "multisuite/tests/test_suite_app", "multislicer/tests/test_slicer_app",
+                     "multiproject/tests/test_multiproject_ui"):
             binary = ROOT / (name + (".exe" if os.name == "nt" else ""))
             if not binary.exists():
                 continue

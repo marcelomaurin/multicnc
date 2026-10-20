@@ -2,7 +2,7 @@
 
 - **Aberta em:** 20/10/2026.
 - **Estado:** decisões D1 a D12 **aprovadas como propostas** pelo Marcelo (20/10/2026).
-  Fases 1, 2 e 3 concluídas no Linux (20/10); a conferência no Win64 está pendente.
+  Fases 1 a 4 concluídas no Linux (20/10); a conferência no Win64 e o `bin/multiproject.exe` estão pendentes.
 - **Solicitação:** um gerenciador de projeto em que se define um **objetivo** (exemplo:
   construir um motor). Uma pessoa ou a IA divide o objetivo em tarefas de peça e de eletrônica.
   As tarefas se relacionam por uma **lista de grafos**, em cadeia ou em paralelo, e têm Nome,
@@ -29,7 +29,7 @@
 | 1 Documento e tarefas | concluída no Linux (20/10); Win64 pendente | `multiproject_types`, `multiproject_document`, `multiproject_json`; `test_multiproject_core.lpr` com 102 checks; usa `aiprojectduration`, `aiundohistory` e `aijsonutils` do CHATGPT |
 | 2 Grafo | concluída no Linux (20/10); Win64 pendente | `aitaskgraph` no CHATGPT (`ec5cccf`, 61 checks) + `multiproject_graph` (adaptador com expansão dos resumos) e vínculos no documento e no `.mproj`; `test_multiproject_graph.lpr` com 88 checks |
 | 3 Calendário e cronograma | concluída no Linux (20/10); Win64 pendente | `aiworkcalendar` (`c9ad854`, 57 checks) e `aicpmscheduler` (`3557a7b`, 47 checks) no CHATGPT + `multiproject_schedule`, calendários e restrições no documento e no `.mproj`; `test_multiproject_schedule.lpr` com 82 checks |
-| 4 Tela e registro na suíte | pendente | layout da suíte, Gantt, Rede, Quadro, painel da tarefa, bandeja |
+| 4 Tela e registro na suíte | concluída no Linux (20/10); Win64 e `bin/multiproject.exe` pendentes | vistas genéricas no CHATGPT (`TAIGanttView`, `TAINetworkView`, `TAIBoardView`, até `1448eb8`, 42 checks) + `multiproject_main`/`multiproject_views`, registro na suíte (grupo PLANEJAR), `test_multiproject_ui` com 51 checks sob Xvfb e `test_multiproject_states` com 20 |
 | 5 Vínculo com as ferramentas | pendente | `--new`/`--task`, `.task.json`, detecção, verificadores, Abrir na ferramenta |
 | 6 Regras de geração e modelos | pendente | PJ-A01..A08, exemplo Motor DC, modelos |
 | 7 Recursos e custos | pendente | máquinas do MultiCNC, atribuições, superalocação, nivelamento, Equipe, custos |
@@ -220,27 +220,57 @@ Resultado da fase 3:
 
 ### Fase 4: tela e registro na suíte (≈ 6 h)
 
-- [ ] 4.1 `stiMultiProject`, `sikProject` (glifo), registro, grupo PLANEJAR na bandeja e no
+- [x] 4.1 `stiMultiProject`, `sikProject` (glifo), registro, grupo PLANEJAR na bandeja e no
       MultiSuite e `akProject` (LAYOUT, "Registro na suíte").
-- [ ] 4.2 `multiproject.lpr` com `Application.CreateForm` e o esqueleto de LAYOUT
+- [x] 4.2 `multiproject.lpr` com `Application.CreateForm` e o esqueleto de LAYOUT
       (cabeçalho, 7 etapas, barra da vista, painel de 336 px, rodapé) (PJ-Q07).
-- [ ] 4.3 `multiproject_gantt`:
+- [x] 4.3 `multiproject_gantt`:
       - tabela editável e escala de tempo com zoom;
       - barras de tarefa, resumo, marco, crítica e progresso;
       - setas dos vínculos, data de status e indicadores (PJ-V01, T25).
-- [ ] 4.4 `multiproject_network`: caixas em camadas, cadeias, criar vínculo arrastando e
+- [x] 4.4 `multiproject_network`: caixas em camadas, cadeias, criar vínculo arrastando e
       realce do crítico (PJ-V02).
-- [ ] 4.5 `multiproject_board`: colunas por estado com as regras de transição (PJ-V03,
+- [x] 4.5 `multiproject_board`: colunas por estado com as regras de transição (PJ-V03,
       L06).
-- [ ] 4.6 Página da tarefa com as 9 seções de LAYOUT e as páginas das etapas 1, 2, 3 e 5.
-- [ ] 4.7 Filtros, agrupamentos, ordenação e realce (PJ-V08), atalhos (PJ-U03) e realce de
+- [x] 4.6 Página da tarefa com as 9 seções de LAYOUT e as páginas das etapas 1, 2, 3 e 5.
+- [x] 4.7 Filtros, agrupamentos, ordenação e realce (PJ-V08), atalhos (PJ-U03) e realce de
       alterações (PJ-U02).
-- [ ] 4.8 Teste `test_multiproject_ui.lpr` (Xvfb):
+- [x] 4.8 Teste `test_multiproject_ui.lpr` (Xvfb):
       - abre o exemplo;
       - insere, recua e vincula;
       - a vista Rede mostra as cadeias;
       - fechar a janela encerra o processo;
       - 1024 × 768 sem cortar o rodapé.
+
+Resultado da fase 4:
+- **Vistas genéricas no CHATGPT** (aba AI Project): `TAIGanttView`, `TAINetworkView` e
+  `TAIBoardView`, com cores por propriedade. A tela aplica a paleta `clSuite*`. Cópia em
+  `third_party/chatgpt/AIProject`.
+- **Tela no padrão da suíte:**
+  - cabeçalho com o projeto, a revisão e a marca "alterado";
+  - lateral com as 7 etapas, Novo/Abrir/Salvar/Demo, Cadeias e Sugestões;
+  - painel de 336 px com as páginas das etapas e a da tarefa (9 seções);
+  - rodapé com o término previsto, as críticas e a relação da tarefa selecionada ("em cadeia
+    com N, em paralelo com M").
+- **Barra da vista em duas linhas** (52 + 36 px), para caber em 1024 × 768. Os botões Equipe,
+  Calendário e Linha do tempo ficam ocultos até as fases 7 e 8. A tabela do Gantt cede espaço
+  ao gráfico em janelas estreitas.
+- **Edição pela tabela** (nome, duração, predecessoras) e pela página da tarefa, cada uma como
+  um passo de desfazer. Os vínculos podem ser criados arrastando na rede. O Quadro muda o
+  estado com as regras de `multiproject_states`: não conclui com predecessora TI aberta nem
+  com critério pendente.
+- **Filtros** (críticas, atrasadas, sugeridas, cadeia) e **agrupamento** por EAP, tipo ou estado.
+- **Registro na suíte:**
+  - `stiMultiProject`, `sikProject` (ícone de Gantt com marco), `akProject`;
+  - grupo PLANEJAR na bandeja e seção Planejar no MultiSuite;
+  - cor azul-céu `C(2, 132, 199)`, porque o índigo já é do MultiAssembly.
+- **Bugs que o teste visual achou e foram corrigidos no CHATGPT:**
+  - a linha de grupo sem datas derrubava a pintura do Gantt (coordenada de −1,8 milhão de px
+    no GDK);
+  - o quadro não tinha rolagem horizontal, e a etiqueta sobrepunha o rodapé do cartão;
+  - o "Ajustar" da rede reduzia até ficar ilegível.
+- **Falta:** compilar o Win64 e gerar `bin/multiproject.exe`, que precisam do Lazarus no
+  Windows.
 
 ### Fase 5: vínculo com as ferramentas (≈ 5 h)
 

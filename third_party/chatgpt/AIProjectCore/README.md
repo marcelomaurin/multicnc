@@ -1,7 +1,7 @@
 # CHATGPT / AI Project Core snapshot
 
 Origin: `pacote/AI Project Core` of https://github.com/marcelomaurin/CHATGPT,
-commit `3557a7beb9c94c4c06862ecba48d19f2c595c55e` (2026-10-20).
+commit `905070dd69e309092f9ffb26f6255714bcbcc5a6` (2026-10-20).
 
 Units: `aiprojectduration`, `aiundohistory`, `aijsonutils`, `aitaskgraph`,
 `aiworkcalendar`, `aicpmscheduler` (FCL only, no LCL),

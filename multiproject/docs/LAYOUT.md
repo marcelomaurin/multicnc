@@ -39,7 +39,7 @@ referências a 100% de DPI e escalam com o sistema. Referência de código:
 |---|---|
 | Cabeçalho | `TSuiteHeader`, 72 px: `Header.Setup('MultiProject', 'Gestão de projetos mecânicos e eletrônicos  /  MultiSuite', sikProject)`. A segunda linha mostra o projeto, a revisão e o indicador de alteração não salva. |
 | Lateral esquerda | `TPanel` de 214 px, `clSuiteCard`, com as 7 etapas em `TSuiteButton` (190 × 34, passo de 44 px), Novo/Abrir/Salvar/Demo (92 × 34), a lista **CADEIAS** (os grafos do projeto, PJ-G04: clicar filtra) e a lista **SUGESTÕES** (tarefas propostas por regra ou IA, com aceitar/recusar). |
-| Barra da vista | `TPanel` de 52 px, `clSuiteSurface`, com os botões de vista (o ativo em `sbsSolid`), ajustar/zoom, filtro, agrupamento e a caixa "Críticas". |
+| Barra da vista | `TPanel` em duas linhas (52 + 36 px), `clSuiteSurface`. Em cima ficam os botões de vista (o ativo em `sbsSolid`) e ajustar/zoom, só com ícone. Embaixo ficam o filtro, o agrupamento e "Realçar críticas". São duas linhas para caber em 1024 × 768. |
 | Área central | A vista ativa (Gantt, Rede, Quadro, Equipe, Calendário ou Linha do tempo), em `TCustomControl` próprio desenhado no Canvas, como as vistas do MakeRouter. A troca de vista mantém a seleção. |
 | Painel direito | `TPageControl` de 336 px sem abas (`ShowTabs := False`), uma página por etapa, cada uma com `TScrollBox` em `clSuiteCard`, título em negrito e campos de 290 px (`LabelAt`/`Field`/`Combo`, como no MakeRouter). Com uma tarefa selecionada, a página **Tarefa** substitui a da etapa (equivale ao Formulário de tarefas do Project). Esc volta para a página da etapa. |
 | Rodapé | `TPanel` de 66 px, `clSuiteCard`: estado com o indicador `clSuiteSuccess`/`Warning`/`Danger`, término previsto e número de críticas, seleção e a relação dela (em cadeia ou em paralelo). Botões à direita: **Validar** (`sikTests`), **Gerar tarefas** (`sikWand`) e **Abrir na ferramenta** (`sbsSolid`, `sikSend`), que muda de rótulo conforme o tipo ("Abrir no MultiCAD", "Abrir no MakePCB", "Abrir no MultiCNC"…). |
@@ -97,7 +97,7 @@ Seções em ordem, cada uma com título `fsBold` e `clSuiteMuted` para o rótulo
   `TSuiteIconKind` (os ordinais aparecem em caches) e entrada em `TSuiteRegistry`:
   `Add(stiMultiProject,'MultiProject','Gestao de projetos mecanicos e eletronicos','multiproject','multiproject/src/app/multiproject.lpi')`.
 - Glifo de `sikProject`: três barras horizontais deslocadas, como um Gantt, com um losango
-  na ponta. Cor na bandeja: índigo `C(79, 70, 229)`, diferente das demais.
+  na ponta. Cor na bandeja: azul-céu `C(2, 132, 199)`, porque o índigo já é do MultiAssembly.
 - Bandeja e MultiSuite: novo grupo **PLANEJAR** antes de PROJETAR, contendo só o MultiProject
   (D1).
 - `TArtifactKind`: acrescentar `akProject` no fim, para o `.mproj` aparecer no workspace.
