@@ -40,7 +40,7 @@ procedure LoadProjectFile(P: TPJProject; const FileName: string);
 implementation
 
 uses
-  Contnrs, aijsonutils, aiprojectduration;
+  Contnrs, aijsonutils, aiprojectduration, aitaskgraph, multiproject_graph;
 
 { ---------------- gravacao ---------------- }
 
@@ -99,6 +99,22 @@ begin
   Result := AIJSONMergeKnown(T.Raw, O);
 end;
 
+function LinkToJSON(L: TPJLink): TJSONObject;
+var O: TJSONObject;
+begin
+  O := TJSONObject.Create;
+  O.Add('from', L.FromId);
+  O.Add('to', L.ToId);
+  O.Add('type', AILinkTypeCode(L.LinkType, False));
+  O.Add('lag', AIJSONInt(L.Lag.Minutes));
+  O.Add('lag_unit', AIDurationUnitName(L.Lag.DisplayUnit));
+  O.Add('lag_elapsed', L.Lag.Elapsed);
+  O.Add('lag_is_percent', L.Lag.IsPercent);
+  O.Add('lag_percent', L.Lag.Percent);
+  O.Add('artifact', L.Artifact);
+  Result := AIJSONMergeKnown(L.Raw, O);
+end;
+
 function ProjectToJSON(P: TPJProject): TJSONObject;
 var
   O, Obj, Opt: TJSONObject;
@@ -129,6 +145,9 @@ begin
   Arr := TJSONArray.Create;
   for I := 0 to P.Count - 1 do Arr.Add(TaskToJSON(P, I));
   O.Add('tasks', Arr);
+  Arr := TJSONArray.Create;
+  for I := 0 to P.LinkCount - 1 do Arr.Add(LinkToJSON(P.Links[I]));
+  O.Add('links', Arr);
   Result := AIJSONMergeKnown(P.Raw, O);
 end;
 
@@ -231,13 +250,43 @@ begin
   end;
 end;
 
+function LinkFromJSON(O: TJSONObject; Index: Integer): TPJLink;
+var S: string;
+begin
+  Result := TPJLink.Create;
+  try
+    Result.FromId := Trim(AIJSONStr(O, 'from'));
+    Result.ToId := Trim(AIJSONStr(O, 'to'));
+    if (Result.FromId = '') or (Result.ToId = '') then
+      raise EPJFormat.CreateFmt('vinculo %d sem "from"/"to"', [Index + 1]);
+    S := AIJSONStr(O, 'type', 'FS');
+    if not AITryLinkTypeFromCode(S, Result.LinkType) then
+      raise EPJFormat.CreateFmt('vinculo %s -> %s: tipo desconhecido "%s"', [Result.FromId, Result.ToId, S]);
+    Result.Lag := AINoLag;
+    Result.Lag.Minutes := AIJSONInt64(O, 'lag', 0);
+    S := AIJSONStr(O, 'lag_unit', 'd');
+    if not AITryDurationUnitFromName(S, Result.Lag.DisplayUnit) then
+      raise EPJFormat.CreateFmt('vinculo %s -> %s: unidade de latencia desconhecida "%s"', [Result.FromId, Result.ToId, S]);
+    Result.Lag.Elapsed := AIJSONBool(O, 'lag_elapsed', False);
+    Result.Lag.IsPercent := AIJSONBool(O, 'lag_is_percent', False);
+    Result.Lag.Percent := AIJSONInt64(O, 'lag_percent', 0);
+    Result.Artifact := AIJSONBool(O, 'artifact', False);
+    Result.Raw := TJSONObject(O.Clone);
+  except
+    Result.Free;
+    raise;
+  end;
+end;
+
 procedure ProjectFromJSON(P: TPJProject; Obj: TJSONObject);
 var
   Ver: Int64;
   Fmt, S, Par: string;
   ObjO, Opt, TaskObj: TJSONObject;
   Arr: TJSONArray;
-  List: TFPObjectList;
+  List, LinkList: TFPObjectList;
+  G: TAITaskGraph;
+  GErr: string;
   Stack, Ids: TStringList;
   I, MaxNum, Num: Integer;
   T: TPJTask;
@@ -291,6 +340,7 @@ begin
   NNext := AIJSONInt64(Obj, 'next_task_number', 1);
 
   List := TFPObjectList.Create(True);
+  LinkList := TFPObjectList.Create(True);
   Stack := TStringList.Create;
   Ids := TStringList.Create;
   try
@@ -323,6 +373,25 @@ begin
       end;
     if NNext <= MaxNum then NNext := MaxNum + 1;
 
+    Arr := AIJSONArr(Obj, 'links');
+    if Arr <> nil then
+      for I := 0 to Arr.Count - 1 do
+      begin
+        if Arr.Items[I].JSONType <> jtObject then
+          raise EPJFormat.CreateFmt('vinculo %d invalido', [I + 1]);
+        LinkList.Add(LinkFromJSON(TJSONObject(Arr.Items[I]), I));
+      end;
+    for I := 0 to LinkList.Count - 1 do
+      for Num := I + 1 to LinkList.Count - 1 do
+        if SameText(TPJLink(LinkList[I]).FromId, TPJLink(LinkList[Num]).FromId) and
+           SameText(TPJLink(LinkList[I]).ToId, TPJLink(LinkList[Num]).ToId) then
+          raise EPJFormat.CreateFmt('vinculo repetido: %s -> %s',
+            [TPJLink(LinkList[I]).FromId, TPJLink(LinkList[I]).ToId]);
+    { ciclo, tarefa inexistente ou resumo ligado a subtarefa: recusa o arquivo }
+    G := BuildTaskGraphFrom(List, LinkList, GErr);
+    if G = nil then raise EPJFormat.Create('vinculos invalidos: ' + GErr);
+    G.Free;
+
     { tudo lido sem erro: substitui o conteudo do documento }
     P.Id := NId; P.Name := NName; P.Revision := NRev; P.Author := NAuthor;
     P.ObjectiveShort := NShort; P.ObjectiveLong := NLong; P.ObjectiveScope := NScope;
@@ -333,8 +402,10 @@ begin
     P.Raw.Free;
     P.Raw := TJSONObject(Obj.Clone);
     P.AdoptTasks(List);
+    P.AdoptLinks(LinkList);
   finally
     List.Free;
+    LinkList.Free;
     Stack.Free;
     Ids.Free;
   end;

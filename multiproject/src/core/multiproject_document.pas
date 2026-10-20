@@ -11,15 +11,21 @@ unit multiproject_document;
   O codigo EAP e calculado (nunca gravado). O ID e estavel e nunca reaproveitado
   (PJ-T10): T-0001 para tarefas, M-0001 para marcos, mesmo contador.
 
-  Desfazer/refazer (PJ-U01): cada alteracao guarda uma foto do documento em JSON
-  antes de mudar. BeginChange/EndChange aninhados viram um unico passo. }
+  Vinculos (fase 2, PJ-G01..G07): TI/II/TT/IT com latencia, guardados no
+  documento e conferidos pelo grafo (aitaskgraph, via multiproject_graph).
+  Vinculo em tarefa de resumo vale para as folhas dela; o grafo expandido e
+  sempre aciclico, entao ligar um resumo a propria subtarefa e recusado.
+
+  Reuso do CHATGPT / AI Project Core: TAIUndoHistory (desfazer por fotos do
+  documento em JSON), TAIDuration (duracao), TAITaskGraph (grafo). }
 
 {$mode objfpc}{$H+}
 
 interface
 
 uses
-  Classes, SysUtils, Contnrs, fpjson, aiprojectduration, aiundohistory, multiproject_types;
+  Classes, SysUtils, Contnrs, fpjson, aiprojectduration, aiundohistory, aitaskgraph,
+  multiproject_types;
 
 const
   PJ_UNDO_LIMIT = 100;
@@ -50,11 +56,29 @@ type
     function TechValue(const AKey: string): string;
   end;
 
+  { vinculo predecessora -> sucessora (aresta do grafo) }
+  TPJLink = class
+  public
+    FromId, ToId: string;
+    LinkType: TAITaskLinkType;
+    Lag: TAITaskLag;
+    { a sucessora consome o arquivo da predecessora (PJ-G06) }
+    Artifact: Boolean;
+    Raw: TJSONObject;
+    destructor Destroy; override;
+  end;
+
   TPJProject = class
   private
     FTasks: TFPObjectList;
+    FLinks: TFPObjectList;
+    FLastError: string;
     FHistory: TAIUndoHistory;
     FModified: Boolean;
+    function GetLinkCount: Integer;
+    function GetLink(I: Integer): TPJLink;
+    function IdExists(const AId: string): Boolean;
+    function LevelsKeepGraph(AFirst, ALast, ADelta: Integer; out Err: string): Boolean;
     function GetCount: Integer;
     function GetTask(I: Integer): TPJTask;
     procedure RestoreSnapshot(const Snap: string);
@@ -106,6 +130,20 @@ type
     function SetKind(const AId: string; AKind: TPJTaskKind): Boolean;
     function SetDurationText(const AId, AText: string; out Err: string): Boolean;
 
+    { --- vinculos (PJ-G01..G07) --- }
+    function IndexOfLink(const AFromId, AToId: string): Integer;
+    function AddLink(const AFromId, AToId: string; AType: TAITaskLinkType;
+      const ALag: TAITaskLag; AArtifact: Boolean; out Err: string): Boolean;
+    function UpdateLink(const AFromId, AToId: string; AType: TAITaskLinkType;
+      const ALag: TAITaskLag; AArtifact: Boolean; out Err: string): Boolean;
+    function RemoveLink(const AFromId, AToId: string): Boolean;
+    { vincula a selecao em cadeia TI (Ctrl+F2 do Project) }
+    function LinkChain(const AIds: array of string; out Err: string): Boolean;
+    function PredecessorsText(const ATaskId: string): string;
+    function SuccessorsText(const ATaskId: string): string;
+    function SetPredecessorsText(const ATaskId, AText: string; out Err: string): Boolean;
+    function CheckLinks(out Err: string): Boolean;
+
     { edicao livre de campos: BeginChange antes, EndChange depois }
     procedure BeginChange(const Desc: string);
     procedure EndChange;
@@ -123,17 +161,30 @@ type
 
     { usado pelo leitor do arquivo (multiproject_json) }
     procedure AdoptTasks(AList: TFPObjectList);
+    procedure AdoptLinks(AList: TFPObjectList);
     procedure MarkSaved;
 
     property Count: Integer read GetCount;
     property Tasks[I: Integer]: TPJTask read GetTask; default;
+    property LinkCount: Integer read GetLinkCount;
+    property Links[I: Integer]: TPJLink read GetLink;
+    { motivo da ultima recusa de Indent/Outdent }
+    property LastError: string read FLastError;
     property Modified: Boolean read FModified write FModified;
   end;
 
 implementation
 
 uses
-  multiproject_json;
+  multiproject_json, multiproject_graph;
+
+{ ---------------- TPJLink ---------------- }
+
+destructor TPJLink.Destroy;
+begin
+  Raw.Free;
+  inherited Destroy;
+end;
 
 { ---------------- TPJTask ---------------- }
 
@@ -185,12 +236,14 @@ constructor TPJProject.Create;
 begin
   inherited Create;
   FTasks := TFPObjectList.Create(True);
+  FLinks := TFPObjectList.Create(True);
   FHistory := TAIUndoHistory.Create(PJ_UNDO_LIMIT);
   Clear;
 end;
 
 destructor TPJProject.Destroy;
 begin
+  FLinks.Free;
   FTasks.Free;
   FHistory.Free;
   Raw.Free;
@@ -199,6 +252,7 @@ end;
 
 procedure TPJProject.Clear;
 begin
+  FLinks.Clear;
   FTasks.Clear;
   FreeAndNil(Raw);
   Id := '';
@@ -492,7 +546,7 @@ begin
 end;
 
 function TPJProject.DeleteTask(const AId: string): Boolean;
-var I, E, J: Integer;
+var I, E, J, A, B: Integer;
 begin
   I := IndexOfId(AId);
   Result := I >= 0;
@@ -500,6 +554,13 @@ begin
   E := SubtreeEnd(I);
   BeginChange('Excluir tarefa');
   try
+    { os vinculos das tarefas excluidas saem junto }
+    for J := FLinks.Count - 1 downto 0 do
+    begin
+      A := IndexOfId(Links[J].FromId);
+      B := IndexOfId(Links[J].ToId);
+      if ((A >= I) and (A <= E)) or ((B >= I) and (B <= E)) then FLinks.Delete(J);
+    end;
     for J := E downto I do FTasks.Delete(J);
   finally
     EndChange;
@@ -512,9 +573,13 @@ begin
   I := IndexOfId(AId);
   { so recua se a anterior estiver no mesmo nivel ou mais funda:
     a tarefa vira filha da irma anterior }
+  FLastError := '';
   Result := (I > 0) and (Tasks[I].Level <= Tasks[I - 1].Level);
   if not Result then Exit;
   E := SubtreeEnd(I);
+  { a nova hierarquia muda os vinculos expandidos dos resumos: confere antes }
+  Result := LevelsKeepGraph(I, E, +1, FLastError);
+  if not Result then Exit;
   BeginChange('Recuar tarefa');
   try
     for J := I to E do Inc(Tasks[J].Level);
@@ -527,9 +592,12 @@ function TPJProject.Outdent(const AId: string): Boolean;
 var I, E, J: Integer;
 begin
   I := IndexOfId(AId);
+  FLastError := '';
   Result := (I >= 0) and (Tasks[I].Level > 1);
   if not Result then Exit;
   E := SubtreeEnd(I);
+  Result := LevelsKeepGraph(I, E, -1, FLastError);
+  if not Result then Exit;
   BeginChange('Avancar tarefa');
   try
     { como no Project: a subarvore sobe um nivel; as irmas seguintes passam a
@@ -628,12 +696,274 @@ begin
   end;
 end;
 
+procedure TPJProject.AdoptLinks(AList: TFPObjectList);
+var I: Integer;
+begin
+  FLinks.Clear;
+  AList.OwnsObjects := False;
+  for I := 0 to AList.Count - 1 do FLinks.Add(AList[I]);
+end;
+
 procedure TPJProject.AdoptTasks(AList: TFPObjectList);
 var I: Integer;
 begin
   FTasks.Clear;
   AList.OwnsObjects := False;
   for I := 0 to AList.Count - 1 do FTasks.Add(AList[I]);
+end;
+
+{ ---------------- vinculos ---------------- }
+
+function TPJProject.GetLinkCount: Integer;
+begin
+  Result := FLinks.Count;
+end;
+
+function TPJProject.GetLink(I: Integer): TPJLink;
+begin
+  Result := TPJLink(FLinks[I]);
+end;
+
+function TPJProject.IdExists(const AId: string): Boolean;
+begin
+  Result := IndexOfId(Trim(AId)) >= 0;
+end;
+
+function TPJProject.IndexOfLink(const AFromId, AToId: string): Integer;
+var I: Integer;
+begin
+  for I := 0 to LinkCount - 1 do
+    if SameText(Links[I].FromId, AFromId) and SameText(Links[I].ToId, AToId) then Exit(I);
+  Result := -1;
+end;
+
+function TPJProject.CheckLinks(out Err: string): Boolean;
+var G: TAITaskGraph;
+begin
+  G := BuildTaskGraph(Self, Err);
+  Result := G <> nil;
+  G.Free;
+end;
+
+function TPJProject.LevelsKeepGraph(AFirst, ALast, ADelta: Integer; out Err: string): Boolean;
+var J: Integer;
+begin
+  Err := '';
+  if LinkCount = 0 then Exit(True);
+  for J := AFirst to ALast do Inc(Tasks[J].Level, ADelta);
+  try
+    Result := CheckLinks(Err);
+  finally
+    for J := AFirst to ALast do Dec(Tasks[J].Level, ADelta);
+  end;
+  if not Result then Err := 'a mudanca de nivel deixaria um vinculo invalido: ' + Err;
+end;
+
+function TPJProject.AddLink(const AFromId, AToId: string; AType: TAITaskLinkType;
+  const ALag: TAITaskLag; AArtifact: Boolean; out Err: string): Boolean;
+var L: TPJLink;
+begin
+  Err := '';
+  Result := False;
+  if not IdExists(AFromId) then begin Err := 'tarefa inexistente: ' + AFromId; Exit; end;
+  if not IdExists(AToId) then begin Err := 'tarefa inexistente: ' + AToId; Exit; end;
+  if SameText(AFromId, AToId) then
+  begin
+    Err := Format('%s nao pode depender de si mesma', [AFromId]);
+    Exit;
+  end;
+  if IndexOfLink(AFromId, AToId) >= 0 then
+  begin
+    Err := Format('ja existe vinculo de %s para %s', [AFromId, AToId]);
+    Exit;
+  end;
+  L := TPJLink.Create;
+  L.FromId := FindTask(AFromId).Id;
+  L.ToId := FindTask(AToId).Id;
+  L.LinkType := AType;
+  L.Lag := ALag;
+  L.Artifact := AArtifact;
+  { experimenta no grafo antes de entrar no historico }
+  FLinks.Add(L);
+  if not CheckLinks(Err) then
+  begin
+    FLinks.Delete(FLinks.Count - 1);
+    Exit;
+  end;
+  FLinks.OwnsObjects := False;
+  FLinks.Delete(FLinks.Count - 1);
+  FLinks.OwnsObjects := True;
+  BeginChange('Vincular tarefas');
+  try
+    FLinks.Add(L);
+  finally
+    EndChange;
+  end;
+  Result := True;
+end;
+
+function TPJProject.UpdateLink(const AFromId, AToId: string; AType: TAITaskLinkType;
+  const ALag: TAITaskLag; AArtifact: Boolean; out Err: string): Boolean;
+var I: Integer; L: TPJLink;
+begin
+  Err := '';
+  I := IndexOfLink(AFromId, AToId);
+  if I < 0 then
+  begin
+    Err := Format('nao ha vinculo de %s para %s', [AFromId, AToId]);
+    Exit(False);
+  end;
+  L := Links[I];
+  if (L.LinkType = AType) and AISameLag(L.Lag, ALag) and (L.Artifact = AArtifact) then Exit(True);
+  { tipo e latencia nao mudam a estrutura do grafo: nao ha ciclo novo }
+  BeginChange('Alterar vinculo');
+  try
+    L.LinkType := AType;
+    L.Lag := ALag;
+    L.Artifact := AArtifact;
+  finally
+    EndChange;
+  end;
+  Result := True;
+end;
+
+function TPJProject.RemoveLink(const AFromId, AToId: string): Boolean;
+var I: Integer;
+begin
+  I := IndexOfLink(AFromId, AToId);
+  Result := I >= 0;
+  if not Result then Exit;
+  BeginChange('Desvincular tarefas');
+  try
+    FLinks.Delete(I);
+  finally
+    EndChange;
+  end;
+end;
+
+function TPJProject.LinkChain(const AIds: array of string; out Err: string): Boolean;
+var I: Integer; Keep: Integer;
+begin
+  Err := '';
+  Result := True;
+  if Length(AIds) < 2 then Exit;
+  Keep := FLinks.Count;
+  BeginChange('Vincular tarefas');
+  try
+    for I := 1 to High(AIds) do
+      if IndexOfLink(AIds[I - 1], AIds[I]) < 0 then
+        if not AddLink(AIds[I - 1], AIds[I], atlFS, AINoLag, False, Err) then
+        begin
+          { desfaz os vinculos que ja entraram nesta cadeia }
+          while FLinks.Count > Keep do FLinks.Delete(FLinks.Count - 1);
+          Result := False;
+          Break;
+        end;
+  finally
+    EndChange;
+  end;
+end;
+
+function TPJProject.PredecessorsText(const ATaskId: string): string;
+var I: Integer; Item: TAIPredecessorItem;
+begin
+  Result := '';
+  for I := 0 to LinkCount - 1 do
+    if SameText(Links[I].ToId, ATaskId) then
+    begin
+      Item.Id := Links[I].FromId;
+      Item.LinkType := Links[I].LinkType;
+      Item.Lag := Links[I].Lag;
+      if Result <> '' then Result := Result + ';';
+      Result := Result + AIFormatPredecessor(Item, MinutesPerDay, MinutesPerWeek);
+    end;
+end;
+
+function TPJProject.SuccessorsText(const ATaskId: string): string;
+var I: Integer; Item: TAIPredecessorItem;
+begin
+  Result := '';
+  for I := 0 to LinkCount - 1 do
+    if SameText(Links[I].FromId, ATaskId) then
+    begin
+      Item.Id := Links[I].ToId;
+      Item.LinkType := Links[I].LinkType;
+      Item.Lag := Links[I].Lag;
+      if Result <> '' then Result := Result + ';';
+      Result := Result + AIFormatPredecessor(Item, MinutesPerDay, MinutesPerWeek);
+    end;
+end;
+
+function TPJProject.SetPredecessorsText(const ATaskId, AText: string; out Err: string): Boolean;
+var
+  Items: TAIPredecessorItems;
+  T: TPJTask;
+  Old, New_: TFPObjectList;
+  I, J: Integer;
+  L, Prev: TPJLink;
+begin
+  Result := False;
+  T := FindTask(ATaskId);
+  if T = nil then begin Err := 'tarefa inexistente: ' + ATaskId; Exit; end;
+  if not AITryParsePredecessors(AText, MinutesPerDay, MinutesPerWeek, @IdExists, Items, Err) then
+  begin
+    Err := T.Id + ': ' + Err;
+    Exit;
+  end;
+  for I := 0 to High(Items) do
+    if SameText(Items[I].Id, T.Id) then
+    begin
+      Err := Format('%s nao pode depender de si mesma', [T.Id]);
+      Exit;
+    end;
+  { monta a lista nova: vinculos de outras tarefas + as predecessoras digitadas,
+    mantendo "entrega artefato" e campos desconhecidos dos vinculos que ja existiam }
+  Old := FLinks;
+  New_ := TFPObjectList.Create(True);
+  try
+    for I := 0 to Old.Count - 1 do
+      if not SameText(TPJLink(Old[I]).ToId, T.Id) then
+      begin
+        L := TPJLink.Create;
+        Prev := TPJLink(Old[I]);
+        L.FromId := Prev.FromId; L.ToId := Prev.ToId; L.LinkType := Prev.LinkType;
+        L.Lag := Prev.Lag; L.Artifact := Prev.Artifact;
+        if Prev.Raw <> nil then L.Raw := TJSONObject(Prev.Raw.Clone);
+        New_.Add(L);
+      end;
+    for I := 0 to High(Items) do
+    begin
+      L := TPJLink.Create;
+      L.FromId := FindTask(Items[I].Id).Id;
+      L.ToId := T.Id;
+      L.LinkType := Items[I].LinkType;
+      L.Lag := Items[I].Lag;
+      J := IndexOfLink(L.FromId, T.Id);
+      if J >= 0 then
+      begin
+        L.Artifact := Links[J].Artifact;
+        if Links[J].Raw <> nil then L.Raw := TJSONObject(Links[J].Raw.Clone);
+      end;
+      New_.Add(L);
+    end;
+    FLinks := New_;
+    try
+      Result := CheckLinks(Err);
+    finally
+      FLinks := Old;
+    end;
+    if not Result then Exit;
+    BeginChange('Alterar predecessoras');
+    try
+      FLinks.Clear;
+      New_.OwnsObjects := False;
+      for I := 0 to New_.Count - 1 do FLinks.Add(New_[I]);
+    finally
+      EndChange;
+    end;
+  finally
+    New_.Free;
+  end;
 end;
 
 { ---------------- validacao ---------------- }
@@ -711,6 +1041,8 @@ begin
   finally
     Ids.Free;
   end;
+  if not CheckLinks(Msg) then
+    AddIssue(Result, '', svError, 'vinculos invalidos: ' + Msg);
 end;
 
 end.

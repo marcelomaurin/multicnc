@@ -35,10 +35,11 @@ def dependency_flags():
         extra.append("-Fu" + str(ROOT / "third_party/chatgpt/AIJoystick"))
     # AI Project Core (MultiProject): external copy when it has the units, else snapshot.
     project_core = chatgpt / "pacote/AI Project Core"
-    if (project_core / "aiprojectduration.pas").is_file():
+    snapshot = ROOT / "third_party/chatgpt/AIProjectCore"
+    if all((project_core / u.name).is_file() for u in snapshot.glob("*.pas")):
         extra.append("-Fu" + str(project_core))
     else:
-        extra.append("-Fu" + str(ROOT / "third_party/chatgpt/AIProjectCore"))
+        extra.append("-Fu" + str(snapshot))
     for folder in ("pacote/AI Input/AIJoystick", "pacote/AI", "pacote/AI Input/AISerial", "pacote/AI Simulation/Marlin", "pacote/AI Input/AISockets", "pacote/AI Input/AIVirtualSerial"):
         path = chatgpt / folder
         if path.is_dir(): extra.append("-Fu" + str(path))

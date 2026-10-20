@@ -2,7 +2,7 @@
 
 - **Aberta em:** 20/10/2026.
 - **Estado:** decisões D1 a D12 **aprovadas como propostas** pelo Marcelo (20/10/2026).
-  Fase 1 concluída no Linux (20/10); a conferência no Win64 está pendente.
+  Fases 1 e 2 concluídas no Linux (20/10); a conferência no Win64 está pendente.
 - **Solicitação:** um gerenciador de projeto em que se define um **objetivo** (exemplo:
   construir um motor). Uma pessoa ou a IA divide o objetivo em tarefas de peça e de eletrônica.
   As tarefas se relacionam por uma **lista de grafos**, em cadeia ou em paralelo, e têm Nome,
@@ -27,7 +27,7 @@
 |---|---|---|
 | 0 Especificação | concluída | README, REQUISITOS, ARCHITECTURE, LAYOUT, TAREFA, AI_GUIDE |
 | 1 Documento e tarefas | concluída no Linux (20/10); Win64 pendente | `multiproject_types`, `multiproject_document`, `multiproject_json`; `test_multiproject_core.lpr` com 102 checks; usa `aiprojectduration`, `aiundohistory` e `aijsonutils` do CHATGPT |
-| 2 Grafo | pendente | lista de adjacência, 4 tipos de vínculo, latência, ciclo, cadeias |
+| 2 Grafo | concluída no Linux (20/10); Win64 pendente | `aitaskgraph` no CHATGPT (`ec5cccf`, 61 checks) + `multiproject_graph` (adaptador com expansão dos resumos) e vínculos no documento e no `.mproj`; `test_multiproject_graph.lpr` com 88 checks |
 | 3 Calendário e cronograma | pendente | calendários, CPM, restrições, margens, crítico, avisos |
 | 4 Tela e registro na suíte | pendente | layout da suíte, Gantt, Rede, Quadro, painel da tarefa, bandeja |
 | 5 Vínculo com as ferramentas | pendente | `--new`/`--task`, `.task.json`, detecção, verificadores, Abrir na ferramenta |
@@ -60,7 +60,7 @@ Por isso os componentes genéricos entram no pacote `openai_project_core` (pasta
 | Fase | Componente no CHATGPT | Estado |
 |---|---|---|
 | 1 | `aiprojectduration` (`TAIDuration`), `aiundohistory` (`TAIUndoHistory`), `aijsonutils` (leitura tipada, mescla que preserva campos, ISO 8601, gravação atômica) | publicados em `35203a3`; `tests/test_aiprojectcore_utils.lpr` com 59 checks |
-| 2 | `aitaskgraph`: grafo de tarefas com os 4 tipos de vínculo e latência, ciclo com caminho, ordem topológica, cadeias, em cadeia × em paralelo | a fazer |
+| 2 | `aitaskgraph`: grafo de tarefas com os 4 tipos de vínculo e latência, ciclo com caminho, ordem topológica, cadeias, em cadeia × em paralelo, coluna Predecessoras | publicado em `ec5cccf`; `tests/test_aitaskgraph.lpr` com 61 checks |
 | 3 | `aiworkcalendar` (expediente, exceções, feriados BR, minuto útil) e `aicpmscheduler` (CPM, restrições, margens, crítico) | a fazer |
 | 9 | `aiplancontract`: contrato e parser determinístico de plano de tarefas gerado por IA | a fazer |
 
@@ -140,27 +140,41 @@ Resultado da fase 1:
 
 ### Fase 2: grafo (≈ 3 h)
 
-- [ ] 2.0 Criar `aitaskgraph` no CHATGPT (`pacote/AI Project Core`), com teste próprio, publicar
+- [x] 2.0 Criar `aitaskgraph` no CHATGPT (`pacote/AI Project Core`), com teste próprio, publicar
       e sincronizar a cópia em `third_party/chatgpt/AIProjectCore`. O `multiproject_graph`
       passa a ser só o adaptador do documento para o grafo.
 
-- [ ] 2.1 Vínculos TI/II/TT/IT, latência em duração ou %, antecipação, latência decorrida e
+- [x] 2.1 Vínculos TI/II/TT/IT, latência em duração ou %, antecipação, latência decorrida e
       "entrega artefato" (PJ-G01, G02, G06).
-- [ ] 2.2 `multiproject_graph`:
+- [x] 2.2 `multiproject_graph`:
       - lista de adjacência de sucessoras e predecessoras;
       - ordem topológica (Kahn);
       - `WouldCycle` com caminho (PJ-G04, G05).
-- [ ] 2.3 Cadeias (componentes conexos por união-busca) e a consulta "em cadeia" ×
+- [x] 2.3 Cadeias (componentes conexos por união-busca) e a consulta "em cadeia" ×
       "em paralelo" entre duas tarefas.
-- [ ] 2.4 Interpretar e formatar a coluna Predecessoras (`T-0003TI+2h;T-0004II-10%`)
+- [x] 2.4 Interpretar e formatar a coluna Predecessoras (`T-0003TI+2h;T-0004II-10%`)
       (PJ-G03).
-- [ ] 2.5 Vínculo em resumo expandido para as folhas (PJ-G07, P1: só o núcleo nesta fase).
-- [ ] 2.6 Teste `test_multiproject_graph.lpr`:
+- [x] 2.5 Vínculo em resumo expandido para as folhas (PJ-G07, P1: só o núcleo nesta fase).
+- [x] 2.6 Teste `test_multiproject_graph.lpr`:
       - ciclo A→B→C→A recusado com o caminho e o documento intacto;
       - ordem topológica válida em 1.000 tarefas aleatórias;
       - 3 cadeias corretas;
       - A e B paralelas, A e C encadeadas;
       - ida e volta da sintaxe de predecessoras.
+
+Resultado da fase 2:
+- Os vínculos ficam no documento (`TPJLink`): tipo, latência, "entrega artefato" e campos
+  desconhecidos preservados. No arquivo, o tipo vai com o código do Project (`FS`/`SS`/`FF`/`SF`)
+  e a tela mostra TI/II/TT/IT.
+- Vínculo de resumo vale para as folhas. Ligar um resumo à própria subtarefa é recusado. Recuar
+  ou avançar uma tarefa que deixaria um vínculo inválido também é recusado, com o motivo em
+  `LastError` e sem entrar no desfazer.
+- Quando o ciclo passa por um vínculo de resumo, a mensagem diz qual vínculo é.
+- Ctrl+F2 (`LinkChain`) vincula a seleção em cadeia TI como um único passo de desfazer. Se um
+  elo fecharia ciclo, nada é gravado.
+- Na leitura, arquivo com ciclo, vínculo repetido, tarefa inexistente ou resumo ligado à
+  subtarefa é recusado sem alterar o documento.
+- 2000 tarefas e 4000 vínculos montam o grafo e a ordem topológica bem abaixo de 1 s.
 
 ### Fase 3: calendário e cronograma (≈ 4 h)
 

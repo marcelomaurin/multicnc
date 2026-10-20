@@ -283,16 +283,17 @@ begin
     '{ "schema_version": 1, "format": "MultiProject", "id": "P-1", "name": "N",' +
     '  "futuro": { "x": 1 },' +
     '  "options": { "minutes_per_day": 420, "minutes_per_week": 2100, "fabrication_gate": true },' +
-    '  "links": [ { "from": "T-0001", "to": "T-0002", "type": "FS" } ],' +
+    '  "links": [ { "from": "T-0002", "to": "T-0003", "type": "FS", "futuro_link": 1 } ],' +
     '  "tasks": [' +
     '    { "id": "T-0001", "name": "A", "short": "a", "kind": "part", "process": "router",' +
     '      "artifact": { "path": "pecas/T-0001_a.mcad", "status": "none" } },' +
-    '    { "id": "T-0002", "name": "B", "short": "b", "parent": "T-0001", "func_spec": ["roda", "liga"] } ] }';
+    '    { "id": "T-0002", "name": "B", "short": "b", "parent": "T-0001", "func_spec": ["roda", "liga"] },' +
+    '    { "id": "T-0003", "name": "C", "short": "c" } ] }';
   P := TPJProject.Create;
   try
     ProjectFromJSONText(P, Text);
     Check(P.MinutesPerDay = 420, 'minutos por dia lidos');
-    Check(P.NextNumber = 3, 'contador acima do maior ID');
+    Check(P.NextNumber = 4, 'contador acima do maior ID');
     Check(P[1].Level = 2, 'nivel pelo pai');
     Check((Length(P[1].FuncSpec) = 2) and (P[1].FuncSpec[1].Text = 'liga'), 'forma curta dos criterios');
     Check(P.FormatDur(AIMakeDuration(420, aduDay)) = '1d', 'dia de 7 h');
@@ -300,7 +301,8 @@ begin
     Out_ := ProjectToJSONText(P);
     Check(Pos('"futuro"', Out_) > 0, 'campo desconhecido do projeto preservado');
     Check(Pos('"fabrication_gate" : true', Out_) > 0, 'opcao desconhecida preservada');
-    Check(Pos('"links"', Out_) > 0, 'vinculos (fase 2) preservados');
+    Check(Pos('"futuro_link" : 1', Out_) > 0, 'campo desconhecido do vinculo preservado');
+    Check((P.LinkCount = 1) and (P.Links[0].ToId = 'T-0003'), 'vinculo lido');
     Check(Pos('pecas/T-0001_a.mcad', Out_) > 0, 'artefato da tarefa preservado');
     Check(Pos('"A2"', Out_) > 0, 'alteracao gravada');
     Check(Pos('"futuro"', Out_) < Pos('"options"', Out_), 'ordem original mantida');

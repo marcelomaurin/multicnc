@@ -1,6 +1,6 @@
 # MultiProject — Especificação do projeto
 
-**Estado:** decisões D1–D12 aprovadas (20/10/2026). Fase 1 (documento e tarefas) concluída no Linux, usando componentes genéricos novos da suíte CHATGPT (`AI Project Core`).
+**Estado:** decisões D1–D12 aprovadas (20/10/2026). Fases 1 (documento e tarefas) e 2 (grafo) concluídas no Linux, usando componentes genéricos novos da suíte CHATGPT (`AI Project Core`).
 **Pasta do módulo:** [`multiproject/`](../multiproject/README.md).
 
 Este é o documento único de referência do MultiProject na pasta `docs`. Ele reúne objetivo,
@@ -244,7 +244,7 @@ Próprios do MultiProject:
 |---|---|---|
 | 0 Especificação | Este documento e os do módulo — **concluída** | — |
 | 1 Documento e tarefas | Tarefa com os 6 campos, EAP, `.mproj`, desfazer — **concluída no Linux** | P0 |
-| 2 Grafo | Lista de adjacência, 4 tipos de vínculo, latência, ciclo, cadeias | P0 |
+| 2 Grafo | Lista de adjacência, 4 tipos de vínculo, latência, ciclo, cadeias — **concluída no Linux** | P0 |
 | 3 Calendário e cronograma | Calendários, CPM, restrições, margens, caminho crítico, avisos | P0 |
 | 4 Tela e registro na suíte | Layout da suíte, Gantt, Rede, Quadro, página da tarefa, bandeja | P0 |
 | 5 Vínculo com as ferramentas | `--new`/`--task`, `.task.json`, detecção, verificadores, Abrir na ferramenta | P0 |

@@ -28,8 +28,7 @@ type
 
   TPJScheduleMode = (smAuto, smManual);
 
-  { vinculos (fase 2): TI, II, TT, IT }
-  TPJLinkType = (ltFS, ltSS, ltFF, ltSF);
+  { vinculos: TAITaskLinkType (aitaskgraph, CHATGPT / AI Project Core) }
 
   { restricoes (fase 3) }
   TPJConstraint = (pcASAP, pcALAP, pcSNET, pcSNLT, pcFNET, pcFNLT, pcMSO, pcMFO);
@@ -75,8 +74,6 @@ function TryStateFromName(const S: string; out V: TPJTaskState): Boolean;
 function StateCaption(S: TPJTaskState): string;
 function ModeName(M: TPJScheduleMode): string;
 function TryModeFromName(const S: string; out M: TPJScheduleMode): Boolean;
-function LinkTypeName(L: TPJLinkType): string;
-function TryLinkTypeFromName(const S: string; out L: TPJLinkType): Boolean;
 function ConstraintName(C: TPJConstraint): string;
 function TryConstraintFromName(const S: string; out C: TPJConstraint): Boolean;
 function ResourceTypeName(R: TPJResourceType): string;
@@ -110,7 +107,6 @@ const
     'Em andamento', 'Pronta para revisao', 'Concluida', 'Bloqueada',
     'Desatualizada', 'Cancelada');
   MODE_NAMES: array[TPJScheduleMode] of string = ('auto', 'manual');
-  LINK_NAMES: array[TPJLinkType] of string = ('FS', 'SS', 'FF', 'SF');
   CONSTRAINT_NAMES: array[TPJConstraint] of string = ('ASAP', 'ALAP', 'SNET',
     'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO');
   RESOURCE_NAMES: array[TPJResourceType] of string = ('person', 'ai', 'machine',
@@ -182,20 +178,6 @@ begin
   for I := Low(I) to High(I) do
     if SameText(S, MODE_NAMES[I]) then begin M := I; Exit(True); end;
   M := smAuto;
-  Result := False;
-end;
-
-function LinkTypeName(L: TPJLinkType): string;
-begin
-  Result := LINK_NAMES[L];
-end;
-
-function TryLinkTypeFromName(const S: string; out L: TPJLinkType): Boolean;
-var I: TPJLinkType;
-begin
-  for I := Low(I) to High(I) do
-    if SameText(S, LINK_NAMES[I]) then begin L := I; Exit(True); end;
-  L := ltFS;
   Result := False;
 end;
 
