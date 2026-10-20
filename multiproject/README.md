@@ -76,6 +76,7 @@ de validação e de fabricação; o usuário confirma cada uma antes de entrar n
 
 | Documento | Conteúdo |
 |---|---|
+| [../docs/MULTIPROJECT.md](../docs/MULTIPROJECT.md) | Especificação consolidada na pasta `docs` da suíte |
 | [docs/TAREFA.md](docs/TAREFA.md) | Decisões, etapas de implementação, critério de pronto e riscos |
 | [docs/REQUISITOS.md](docs/REQUISITOS.md) | Requisitos funcionais: Microsoft Project item a item e requisitos próprios da suíte |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Modelo de dados, grafo, cronograma, formato `.mproj`, integração e IA |
