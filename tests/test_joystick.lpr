@@ -33,6 +33,15 @@ type
     procedure Cancel;
   end;
 
+{ Sleep pode voltar antes do pedido em alguns ambientes (Wine, timers de
+  baixa resolucao); o teste precisa de pelo menos Ms no relogio da sessao. }
+procedure WaitTicks(Ms: QWord);
+var T: QWord;
+begin
+  T := GetTickCount64;
+  repeat Sleep(10) until GetTickCount64 - T >= Ms;
+end;
+
 function TFakeJoystick.ReadDevice(const ID: string; out S: TAIJoystickState): Boolean;
 begin
   S:=Default(TAIJoystickState);
@@ -147,7 +156,7 @@ begin
       Port.Reply('ok'#10); Check(not S.JoystickReady,'A parsed ok alone does not mean movement complete');
       S.CancelJoystick; Check(Pos(#$85,Port.Sent.Text)>0,'GRBL realtime cancel');
       Check(Pos('G4 P0',Port.Sent.Text)>0,'Cancel completion barrier');
-      Port.Reply('ok'#10); Sleep(110); Port.Reply('<Idle|MPos:0,0,0>'#10);
+      Port.Reply('ok'#10); WaitTicks(110); Port.Reply('<Idle|MPos:0,0,0>'#10);
       Check(S.JoystickReady,'Fresh idle unlocks next pulse');
       N:=Port.Sent.Count; S.CancelJoystick; Check(Port.Sent.Count=N,'No cancel when session no longer owns jog');
       Check(not S.JoystickJog(3,0,0,500),'Oversized pulse rejected');
@@ -159,7 +168,7 @@ begin
       Check(not S.JoystickJog(0,0,0.1,500),'Laser Z capability enforced');
       Check(Port.Sent.Count=N,'Unsupported Z emits nothing');
       Check(S.JoystickJog(0.1,0.1,0,500),'Laser XY works');
-      Port.Reply('error:20'#10); Sleep(110); Port.Reply('<Idle|MPos:0,0,0>'#10);
+      Port.Reply('error:20'#10); WaitTicks(110); Port.Reply('<Idle|MPos:0,0,0>'#10);
       Check(not S.JoystickAvailable,'Firmware rejection latches until reconnect');
       Connect(mtRouter,pkGRBL);
       Port.Reply('Grbl 0.9j [help]'#10);

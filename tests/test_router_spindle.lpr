@@ -26,6 +26,15 @@ type
   end;
 constructor TPort.Create;begin inherited Create;Sent:=TStringList.Create;end;
 destructor TPort.Destroy;begin Sent.Free;inherited Destroy;end;
+{ Sleep pode voltar antes do pedido em alguns ambientes (Wine, timers de
+  baixa resolucao); o teste precisa de pelo menos Ms no relogio da sessao. }
+procedure WaitTicks(Ms: QWord);
+var T: QWord;
+begin
+  T := GetTickCount64;
+  repeat Sleep(10) until GetTickCount64 - T >= Ms;
+end;
+
 function TPort.Connect:Boolean;begin Opened:=True;Result:=True;end;
 procedure TPort.Disconnect;begin Opened:=False;end;
 function TPort.IsConnected:Boolean;begin Result:=Opened;end;
@@ -116,7 +125,7 @@ begin
       Check((Pos(#$85,Port.Sent.Text)>0) and (Pos('G4 P0',Port.Sent.Text)>0),'Jog cancellation before spindle stop');
       Check(Port.Sent[Port.Sent.Count-1]='M5'#10,'M5 follows cancel barrier');
       N:=Port.Sent.Count;S.CancelJoystick;Check(Port.Sent.Count=N,'No repeated cancel or barrier after spindle off');
-      Port.Reply('ok'#10'ok'#10'ok'#10);Sleep(110);Port.Reply('<Idle|MPos:0,0,0>'#10);
+      Port.Reply('ok'#10'ok'#10'ok'#10);WaitTicks(110);Port.Reply('<Idle|MPos:0,0,0>'#10);
       L.Text:='G1 X10 F500';L.SaveToFile(FN);S.LoadFile(FN);Check(S.Start,'Program starts after manual commands drain');
       N:=Port.Sent.Count;Check(not S.RouterSpindleOn(1000) and not S.RouterSpindleOff,'Both blocked during program');
       Check(Port.Sent.Count=N,'Program is not altered');Check(S.Pause,'Pause program');
