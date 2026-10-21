@@ -60,7 +60,9 @@ for t in "${TARGETS[@]}"; do
   if ! "$LAZBUILD" -B --cpu=x86_64 --os=win64 --ws=win32 --compiler="$WRAP" --build-mode=Default "$project.lpi" > "$log" 2>&1; then
     tail -35 "$log"; echo "Falha ao compilar $name"; exit 1
   fi
-  cp "$project.exe" "$APP/$name.exe"
+  # no Windows o nome nao diferencia maiusculas (simucnc.lpi gera SimuCNC.exe)
+  out="$project.exe"; [ -f "$out" ] || out="$(dirname "$project")/$name.exe"
+  cp "$out" "$APP/$name.exe"
 done
 [ -f "$BIN/mcad_occt.dll" ] || { echo "DLL obrigatoria ausente: bin/mcad_occt.dll"; exit 1; }
 cp "$BIN/mcad_occt.dll" "$APP/"
