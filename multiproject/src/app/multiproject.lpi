@@ -40,7 +40,7 @@
    <Filename Value="multiproject" />
   </Target>
   <SearchPaths>
-   <OtherUnitFiles Value="../core;../io;../view;../../../multisuite/src/core;../../../src/shared;../../../../CHATGPT/pacote/AI Project Core;../../../../CHATGPT/pacote/AI Project;../../../third_party/chatgpt/AIProjectCore;../../../third_party/chatgpt/AIProject" />
+   <OtherUnitFiles Value="../core;../io;../view;../../../multisuite/src/core;../../../src/shared;../../../src/core;../../../../CHATGPT/pacote/AI Project Core;../../../../CHATGPT/pacote/AI Project;../../../third_party/chatgpt/AIProjectCore;../../../third_party/chatgpt/AIProject" />
    <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
   </SearchPaths>
   <Parsing>

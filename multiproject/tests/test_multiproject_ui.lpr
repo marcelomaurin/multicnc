@@ -223,6 +223,114 @@ begin
   Check(F.Gantt.RowCount = 17, 'volta ao EAP');
 end;
 
+procedure TestResources;
+var R, B, Row: Integer; Reason: string; I: Integer; Found: Boolean;
+begin
+  F.LoadExample;
+  Pump;
+  Check(Pos('Superalocacao:', F.InfoLabel.Caption) > 0, 'rodape mostra a superalocacao: ' + F.InfoLabel.Caption);
+  R := GanttRowOf('T-0003');
+  Check(Pos('Ana', F.Gantt.Row(R).Cells[GC_RES]) = 1, 'coluna Recursos: ' + F.Gantt.Row(R).Cells[GC_RES]);
+  Check(Pos('(!)', F.Gantt.Row(R).Cells[GC_RES]) > 0, 'coluna Recursos marca o conflito');
+  Check(Pos('(!)', F.Gantt.Row(GanttRowOf('T-0005')).Cells[GC_RES]) = 0, 'sem marca sem conflito');
+  { etapa 4 abre a vista Equipe }
+  F.ShowStep(3);
+  Pump;
+  Check((F.CurrentView = VIEW_TEAM) and F.Team.Visible, 'etapa Recursos abre a vista Equipe');
+  Check(F.Team.RowCount = 8, Format('Equipe: 7 recursos + sem recurso (%d)', [F.Team.RowCount]));
+  Check(F.Team.Row(0).Overallocated and (F.Team.Row(0).Title = 'Ana'), 'Ana em vermelho');
+  Check(not F.Team.Row(F.Team.IndexOfRow('R-002')).Overallocated, 'Bruno sem conflito');
+  Check(F.Team.OverloadBandCount >= 3, Format('faixas de conflito (%d)', [F.Team.OverloadBandCount]));
+  Check(F.Team.LanesOf(0) = 3, Format('tres tarefas da Ana empilhadas (%d)', [F.Team.LanesOf(0)]));
+  Found := False;
+  for I := 0 to F.Team.BarCount - 1 do
+    if (F.Team.Bar(I).Id = 'T-0003') and F.Team.Bar(I).Overloaded then Found := True;
+  Check(Found, 'barra em conflito marcada');
+  Check(F.ResList.Items.Count = 8, 'planilha com 8 recursos');
+  F.ResList.ItemIndex := 0;
+  F.ResList.OnClick(F.ResList);
+  Check(F.RName.Text = 'Ana', 'recurso selecionado na pagina');
+  Check(Pos('Superalocado', F.ResInfo.Caption) > 0, 'pagina mostra o conflito: ' + F.ResInfo.Caption);
+  Shot('06_equipe');
+  { reatribuir arrastando: aceito para outra pessoa, recusado para maquina errada }
+  B := -1;
+  for I := 0 to F.Team.BarCount - 1 do
+    if F.Team.Bar(I).Id = 'T-0004' then B := I;
+  Row := F.Team.IndexOfRow('R-003');
+  Check(F.Team.TryReassign(B, Row, Reason), 'reatribuir T-0004 para Carla: ' + Reason);
+  Pump;
+  Check(F.Doc.ResourcesText('T-0004') = 'Carla', 'documento reatribuido: ' + F.Doc.ResourcesText('T-0004'));
+  Check(SameText(F.Doc.UndoDescription, 'Reatribuir recurso'), 'reatribuir e um passo');
+  B := -1;
+  for I := 0 to F.Team.BarCount - 1 do
+    if F.Team.Bar(I).Id = 'T-0010' then B := I;
+  Check(not F.Team.TryReassign(B, F.Team.IndexOfRow('R-005'), Reason) and (Pos('Impressora 3D', Reason) > 0),
+    'maquina incompativel recusada: ' + Reason);
+  Check(F.Doc.ResourcesText('T-0010') = 'Ender-3; PETG[0.12 kg]', 'recusa nao altera');
+  F.Doc.Undo;
+  F.RefreshAll;
+  { pagina da tarefa: recursos e conflito }
+  F.SelectTask('T-0012');
+  F.ShowStep(PAGE_TASK);
+  Pump;
+  Check(F.TResEdit.Text = 'Laser 10 W; Carla', 'recursos na pagina da tarefa: ' + F.TResEdit.Text);
+  Check(Pos('Conflito', F.TResInfo.Caption) > 0, 'pagina da tarefa avisa o conflito: ' + F.TResInfo.Caption);
+  Found := False;
+  for I := 0 to F.TResCombo.Items.Count - 1 do
+    if Pos('Ender-3', F.TResCombo.Items[I]) = 1 then Found := True;
+  Check(not Found and (F.TResCombo.Items.Count > 0), 'combo so com recursos compativeis (sem impressora no corte)');
+  F.TResEdit.Text := 'Laser 10 W; Zeca';
+  F.TaskResApplyForTest;
+  Check((Pos('Zeca', F.StatusText) > 0) and (F.Doc.ResourcesText('T-0012') = 'Laser 10 W; Carla'),
+    'nome desconhecido recusado: ' + F.StatusText);
+  F.TResEdit.Text := 'Laser 10 W; Ana[50%]';
+  F.TaskResApplyForTest;
+  Check(F.Doc.ResourcesText('T-0012') = 'Laser 10 W; Ana[50%]', 'recursos aplicados pela pagina');
+  F.Doc.Undo;
+  F.RefreshAll;
+  { editar a coluna Recursos no Gantt }
+  F.ShowStep(1);
+  R := GanttRowOf('T-0003');
+  F.Gantt.EditCell(R, GC_RES);
+  F.Gantt.Editor.Text := F.Gantt.Row(R).Cells[GC_RES] + '; Bruno[25%]';
+  F.Gantt.FinishEdit(True);
+  Pump;
+  Check(F.Doc.ResourcesText('T-0003') = 'Ana; Bruno[25%]', 'coluna Recursos editada (marca ignorada): ' +
+    F.Doc.ResourcesText('T-0003'));
+  F.Doc.Undo;
+  F.RefreshAll;
+  { nivelar e limpar }
+  F.ShowStep(4);
+  F.LevelForTest(False);
+  Pump;
+  Check(F.Sched.OverloadCount = 0, 'nivelar resolve os conflitos');
+  Check(Pos('sem superalocacao', F.StatusText) > 0, 'status do nivelamento: ' + F.StatusText);
+  Check(Pos('Superalocacao', F.InfoLabel.Caption) = 0, 'rodape sem superalocacao');
+  F.ShowView(VIEW_TEAM);
+  Pump;
+  Check(F.Team.OverloadBandCount = 0, 'Equipe sem faixas de conflito');
+  Shot('07_nivelado');
+  F.ClearLevelForTest;
+  Pump;
+  Check(F.Sched.OverloadCount > 0, 'limpar o nivelamento traz os conflitos de volta');
+  { editar recurso pela planilha }
+  F.ShowStep(3);
+  for I := 0 to F.ResList.Items.Count - 1 do
+    if Pos('Ana  -', F.ResList.Items[I]) > 0 then F.ResList.ItemIndex := I;
+  F.ResList.OnClick(F.ResList);
+  F.RUnits.Text := '300';
+  F.ResApplyForTest;
+  Check(Abs(F.Doc.FindResource('Ana').MaxUnits - 3) < 1E-6, 'unidades maximas editadas');
+  Check(not F.Sched.ResourceOverallocated('Ana'), 'Ana com 300% sem conflito');
+  F.RUnits.Text := 'muito';
+  F.ResApplyForTest;
+  Check(Pos('Unidades', F.StatusText) > 0, 'unidades invalidas recusadas');
+  Shot('08_recursos');
+  F.Doc.Undo;
+  F.RefreshAll;
+  F.ShowStep(1);
+end;
+
 procedure TestFile;
 var FN: string;
 begin
@@ -266,6 +374,7 @@ begin
   TestCommands;
   TestNetworkAndBoard;
   TestFilters;
+  TestResources;
   TestFile;
   TestLayout;
   { fechar a janela principal encerra o aplicativo }
@@ -274,7 +383,7 @@ begin
   Pump;
   Check(Application.Terminated, 'fechar a janela encerra o aplicativo');
   if Failed = 0 then
-    Writeln(Format('PASS: %d checks (Gantt, rede, quadro, pagina da tarefa, edicao, filtros, arquivo, 1024x768)', [Passed]))
+    Writeln(Format('PASS: %d checks (Gantt, rede, quadro, equipe, recursos, nivelamento, pagina da tarefa, edicao, filtros, arquivo, 1024x768)', [Passed]))
   else
   begin
     Writeln(Format('FAIL: %d de %d checks', [Failed, Passed + Failed]));

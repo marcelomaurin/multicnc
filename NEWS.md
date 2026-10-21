@@ -7,7 +7,8 @@
 - Cada tarefa com descrição curta e longa, **especificação técnica** e **especificação funcional** (critérios de aceite).
 - **Grafo de tarefas** com vínculos TI/II/TT/IT e latência, cadeias e paralelismo, ciclo recusado com o caminho.
 - **Caminho crítico** com calendário padrão e feriados do Brasil, restrições, data limite, margens e avisos.
-- Vistas **Gantt**, **Rede** e **Quadro** no padrão da suíte, exemplo do motor DC e novo grupo **PLANEJAR** na bandeja.
+- Vistas **Gantt**, **Rede**, **Quadro** e **Equipe** no padrão da suíte, exemplo do motor DC e novo grupo **PLANEJAR** na bandeja.
+- **Recursos e conflitos**: pessoas, máquinas (importadas do MultiCNC) e materiais atribuídos às tarefas, máquina compatível com o tipo da tarefa, **superalocação** com o recurso, o período e as tarefas, **nivelamento** e limpeza do nivelamento.
 - Referência funcional: Microsoft Project (requisitos em `multiproject/docs/REQUISITOS.md`).
 
 ---

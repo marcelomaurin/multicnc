@@ -90,6 +90,8 @@ begin
   O.Add('manual_start', AIDateToISO(T.ManualStart));
   O.Add('manual_finish', AIDateToISO(T.ManualFinish));
   O.Add('calendar', T.CalendarName);
+  O.Add('priority', T.Priority);
+  O.Add('level_start', AIDateToISO(T.LevelStart));
   Spec := TJSONObject.Create;
   Items := TJSONArray.Create;
   for I := 0 to High(T.TechItems) do
@@ -122,6 +124,46 @@ begin
   O.Add('lag_percent', L.Lag.Percent);
   O.Add('artifact', L.Artifact);
   Result := AIJSONMergeKnown(L.Raw, O);
+end;
+
+function PercentOf(U: Double): Int64;
+begin
+  Result := Round(U * 100);
+end;
+
+function NumberJSON(V: Double): TJSONData;
+begin
+  if Abs(V - Round(V)) < 1E-9 then Result := AIJSONInt(Round(V))
+  else Result := TJSONFloatNumber.Create(V);
+end;
+
+function ResourceToJSON(R: TPJResource): TJSONObject;
+var O: TJSONObject;
+begin
+  O := TJSONObject.Create;
+  O.Add('id', R.Id);
+  O.Add('name', R.Name);
+  O.Add('type', ResourceTypeName(R.RType));
+  O.Add('max_units', AIJSONInt(PercentOf(R.MaxUnits)));
+  O.Add('calendar', R.CalendarName);
+  O.Add('group', R.Group);
+  O.Add('role', R.Role);
+  O.Add('email', R.Email);
+  O.Add('machine_type', MachineTypeName(R.MachineType));
+  O.Add('equipment', R.Equipment);
+  O.Add('unit', R.MaterialUnit);
+  Result := AIJSONMergeKnown(R.Raw, O);
+end;
+
+function AssignmentToJSON(A: TPJAssignment): TJSONObject;
+var O: TJSONObject;
+begin
+  O := TJSONObject.Create;
+  O.Add('task', A.TaskId);
+  O.Add('resource', A.ResourceId);
+  O.Add('units', AIJSONInt(PercentOf(A.Units)));
+  O.Add('quantity', NumberJSON(A.Quantity));
+  Result := AIJSONMergeKnown(A.Raw, O);
 end;
 
 function ProjectToJSON(P: TPJProject): TJSONObject;
@@ -162,6 +204,12 @@ begin
   Arr := TJSONArray.Create;
   for I := 0 to P.LinkCount - 1 do Arr.Add(LinkToJSON(P.Links[I]));
   O.Add('links', Arr);
+  Arr := TJSONArray.Create;
+  for I := 0 to P.ResourceCount - 1 do Arr.Add(ResourceToJSON(P.Resources[I]));
+  O.Add('resources', Arr);
+  Arr := TJSONArray.Create;
+  for I := 0 to P.AssignmentCount - 1 do Arr.Add(AssignmentToJSON(P.Assignments[I]));
+  O.Add('assignments', Arr);
   Result := AIJSONMergeKnown(P.Raw, O);
 end;
 
@@ -253,6 +301,10 @@ begin
     Result.ManualStart := AIJSONDate(O, 'manual_start');
     Result.ManualFinish := AIJSONDate(O, 'manual_finish');
     Result.CalendarName := Trim(AIJSONStr(O, 'calendar'));
+    Result.Priority := AIJSONInt64(O, 'priority', 500);
+    if (Result.Priority < 0) or (Result.Priority > 1000) then
+      raise EPJFormat.CreateFmt('%s: prioridade fora de 0..1000', [Result.Id]);
+    Result.LevelStart := AIJSONDate(O, 'level_start');
     Spec := AIJSONObj(O, 'tech_spec');
     if Spec <> nil then
     begin
@@ -304,13 +356,71 @@ begin
   end;
 end;
 
+function JSONNumber(O: TJSONObject; const K: string; Def: Double; const Where: string): Double;
+var D: TJSONData;
+begin
+  D := O.Find(K);
+  if (D = nil) or (D.JSONType = jtNull) then Exit(Def);
+  if D.JSONType <> jtNumber then
+    raise EPJFormat.CreateFmt('%s: "%s" deve ser numero', [Where, K]);
+  Result := D.AsFloat;
+end;
+
+function ResourceFromJSON(O: TJSONObject; Index: Integer): TPJResource;
+var S: string;
+begin
+  Result := TPJResource.Create;
+  try
+    Result.Id := Trim(AIJSONStr(O, 'id'));
+    if Result.Id = '' then raise EPJFormat.CreateFmt('recurso %d sem "id"', [Index + 1]);
+    Result.Name := AIJSONStr(O, 'name');
+    S := AIJSONStr(O, 'type', 'person');
+    if not TryResourceTypeFromName(S, Result.RType) then
+      raise EPJFormat.CreateFmt('%s: tipo de recurso desconhecido "%s"', [Result.Id, S]);
+    Result.MaxUnits := JSONNumber(O, 'max_units', 100, Result.Id) / 100;
+    if Result.MaxUnits < 0 then raise EPJFormat.CreateFmt('%s: unidades maximas negativas', [Result.Id]);
+    Result.CalendarName := Trim(AIJSONStr(O, 'calendar'));
+    Result.Group := AIJSONStr(O, 'group');
+    Result.Role := AIJSONStr(O, 'role');
+    Result.Email := AIJSONStr(O, 'email');
+    S := AIJSONStr(O, 'machine_type');
+    if (S <> '') and not TryMachineTypeFromName(S, Result.MachineType) then
+      raise EPJFormat.CreateFmt('%s: tipo de maquina desconhecido "%s"', [Result.Id, S]);
+    Result.Equipment := AIJSONStr(O, 'equipment');
+    Result.MaterialUnit := AIJSONStr(O, 'unit');
+    Result.Raw := TJSONObject(O.Clone);
+  except
+    Result.Free;
+    raise;
+  end;
+end;
+
+function AssignmentFromJSON(O: TJSONObject; Index: Integer): TPJAssignment;
+begin
+  Result := TPJAssignment.Create;
+  try
+    Result.TaskId := Trim(AIJSONStr(O, 'task'));
+    Result.ResourceId := Trim(AIJSONStr(O, 'resource'));
+    if (Result.TaskId = '') or (Result.ResourceId = '') then
+      raise EPJFormat.CreateFmt('atribuicao %d sem "task"/"resource"', [Index + 1]);
+    Result.Units := JSONNumber(O, 'units', 100, Result.TaskId) / 100;
+    Result.Quantity := JSONNumber(O, 'quantity', 0, Result.TaskId);
+    if (Result.Units < 0) or (Result.Quantity < 0) then
+      raise EPJFormat.CreateFmt('atribuicao %s/%s com valor negativo', [Result.TaskId, Result.ResourceId]);
+    Result.Raw := TJSONObject(O.Clone);
+  except
+    Result.Free;
+    raise;
+  end;
+end;
+
 procedure ProjectFromJSON(P: TPJProject; Obj: TJSONObject);
 var
   Ver: Int64;
   Fmt, S, Par: string;
   ObjO, Opt, TaskObj: TJSONObject;
   Arr: TJSONArray;
-  List, LinkList: TFPObjectList;
+  List, LinkList, ResList, AsgList: TFPObjectList;
   G: TAITaskGraph;
   GErr: string;
   Stack, Ids: TStringList;
@@ -375,6 +485,8 @@ begin
 
   List := TFPObjectList.Create(True);
   LinkList := TFPObjectList.Create(True);
+  ResList := TFPObjectList.Create(True);
+  AsgList := TFPObjectList.Create(True);
   CalList := nil;
   Stack := TStringList.Create;
   Ids := TStringList.Create;
@@ -445,6 +557,27 @@ begin
       end;
     end;
 
+    { recursos e atribuicoes (fase 7) }
+    Arr := AIJSONArr(Obj, 'resources');
+    if Arr <> nil then
+      for I := 0 to Arr.Count - 1 do
+      begin
+        if Arr.Items[I].JSONType <> jtObject then
+          raise EPJFormat.CreateFmt('recurso %d invalido', [I + 1]);
+        ResList.Add(ResourceFromJSON(TJSONObject(Arr.Items[I]), I));
+        for K := 0 to ResList.Count - 2 do
+          if SameText(TPJResource(ResList[K]).Id, TPJResource(ResList[ResList.Count - 1]).Id) then
+            raise EPJFormat.CreateFmt('recurso repetido: %s', [TPJResource(ResList[K]).Id]);
+      end;
+    Arr := AIJSONArr(Obj, 'assignments');
+    if Arr <> nil then
+      for I := 0 to Arr.Count - 1 do
+      begin
+        if Arr.Items[I].JSONType <> jtObject then
+          raise EPJFormat.CreateFmt('atribuicao %d invalida', [I + 1]);
+        AsgList.Add(AssignmentFromJSON(TJSONObject(Arr.Items[I]), I));
+      end;
+
     { ciclo, tarefa inexistente ou resumo ligado a subtarefa: recusa o arquivo }
     G := BuildTaskGraphFrom(List, LinkList, GErr);
     if G = nil then raise EPJFormat.Create('vinculos invalidos: ' + GErr);
@@ -464,9 +597,12 @@ begin
     P.Raw := TJSONObject(Obj.Clone);
     P.AdoptTasks(List);
     P.AdoptLinks(LinkList);
+    P.AdoptResources(ResList, AsgList);
   finally
     List.Free;
     LinkList.Free;
+    ResList.Free;
+    AsgList.Free;
     CalList.Free;
     Stack.Free;
     Ids.Free;

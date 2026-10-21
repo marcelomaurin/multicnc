@@ -1,10 +1,10 @@
 # CHATGPT / AI Project Core snapshot
 
 Origin: `pacote/AI Project Core` of https://github.com/marcelomaurin/CHATGPT,
-commit `905070dd69e309092f9ffb26f6255714bcbcc5a6` (2026-10-20).
+commit `78f3f2b1cb0bb7201d2b73ce3bcafca70f632166` (2026-10-21).
 
 Units: `aiprojectduration`, `aiundohistory`, `aijsonutils`, `aitaskgraph`,
-`aiworkcalendar`, `aicpmscheduler` (FCL only, no LCL),
+`aiworkcalendar`, `aicpmscheduler`, `airesourceload` (FCL only, no LCL),
 used by the MultiProject. They are identical to the upstream files and use the
 CHATGPT repository license (`../LICENSE`).
 

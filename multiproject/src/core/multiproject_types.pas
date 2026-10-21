@@ -34,6 +34,10 @@ type
 
   TPJResourceType = (rtPerson, rtAI, rtMachine, rtMaterial, rtCost);
 
+  { tipo de maquina (o mesmo do cadastro de equipamentos do MultiCNC) }
+  TPJMachineType = (pmNone, pmRouter, pmLaser, pmPrinter3D, pmLathe, pmOther);
+  TPJMachineTypes = set of TPJMachineType;
+
   TPJCriterionState = (csPending, csPassed, csFailed, csWaived);
 
   TPJScheduleFrom = (sfStart, sfFinish);
@@ -75,6 +79,13 @@ function ModeName(M: TPJScheduleMode): string;
 function TryModeFromName(const S: string; out M: TPJScheduleMode): Boolean;
 function ResourceTypeName(R: TPJResourceType): string;
 function TryResourceTypeFromName(const S: string; out R: TPJResourceType): Boolean;
+function ResourceTypeCaption(R: TPJResourceType): string;
+function MachineTypeName(M: TPJMachineType): string;
+function TryMachineTypeFromName(const S: string; out M: TPJMachineType): Boolean;
+function MachineTypeCaption(M: TPJMachineType): string;
+{ maquinas que fazem a tarefa; [] = o tipo de tarefa nao usa maquina }
+function MachineTypesFor(K: TPJTaskKind): TPJMachineTypes;
+function MachineTypesCaption(const M: TPJMachineTypes): string;
 function CriterionStateName(C: TPJCriterionState): string;
 function TryCriterionStateFromName(const S: string; out C: TPJCriterionState): Boolean;
 function ScheduleFromName(S: TPJScheduleFrom): string;
@@ -106,6 +117,12 @@ const
   MODE_NAMES: array[TPJScheduleMode] of string = ('auto', 'manual');
   RESOURCE_NAMES: array[TPJResourceType] of string = ('person', 'ai', 'machine',
     'material', 'cost');
+  RESOURCE_CAPTIONS: array[TPJResourceType] of string = ('Pessoa', 'IA', 'Maquina',
+    'Material', 'Custo');
+  MACHINE_NAMES: array[TPJMachineType] of string = ('', 'router', 'laser',
+    'printer3d', 'lathe', 'other');
+  MACHINE_CAPTIONS: array[TPJMachineType] of string = ('-', 'CNC Router', 'Laser',
+    'Impressora 3D', 'Torno', 'Outra');
   CRITERION_NAMES: array[TPJCriterionState] of string = ('pending', 'passed',
     'failed', 'waived');
   FROM_NAMES: array[TPJScheduleFrom] of string = ('start', 'finish');
@@ -188,6 +205,58 @@ begin
     if SameText(S, RESOURCE_NAMES[I]) then begin R := I; Exit(True); end;
   R := rtPerson;
   Result := False;
+end;
+
+function ResourceTypeCaption(R: TPJResourceType): string;
+begin
+  Result := RESOURCE_CAPTIONS[R];
+end;
+
+function MachineTypeName(M: TPJMachineType): string;
+begin
+  Result := MACHINE_NAMES[M];
+end;
+
+function TryMachineTypeFromName(const S: string; out M: TPJMachineType): Boolean;
+var I: TPJMachineType;
+begin
+  for I := Low(I) to High(I) do
+    if SameText(S, MACHINE_NAMES[I]) then begin M := I; Exit(True); end;
+  { nomes do cadastro do MultiCNC }
+  if SameText(S, 'printer') or SameText(S, '3dprinter') then begin M := pmPrinter3D; Exit(True); end;
+  if SameText(S, 'cnc') then begin M := pmRouter; Exit(True); end;
+  M := pmNone;
+  Result := False;
+end;
+
+function MachineTypeCaption(M: TPJMachineType): string;
+begin
+  Result := MACHINE_CAPTIONS[M];
+end;
+
+function MachineTypesFor(K: TPJTaskKind): TPJMachineTypes;
+begin
+  case K of
+    tkPrint3D: Result := [pmPrinter3D];
+    tkRouter: Result := [pmRouter];
+    tkLaserCut, tkLaserArt: Result := [pmLaser];
+    tkLathe: Result := [pmLathe];
+    tkPCBFab: Result := [pmLaser, pmRouter];     // LaserPCB ou RouterPCB
+  else
+    Result := [];
+  end;
+end;
+
+function MachineTypesCaption(const M: TPJMachineTypes): string;
+var I: TPJMachineType;
+begin
+  Result := '';
+  for I := Low(I) to High(I) do
+    if I in M then
+    begin
+      if Result <> '' then Result := Result + ' ou ';
+      Result := Result + MACHINE_CAPTIONS[I];
+    end;
 end;
 
 function CriterionStateName(C: TPJCriterionState): string;

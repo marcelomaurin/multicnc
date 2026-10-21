@@ -23,16 +23,16 @@
 
 ## Progresso
 
-| Fase | Estado em 20/10/2026 | Entrega |
+| Fase | Estado em 21/10/2026 | Entrega |
 |---|---|---|
 | 0 Especificação | concluída | README, REQUISITOS, ARCHITECTURE, LAYOUT, TAREFA, AI_GUIDE |
 | 1 Documento e tarefas | concluída no Linux (20/10); Win64 pendente | `multiproject_types`, `multiproject_document`, `multiproject_json`; `test_multiproject_core.lpr` com 102 checks; usa `aiprojectduration`, `aiundohistory` e `aijsonutils` do CHATGPT |
 | 2 Grafo | concluída no Linux (20/10); Win64 pendente | `aitaskgraph` no CHATGPT (`ec5cccf`, 61 checks) + `multiproject_graph` (adaptador com expansão dos resumos) e vínculos no documento e no `.mproj`; `test_multiproject_graph.lpr` com 88 checks |
 | 3 Calendário e cronograma | concluída no Linux (20/10); Win64 pendente | `aiworkcalendar` (`c9ad854`, 57 checks) e `aicpmscheduler` (`3557a7b`, 47 checks) no CHATGPT + `multiproject_schedule`, calendários e restrições no documento e no `.mproj`; `test_multiproject_schedule.lpr` com 82 checks |
-| 4 Tela e registro na suíte | concluída no Linux (20/10); Win64 e `bin/multiproject.exe` pendentes | vistas genéricas no CHATGPT (`TAIGanttView`, `TAINetworkView`, `TAIBoardView`, até `1448eb8`, 42 checks) + `multiproject_main`/`multiproject_views`, registro na suíte (grupo PLANEJAR), `test_multiproject_ui` com 51 checks sob Xvfb e `test_multiproject_states` com 20 |
+| 4 Tela e registro na suíte | concluída (20/10); `bin/multiproject.exe` win64 e setup 015 (21/10) | vistas genéricas no CHATGPT (`TAIGanttView`, `TAINetworkView`, `TAIBoardView`, até `1448eb8`, 42 checks) + `multiproject_main`/`multiproject_views`, registro na suíte (grupo PLANEJAR), `test_multiproject_ui` com 51 checks sob Xvfb e `test_multiproject_states` com 20 |
 | 5 Vínculo com as ferramentas | pendente | `--new`/`--task`, `.task.json`, detecção, verificadores, Abrir na ferramenta |
 | 6 Regras de geração e modelos | pendente | PJ-A01..A08, exemplo Motor DC, modelos |
-| 7 Recursos e custos | pendente | máquinas do MultiCNC, atribuições, superalocação, nivelamento, Equipe, custos |
+| 7 Recursos e custos | 7.1 a 7.4 e 7.8 concluídas (21/10), adiantadas a pedido; custos (7.5), estimativa pelo G-code (7.6) e tipos de tarefa (7.7) pendentes | `airesourceload` (`TAIResourceLoad`, `TAIResourceLeveler`, 83 checks) e `TAIResourceView` (68 checks nas vistas) no CHATGPT, até `78f3f2b` + `multiproject_resources`, recursos e atribuições no documento e no `.mproj`, etapa 4 Recursos, vista Equipe, coluna Recursos e nivelamento na etapa 5; `test_multiproject_resources.lpr` com 116 checks e `test_multiproject_ui` com 84 |
 | 8 Linha de base, acompanhamento e relatórios | pendente | linhas de base, progresso, valor agregado, HTML/PDF, Calendário, Linha do tempo |
 | 9 IA | pendente | contrato do plano, decomposição do objetivo pela suíte CHATGPT |
 | 10 Intercâmbio e multiprojeto | pendente | XML do Project (MSPDI), CSV, CLI, subprojetos, pool |
@@ -323,19 +323,25 @@ Resultado da fase 4:
 
 ### Fase 7: recursos e custos (≈ 5 h)
 
-- [ ] 7.1 Recursos (pessoa, IA, máquina, material, custo), unidades máximas e calendário do
-      recurso (PJ-R01, C03).
-- [ ] 7.2 Importar e sincronizar máquinas do `multicnc.json` em somente leitura (PJ-R02).
-- [ ] 7.3 Atribuições com compatibilidade máquina × tipo de tarefa e superalocação (PJ-R03,
-      R04).
-- [ ] 7.4 Nivelamento e limpeza do nivelamento (PJ-R05), vista Equipe (PJ-V06), recurso
-      genérico (PJ-R06) e prioridade (PJ-T24).
+- [x] 7.1 Recursos (pessoa, IA, máquina, material, custo), unidades máximas e calendário do
+      recurso (PJ-R01, C03). A pessoa guarda função e e-mail (usuário da equipe); a máquina
+      guarda o tipo (router, laser, impressora 3D, torno) e o equipamento do MultiCNC. Tarefa
+      sem calendário próprio usa o calendário da máquina atribuída (impressora 24 h).
+- [x] 7.2 Importar as máquinas do `multicnc.json` em somente leitura (PJ-R02): cria ou
+      atualiza um recurso por equipamento e nunca apaga.
+- [x] 7.3 Atribuições com unidades e quantidade, compatibilidade máquina × tipo de tarefa no
+      Validar e superalocação no tempo útil do recurso (PJ-R03, R04): aviso com o recurso, o
+      período e as tarefas; marca `(!)` na coluna Recursos, no Quadro, na planilha e na vista
+      Equipe.
+- [x] 7.4 Nivelamento e limpeza do nivelamento (PJ-R05), com prioridade 0–1000 (PJ-T24),
+      "só dentro da margem" e tarefa em andamento fixa; vista Equipe (PJ-V06) com arraste
+      para reatribuir. Falta o recurso genérico (PJ-R06).
 - [ ] 7.5 Custos: taxas, custo por uso, custo fixo com acumulação e material automático do
       MultiSlicer e da BOM (PJ-$01..$03).
 - [ ] 7.6 Estimativa de duração pelo G-code e pelo MultiSlicer (PJ-L08).
 - [ ] 7.7 Tipos de tarefa e controlada pelo empenho (PJ-T19).
-- [ ] 7.8 Testes: duas impressões na mesma Ender-3 viram sequenciais; limpar o nivelamento
-      restaura as datas; fórmula do trabalho nos três tipos.
+- [x] 7.8 Testes: impressões na mesma máquina viram sequenciais; limpar o nivelamento
+      restaura as datas (falta a fórmula do trabalho nos três tipos, com a 7.7).
 
 ### Fase 8: linha de base, acompanhamento e relatórios (≈ 5 h)
 

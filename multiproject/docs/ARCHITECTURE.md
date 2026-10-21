@@ -127,11 +127,14 @@ recalculados ao abrir. Isso evita arquivos inconsistentes. A linha de base é gr
 
 | Recurso | Campos |
 |---|---|
-| comum | `id` (`R-001`), `name`, `type` (`person`, `ai`, `machine`, `material`, `cost`), `max_units`, `calendar`, `rate`, `per_use`, `group` |
+| comum | `id` (`R-001`), `name`, `type` (`person`, `ai`, `machine`, `material`, `cost`), `max_units` (em %: 100 = uma pessoa ou máquina), `calendar`, `group`, `rate` e `per_use` (fase 7.5) |
+| pessoa | `role` (função), `email` |
 | máquina | `equipment` (nome do equipamento no `multicnc.json`), `machine_type` (`router`, `laser`, `printer3d`, `lathe`, `other`), `work_volume` |
 | material | `unit` (kg, m², un), `unit_cost` |
 
-Atribuição: `{task, resource, units, quantity, source}`. `source` diz se o valor veio do
+Atribuição: `{task, resource, units, quantity, source}`, com `units` em % (50 = meio período)
+e `quantity` na unidade do material. A tarefa guarda `priority` (0–1000) e `level_start`
+(atraso do nivelamento, "não iniciar antes de"; vazio sem nivelamento). `source` diz se o valor veio do
 usuário, do MultiSlicer (massa) ou da BOM.
 
 ## Tipos de tarefa
@@ -262,8 +265,8 @@ de cada tipo de vínculo e restrição.
   "links": [ { "from": "T-0002", "to": "T-0020", "type": "FS", "lag": 0, "lag_unit": "d",
                "lag_elapsed": false, "lag_is_percent": false, "lag_percent": 0, "artifact": true } ],
   "resources": [ { "id": "R-001", "name": "Ender-3", "type": "machine", "machine_type": "printer3d",
-                   "equipment": "Ender-3", "max_units": 1, "calendar": "24h" } ],
-  "assignments": [ { "task": "T-0020", "resource": "R-001", "units": 1 } ],
+                   "equipment": "Ender-3", "max_units": 100, "calendar": "24h" } ],
+  "assignments": [ { "task": "T-0020", "resource": "R-001", "units": 100, "quantity": 0 } ],
   "calendars": [ { "name": "padrao", "week": [[], [[480,720],[780,1020]], "...", []],
                    "exceptions": [ { "date": "2026-11-02", "name": "Finados", "intervals": [] } ] },
                  { "name": "24h", "week": [[[0,1440]], "..."], "exceptions": [] } ],

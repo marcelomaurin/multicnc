@@ -2,7 +2,12 @@ unit multiproject_examples;
 
 { Exemplo do README do MultiProject: construir um motor DC didatico.
   Usado pelo botao Demo da tela e pelos testes. As duracoes sao as do teste
-  do cronograma (fase 3): o projeto termina na terca 03/11/2026 10:00. }
+  do cronograma (fase 3): o projeto termina na terca 03/11/2026 10:00.
+
+  Equipe e oficina (fase 7): tres pessoas e quatro maquinas. As maquinas com
+  operador usam o calendario do projeto; so a impressora roda 24 h. Sem
+  nivelar ha conflitos de proposito: Ana em tres pecas no mesmo dia, o laser
+  e a Carla com duas fabricacoes ao mesmo tempo. }
 
 {$mode objfpc}{$H+}
 
@@ -26,6 +31,22 @@ var
     Result := P.AddTask(AParent, AKind, AName, AShort);
     Result.Process := AProcess;
     if not P.SetDurationText(Result.Id, ADur, Err) then raise EPJError.Create(Err);
+  end;
+
+  function Res(const AName: string; AType: TPJResourceType; const ARole: string;
+    AMachine: TPJMachineType = pmNone; const ACal: string = ''): TPJResource;
+  begin
+    Result := P.AddResource(AName, AType);
+    Result.Role := ARole;
+    Result.MachineType := AMachine;
+    Result.CalendarName := ACal;
+    if AType = rtMachine then Result.Group := 'Oficina' else Result.Group := 'Equipe';
+  end;
+
+  procedure A(const ATask, AResource: string; AUnits: Double = 1);
+  var Err: string;
+  begin
+    if not P.Assign(ATask, AResource, AUnits, Err) then raise EPJError.Create(Err);
   end;
 
   procedure L(const A, B: string; Artifact: Boolean = True);
@@ -94,6 +115,26 @@ begin
   L('T-0012', 'T-0013');
   L('T-0010', 'T-0015'); L('T-0011', 'T-0015'); L('T-0013', 'T-0015'); L('T-0014', 'T-0015');
   L('T-0015', 'T-0016', False); L('T-0016', Fim.Id, False);
+
+  { equipe e oficina: R-001..R-008 }
+  Res('Ana', rtPerson, 'Projetista mecanica').Email := 'ana@oficina.local';
+  Res('Bruno', rtPerson, 'Eletronica').Email := 'bruno@oficina.local';
+  Res('Carla', rtPerson, 'Fabricacao').Email := 'carla@oficina.local';
+  Res('Ender-3', rtMachine, '', pmPrinter3D, PJ_CAL_24H).Equipment := 'Ender-3';
+  Res('Laser 10 W', rtMachine, '', pmLaser).Equipment := 'Laser 10 W';
+  Res('Torno', rtMachine, '', pmLathe);
+  Res('CNC Router', rtMachine, '', pmRouter).Equipment := 'CNC Router';
+  Res('PETG', rtMaterial, '').MaterialUnit := 'kg';
+  A('T-0002', 'Ana'); A('T-0003', 'Ana'); A('T-0004', 'Ana');
+  A('T-0005', 'Bruno');
+  A('T-0006', 'Ana'); A('T-0007', 'Ana'); A('T-0007', 'Bruno', 0.5);
+  A('T-0010', 'Ender-3'); A('T-0010', 'PETG', 0.12);
+  A('T-0011', 'Torno'); A('T-0011', 'Carla');
+  A('T-0012', 'Laser 10 W'); A('T-0012', 'Carla');
+  A('T-0013', 'Laser 10 W'); A('T-0013', 'Carla');
+  A('T-0014', 'Laser 10 W'); A('T-0014', 'Bruno');
+  A('T-0015', 'Carla');
+  A('T-0016', 'Bruno'); A('T-0016', 'Carla', 0.5);
   P.ClearHistory;
   P.Modified := False;
 end;

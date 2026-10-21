@@ -1,7 +1,7 @@
 unit multiproject_views;
 
 { Preenche as vistas genericas do CHATGPT (TAIGanttView, TAINetworkView,
-  TAIBoardView) a partir do documento e do cronograma do MultiProject, com a
+  TAIBoardView, TAIResourceView) a partir do documento e do cronograma do MultiProject, com a
   paleta e os icones da MultiSuite (LAYOUT.md, "Vistas centrais").
 
   Filtros (PJ-V08): todas, criticas, atrasadas, sugeridas, uma cadeia, por
@@ -14,7 +14,8 @@ interface
 
 uses
   Classes, SysUtils, StrUtils, Math, Graphics, DateUtils,
-  aiprojectduration, aitaskgraph, aicpmscheduler, aiganttview, ainetworkview, aiboardview,
+  aiprojectduration, aitaskgraph, aicpmscheduler, airesourceload, aiganttview, ainetworkview,
+  aiboardview, airesourceview,
   multisuite_controls, multisuite_icons,
   multiproject_types, multiproject_document, multiproject_graph, multiproject_schedule;
 
@@ -33,7 +34,11 @@ type
 const
   { colunas do Gantt }
   GC_WBS = 0; GC_ID = 1; GC_NAME = 2; GC_TOOL = 3; GC_DUR = 4; GC_START = 5;
-  GC_FINISH = 6; GC_PRED = 7;
+  GC_FINISH = 6; GC_PRED = 7; GC_RES = 8;
+  { marca de superalocacao na coluna Recursos (tirada antes de editar) }
+  PJ_OVERLOAD_MARK = '  (!)';
+  { linha "sem recurso" da vista Equipe }
+  PJ_TEAM_UNASSIGNED = '-';
   { colunas do quadro: indice -> estado }
   BOARD_STATES: array[0..5] of TPJTaskState = (tsSuggested, tsPlanned, tsInProgress,
     tsReview, tsDone, tsBlocked);
@@ -46,9 +51,15 @@ function FmtDateTime(D: TDateTime): string;
 procedure StyleGantt(G: TAIGanttView);
 procedure StyleNetwork(N: TAINetworkView);
 procedure StyleBoard(B: TAIBoardView);
+procedure StyleTeam(V: TAIResourceView);
 procedure FillGantt(G: TAIGanttView; P: TPJProject; Sc: TPJSchedule; const O: TPJViewOptions);
 procedure FillNetwork(N: TAINetworkView; P: TPJProject; Sc: TPJSchedule);
 procedure FillBoard(B: TAIBoardView; P: TPJProject; Sc: TPJSchedule);
+{ Equipe: uma linha por recurso de trabalho (pessoas, IA, maquinas) e a linha
+  "Sem recurso" com as tarefas que ainda nao tem ninguem. Bar.Tag = indice da
+  atribuicao (-1 na linha sem recurso); Row.Id = ID do recurso. }
+procedure FillTeam(V: TAIResourceView; P: TPJProject; Sc: TPJSchedule; HighlightCritical: Boolean);
+function ResourceIcon(R: TPJResource): TSuiteIconKind;
 function BoardColumnOf(S: TPJTaskState): Integer;
 function TaskPassesFilter(P: TPJProject; Sc: TPJSchedule; I: Integer; const O: TPJViewOptions;
   const Chains: TPJChains): Boolean;
@@ -159,6 +170,7 @@ begin
   G.AddColumn('Inicio', 118);
   G.AddColumn('Termino', 118);
   G.AddColumn('Predecessoras', 140, True);
+  G.AddColumn('Recursos', 170, True);
   G.TreeColumn := GC_NAME;
   G.TableWidth := 44 + 62 + 230 + 96 + 66;
 end;
@@ -261,7 +273,7 @@ begin
   if T.State = tsDone then Result.Progress := 100
   else if T.State in [tsInProgress, tsReview] then Result.Progress := 50;
   Result.Tag := I;
-  SetLength(Result.Cells, 8);
+  SetLength(Result.Cells, 9);
   Result.Cells[GC_WBS] := P.WBS(I);
   Result.Cells[GC_ID] := T.Id;
   Result.Cells[GC_NAME] := T.Name;
@@ -270,6 +282,9 @@ begin
   Result.Cells[GC_START] := FmtDateTime(R.Start);
   Result.Cells[GC_FINISH] := FmtDateTime(R.Finish);
   Result.Cells[GC_PRED] := P.PredecessorsText(T.Id);
+  Result.Cells[GC_RES] := P.ResourcesText(T.Id);
+  if Sc.Valid and Sc.TaskOverallocated(T.Id) then
+    Result.Cells[GC_RES] := Result.Cells[GC_RES] + PJ_OVERLOAD_MARK;
 end;
 
 procedure FillGantt(G: TAIGanttView; P: TPJProject; Sc: TPJSchedule; const O: TPJViewOptions);
@@ -452,10 +467,16 @@ begin
       Cd := AIBoardCard(T.Id, T.Id + '  ' + T.Name, C);
       Cd.Subtitle := KindCaption(T.Kind) + IfThen(KindToolName(T.Kind) <> '', ' - ' + KindToolName(T.Kind), '');
       if Sc.Valid then Cd.Footer := 'Termino ' + FormatDateTime('dd"/"mm hh":"nn', Sc[I].Finish);
+      if P.ResourcesText(T.Id) <> '' then Cd.Footer := Cd.Footer + '  -  ' + P.ResourcesText(T.Id);
       if T.State = tsOutdated then
       begin
         Cd.Badge := 'desatualizada';
         Cd.BadgeColor := clSuiteWarning;
+      end
+      else if Sc.Valid and Sc.TaskOverallocated(T.Id) then
+      begin
+        Cd.Badge := 'conflito';
+        Cd.BadgeColor := clSuiteDanger;
       end
       else if Sc.Valid and Sc[I].Critical then
       begin
@@ -473,6 +494,142 @@ begin
   KeepIdx := -1;
   if KeepId <> '' then KeepIdx := B.IndexOfId(KeepId);
   B.Selected := KeepIdx;
+end;
+
+procedure StyleTeam(V: TAIResourceView);
+begin
+  V.Font.Name := SUITE_FONT;
+  V.Font.Size := 9;
+  V.ColorBackground := clSuiteCard;
+  V.ColorHeader := clSuiteSurface;
+  V.ColorHeaderText := clSuiteText;
+  V.ColorGrid := clSuiteBorder;
+  V.ColorText := clSuiteText;
+  V.ColorMuted := clSuiteMuted;
+  V.ColorBar := clSuitePrimary;
+  V.ColorCritical := clSuiteDanger;
+  V.ColorSelection := clSuiteNavy;
+  V.ColorDanger := clSuiteDanger;
+  V.ColorNonWork := SuiteMix(clSuiteSurface, clSuiteBorder, 0.35);
+  V.ColorStatusLine := clSuiteWarning;
+  V.ColorLabel := clSuiteSurface;
+  V.LabelWidth := 190;
+end;
+
+function ResourceIcon(R: TPJResource): TSuiteIconKind;
+begin
+  case R.RType of
+    rtMachine:
+      case R.MachineType of
+        pmPrinter3D: Result := sikSlicer;
+        pmLaser: Result := sikLaserArt;
+        pmRouter: Result := sikMakeRouter;
+      else
+        Result := sikGear;
+      end;
+    rtAI: Result := sikWand;
+  else
+    Result := sikTarget;
+  end;
+end;
+
+function TeamGroup(R: TPJResource): string;
+begin
+  case R.RType of
+    rtMachine: Result := 'Maquinas';
+    rtAI: Result := 'IA';
+  else
+    Result := 'Pessoas';
+  end;
+end;
+
+procedure FillTeam(V: TAIResourceView; P: TPJProject; Sc: TPJSchedule; HighlightCritical: Boolean);
+var
+  Pass, I, R, Row, A: Integer;
+  Res: TPJResource;
+  Rw: TAIResourceRow;
+  Br: TAIResourceBar;
+  RowOf: array of Integer;
+  T: TPJTask;
+  HasWork: Boolean;
+  Ov: TAIOverload;
+  KeepId: string;
+  Unassigned: Integer;
+  Grp: string;
+begin
+  if V.Selected >= 0 then KeepId := V.Bar(V.Selected).Id else KeepId := '';
+  SetLength(RowOf, P.ResourceCount);
+  V.BeginUpdate;
+  try
+    V.Clear;
+    { pessoas, IA e maquinas, nessa ordem; material e custo nao ocupam tempo }
+    for Pass := 0 to 2 do
+      for I := 0 to P.ResourceCount - 1 do
+      begin
+        Res := P.Resources[I];
+        if (Pass = 0) and (Res.RType <> rtPerson) then Continue;
+        if (Pass = 1) and (Res.RType <> rtAI) then Continue;
+        if (Pass = 2) and (Res.RType <> rtMachine) then Continue;
+        Grp := TeamGroup(Res);
+        Rw := AIResourceRow(Res.Id, Res.Name, Grp);
+        if Res.RType = rtMachine then Rw.Subtitle := MachineTypeCaption(Res.MachineType)
+        else if Res.Role <> '' then Rw.Subtitle := Res.Role
+        else Rw.Subtitle := ResourceTypeCaption(Res.RType);
+        Rw.Subtitle := Rw.Subtitle + Format('  %d%%', [Round(Res.MaxUnits * 100)]);
+        if Res.RType = rtMachine then Rw.Color := SuiteRGB(234, 88, 12) else Rw.Color := clSuitePrimary;
+        Rw.Tag := I;
+        RowOf[I] := V.AddRow(Rw);
+      end;
+    Rw := AIResourceRow(PJ_TEAM_UNASSIGNED, 'Sem recurso', 'Pendentes');
+    Rw.Subtitle := 'tarefas sem pessoa ou maquina';
+    Rw.Color := clSuiteFaint;
+    Rw.Tag := -1;
+    Unassigned := V.AddRow(Rw);
+    if not Sc.Valid then Exit;
+    for I := 0 to P.Count - 1 do
+    begin
+      if P.HasChildren(I) then Continue;
+      T := P[I];
+      if (T.State = tsCancelled) or (T.Kind = tkMilestone) then Continue;
+      HasWork := False;
+      for A in P.AssignmentsOfTask(T.Id) do
+      begin
+        R := P.IndexOfResource(P.Assignments[A].ResourceId);
+        if (R < 0) or not (P.Resources[R].RType in [rtPerson, rtAI, rtMachine]) then Continue;
+        HasWork := True;
+        Br := AIResourceBar(T.Id, RowOf[R], Sc[I].Start, Sc[I].Finish, T.Id + '  ' + T.Name);
+        if Abs(P.Assignments[A].Units - 1) > 1E-6 then
+          Br.Caption := Br.Caption + Format(' (%d%%)', [Round(P.Assignments[A].Units * 100)]);
+        Br.Color := KindColor(T.Kind);
+        { na Equipe o vermelho e do conflito: critica so com o realce ligado e sem cor do tipo }
+        Br.Critical := False;
+        Br.Dashed := T.State = tsSuggested;
+        Br.Overloaded := Sc.AssignmentOverallocated(T.Id, P.Resources[R].Id);
+        Br.Tag := A;
+        V.AddBar(Br);
+      end;
+      if not HasWork then
+      begin
+        Br := AIResourceBar(T.Id, Unassigned, Sc[I].Start, Sc[I].Finish, T.Id + '  ' + T.Name);
+        Br.Color := KindColor(T.Kind);
+        Br.Dashed := True;
+        Br.Tag := -1;
+        V.AddBar(Br);
+      end;
+    end;
+    { superalocacao: faixa hachurada e barras marcadas }
+    for I := 0 to Sc.Load.OverloadCount - 1 do
+    begin
+      Ov := Sc.Load.Overloads[I];
+      R := P.IndexOfResource(Sc.Load.Resources[Ov.Resource].Id);
+      if R < 0 then Continue;
+      Row := RowOf[R];
+      V.AddOverload(Row, Ov.Start, Ov.Finish);
+    end;
+  finally
+    V.EndUpdate;
+  end;
+  if KeepId <> '' then V.SelectId(KeepId);
 end;
 
 end.

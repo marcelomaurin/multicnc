@@ -9,7 +9,7 @@
  <CompilerOptions>
   <Version Value="11"/>
   <Target><Filename Value="test_multiproject_graph"/></Target>
-  <SearchPaths><OtherUnitFiles Value="../src/core;../src/io;../../../CHATGPT/pacote/AI Project Core;../../third_party/chatgpt/AIProjectCore;../../src/shared"/><UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)/test_multiproject_graph"/></SearchPaths>
+  <SearchPaths><OtherUnitFiles Value="../src/core;../src/io;../../../CHATGPT/pacote/AI Project Core;../../third_party/chatgpt/AIProjectCore;../../src/shared;../../src/core"/><UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)/test_multiproject_graph"/></SearchPaths>
   <Parsing><SyntaxOptions><SyntaxMode Value="ObjFPC"/></SyntaxOptions></Parsing>
   <CodeGeneration><Checks><IOChecks Value="True"/><RangeChecks Value="True"/><OverflowChecks Value="True"/><StackChecks Value="True"/></Checks></CodeGeneration>
  </CompilerOptions>

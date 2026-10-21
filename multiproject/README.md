@@ -2,8 +2,24 @@
 
 > **Estado:** primeira versão no setup 015 (21/10/2026): fases 0 a 4 prontas (documento
 > `.mproj`, grafo de tarefas com vínculos TI/II/TT/IT, calendários, cronograma pelo caminho
-> crítico, tela no padrão da suíte e registro na MultiSuite). As próximas etapas estão em
-> [docs/TAREFA.md](docs/TAREFA.md).
+> crítico, tela no padrão da suíte e registro na MultiSuite) e os recursos da fase 7
+> (pessoas, máquinas e materiais, atribuições, superalocação, nivelamento e vista Equipe).
+> As próximas etapas estão em [docs/TAREFA.md](docs/TAREFA.md).
+
+## Recursos e conflitos
+
+- **Pessoas** (os usuários da equipe, com função e e-mail), **máquinas** (router, laser,
+  impressora 3D, torno; importadas do cadastro do MultiCNC), **materiais** e **IA**, cada um
+  com unidades máximas (100% = uma pessoa ou máquina) e calendário.
+- Atribuição na página da tarefa, na coluna **Recursos** do Gantt (`Ana; Ender-3; Bruno[50%]`,
+  como no Project) ou arrastando a barra na vista **Equipe**.
+- O **Validar** confere máquina × tipo de tarefa: impressão pede impressora, corte e arte
+  laser pedem laser, placa aceita laser ou router.
+- **Superalocação**: quando um recurso tem mais trabalho que as unidades no mesmo período, o
+  aviso diz o recurso, o período e as tarefas ("Ana superalocado de 26/10/2026 08:00 a 12:00:
+  T-0002, T-0003 e T-0004 ao mesmo tempo"). A vista Equipe hachura o período em vermelho.
+- **Nivelar recursos** (etapa 5) atrasa as tarefas pela prioridade e pela margem até cada
+  recurso fazer uma coisa por vez; **Limpar nivelamento** volta às datas originais.
 
 O **MultiProject** é a porta de entrada da MultiSuite para quem quer **construir algo**, e
 não apenas desenhar uma peça. O usuário define um **objetivo** (por exemplo, *construir um

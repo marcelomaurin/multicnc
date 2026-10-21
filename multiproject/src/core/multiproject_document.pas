@@ -53,6 +53,9 @@ type
     Deadline: TDateTime;           // 0 = sem data limite
     ManualStart, ManualFinish: TDateTime;
     CalendarName: string;          // '' = calendario do projeto
+    { recursos (fase 7, PJ-T24, PJ-R05) }
+    Priority: Integer;             // 0..1000, padrao 500 (nivelamento)
+    LevelStart: TDateTime;         // atraso do nivelamento: nao iniciar antes; 0 = sem
     Notes: string;
     Level: Integer;
     { objeto JSON lido do arquivo: preserva campos que esta versao nao conhece }
@@ -76,11 +79,42 @@ type
     destructor Destroy; override;
   end;
 
+  { recurso: pessoa (usuario), IA, maquina, material ou custo (PJ-R01) }
+  TPJResource = class
+  public
+    Id: string;                    // R-001
+    Name: string;
+    RType: TPJResourceType;
+    MaxUnits: Double;              // 1 = 100%
+    CalendarName: string;          // '' = calendario do projeto
+    Group: string;                 // equipe, oficina...
+    Role: string;                  // funcao da pessoa (projetista, eletronica...)
+    Email: string;
+    MachineType: TPJMachineType;
+    Equipment: string;             // nome do equipamento no cadastro do MultiCNC
+    MaterialUnit: string;          // kg, m2, un
+    Raw: TJSONObject;
+    constructor Create;
+    destructor Destroy; override;
+  end;
+
+  { atribuicao tarefa x recurso (PJ-R03) }
+  TPJAssignment = class
+  public
+    TaskId, ResourceId: string;
+    Units: Double;                 // 1 = 100% (pessoa e maquina)
+    Quantity: Double;              // material
+    Raw: TJSONObject;
+    destructor Destroy; override;
+  end;
+
   TPJProject = class
   private
     FTasks: TFPObjectList;
     FLinks: TFPObjectList;
     FCalendars: TFPObjectList;
+    FResources: TFPObjectList;
+    FAssignments: TFPObjectList;
     FLastError: string;
     FHistory: TAIUndoHistory;
     FModified: Boolean;
@@ -88,6 +122,11 @@ type
     function GetCalendar(I: Integer): TAIWorkCalendar;
     function GetLinkCount: Integer;
     function GetLink(I: Integer): TPJLink;
+    function GetResourceCount: Integer;
+    function GetResource(I: Integer): TPJResource;
+    function GetAssignmentCount: Integer;
+    function GetAssignment(I: Integer): TPJAssignment;
+    procedure DeleteAssignmentsOf(const ATaskId, AResourceId: string);
     function IdExists(const AId: string): Boolean;
     function LevelsKeepGraph(AFirst, ALast, ADelta: Integer; out Err: string): Boolean;
     function GetCount: Integer;
@@ -165,6 +204,26 @@ type
     procedure ResetCalendars;
     procedure AdoptCalendars(AList: TFPObjectList);
 
+    { --- recursos e atribuicoes (PJ-R01..R05) --- }
+    function NewResourceId: string;
+    function IndexOfResource(const AIdOrName: string): Integer;
+    function FindResource(const AIdOrName: string): TPJResource;
+    function AddResource(const AName: string; AType: TPJResourceType): TPJResource;
+    function DeleteResource(const AId: string): Boolean;
+    function IndexOfAssignment(const ATaskId, AResourceId: string): Integer;
+    { atribui (ou muda as unidades); recusa resumo, marco e unidades invalidas }
+    function Assign(const ATaskId, AResourceId: string; AUnits: Double; out Err: string): Boolean;
+    function Unassign(const ATaskId, AResourceId: string): Boolean;
+    function AssignmentsOfTask(const ATaskId: string): TPJIntArray;
+    function AssignmentsOfResource(const AResourceId: string): TPJIntArray;
+    { texto da coluna Recursos, como no Project: "Ender-3; Ana[50%]" }
+    function ResourcesText(const ATaskId: string): string;
+    function SetResourcesText(const ATaskId, AText: string; out Err: string): Boolean;
+    function SetPriority(const ATaskId: string; APriority: Integer): Boolean;
+    procedure ValidateResources(var Issues: TPJIssues);
+    function HasLeveling: Boolean;
+    procedure AdoptResources(AResources, AAssignments: TFPObjectList);
+
     { edicao livre de campos: BeginChange antes, EndChange depois }
     procedure BeginChange(const Desc: string);
     procedure EndChange;
@@ -191,6 +250,10 @@ type
     property Calendars[I: Integer]: TAIWorkCalendar read GetCalendar;
     property LinkCount: Integer read GetLinkCount;
     property Links[I: Integer]: TPJLink read GetLink;
+    property ResourceCount: Integer read GetResourceCount;
+    property Resources[I: Integer]: TPJResource read GetResource;
+    property AssignmentCount: Integer read GetAssignmentCount;
+    property Assignments[I: Integer]: TPJAssignment read GetAssignment;
     { motivo da ultima recusa de Indent/Outdent }
     property LastError: string read FLastError;
     property Modified: Boolean read FModified write FModified;
@@ -209,6 +272,28 @@ begin
   inherited Destroy;
 end;
 
+{ ---------------- TPJResource / TPJAssignment ---------------- }
+
+constructor TPJResource.Create;
+begin
+  inherited Create;
+  RType := rtPerson;
+  MaxUnits := 1;
+  MachineType := pmNone;
+end;
+
+destructor TPJResource.Destroy;
+begin
+  Raw.Free;
+  inherited Destroy;
+end;
+
+destructor TPJAssignment.Destroy;
+begin
+  Raw.Free;
+  inherited Destroy;
+end;
+
 { ---------------- TPJTask ---------------- }
 
 constructor TPJTask.Create;
@@ -220,6 +305,7 @@ begin
   Mode := smAuto;
   Duration := AIMakeDuration(AI_DEFAULT_MINUTES_PER_DAY, aduDay, False, True);
   Constraint := actASAP;
+  Priority := 500;
   Level := 1;
 end;
 
@@ -262,6 +348,8 @@ begin
   FTasks := TFPObjectList.Create(True);
   FLinks := TFPObjectList.Create(True);
   FCalendars := TFPObjectList.Create(True);
+  FResources := TFPObjectList.Create(True);
+  FAssignments := TFPObjectList.Create(True);
   FHistory := TAIUndoHistory.Create(PJ_UNDO_LIMIT);
   Clear;
 end;
@@ -271,6 +359,8 @@ begin
   FLinks.Free;
   FTasks.Free;
   FCalendars.Free;
+  FAssignments.Free;
+  FResources.Free;
   FHistory.Free;
   Raw.Free;
   inherited Destroy;
@@ -280,6 +370,8 @@ procedure TPJProject.Clear;
 begin
   FLinks.Clear;
   FTasks.Clear;
+  FAssignments.Clear;
+  FResources.Clear;
   FreeAndNil(Raw);
   Id := '';
   Name := '';
@@ -590,6 +682,11 @@ begin
       B := IndexOfId(Links[J].ToId);
       if ((A >= I) and (A <= E)) or ((B >= I) and (B <= E)) then FLinks.Delete(J);
     end;
+    for J := FAssignments.Count - 1 downto 0 do
+    begin
+      A := IndexOfId(Assignments[J].TaskId);
+      if (A >= I) and (A <= E) then FAssignments.Delete(J);
+    end;
     for J := E downto I do FTasks.Delete(J);
   finally
     EndChange;
@@ -819,6 +916,316 @@ begin
 end;
 
 { ---------------- vinculos ---------------- }
+
+{ ---------------- recursos e atribuicoes ---------------- }
+
+function TPJProject.GetResourceCount: Integer;
+begin
+  Result := FResources.Count;
+end;
+
+function TPJProject.GetResource(I: Integer): TPJResource;
+begin
+  Result := TPJResource(FResources[I]);
+end;
+
+function TPJProject.GetAssignmentCount: Integer;
+begin
+  Result := FAssignments.Count;
+end;
+
+function TPJProject.GetAssignment(I: Integer): TPJAssignment;
+begin
+  Result := TPJAssignment(FAssignments[I]);
+end;
+
+function TPJProject.NewResourceId: string;
+var N: Integer;
+begin
+  N := FResources.Count + 1;
+  repeat
+    Result := Format('R-%.3d', [N]);
+    Inc(N);
+  until IndexOfResource(Result) < 0;
+end;
+
+function TPJProject.IndexOfResource(const AIdOrName: string): Integer;
+var I: Integer;
+begin
+  for I := 0 to FResources.Count - 1 do
+    if SameText(Resources[I].Id, Trim(AIdOrName)) then Exit(I);
+  for I := 0 to FResources.Count - 1 do
+    if SameText(Resources[I].Name, Trim(AIdOrName)) then Exit(I);
+  Result := -1;
+end;
+
+function TPJProject.FindResource(const AIdOrName: string): TPJResource;
+var I: Integer;
+begin
+  I := IndexOfResource(AIdOrName);
+  if I < 0 then Result := nil else Result := Resources[I];
+end;
+
+function TPJProject.AddResource(const AName: string; AType: TPJResourceType): TPJResource;
+begin
+  if Trim(AName) = '' then raise EPJError.Create('recurso sem nome');
+  if IndexOfResource(AName) >= 0 then
+    raise EPJError.CreateFmt('ja existe um recurso "%s"', [AName]);
+  BeginChange('Inserir recurso');
+  try
+    Result := TPJResource.Create;
+    Result.Id := NewResourceId;
+    Result.Name := Trim(AName);
+    Result.RType := AType;
+    if AType in [rtMaterial, rtCost] then Result.MaxUnits := 0;
+    if AType = rtMachine then Result.CalendarName := PJ_CAL_24H;
+    FResources.Add(Result);
+  finally
+    EndChange;
+  end;
+end;
+
+procedure TPJProject.DeleteAssignmentsOf(const ATaskId, AResourceId: string);
+var J: Integer;
+begin
+  for J := FAssignments.Count - 1 downto 0 do
+    if ((ATaskId <> '') and SameText(Assignments[J].TaskId, ATaskId)) or
+       ((AResourceId <> '') and SameText(Assignments[J].ResourceId, AResourceId)) then
+      FAssignments.Delete(J);
+end;
+
+function TPJProject.DeleteResource(const AId: string): Boolean;
+var I: Integer;
+begin
+  I := IndexOfResource(AId);
+  Result := I >= 0;
+  if not Result then Exit;
+  BeginChange('Excluir recurso');
+  try
+    DeleteAssignmentsOf('', Resources[I].Id);
+    FResources.Delete(I);
+  finally
+    EndChange;
+  end;
+end;
+
+function TPJProject.IndexOfAssignment(const ATaskId, AResourceId: string): Integer;
+var I: Integer;
+begin
+  for I := 0 to FAssignments.Count - 1 do
+    if SameText(Assignments[I].TaskId, ATaskId) and SameText(Assignments[I].ResourceId, AResourceId) then
+      Exit(I);
+  Result := -1;
+end;
+
+function TPJProject.Assign(const ATaskId, AResourceId: string; AUnits: Double; out Err: string): Boolean;
+var T, R, A: Integer; X: TPJAssignment;
+begin
+  Err := '';
+  T := IndexOfId(ATaskId);
+  R := IndexOfResource(AResourceId);
+  if T < 0 then Err := Format('tarefa inexistente: %s', [ATaskId])
+  else if R < 0 then Err := Format('recurso inexistente: %s', [AResourceId])
+  else if HasChildren(T) then
+    Err := Format('%s e um resumo: atribua o recurso nas subtarefas', [ATaskId])
+  else if (AUnits <= 0) and not (Resources[R].RType in [rtMaterial, rtCost]) then
+    Err := Format('%s: unidades devem ser maiores que zero', [Resources[R].Name])
+  else if AUnits > 100 then
+    Err := Format('%s: %.0f%% e demais', [Resources[R].Name, AUnits * 100]);
+  Result := Err = '';
+  if not Result then Exit;
+  BeginChange('Atribuir recurso');
+  try
+    A := IndexOfAssignment(Tasks[T].Id, Resources[R].Id);
+    if A >= 0 then X := Assignments[A]
+    else
+    begin
+      X := TPJAssignment.Create;
+      X.TaskId := Tasks[T].Id;
+      X.ResourceId := Resources[R].Id;
+      FAssignments.Add(X);
+    end;
+    if Resources[R].RType = rtMaterial then
+    begin
+      X.Quantity := AUnits;
+      X.Units := 0;
+    end
+    else
+      X.Units := AUnits;
+  finally
+    EndChange;
+  end;
+end;
+
+function TPJProject.Unassign(const ATaskId, AResourceId: string): Boolean;
+var A, R: Integer;
+begin
+  R := IndexOfResource(AResourceId);
+  if R < 0 then Exit(False);
+  A := IndexOfAssignment(ATaskId, Resources[R].Id);
+  Result := A >= 0;
+  if not Result then Exit;
+  BeginChange('Remover atribuicao');
+  try
+    FAssignments.Delete(A);
+  finally
+    EndChange;
+  end;
+end;
+
+function TPJProject.AssignmentsOfTask(const ATaskId: string): TPJIntArray;
+var I: Integer;
+begin
+  Result := nil;
+  for I := 0 to FAssignments.Count - 1 do
+    if SameText(Assignments[I].TaskId, ATaskId) then
+    begin
+      SetLength(Result, Length(Result) + 1);
+      Result[High(Result)] := I;
+    end;
+end;
+
+function TPJProject.AssignmentsOfResource(const AResourceId: string): TPJIntArray;
+var I: Integer;
+begin
+  Result := nil;
+  for I := 0 to FAssignments.Count - 1 do
+    if SameText(Assignments[I].ResourceId, AResourceId) then
+      begin
+      SetLength(Result, Length(Result) + 1);
+      Result[High(Result)] := I;
+    end;
+end;
+
+function UnitsText(U: Double): string;
+begin
+  Result := IntToStr(Round(U * 100)) + '%';
+end;
+
+function TPJProject.ResourcesText(const ATaskId: string): string;
+var A, R: Integer; X: TPJAssignment; S: string;
+begin
+  Result := '';
+  for A in AssignmentsOfTask(ATaskId) do
+  begin
+    X := Assignments[A];
+    R := IndexOfResource(X.ResourceId);
+    if R < 0 then S := X.ResourceId else S := Resources[R].Name;
+    if (R >= 0) and (Resources[R].RType = rtMaterial) then
+      S := S + '[' + FloatToStr(X.Quantity) + ' ' + Resources[R].MaterialUnit + ']'
+    else if Abs(X.Units - 1) > 1E-6 then
+      S := S + '[' + UnitsText(X.Units) + ']';
+    if Result <> '' then Result := Result + '; ';
+    Result := Result + Trim(S);
+  end;
+end;
+
+function TPJProject.SetResourcesText(const ATaskId, AText: string; out Err: string): Boolean;
+var
+  Parts: TStringList;
+  I, P, Q, R: Integer;
+  Item, NamePart, Inner: string;
+  U: Double;
+  Ids: array of string;
+  Units: array of Double;
+  FS: TFormatSettings;
+begin
+  Err := '';
+  if IndexOfId(ATaskId) < 0 then begin Err := 'tarefa inexistente: ' + ATaskId; Exit(False); end;
+  FS := DefaultFormatSettings;
+  FS.DecimalSeparator := '.';
+  Ids := nil; Units := nil;
+  Parts := TStringList.Create;
+  try
+    Parts.StrictDelimiter := True;
+    Parts.Delimiter := ';';
+    Parts.DelimitedText := StringReplace(AText, ',', ';', [rfReplaceAll]);
+    for I := 0 to Parts.Count - 1 do
+    begin
+      Item := Trim(Parts[I]);
+      if Item = '' then Continue;
+      U := 1;
+      P := Pos('[', Item);
+      if P > 0 then
+      begin
+        Q := Pos(']', Item);
+        if Q < P then begin Err := Format('"%s": feche o colchete, ex.: Ana[50%%]', [Item]); Exit(False); end;
+        NamePart := Trim(Copy(Item, 1, P - 1));
+        Inner := Trim(Copy(Item, P + 1, Q - P - 1));
+        Inner := Trim(StringReplace(Inner, '%', '', []));
+        if Pos(' ', Inner) > 0 then Inner := Copy(Inner, 1, Pos(' ', Inner) - 1);   // "0.4 kg"
+        if not TryStrToFloat(StringReplace(Inner, ',', '.', []), U, FS) then
+        begin
+          Err := Format('"%s": unidades invalidas', [Item]);
+          Exit(False);
+        end;
+        R := IndexOfResource(NamePart);
+        if (R >= 0) and (Resources[R].RType <> rtMaterial) then U := U / 100;
+      end
+      else
+      begin
+        NamePart := Item;
+        R := IndexOfResource(NamePart);
+      end;
+      if R < 0 then
+      begin
+        Err := Format('recurso "%s" nao existe: cadastre na etapa 4 Recursos', [NamePart]);
+        Exit(False);
+      end;
+      SetLength(Ids, Length(Ids) + 1); Ids[High(Ids)] := Resources[R].Id;
+      SetLength(Units, Length(Units) + 1); Units[High(Units)] := U;
+    end;
+  finally
+    Parts.Free;
+  end;
+  BeginChange('Recursos da tarefa');
+  try
+    DeleteAssignmentsOf(ATaskId, '');
+    for I := 0 to High(Ids) do
+      if not Assign(ATaskId, Ids[I], Units[I], Err) then
+      begin
+        Result := False;
+        Exit;
+      end;
+    Result := True;
+  finally
+    EndChange;
+    if Err <> '' then Undo;
+  end;
+end;
+
+function TPJProject.SetPriority(const ATaskId: string; APriority: Integer): Boolean;
+var T: TPJTask;
+begin
+  T := FindTask(ATaskId);
+  Result := (T <> nil) and (APriority >= 0) and (APriority <= 1000);
+  if not Result or (T.Priority = APriority) then Exit;
+  BeginChange('Prioridade');
+  try
+    T.Priority := APriority;
+  finally
+    EndChange;
+  end;
+end;
+
+function TPJProject.HasLeveling: Boolean;
+var I: Integer;
+begin
+  for I := 0 to Count - 1 do
+    if Tasks[I].LevelStart > 0 then Exit(True);
+  Result := False;
+end;
+
+procedure TPJProject.AdoptResources(AResources, AAssignments: TFPObjectList);
+var I: Integer;
+begin
+  FAssignments.Clear;
+  FResources.Clear;
+  AResources.OwnsObjects := False;
+  for I := 0 to AResources.Count - 1 do FResources.Add(AResources[I]);
+  AAssignments.OwnsObjects := False;
+  for I := 0 to AAssignments.Count - 1 do FAssignments.Add(AAssignments[I]);
+end;
 
 function TPJProject.GetLinkCount: Integer;
 begin
@@ -1157,6 +1564,67 @@ begin
   end;
   if not CheckLinks(Msg) then
     AddIssue(Result, '', svError, 'vinculos invalidos: ' + Msg);
+  ValidateResources(Result);
+end;
+
+procedure TPJProject.ValidateResources(var Issues: TPJIssues);
+var
+  I, J, R, Machines: Integer;
+  Res: TPJResource;
+  X: TPJAssignment;
+  T: TPJTask;
+  Need: TPJMachineTypes;
+begin
+  for I := 0 to ResourceCount - 1 do
+  begin
+    Res := Resources[I];
+    if Trim(Res.Name) = '' then
+      AddIssue(Issues, '', svError, Res.Id + ': recurso sem nome');
+    for J := 0 to I - 1 do
+      if SameText(Resources[J].Name, Res.Name) then
+        AddIssue(Issues, '', svError, Format('recursos %s e %s com o mesmo nome "%s"', [Resources[J].Id, Res.Id, Res.Name]));
+    if Res.MaxUnits < 0 then
+      AddIssue(Issues, '', svError, Format('%s: unidades maximas negativas', [Res.Name]));
+    if (Res.CalendarName <> '') and (IndexOfCalendar(Res.CalendarName) < 0) then
+      AddIssue(Issues, '', svError, Format('%s usa o calendario inexistente "%s"', [Res.Name, Res.CalendarName]));
+    if (Res.RType = rtMachine) and (Res.MachineType = pmNone) then
+      AddIssue(Issues, '', svWarning, Format('%s: maquina sem tipo (router, laser, impressora 3D, torno)', [Res.Name]));
+  end;
+  for I := 0 to AssignmentCount - 1 do
+  begin
+    X := Assignments[I];
+    if IndexOfId(X.TaskId) < 0 then
+      AddIssue(Issues, '', svError, Format('atribuicao de %s para a tarefa inexistente %s', [X.ResourceId, X.TaskId]))
+    else if IndexOfResource(X.ResourceId) < 0 then
+      AddIssue(Issues, X.TaskId, svError, Format('%s usa o recurso inexistente %s', [X.TaskId, X.ResourceId]))
+    else if HasChildren(IndexOfId(X.TaskId)) then
+      AddIssue(Issues, X.TaskId, svWarning, Format('%s e um resumo com recurso (%s): atribua nas subtarefas',
+        [X.TaskId, FindResource(X.ResourceId).Name]));
+  end;
+  { compatibilidade maquina x tipo de tarefa (PJ-R03) }
+  for I := 0 to Count - 1 do
+  begin
+    T := Tasks[I];
+    if HasChildren(I) or (T.State = tsCancelled) then Continue;
+    Need := MachineTypesFor(T.Kind);
+    Machines := 0;
+    for J in AssignmentsOfTask(T.Id) do
+    begin
+      R := IndexOfResource(Assignments[J].ResourceId);
+      if (R < 0) or (Resources[R].RType <> rtMachine) then Continue;
+      Inc(Machines);
+      if Need = [] then
+        AddIssue(Issues, T.Id, svWarning, Format('%s (%s) nao usa maquina, mas tem %s atribuida',
+          [T.Id, KindCaption(T.Kind), Resources[R].Name]))
+      else if not (Resources[R].MachineType in Need) then
+        AddIssue(Issues, T.Id, svError, Format('%s (%s) precisa de %s, mas %s e %s',
+          [T.Id, KindCaption(T.Kind), MachineTypesCaption(Need), Resources[R].Name,
+           MachineTypeCaption(Resources[R].MachineType)]));
+    end;
+    if (Need <> []) and (Machines = 0) and (ResourceCount > 0) then
+      AddIssue(Issues, T.Id, svWarning, Format('%s (%s) sem maquina atribuida: escolha %s',
+        [T.Id, KindCaption(T.Kind), MachineTypesCaption(Need)]));
+  end;
 end;
 
 end.

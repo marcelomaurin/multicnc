@@ -33,9 +33,17 @@ Edição de **21/10/2026**, para **Windows x64**.
 - Exemplo **Demo**: motor DC didático com 17 tarefas e 17 vínculos.
 - Registrado na **MultiSuite Bandeja** no novo grupo **PLANEJAR**.
 
+### 5. Recursos e conflitos
+- **Pessoas** (usuários da equipe), **máquinas** (importadas do cadastro do MultiCNC),
+  **materiais** e **IA**, com unidades máximas e calendário (impressora 24 h).
+- Atribuição na página da tarefa, na coluna **Recursos** do Gantt (`Ana; Ender-3; Bruno[50%]`)
+  ou arrastando na vista **Equipe**.
+- O **Validar** confere máquina × tipo de tarefa (impressão pede impressora; corte laser, laser).
+- **Superalocação** com o recurso, o período e as tarefas, hachurada na vista Equipe.
+- **Nivelar recursos** pela prioridade e pela margem, e **Limpar nivelamento**.
+
 As próximas etapas (abrir a tarefa na ferramenta e vincular o arquivo, gerar tarefas,
-recursos e superalocação, linha de base e relatórios) estão em
-`documentation/multiproject/docs/TAREFA.md`.
+custos, linha de base e relatórios) estão em `documentation/multiproject/docs/TAREFA.md`.
 
 ## Rastreabilidade
 - [Manifesto de compilação](../setup/build-manifest-015.json)

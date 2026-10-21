@@ -6,10 +6,15 @@ unit multiproject_main;
   tarefas / Abrir na ferramenta.
 
   As vistas sao componentes genericos do CHATGPT (aiganttview, ainetworkview,
-  aiboardview); o calculo e do nucleo (multiproject_*). Esta unit so liga
-  eventos, campos e comandos. Fases futuras aparecem desabilitadas com a fase
-  em que entram (Gerar tarefas: 6; Abrir na ferramenta: 5; recursos: 7;
-  acompanhamento e relatorios: 8). }
+  aiboardview, airesourceview); o calculo e do nucleo (multiproject_*). Esta
+  unit so liga eventos, campos e comandos. Fases futuras aparecem
+  desabilitadas com a fase em que entram (Gerar tarefas: 6; Abrir na
+  ferramenta: 5; acompanhamento e relatorios: 8).
+
+  Recursos (fase 7): etapa 4 com a planilha de pessoas, maquinas e materiais
+  e a importacao das maquinas do MultiCNC; secao 8 da pagina da tarefa com as
+  atribuicoes; coluna Recursos no Gantt; vista Equipe com a superalocacao e
+  arraste para reatribuir; nivelar e limpar o nivelamento na etapa 5. }
 
 {$mode objfpc}{$H+}
 
@@ -20,16 +25,17 @@ uses
   ExtCtrls, ComCtrls, Grids, Dialogs, LCLType,
   multisuite_controls, multisuite_icons,
   aiprojectduration, aitaskgraph, aiworkcalendar, aicpmscheduler,
-  aiganttview, ainetworkview, aiboardview,
+  airesourceload, aiganttview, ainetworkview, aiboardview, airesourceview,
   multiproject_types, multiproject_document, multiproject_json, multiproject_graph,
-  multiproject_schedule, multiproject_states, multiproject_examples, multiproject_views;
+  multiproject_schedule, multiproject_states, multiproject_examples, multiproject_views,
+  multiproject_resources;
 
 const
   PJ_APP_VERSION = '0.1.0.0';
   PJ_STEPS: array[0..6] of string = ('1  Objetivo', '2  Tarefas', '3  Relacoes',
     '4  Recursos', '5  Cronograma', '6  Acompanhar', '7  Relatorios');
   PAGE_TASK = 7;
-  VIEW_GANTT = 0; VIEW_NETWORK = 1; VIEW_BOARD = 2;
+  VIEW_GANTT = 0; VIEW_NETWORK = 1; VIEW_BOARD = 2; VIEW_TEAM = 3;
 
 type
   TMultiProjectForm = class(TForm)
@@ -85,6 +91,9 @@ type
     procedure BoardSelect(Sender: TObject; ACard: Integer);
     procedure BoardDblClick(Sender: TObject; ACard: Integer);
     procedure BoardMove(Sender: TObject; ACard, ANewColumn: Integer; var Accept: Boolean; var Reason: string);
+    procedure TeamSelect(Sender: TObject; ABar: Integer);
+    procedure TeamDblClick(Sender: TObject; ABar: Integer);
+    procedure TeamReassign(Sender: TObject; ABar, ANewRow: Integer; var Accept: Boolean; var Reason: string);
     { objetivo }
     procedure ObjectiveApply(Sender: TObject);
     procedure LoadObjectivePage;
@@ -112,17 +121,30 @@ type
     procedure CalAddExceptionClick(Sender: TObject);
     procedure CalRemoveExceptionClick(Sender: TObject);
     procedure CalNewClick(Sender: TObject);
+    procedure ResSelect(Sender: TObject);
+    procedure ResApply(Sender: TObject);
+    procedure ResNewPerson(Sender: TObject);
+    procedure ResNewMachine(Sender: TObject);
+    procedure ResNewMaterial(Sender: TObject);
+    procedure ResNew(AType: TPJResourceType; const ABase: string);
+    procedure ResDelete(Sender: TObject);
+    procedure ResImport(Sender: TObject);
+    function SelectedResource: TPJResource;
     { cronograma }
     procedure LoadSchedulePage;
     procedure RecalcClick(Sender: TObject);
     procedure CritSlackApply(Sender: TObject);
     procedure IssueClick(Sender: TObject);
+    procedure LevelClick(Sender: TObject);
+    procedure ClearLevelClick(Sender: TObject);
     { acompanhar }
     procedure StatusDateApply(Sender: TObject);
     { tarefa }
     procedure LoadTaskPage;
     procedure TaskApply(Sender: TObject);
     procedure TaskBack(Sender: TObject);
+    procedure TaskResApply(Sender: TObject);
+    procedure TaskResAdd(Sender: TObject);
     procedure AsyncRefresh(Data: PtrInt);
     procedure QueueRefresh;
     procedure SetStatus(const AText: string; AKind: Integer = 0);
@@ -144,6 +166,7 @@ type
     Gantt: TAIGanttView;
     Network: TAINetworkView;
     Board: TAIBoardView;
+    Team: TAIResourceView;
     FooterPanel: TPanel;
     StatusLabel, InfoLabel: TLabel;
     ValidateButton, GenerateButton, OpenToolButton: TSuiteButton;
@@ -163,16 +186,24 @@ type
     RelArtifact: TCheckBox;
     RelList: TListBox;
     { recursos }
+    ResList: TListBox;
+    RName, RRole, REmail, RUnits, RGroup: TEdit;
+    RType, RMachine, RCalendar: TComboBox;
+    ResInfo: TLabel;
     CalList, CalExcList: TListBox;
     CalDateEdit, CalNameEdit: TEdit;
     { cronograma }
     SchedInfo: TLabel;
     IssueList: TListBox;
     CritSlackEdit: TEdit;
+    LevelSlackBox: TCheckBox;
     { acompanhar }
     StatusDateEdit: TEdit;
     { tarefa }
     TName, TShort, TDuration, TConstraintDate, TDeadline, TTechText: TEdit;
+    TResEdit, TResUnits, TPriority: TEdit;
+    TResCombo: TComboBox;
+    TResInfo: TLabel;
     TLong, TNotes: TMemo;
     TIdLabel, TDatesLabel, TToolLabel, TPredLabel, TOriginLabel: TLabel;
     TKind, TProcess, TState, TMode, TConstraint, TCalendar: TComboBox;
@@ -194,6 +225,10 @@ type
     procedure InsertClickForTest;
     procedure IndentClickForTest;
     procedure UndoClickForTest;
+    procedure LevelForTest(AWithinSlack: Boolean);
+    procedure ClearLevelForTest;
+    procedure ResApplyForTest;
+    procedure TaskResApplyForTest;
   end;
 
 var
@@ -212,6 +247,7 @@ const
     'corte laser', 'usinagem de torno');
   LINK_CAPTIONS: array[TAITaskLinkType] of string = ('TI - termino-inicio', 'II - inicio-inicio',
     'TT - termino-termino', 'IT - inicio-termino');
+  VIEW_WIDTHS: array[0..3] of Integer = (80, 70, 86, 84);
   VIEW_ICONS: array[0..5] of TSuiteIconKind = (sikLayers, sikArrowRight, sikRect, sikGear, sikFrame, sikPulse);
   CRIT_NAMES: array[TPJCriterionState] of string = ('pendente', 'aprovado', 'reprovado', 'dispensado');
 
@@ -368,6 +404,15 @@ begin
   Board.OnCardMove := @BoardMove;
   Board.Visible := False;
 
+  Team := TAIResourceView.Create(Self);
+  Team.Parent := WorkPanel; Team.Align := alClient;
+  StyleTeam(Team);
+  Team.OnSelectBar := @TeamSelect;
+  Team.OnBarDblClick := @TeamDblClick;
+  Team.OnReassign := @TeamReassign;
+  Team.OnIsWorkingDay := @GanttWorkingDay;
+  Team.Visible := False;
+
   OnResize := @FormResizeUI;
   FUpdating := False;
   NewProject;
@@ -442,12 +487,12 @@ begin
   X := 12;
   for I := 0 to 5 do
   begin
-    if I < 3 then
-      ViewButtons[I] := Btn(BarPanel, VIEW_CAPTIONS[I], X, 9, IfThen(I = 1, 76, 86), VIEW_ICONS[I], @ViewClick)
+    if I < 4 then
+      ViewButtons[I] := Btn(BarPanel, VIEW_CAPTIONS[I], X, 9, VIEW_WIDTHS[I], VIEW_ICONS[I], @ViewClick)
     else
     begin
-      { vistas das proximas fases (Equipe: 7; Calendario e Linha do tempo: 8):
-        criadas ocultas, aparecem quando a fase entrar }
+      { vistas da fase 8 (Calendario e Linha do tempo): criadas ocultas,
+        aparecem quando a fase entrar }
       ViewButtons[I] := Btn(BarPanel, VIEW_CAPTIONS[I], X, 9, 40, VIEW_ICONS[I], @ViewClick);
       ViewButtons[I].Enabled := False;
       ViewButtons[I].Visible := False;
@@ -455,15 +500,16 @@ begin
     ViewButtons[I].Tag := I;
     if ViewButtons[I].Visible then Inc(X, ViewButtons[I].Width + 6);
   end;
-  ViewButtons[3].Hint := 'Equipe (planejador de recursos): fase 7';
+  ViewButtons[3].Hint := 'Equipe: pessoas e maquinas no tempo, com os conflitos';
+  ViewButtons[3].ShowHint := True;
   ViewButtons[4].Hint := 'Calendario: fase 8';
   ViewButtons[5].Hint := 'Linha do tempo: fase 8';
-  Inc(X, 10);
-  with Btn(BarPanel, '', X, 9, 40, sikFit, @FitClick) do begin Hint := 'Ajustar a vista'; ShowHint := True; end;
-  Inc(X, 46);
-  with Btn(BarPanel, '', X, 9, 40, sikZoomIn, @ZoomInClick) do begin Hint := 'Ampliar (Ctrl+roda)'; ShowHint := True; end;
-  Inc(X, 46);
-  with Btn(BarPanel, '', X, 9, 40, sikZoomOut, @ZoomOutClick) do begin Hint := 'Reduzir'; ShowHint := True; end;
+  Inc(X, 4);
+  with Btn(BarPanel, '', X, 9, 34, sikFit, @FitClick) do begin Hint := 'Ajustar a vista'; ShowHint := True; end;
+  Inc(X, 38);
+  with Btn(BarPanel, '', X, 9, 34, sikZoomIn, @ZoomInClick) do begin Hint := 'Ampliar (Ctrl+roda)'; ShowHint := True; end;
+  Inc(X, 38);
+  with Btn(BarPanel, '', X, 9, 34, sikZoomOut, @ZoomOutClick) do begin Hint := 'Reduzir'; ShowHint := True; end;
   X := 12;
   FilterCombo := TComboBox.Create(Self);
   FilterCombo.Parent := BarPanel;
@@ -595,23 +641,52 @@ begin
 end;
 
 procedure TMultiProjectForm.BuildResourcesPage(S: TScrollBox);
+var RT: TPJResourceType; MT: TPJMachineType;
 begin
-  Lbl(S, 'Pessoas, maquinas do MultiCNC, materiais e custos entram na fase 7. ' +
-    'Aqui ficam os calendarios do projeto.', 16, 50, 290, 50);
-  Section(S, 'CALENDARIOS', 104);
+  Lbl(S, 'Pessoas (usuarios), maquinas e materiais. Atribua na pagina da tarefa, ' +
+    'na coluna Recursos ou arrastando na vista Equipe.', 16, 50, 290, 52);
+  Section(S, 'RECURSOS', 104);
+  ResList := TListBox.Create(Self);
+  ResList.Parent := S;
+  ResList.SetBounds(16, 128, 290, 150);
+  ResList.OnClick := @ResSelect;
+  Btn(S, 'Nova pessoa', 16, 286, 142, sikNew, @ResNewPerson).Hint := 'Pessoa (usuario) da equipe';
+  Btn(S, 'Nova maquina', 164, 286, 142, sikGear, @ResNewMachine).Hint := 'Maquina da oficina';
+  Btn(S, 'Novo material', 16, 326, 142, sikLayers, @ResNewMaterial).Hint := 'Consumivel (kg, m2, un)';
+  with Btn(S, 'Do MultiCNC', 164, 326, 142, sikImport, @ResImport) do
+  begin
+    Hint := 'Importar as maquinas do cadastro do MultiCNC (somente leitura)';
+    ShowHint := True;
+  end;
+  Section(S, 'RECURSO SELECIONADO', 374);
+  RName := Edit(S, 'Nome', 398);
+  RType := Combo(S, 'Tipo', 450);
+  for RT := Low(RT) to High(RT) do RType.Items.Add(ResourceTypeCaption(RT));
+  RRole := Edit(S, 'Funcao (pessoa)', 504);
+  REmail := Edit(S, 'E-mail', 556);
+  RMachine := Combo(S, 'Tipo de maquina', 608);
+  for MT := Low(MT) to High(MT) do RMachine.Items.Add(MachineTypeCaption(MT));
+  RUnits := Edit(S, 'Unidades maximas (%): 100 = uma pessoa ou maquina', 662);
+  RCalendar := Combo(S, 'Calendario', 714);
+  RGroup := Edit(S, 'Grupo (equipe, oficina)', 768);
+  ResInfo := Lbl(S, '', 16, 822, 290, 40);
+  ResInfo.Font.Color := clSuiteText;
+  Btn(S, 'Aplicar', 16, 866, 142, sikSave, @ResApply).SetLook(sbsSolid, clSuitePrimary, sikSave);
+  Btn(S, 'Excluir', 164, 866, 142, sikTrash, @ResDelete).SetLook(sbsSoft, clSuiteDanger, sikTrash);
+  Section(S, 'CALENDARIOS', 918);
   CalList := TListBox.Create(Self);
   CalList.Parent := S;
-  CalList.SetBounds(16, 128, 290, 70);
+  CalList.SetBounds(16, 942, 290, 70);
   CalList.OnClick := @CalSelect;
-  Btn(S, 'Novo calendario (copia do padrao)', 16, 206, 290, sikNew, @CalNewClick);
-  Section(S, 'EXCECOES (FERIADOS E FOLGAS)', 252);
+  Btn(S, 'Novo calendario (copia do padrao)', 16, 1020, 290, sikNew, @CalNewClick);
+  Section(S, 'EXCECOES (FERIADOS E FOLGAS)', 1066);
   CalExcList := TListBox.Create(Self);
   CalExcList.Parent := S;
-  CalExcList.SetBounds(16, 276, 290, 180);
-  CalDateEdit := Edit(S, 'Data (dd/mm/aaaa)', 464);
-  CalNameEdit := Edit(S, 'Nome (folga sem expediente)', 516);
-  Btn(S, 'Adicionar folga', 16, 574, 142, sikNew, @CalAddExceptionClick);
-  Btn(S, 'Remover', 164, 574, 142, sikTrash, @CalRemoveExceptionClick).SetLook(sbsSoft, clSuiteDanger, sikTrash);
+  CalExcList.SetBounds(16, 1090, 290, 180);
+  CalDateEdit := Edit(S, 'Data (dd/mm/aaaa)', 1278);
+  CalNameEdit := Edit(S, 'Nome (folga sem expediente)', 1330);
+  Btn(S, 'Adicionar folga', 16, 1388, 142, sikNew, @CalAddExceptionClick);
+  Btn(S, 'Remover', 164, 1388, 142, sikTrash, @CalRemoveExceptionClick).SetLook(sbsSoft, clSuiteDanger, sikTrash);
 end;
 
 procedure TMultiProjectForm.BuildSchedulePage(S: TScrollBox);
@@ -626,7 +701,15 @@ begin
   IssueList.Parent := S;
   IssueList.SetBounds(16, 298, 290, 260);
   IssueList.OnClick := @IssueClick;
-  Lbl(S, 'Linhas de base e nivelamento de recursos: fases 7 e 8.', 16, 566, 290, 40);
+  Section(S, 'RECURSOS', 568);
+  LevelSlackBox := TCheckBox.Create(Self);
+  LevelSlackBox.Parent := S;
+  LevelSlackBox.SetBounds(16, 592, 290, 24);
+  LevelSlackBox.Caption := 'So dentro da margem (nao atrasa o termino)';
+  Btn(S, 'Nivelar recursos', 16, 622, 290, sikPulse, @LevelClick).SetLook(sbsSolid, clSuitePrimary, sikPulse);
+  Btn(S, 'Limpar nivelamento', 16, 662, 290, sikUndo, @ClearLevelClick);
+  Lbl(S, 'Nivelar atrasa tarefas pela prioridade e pela margem ate cada pessoa ou maquina ' +
+    'fazer uma coisa por vez. Linhas de base: fase 8.', 16, 706, 290, 56);
 end;
 
 procedure TMultiProjectForm.BuildTrackPage(S: TScrollBox);
@@ -698,7 +781,13 @@ begin
   Section(S, '7  PREDECESSORAS E SUCESSORAS', Y); Inc(Y, 26);
   TPredLabel := Lbl(S, '', 16, Y, 290, 60); Inc(Y, 66);
   Section(S, '8  RECURSOS', Y); Inc(Y, 26);
-  Lbl(S, 'Pessoas, maquinas e materiais: fase 7.', 16, Y, 290, 20); Inc(Y, 30);
+  TResEdit := Edit(S, 'Recursos (ex.: Ana; Ender-3; Bruno[50%])', Y); Inc(Y, 54);
+  Btn(S, 'Aplicar recursos', 16, Y, 290, sikSave, @TaskResApply); Inc(Y, 42);
+  TResCombo := Combo(S, 'Adicionar recurso compativel', Y); Inc(Y, 54);
+  TResUnits := Edit(S, 'Unidades (%) ou quantidade do material', Y); Inc(Y, 54);
+  Btn(S, 'Adicionar', 16, Y, 290, sikNew, @TaskResAdd); Inc(Y, 42);
+  TResInfo := Lbl(S, '', 16, Y, 290, 52); Inc(Y, 56);
+  TPriority := Edit(S, 'Prioridade no nivelamento (0 a 1000)', Y); Inc(Y, 60);
   Section(S, '9  ORIGEM E ANOTACOES', Y); Inc(Y, 26);
   TOriginLabel := Lbl(S, 'Criada pelo usuario', 16, Y, 290, 20); Inc(Y, 24);
   TNotes := Memo(S, 'Anotacoes', Y, 80); Inc(Y, 110);
@@ -741,6 +830,7 @@ begin
   case N of
     1, 4: ShowView(VIEW_GANTT);
     2: ShowView(VIEW_NETWORK);
+    3: ShowView(VIEW_TEAM);
     5: ShowView(VIEW_BOARD);
   end;
 end;
@@ -748,12 +838,13 @@ end;
 procedure TMultiProjectForm.ShowView(V: Integer);
 var I: Integer;
 begin
-  if not (V in [VIEW_GANTT, VIEW_NETWORK, VIEW_BOARD]) then Exit;
+  if not (V in [VIEW_GANTT, VIEW_NETWORK, VIEW_BOARD, VIEW_TEAM]) then Exit;
   CurrentView := V;
   Gantt.Visible := V = VIEW_GANTT;
   Network.Visible := V = VIEW_NETWORK;
   Board.Visible := V = VIEW_BOARD;
-  for I := 0 to 2 do
+  Team.Visible := V = VIEW_TEAM;
+  for I := 0 to 3 do
     if I = V then ViewButtons[I].SetLook(sbsSolid, clSuitePrimary)
     else ViewButtons[I].SetLook(sbsSoft, clSuitePrimary);
   if FSelectedId <> '' then SelectTask(FSelectedId);
@@ -786,7 +877,9 @@ begin
   RefreshAll;
   Gantt.FitToRows;
   Network.FitAll;
-  SetStatus('Exemplo aberto: motor DC didatico (17 tarefas, 17 vinculos).', 1);
+  Team.FitToBars;
+  SetStatus(Format('Exemplo do motor DC: 17 tarefas, %d recursos e conflitos para nivelar (vista Equipe).',
+    [Doc.ResourceCount]), 1);
 end;
 
 procedure TMultiProjectForm.OpenFile(const AFileName: string);
@@ -804,6 +897,7 @@ begin
   FSelectedId := '';
   RefreshAll;
   Gantt.FitToRows;
+  Team.FitToBars;
   SetStatus('Aberto: ' + AFileName, 1);
 end;
 
@@ -867,9 +961,13 @@ begin
   if not Sched.Valid then
     InfoLabel.Caption := 'Cronograma nao calculado: ' + Sched.Error
   else
+  begin
     InfoLabel.Caption := Format('%d avisos  •  Termino previsto %s  •  Criticas: %d', [N,
       FormatBRDateTime(Sched.ProjectFinish), Sched.CriticalCount]);
-  if not Sched.Valid then InfoLabel.Font.Color := clSuiteDanger
+    if Sched.OverloadCount > 0 then
+      InfoLabel.Caption := InfoLabel.Caption + Format('  •  Superalocacao: %d', [Sched.OverloadCount]);
+  end;
+  if not Sched.Valid or (Sched.OverloadCount > 0) then InfoLabel.Font.Color := clSuiteDanger
   else if N > 0 then InfoLabel.Font.Color := clSuiteWarning
   else InfoLabel.Font.Color := clSuiteMuted;
   T := SelectedTask;
@@ -924,12 +1022,14 @@ begin
     FillGantt(Gantt, Doc, Sched, Options);
     FillNetwork(Network, Doc, Sched);
     FillBoard(Board, Doc, Sched);
+    FillTeam(Team, Doc, Sched, CriticalBox.Checked);
     RefreshChains;
     UpdateHeader;
     if FSelectedId <> '' then SelectTask(FSelectedId);
     UpdateFooter;
     case CurrentStep of
       2: LoadRelationsPage;
+      3: LoadResourcesPage;
       4: LoadSchedulePage;
       PAGE_TASK: LoadTaskPage;
     end;
@@ -979,6 +1079,7 @@ begin
     Gantt.SelectId(AId);
     Network.Selected := Network.IndexOfId(AId);
     Board.Selected := Board.IndexOfId(AId);
+    Team.SelectId(AId);
   finally
     FUpdating := Keep;
   end;
@@ -1027,6 +1128,11 @@ begin
       if Doc.SetDurationText(T.Id, AText, Err) then AText := Doc.FormatDur(T.Duration);
     GC_PRED:
       if Doc.SetPredecessorsText(T.Id, AText, Err) then AText := Doc.PredecessorsText(T.Id);
+    GC_RES:
+      begin
+        AText := Trim(StringReplace(AText, Trim(PJ_OVERLOAD_MARK), '', [rfReplaceAll]));
+        if Doc.SetResourcesText(T.Id, AText, Err) then AText := Doc.ResourcesText(T.Id);
+      end;
   end;
   Accept := Err = '';
   if Accept then
@@ -1132,6 +1238,7 @@ begin
   case CurrentView of
     VIEW_GANTT: Gantt.FitToRows;
     VIEW_NETWORK: Network.FitAll;
+    VIEW_TEAM: Team.FitToBars;
   end;
 end;
 
@@ -1140,6 +1247,7 @@ begin
   case CurrentView of
     VIEW_GANTT: Gantt.ZoomBy(1.4);
     VIEW_NETWORK: Network.Zoom(1.2);
+    VIEW_TEAM: Team.ZoomBy(1.4);
   end;
 end;
 
@@ -1148,6 +1256,7 @@ begin
   case CurrentView of
     VIEW_GANTT: Gantt.ZoomBy(1 / 1.4);
     VIEW_NETWORK: Network.Zoom(1 / 1.2);
+    VIEW_TEAM: Team.ZoomBy(1 / 1.4);
   end;
 end;
 
@@ -1557,9 +1666,43 @@ end;
 
 { ---------------- etapa 4: calendarios ---------------- }
 
-procedure TMultiProjectForm.LoadResourcesPage;
-var I, K: Integer;
+function TMultiProjectForm.SelectedResource: TPJResource;
+var I: Integer;
 begin
+  Result := nil;
+  if (ResList = nil) or (ResList.ItemIndex < 0) then Exit;
+  I := PtrInt(ResList.Items.Objects[ResList.ItemIndex]);
+  if (I >= 0) and (I < Doc.ResourceCount) then Result := Doc.Resources[I];
+end;
+
+procedure TMultiProjectForm.LoadResourcesPage;
+var I, K: Integer; Res: TPJResource; S, KeepId: string;
+begin
+  { planilha de recursos }
+  if SelectedResource <> nil then KeepId := SelectedResource.Id else KeepId := '';
+  ResList.Items.BeginUpdate;
+  try
+    ResList.Items.Clear;
+    for I := 0 to Doc.ResourceCount - 1 do
+    begin
+      Res := Doc.Resources[I];
+      S := Res.Name + '  -  ' + ResourceCaption(Res);
+      if Sched.Valid and Sched.ResourceOverallocated(Res.Id) then S := '(!) ' + S;
+      ResList.Items.AddObject(S, TObject(PtrInt(I)));
+    end;
+  finally
+    ResList.Items.EndUpdate;
+  end;
+  K := -1;
+  for I := 0 to ResList.Items.Count - 1 do
+    if (KeepId <> '') and SameText(Doc.Resources[PtrInt(ResList.Items.Objects[I])].Id, KeepId) then K := I;
+  if (K < 0) and (ResList.Items.Count > 0) then K := 0;
+  ResList.ItemIndex := K;
+  RCalendar.Items.Clear;
+  RCalendar.Items.Add('(calendario do projeto)');
+  for I := 0 to Doc.CalendarCount - 1 do RCalendar.Items.Add(Doc.Calendars[I].Name);
+  ResSelect(nil);
+  { calendarios }
   K := CalList.ItemIndex;
   CalList.Items.Clear;
   for I := 0 to Doc.CalendarCount - 1 do
@@ -1633,6 +1776,266 @@ begin
   CalList.ItemIndex := Doc.IndexOfCalendar(N);
   CalSelect(nil);
   SetStatus('Calendario "' + N + '" criado a partir do calendario do projeto.', 1);
+end;
+
+procedure TMultiProjectForm.ResSelect(Sender: TObject);
+var Res: TPJResource; Peak: Double; W: Int64;
+begin
+  Res := SelectedResource;
+  RName.Text := ''; RRole.Text := ''; REmail.Text := ''; RUnits.Text := ''; RGroup.Text := '';
+  RType.ItemIndex := -1; RMachine.ItemIndex := -1; RCalendar.ItemIndex := 0;
+  ResInfo.Caption := IfThen(Doc.ResourceCount = 0, 'Nenhum recurso. Crie pessoas e maquinas acima.', '');
+  if Res = nil then Exit;
+  RName.Text := Res.Name;
+  RType.ItemIndex := Ord(Res.RType);
+  RRole.Text := Res.Role;
+  REmail.Text := Res.Email;
+  RMachine.ItemIndex := Ord(Res.MachineType);
+  RMachine.Enabled := Res.RType = rtMachine;
+  if Res.RType = rtMaterial then RUnits.Text := Res.MaterialUnit
+  else RUnits.Text := IntToStr(Round(Res.MaxUnits * 100));
+  RCalendar.ItemIndex := Max(0, Doc.IndexOfCalendar(Res.CalendarName) + 1);
+  if Res.CalendarName = '' then RCalendar.ItemIndex := 0;
+  RGroup.Text := Res.Group;
+  if Sched.Valid then
+  begin
+    W := Sched.ResourceWork(Res.Id);
+    Peak := Sched.ResourcePeak(Res.Id);
+    ResInfo.Caption := Format('%s  •  %d tarefa(s)  •  trabalho %s  •  pico %d%%',
+      [Res.Id, Length(Doc.AssignmentsOfResource(Res.Id)), Doc.FormatDur(AIMakeDuration(W, aduHour)), Round(Peak * 100)]);
+    if Sched.ResourceOverallocated(Res.Id) then
+    begin
+      ResInfo.Caption := ResInfo.Caption + LineEnding + 'Superalocado: veja a vista Equipe ou nivele na etapa 5.';
+      ResInfo.Font.Color := clSuiteDanger;
+    end
+    else
+      ResInfo.Font.Color := clSuiteText;
+  end;
+end;
+
+procedure TMultiProjectForm.ResApply(Sender: TObject);
+var Res, Other: TPJResource; U: Integer; Id: string;
+begin
+  Res := SelectedResource;
+  if Res = nil then Exit;
+  if Trim(RName.Text) = '' then begin SetStatus('O recurso precisa de um nome.', 3); Exit; end;
+  Other := Doc.FindResource(Trim(RName.Text));
+  if (Other <> nil) and (Other <> Res) then
+  begin
+    SetStatus('Ja existe um recurso chamado "' + Trim(RName.Text) + '".', 3);
+    Exit;
+  end;
+  U := 0;
+  if (RType.ItemIndex <> Ord(rtMaterial)) and (RType.ItemIndex <> Ord(rtCost)) then
+    if not TryStrToInt(Trim(StringReplace(RUnits.Text, '%', '', [])), U) or (U < 0) or (U > 10000) then
+    begin
+      SetStatus('Unidades maximas: um numero em %, por exemplo 100 ou 200.', 3);
+      Exit;
+    end;
+  Id := Res.Id;
+  Doc.BeginChange('Editar recurso');
+  try
+    Res.Name := Trim(RName.Text);
+    Res.RType := TPJResourceType(Max(0, RType.ItemIndex));
+    Res.Role := Trim(RRole.Text);
+    Res.Email := Trim(REmail.Text);
+    if Res.RType = rtMachine then Res.MachineType := TPJMachineType(Max(0, RMachine.ItemIndex))
+    else Res.MachineType := pmNone;
+    if Res.RType = rtMaterial then
+    begin
+      Res.MaterialUnit := Trim(RUnits.Text);
+      Res.MaxUnits := 0;
+    end
+    else if Res.RType = rtCost then Res.MaxUnits := 0
+    else Res.MaxUnits := U / 100;
+    if RCalendar.ItemIndex <= 0 then Res.CalendarName := ''
+    else Res.CalendarName := RCalendar.Items[RCalendar.ItemIndex];
+    Res.Group := Trim(RGroup.Text);
+  finally
+    Doc.EndChange;
+  end;
+  RefreshAll;
+  SetStatus(Res.Name + ' atualizado.', 1);
+end;
+
+procedure TMultiProjectForm.ResNew(AType: TPJResourceType; const ABase: string);
+var N: string; K, I: Integer; Res: TPJResource;
+begin
+  K := 1;
+  N := ABase;
+  while Doc.IndexOfResource(N) >= 0 do
+  begin
+    Inc(K);
+    N := ABase + ' ' + IntToStr(K);
+  end;
+  Res := Doc.AddResource(N, AType);
+  if AType = rtMachine then Res.Group := 'Oficina'
+  else if AType = rtPerson then Res.Group := 'Equipe';
+  if AType = rtMaterial then Res.MaterialUnit := 'kg';
+  RefreshAll;
+  LoadResourcesPage;
+  for I := 0 to ResList.Items.Count - 1 do
+    if Doc.Resources[PtrInt(ResList.Items.Objects[I])] = Res then ResList.ItemIndex := I;
+  ResSelect(nil);
+  if RName.CanFocus then RName.SetFocus;
+  SetStatus(Res.Id + ' criado: ajuste o nome e clique Aplicar.', 1);
+end;
+
+procedure TMultiProjectForm.ResNewPerson(Sender: TObject);
+begin
+  ResNew(rtPerson, 'Nova pessoa');
+end;
+
+procedure TMultiProjectForm.ResNewMachine(Sender: TObject);
+begin
+  ResNew(rtMachine, 'Nova maquina');
+end;
+
+procedure TMultiProjectForm.ResNewMaterial(Sender: TObject);
+begin
+  ResNew(rtMaterial, 'Novo material');
+end;
+
+procedure TMultiProjectForm.ResDelete(Sender: TObject);
+var Res: TPJResource; N, Id: string;
+begin
+  Res := SelectedResource;
+  if Res = nil then Exit;
+  N := Res.Name;
+  Id := Res.Id;
+  if Doc.DeleteResource(Id) then
+  begin
+    RefreshAll;
+    SetStatus(N + ' excluido, com as atribuicoes (Ctrl+Z desfaz).', 1);
+  end;
+end;
+
+procedure TMultiProjectForm.ResImport(Sender: TObject);
+var NAdd, NUpd: Integer; Err: string;
+begin
+  if ImportMachines(Doc, '', NAdd, NUpd, Err) then
+  begin
+    RefreshAll;
+    SetStatus(Format('Maquinas do MultiCNC: %d nova(s), %d atualizada(s).', [NAdd, NUpd]), 1);
+  end
+  else
+    SetStatus(Err, 3);
+end;
+
+procedure TMultiProjectForm.LevelClick(Sender: TObject);
+var R: TPJLevelResult;
+begin
+  R := LevelProject(Doc, LevelSlackBox.Checked);
+  try
+    AfterCommand;
+    if R.Error <> '' then SetStatus(LevelSummary(R), 3)
+    else if R.Unresolved.Count > 0 then SetStatus(LevelSummary(R), 2)
+    else SetStatus(LevelSummary(R), 1);
+  finally
+    R.Unresolved.Free;
+  end;
+end;
+
+procedure TMultiProjectForm.ClearLevelClick(Sender: TObject);
+begin
+  if ClearLeveling(Doc) then
+  begin
+    AfterCommand;
+    SetStatus('Nivelamento limpo: as datas voltaram ao cronograma original.', 1);
+  end
+  else
+    SetStatus('O projeto nao esta nivelado.', 2);
+end;
+
+{ ---------------- vista Equipe ---------------- }
+
+procedure TMultiProjectForm.TeamSelect(Sender: TObject; ABar: Integer);
+begin
+  if FUpdating or (ABar < 0) then Exit;
+  SelectTask(Team.Bar(ABar).Id);
+end;
+
+procedure TMultiProjectForm.TeamDblClick(Sender: TObject; ABar: Integer);
+begin
+  if ABar < 0 then Exit;
+  SelectTask(Team.Bar(ABar).Id);
+  ShowStep(PAGE_TASK);
+end;
+
+procedure TMultiProjectForm.TeamReassign(Sender: TObject; ABar, ANewRow: Integer; var Accept: Boolean;
+  var Reason: string);
+var
+  TaskId, NewId, OldId, Err: string;
+  T: TPJTask;
+  Res: TPJResource;
+  A: Integer;
+  U: Double;
+  Need: TPJMachineTypes;
+begin
+  Accept := False;
+  TaskId := Team.Bar(ABar).Id;
+  T := Doc.FindTask(TaskId);
+  if T = nil then Exit;
+  A := Team.Bar(ABar).Tag;
+  NewId := Team.Row(ANewRow).Id;
+  OldId := '';
+  U := 1;
+  if (A >= 0) and (A < Doc.AssignmentCount) then
+  begin
+    OldId := Doc.Assignments[A].ResourceId;
+    U := Doc.Assignments[A].Units;
+  end;
+  if NewId = PJ_TEAM_UNASSIGNED then
+  begin
+    if OldId = '' then Exit;
+    Accept := True;
+    Doc.Unassign(TaskId, OldId);
+    SetStatus(Format('%s: %s removido da tarefa.', [TaskId, Doc.FindResource(OldId).Name]), 1);
+    FSelectedId := TaskId;
+    QueueRefresh;
+    Exit;
+  end;
+  Res := Doc.FindResource(NewId);
+  if Res = nil then Exit;
+  if Doc.IndexOfAssignment(TaskId, Res.Id) >= 0 then
+  begin
+    Reason := Format('%s ja esta com %s', [TaskId, Res.Name]);
+    SetStatus(Reason, 3);
+    Exit;
+  end;
+  Need := MachineTypesFor(T.Kind);
+  if Res.RType = rtMachine then
+  begin
+    if Need = [] then Reason := Format('%s (%s) nao usa maquina', [TaskId, KindCaption(T.Kind)])
+    else if not (Res.MachineType in Need) then
+      Reason := Format('%s (%s) precisa de %s; %s e %s', [TaskId, KindCaption(T.Kind),
+        MachineTypesCaption(Need), Res.Name, MachineTypeCaption(Res.MachineType)]);
+    if Reason <> '' then
+    begin
+      SetStatus(Reason, 3);
+      Exit;
+    end;
+  end;
+  Doc.BeginChange('Reatribuir recurso');
+  try
+    if OldId <> '' then Doc.Unassign(TaskId, OldId);
+    Accept := Doc.Assign(TaskId, Res.Id, U, Err);
+  finally
+    Doc.EndChange;
+  end;
+  if not Accept then
+  begin
+    Doc.Undo;
+    Reason := Err;
+    SetStatus(Err, 3);
+    Exit;
+  end;
+  if OldId <> '' then
+    SetStatus(Format('%s: %s -> %s.', [TaskId, Doc.FindResource(OldId).Name, Res.Name]), 1)
+  else
+    SetStatus(Format('%s atribuida a %s.', [TaskId, Res.Name]), 1);
+  FSelectedId := TaskId;
+  QueueRefresh;
 end;
 
 { ---------------- etapa 5: cronograma ---------------- }
@@ -1778,8 +2181,64 @@ begin
   Succ := Doc.SuccessorsText(T.Id);
   TPredLabel.Caption := 'Predecessoras: ' + IfThen(Doc.PredecessorsText(T.Id) = '', '(nenhuma)', Doc.PredecessorsText(T.Id)) +
     LineEnding + 'Sucessoras: ' + IfThen(Succ = '', '(nenhuma)', Succ);
+  { recursos da tarefa }
+  TResEdit.Text := Doc.ResourcesText(T.Id);
+  TResCombo.Items.Clear;
+  for I in CompatibleResources(Doc, T.Id) do
+    TResCombo.Items.AddObject(Doc.Resources[I].Name + '  -  ' + ResourceCaption(Doc.Resources[I]),
+      TObject(PtrInt(I)));
+  if TResCombo.Items.Count > 0 then TResCombo.ItemIndex := 0;
+  TResUnits.Text := '100';
+  TResInfo.Caption := '';
+  TResInfo.Font.Color := clSuiteMuted;
+  if MachineTypesFor(T.Kind) <> [] then
+    TResInfo.Caption := 'Precisa de ' + MachineTypesCaption(MachineTypesFor(T.Kind)) + '.';
+  if Sched.Valid and Sched.TaskOverallocated(T.Id) then
+  begin
+    TResInfo.Caption := TResInfo.Caption + IfThen(TResInfo.Caption <> '', LineEnding, '') +
+      'Conflito: um recurso desta tarefa esta em outra ao mesmo tempo (vista Equipe).';
+    TResInfo.Font.Color := clSuiteDanger;
+  end;
+  TPriority.Text := IntToStr(T.Priority);
   TOriginLabel.Caption := 'Criada pelo usuario';
   TNotes.Text := T.Notes;
+end;
+
+procedure TMultiProjectForm.TaskResApply(Sender: TObject);
+var T: TPJTask; Err: string;
+begin
+  T := SelectedTask;
+  if T = nil then Exit;
+  if Doc.SetResourcesText(T.Id, TResEdit.Text, Err) then
+  begin
+    AfterCommand(T.Id);
+    SetStatus(T.Id + ': recursos atualizados.', 1);
+  end
+  else
+    SetStatus(T.Id + ': ' + Err, 3);
+end;
+
+procedure TMultiProjectForm.TaskResAdd(Sender: TObject);
+var T: TPJTask; Res: TPJResource; Err: string; U: Double; FS: TFormatSettings;
+begin
+  T := SelectedTask;
+  if (T = nil) or (TResCombo.ItemIndex < 0) then Exit;
+  Res := Doc.Resources[PtrInt(TResCombo.Items.Objects[TResCombo.ItemIndex])];
+  FS := DefaultFormatSettings;
+  FS.DecimalSeparator := '.';
+  if not TryStrToFloat(StringReplace(Trim(StringReplace(TResUnits.Text, '%', '', [])), ',', '.', []), U, FS) then
+  begin
+    SetStatus('Unidades invalidas: use 100 (%) ou a quantidade do material.', 3);
+    Exit;
+  end;
+  if Res.RType <> rtMaterial then U := U / 100;
+  if Doc.Assign(T.Id, Res.Id, U, Err) then
+  begin
+    AfterCommand(T.Id);
+    SetStatus(Format('%s: %s atribuido.', [T.Id, Res.Name]), 1);
+  end
+  else
+    SetStatus(Err, 3);
 end;
 
 function CriterionFromName(const S: string): TPJCriterionState;
@@ -1796,7 +2255,7 @@ var
   D: TAIDuration;
   CD, DL: TDateTime;
   Err: string;
-  I, N: Integer;
+  I, N, Prio: Integer;
 begin
   T := SelectedTask;
   if T = nil then Exit;
@@ -1813,6 +2272,11 @@ begin
   if (TConstraint.ItemIndex > Ord(actALAP)) and (CD = 0) then
   begin
     SetStatus('A restricao ' + TConstraint.Text + ' precisa de data.', 3);
+    Exit;
+  end;
+  if not TryStrToInt(Trim(TPriority.Text), Prio) or (Prio < 0) or (Prio > 1000) then
+  begin
+    SetStatus('Prioridade: um numero de 0 a 1000 (padrao 500).', 3);
     Exit;
   end;
   Doc.BeginChange('Editar tarefa');
@@ -1847,6 +2311,7 @@ begin
     if TCalendar.ItemIndex <= 0 then T.CalendarName := ''
     else T.CalendarName := TCalendar.Items[TCalendar.ItemIndex];
     T.Notes := TNotes.Text;
+    T.Priority := Prio;
   finally
     Doc.EndChange;
   end;
@@ -1872,6 +2337,27 @@ end;
 procedure TMultiProjectForm.UndoClickForTest;
 begin
   UndoClick(nil);
+end;
+
+procedure TMultiProjectForm.LevelForTest(AWithinSlack: Boolean);
+begin
+  LevelSlackBox.Checked := AWithinSlack;
+  LevelClick(nil);
+end;
+
+procedure TMultiProjectForm.ClearLevelForTest;
+begin
+  ClearLevelClick(nil);
+end;
+
+procedure TMultiProjectForm.ResApplyForTest;
+begin
+  ResApply(nil);
+end;
+
+procedure TMultiProjectForm.TaskResApplyForTest;
+begin
+  TaskResApply(nil);
 end;
 
 procedure TMultiProjectForm.TaskBack(Sender: TObject);
