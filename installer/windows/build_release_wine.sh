@@ -81,7 +81,9 @@ FPC="$FPC_BIN" python3 tools/release_manifest.py --app-dir "$APP" --version "$VE
   --version-include "$DIST/version.iss" $CLEAN
 python3 installer/windows/prepare_images.py --version "$VERSION" --out "$DIST/installer-images"
 NAME="setup_multcnc_$SEQ"
-"$WINE" "$ISCC" /Q "/dSetupSeq=$SEQ" "/dOutputExeName=$NAME" "$(winepath -w "$ROOT/installer/windows/multisuite.iss")"
+# caminho do Linux visto pelo Wine (unidade Z:), sem depender do winepath
+ISS="Z:$(printf '%s' "$ROOT/installer/windows/multisuite.iss" | tr '/' '\\')"
+"$WINE" "$ISCC" /Q "/dSetupSeq=$SEQ" "/dOutputExeName=$NAME" "$ISS"
 mkdir -p setup
 cp "$DIST/$NAME.exe" "$BIN/"
 cp "$DIST/$NAME.exe" setup/
