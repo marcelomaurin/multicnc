@@ -1,5 +1,17 @@
 # MultiSuite — Notas de Lançamento / News
 
+## [0.15] — Setup 015 (21/10/2026)
+
+### 🗂️ MultiProject: gestão de projetos mecânicos e eletrônicos (novo)
+- **Objetivo dividido em tarefas** com EAP: peça (MultiCAD), eletrônica (MakePCB), montagem (MultiAssembly), validação (MultiPhysics), impressão 3D, router, corte e arte laser, torno, placa, montagem física e teste.
+- Cada tarefa com descrição curta e longa, **especificação técnica** e **especificação funcional** (critérios de aceite).
+- **Grafo de tarefas** com vínculos TI/II/TT/IT e latência, cadeias e paralelismo, ciclo recusado com o caminho.
+- **Caminho crítico** com calendário padrão e feriados do Brasil, restrições, data limite, margens e avisos.
+- Vistas **Gantt**, **Rede** e **Quadro** no padrão da suíte, exemplo do motor DC e novo grupo **PLANEJAR** na bandeja.
+- Referência funcional: Microsoft Project (requisitos em `multiproject/docs/REQUISITOS.md`).
+
+---
+
 ## [0.14] — Setup 014 (19/10/2026)
 
 ### 🧪 MultiPhysics: simulação física de verdade

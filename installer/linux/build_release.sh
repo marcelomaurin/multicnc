@@ -40,6 +40,7 @@ command -v lazbuild >/dev/null || { echo "ERRO: lazbuild nao encontrado no PATH.
 # id | projeto | executavel gerado | nome exibido | descricao
 APPS=(
   "multisuite|multisuite/src/app/multisuite.lpi|multisuite/src/app/multisuite|MultiSuite|Central de engenharia MultiSuite"
+  "multiproject|multiproject/src/app/multiproject.lpi|multiproject/src/app/multiproject|MultiProject|Gestao de projetos mecanicos e eletronicos"
   "multicad|multicad/src/app/multicad.lpi|multicad/src/app/multicad|MultiCAD|Modelagem CAD mecanica"
   "multiassembly|multiassembly/src/app/multiassembly.lpi|multiassembly/src/app/multiassembly|MultiAssembly|Montagem eletromecanica"
   "multiphysics|multiphysics/src/app/multiphysics.lpi|multiphysics/src/app/multiphysics|MultiPhysics|Simulacao estrutural, termica e dinamica"

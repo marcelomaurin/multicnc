@@ -91,7 +91,9 @@ def console(args):
                     continue
                 binary = source.with_suffix(suffix)
                 if run_tests:
-                    result = execute([str(binary)], cwd=source.parent, timeout=int(os.environ.get("MULTICNC_TEST_TIMEOUT", "30")))
+                    # MULTICNC_TEST_RUNNER roda binarios cruzados (ex.: "wine" para win64 no Linux)
+                    runner = shlex.split(os.environ.get("MULTICNC_TEST_RUNNER", ""))
+                    result = execute([*runner, str(binary)], cwd=source.parent, timeout=int(os.environ.get("MULTICNC_TEST_TIMEOUT", "30")))
                     record["status"] = "passed" if result.returncode == 0 else "failed"
                     record["exit_code"] = result.returncode
                     (output / "run.log").write_text(result.stdout, encoding="utf-8")

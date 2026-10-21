@@ -3,7 +3,7 @@
 #endif
 #include "..\..\dist\version.iss"
 #ifndef SetupSeq
-  #define SetupSeq "014"
+  #define SetupSeq "015"
 #endif
 #ifndef MyAppPublisher
   #define MyAppPublisher "Maurinsoft"
@@ -51,6 +51,7 @@ Name: "tools"; Description: "Ferramentas do MultiSuite"; Types: full compact cus
 Name: "tools\multicnc"; Description: "MultiCNC - Controle de Maquinas CNC (GRBL, Marlin, Simulador)"; Types: full compact custom
 Name: "tools\tray"; Description: "MultiSuite Bandeja - Ferramentas ao lado do relogio"; Types: full compact custom
 Name: "tools\simucnc"; Description: "SimuCNC - Simulador de maquina (impressora, router e laser) com porta serial virtual"; Types: full custom
+Name: "tools\multiproject"; Description: "MultiProject - Gestao de Projetos Mecanicos e Eletronicos (tarefas, grafo, Gantt)"; Types: full custom
 Name: "tools\multicad"; Description: "MultiCAD - Modelagem e Desenho CAD 2D/3D"; Types: full custom
 Name: "tools\multiassembly"; Description: "MultiAssembly - Montagem Eletromecanica"; Types: full custom
 Name: "tools\multiphysics"; Description: "MultiPhysics - Simulacao Fisica, Termica e Dinamica"; Types: full custom
@@ -72,6 +73,7 @@ Source: "..\..\dist\app\qa-tests.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\dist\app\multicnc.exe"; DestDir: "{app}"; Components: tools\multicnc; Flags: ignoreversion
 Source: "..\..\dist\app\multisuite_tray.exe"; DestDir: "{app}"; Components: tools\tray; Flags: ignoreversion
 Source: "..\..\dist\app\SimuCNC.exe"; DestDir: "{app}"; Components: tools\simucnc; Flags: ignoreversion
+Source: "..\..\dist\app\multiproject.exe"; DestDir: "{app}"; Components: tools\multiproject; Flags: ignoreversion
 Source: "..\..\dist\app\multicad.exe"; DestDir: "{app}"; Components: tools\multicad; Flags: ignoreversion
 Source: "..\..\dist\app\mcad_occt.dll"; DestDir: "{app}"; Components: tools\multicad; Flags: ignoreversion
 Source: "..\..\dist\app\multiassembly.exe"; DestDir: "{app}"; Components: tools\multiassembly; Flags: ignoreversion
@@ -111,6 +113,7 @@ Name: "{autoprograms}\MultiSuite\MultiCNC"; Filename: "{app}\multicnc.exe"; Comp
 Name: "{autodesktop}\MultiCNC"; Filename: "{app}\multicnc.exe"; Tasks: desktopicon_cnc; Components: tools\multicnc
 Name: "{autoprograms}\MultiSuite\MultiSuite Bandeja"; Filename: "{app}\multisuite_tray.exe"; Components: tools\tray
 Name: "{autoprograms}\MultiSuite\SimuCNC"; Filename: "{app}\SimuCNC.exe"; Components: tools\simucnc
+Name: "{autoprograms}\MultiSuite\MultiProject"; Filename: "{app}\multiproject.exe"; Components: tools\multiproject
 Name: "{autoprograms}\MultiSuite\MultiCAD"; Filename: "{app}\multicad.exe"; Components: tools\multicad
 Name: "{autoprograms}\MultiSuite\MultiAssembly"; Filename: "{app}\multiassembly.exe"; Components: tools\multiassembly
 Name: "{autoprograms}\MultiSuite\MultiPhysics"; Filename: "{app}\multiphysics.exe"; Components: tools\multiphysics

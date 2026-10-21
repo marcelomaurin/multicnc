@@ -1,10 +1,10 @@
-# Instalador Windows MultiSuite 014
+# Instalador Windows MultiSuite 015
 
 Windows 64 bits, Git, Python 3.9+, Lazarus/Free Pascal 64 bits e Inno Setup 6 ou 7.
 
 ## Gerar
 
-    installer\windows\build_release.bat -Version 0.14 -SetupSeq 014
+    installer\windows\build_release.bat -Version 0.15 -SetupSeq 015
 
 O script procura as ferramentas nas pastas usuais. Os caminhos podem ser definidos
 por LAZBUILD, FPC, PYTHON e ISCC. MULTICNC_CHATGPT_DIR aponta para as dependencias
@@ -13,15 +13,24 @@ AI/AISerial quando estiverem fora da pasta CHATGPT ao lado do repositorio.
 A publicacao exige arvore Git limpa. Para gerar e testar um setup local antes do
 commit, acrescente -AllowDirty; o manifesto registra source_dirty=true.
 
-O build compila os 13 executaveis, copia a biblioteca de componentes 3D do MultiAssembly
+O build compila os 14 executaveis, copia a biblioteca de componentes 3D do MultiAssembly
 (models\components\mec, instalada junto com o MultiAssembly), executa os testes de console, inclui relatorio de testes e
 documentacao, valida a arquitetura amd64 e gera manifesto, relatorio e SHA256SUMS.
-Os executaveis atualizados ficam em bin. setup_multcnc_014.exe fica em setup e bin; a copia de staging
+Os executaveis atualizados ficam em bin. setup_multcnc_015.exe fica em setup e bin; a copia de staging
 e os logs ficam em dist. Feche os aplicativos da suite antes de substituir bin.
+
+## Gerar no Linux (compilacao cruzada)
+
+    ISCC=/caminho/ISCC.exe installer/windows/build_release_wine.sh 0.15 015
+
+Mesmos passos do build_release.ps1: compila os executaveis win64 com o FPC/Lazarus do
+Linux (units x86_64-win64 da RTL e dos pacotes instaladas), roda os testes de console
+win64 no Wine (MULTICNC_TEST_RUNNER=wine), gera as imagens com prepare_images.py
+(Pillow) e o instalador com o ISCC.exe do Inno Setup 6.3+ no Wine (32 e 64 bits).
 
 ## Conteudo e inicializacao
 
-Inclui MultiSuite Bandeja, MultiCAD, MultiAssembly,
+Inclui MultiSuite Bandeja, MultiProject, MultiCAD, MultiAssembly,
 MultiPhysics, MultiCAM, MultiSlicer, MakePCB, MakeRouter, RouterPCB, LaserPCB,
 LaserArt, MultiCNC, SimuCNC.
 

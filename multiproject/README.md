@@ -1,7 +1,9 @@
 # MultiProject — gerenciador de projetos mecânicos e eletrônicos
 
-> **Estado:** especificação (fase 0, 20/10/2026). Ainda não há código; as decisões e etapas
-> estão em [docs/TAREFA.md](docs/TAREFA.md).
+> **Estado:** primeira versão no setup 015 (21/10/2026): fases 0 a 4 prontas (documento
+> `.mproj`, grafo de tarefas com vínculos TI/II/TT/IT, calendários, cronograma pelo caminho
+> crítico, tela no padrão da suíte e registro na MultiSuite). As próximas etapas estão em
+> [docs/TAREFA.md](docs/TAREFA.md).
 
 O **MultiProject** é a porta de entrada da MultiSuite para quem quer **construir algo**, e
 não apenas desenhar uma peça. O usuário define um **objetivo** (por exemplo, *construir um

@@ -29,6 +29,7 @@ declare -A TOOL_NAMES=(
     ["multisuite"]="MultiSuite - Central de Engenharia Integrada"
     ["multicnc"]="MultiCNC - Controle de Maquinas CNC (GRBL/Marlin)"
     ["makepcb"]="MakePCB - Projeto de placas e arquivos de fabricacao"
+    ["multiproject"]="MultiProject - Gestao de Projetos Mecanicos e Eletronicos"
     ["multicad"]="MultiCAD - Modelagem e Desenho CAD 2D/3D"
     ["multiassembly"]="MultiAssembly - Montagem Eletromecanica"
     ["multiphysics"]="MultiPhysics - Simulacao Fisica, Termica e Dinamica"
@@ -42,6 +43,7 @@ declare -A TOOL_NAMES=(
 ALL_TOOLS=(
     "multisuite"
     "multicnc"
+    "multiproject"
     "multicad"
     "makepcb"
     "multiassembly"

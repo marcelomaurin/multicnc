@@ -1,11 +1,11 @@
 param(
   [string]$Version = $env:VERSION,
-  [ValidatePattern('^\d{3}$')][string]$SetupSeq = '014',
+  [ValidatePattern('^\d{3}$')][string]$SetupSeq = '015',
   [switch]$AllowDirty,
   [switch]$SkipBinUpdate
 )
 $ErrorActionPreference = 'Stop'
-if (-not $Version) { $Version = '0.14' }
+if (-not $Version) { $Version = '0.15' }
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 Set-Location -LiteralPath $root
 $dist = Join-Path $root 'dist'
@@ -43,6 +43,7 @@ foreach ($folder in @('pacote\AI', 'pacote\AI Input\AISerial', 'pacote\AI Simula
 }
 [IO.File]::WriteAllLines($config, $flags)
 $targets = @(
+ @('multiproject\src\app\multiproject','multiproject'),
  @('multicad\src\app\multicad','multicad'),
  @('multiassembly\src\app\multiassembly','multiassembly'),
  @('multiphysics\src\app\multiphysics','multiphysics'),

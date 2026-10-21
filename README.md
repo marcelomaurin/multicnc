@@ -2,9 +2,9 @@
 
 **Idiomas:** Português · [English](README_EN.md) · [Español](README_ES.md) · [Français](README_FR.md) · [Deutsch](README_DE.md) · [Русский](README_RU.md) · [中文](README_ZH.md) · [العربية](README_AR.md) · [हिन्दी](README_HI.md)
 
-## Download Windows — setup 014
+## Download Windows — setup 015
 
-[Baixar setup_multcnc_014.exe](setup/setup_multcnc_014.exe) · [Notas da versão 0.14](docs/SETUP_014.md) · [Instalação e compilação](installer/windows/README.md)
+[Baixar setup_multcnc_015.exe](setup/setup_multcnc_015.exe) · [Notas da versão 0.15](docs/SETUP_015.md) · [Instalação e compilação](installer/windows/README.md)
 
 O pacote Windows x64 inclui 13 aplicativos, a biblioteca de 135 componentes 3D do MultiAssembly, os perfis de laser do MultiCNC, a configuração de Mesa compartilhada entre LaserArt/LaserPCB e a biblioteca de componentes do MakePCB disponível no LaserPCB. A bandeja `multisuite_tray.exe` abre as ferramentas instaladas e pode iniciar com o Windows. O setup apresenta capturas dos projetos durante a instalação.
 

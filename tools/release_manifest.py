@@ -26,7 +26,7 @@ def sha256(path):
 def verify_architecture(app, target_os, arch):
     names = ("multisuite", "multicad", "multiassembly", "multiphysics",
              "multicam", "multislicer", "laserpcb", "laserart", "multicnc", "multisuite_test_center",
-             "makepcb", "makerouter", "routerpcb")
+             "makepcb", "makerouter", "routerpcb", "multiproject")
     if target_os == "windows":
         names = tuple(name for name in names if name not in ("multisuite", "multisuite_test_center")) + ("multisuite_tray", "SimuCNC")
     required = {app / (name + (".exe" if target_os == "windows" else "")) for name in names}
