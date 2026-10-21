@@ -26,7 +26,8 @@ e os logs ficam em dist. Feche os aplicativos da suite antes de substituir bin.
 Mesmos passos do build_release.ps1: compila os executaveis win64 com o FPC/Lazarus do
 Linux (units x86_64-win64 da RTL e dos pacotes instaladas), roda os testes de console
 win64 no Wine (MULTICNC_TEST_RUNNER=wine), gera as imagens com prepare_images.py
-(Pillow) e o instalador com o ISCC.exe do Inno Setup 6.3+ no Wine (32 e 64 bits).
+(Pillow) e o instalador com o ISCC.exe do Inno Setup 6.3+ no Wine (32 e 64 bits). O script
+mapeia Times New Roman para DejaVu Serif no Wine (teste de fontes do MultiCAD).
 
 ## Conteudo e inicializacao
 

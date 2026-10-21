@@ -70,6 +70,9 @@ cp "$BIN/mcad_occt.dll" "$APP/"
 mkdir -p "$APP/models/components"
 cp -r models/components/mec "$APP/models/components/"
 for exe in "$APP"/*.exe; do strip --strip-debug "$exe"; done
+# o Wine nao tem Times New Roman: test_sketch_text compara duas fontes diferentes
+"$WINE" reg add 'HKLM\Software\Microsoft\Windows NT\CurrentVersion\FontSubstitutes' \
+  /v "Times New Roman" /d "DejaVu Serif" /f > /dev/null
 MULTICNC_TEST_FLAGS="-Px86_64 -Twin64" MULTICNC_TEST_RUNNER="$WINE" FPC="$FPC_BIN" \
   MULTICNC_CHATGPT_DIR="$CHATGPT" python3 -u tools/verify_suite.py console --stage "$APP"
 python3 tools/stage_documentation.py --app-dir "$APP" --version "$VERSION"
