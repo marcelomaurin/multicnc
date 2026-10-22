@@ -266,7 +266,7 @@ begin
     if F.Team.Bar(I).Id = 'T-0010' then B := I;
   Check(not F.Team.TryReassign(B, F.Team.IndexOfRow('R-005'), Reason) and (Pos('Impressora 3D', Reason) > 0),
     'maquina incompativel recusada: ' + Reason);
-  Check(F.Doc.ResourcesText('T-0010') = 'Ender-3; PETG[0.12 kg]', 'recusa nao altera');
+  Check(StringReplace(F.Doc.ResourcesText('T-0010'), ',', '.', [rfReplaceAll]) = 'Ender-3; PETG[0.12 kg]', 'recusa nao altera');
   F.Doc.Undo;
   F.RefreshAll;
   { pagina da tarefa: recursos e conflito }

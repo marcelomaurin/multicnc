@@ -6,6 +6,22 @@
 > (pessoas, máquinas e materiais, atribuições, superalocação, nivelamento e vista Equipe).
 > As próximas etapas estão em [docs/TAREFA.md](docs/TAREFA.md).
 
+## Vínculo com ferramentas (fontes de 22/10/2026)
+
+Na página da tarefa, **Vincular arquivo** associa o documento; **Verificar arquivo**
+mostra o diagnóstico. **Abrir na ferramenta** propõe um caminho dentro do projeto
+salvo e envia as especificações e entradas em `<artefato>.task.json`. MultiCAD e
+MakePCB mostram essas especificações e Ctrl+S usa o caminho proposto por `--new`.
+
+O MultiProject acompanha tamanho, data e SHA-1 ao voltar à janela e a cada 2 segundos
+com ela ativa. Alterações em arquivos prontos pedem revisão e desatualizam as
+sucessoras diretas que os consomem; o aviso mostra toda a cadeia. Concluir exige
+artefato verificado para os tipos que o usam. G-code de fabricação abre no MultiCNC
+com `--file`; posicionamento e execução ficam no MultiCNC.
+
+Testes Win64 concluídos; regressão Linux da fase 5 pendente. Esta mudança ainda não
+foi incorporada ao setup 015.
+
 ## Recursos e conflitos
 
 - **Pessoas** (os usuários da equipe, com função e e-mail), **máquinas** (router, laser,

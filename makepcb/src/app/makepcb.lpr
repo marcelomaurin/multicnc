@@ -7,7 +7,7 @@ program makepcb;
 
 uses
   {$IFDEF UNIX}cthreads,{$ENDIF}
-  Interfaces, SysUtils, Forms, makepcb_main, multisuite_context;
+  Interfaces, SysUtils, Forms, makepcb_main, multisuite_context, multisuite_taskpanel;
 
 {$R *.res}
 
@@ -21,6 +21,8 @@ begin
   C := ReadSuiteContext;
   Application.CreateForm(TMakePCBForm, F);
   if (C.FileName <> '') and FileExists(C.FileName) then F.OpenFile(C.FileName);
+  if C.NewFileName <> '' then F.SetNewTarget(C.NewFileName);
+  ShowSuiteTaskPanel(F, C.TaskFile);
   F.Show;
   Application.Run;
 end.

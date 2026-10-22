@@ -33,6 +33,10 @@ const
   PJ_CAL_24H = '24h';
 
 type
+  TPJArtifact = record
+    Path, Tool, Hash, Status, CheckMessage, CheckedAt: string;
+    Size, MTime: Int64;
+  end;
   TPJTask = class
   public
     Id: string;
@@ -56,6 +60,7 @@ type
     { recursos (fase 7, PJ-T24, PJ-R05) }
     Priority: Integer;             // 0..1000, padrao 500 (nivelamento)
     LevelStart: TDateTime;         // atraso do nivelamento: nao iniciar antes; 0 = sem
+    Artifact: TPJArtifact;
     Notes: string;
     Level: Integer;
     { objeto JSON lido do arquivo: preserva campos que esta versao nao conhece }
@@ -299,6 +304,7 @@ end;
 constructor TPJTask.Create;
 begin
   inherited Create;
+  Artifact.Status := 'none'; Artifact.Size := -1; Artifact.MTime := -1;
   Kind := tkGeneral;
   Process := prNone;
   State := tsPlanned;

@@ -7,7 +7,7 @@ unit multiproject_states;
     canceladas; criterios de aceite aprovados ou dispensados.
   - Em andamento exige predecessoras TI concluidas (II nao bloqueia).
   - Resumo nao muda de estado pelo quadro (o estado vem das filhas).
-  A exigencia de artefato valido entra na fase 5 (vinculo com as ferramentas).
+  Pronta para revisao e concluida exigem artefato valido nos tipos que o usam.
   Cada recusa diz a tarefa e o motivo. }
 
 {$mode objfpc}{$H+}
@@ -23,6 +23,8 @@ function SetTaskState(P: TPJProject; const ATaskId: string; ANew: TPJTaskState;
   out Reason: string): Boolean;
 
 implementation
+
+uses multiproject_kinds;
 
 function OpenFSPredecessors(P: TPJProject; const ATaskId: string): string;
 var I: Integer; L: TPJLink; T: TPJTask;
@@ -52,7 +54,8 @@ begin
     Reason := 'tarefa inexistente: ' + ATaskId;
     Exit(False);
   end;
-  if T.State = ANew then Exit(True);
+
+  if (T.State = ANew) and P.HasChildren(P.IndexOfId(T.Id)) then Exit(True);
   if P.HasChildren(P.IndexOfId(T.Id)) then
   begin
     Reason := T.Id + ' e um resumo: o estado vem das subtarefas';
@@ -75,6 +78,12 @@ begin
           CriterionStateName(T.FuncSpec[I].State)]);
         Exit(False);
       end;
+  if (ANew in [tsReview, tsDone]) and PJKindInfo(T.Kind).RequiresArtifact and
+    ((T.Artifact.Hash = '') or not (T.Artifact.Status = 'valid') and not (T.Artifact.Status = 'ready')) then
+  begin
+    Reason := T.Id + ': exige artefato valido; ' + T.Artifact.CheckMessage;
+    Exit(False);
+  end;
   Result := True;
 end;
 

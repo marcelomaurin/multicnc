@@ -10,7 +10,7 @@
  <CompilerOptions>
   <Version Value="11"/>
   <Target><Filename Value="test_multiproject_ui"/></Target>
-  <SearchPaths><OtherUnitFiles Value="../src/core;../src/io;../src/view;../src/app;../../multisuite/src/core;../../src/shared;../../src/core;../../../CHATGPT/pacote/AI Project Core;../../../CHATGPT/pacote/AI Project;../../third_party/chatgpt/AIProjectCore;../../third_party/chatgpt/AIProject"/><UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)/test_multiproject_ui"/></SearchPaths>
+  <SearchPaths><OtherUnitFiles Value="../src/core;../src/integration;../../makepcb/src/core;../../makepcb/src/route;../../multicad/src/core;../../multicad/src/features;../../multicad/src/kernel;../../multicad/src/sketch;../../multisuite/src/core;../src/io;../src/view;../src/app;../../multisuite/src/core;../../src/shared;../../src/core;../src/integration;../../makepcb/src/core;../../makepcb/src/route;../../multicad/src/core;../../multicad/src/features;../../multicad/src/kernel;../../multicad/src/sketch;../../multisuite/src/core;../../../CHATGPT/pacote/AI Project Core;../../../CHATGPT/pacote/AI Project;../../third_party/chatgpt/AIProjectCore;../../third_party/chatgpt/AIProject"/><UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)/test_multiproject_ui"/></SearchPaths>
   <Parsing><SyntaxOptions><SyntaxMode Value="ObjFPC"/></SyntaxOptions></Parsing>
   <CodeGeneration><Checks><IOChecks Value="True"/><RangeChecks Value="True"/><OverflowChecks Value="True"/></Checks></CodeGeneration>
  </CompilerOptions>

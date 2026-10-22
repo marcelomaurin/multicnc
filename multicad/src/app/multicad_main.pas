@@ -205,6 +205,7 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     function OpenFile(const AFile: string): Boolean;
+    procedure SetNewTarget(const AFile: string);
     { acesso para o teste de interface }
     property Document: TCadDocument read Doc;
     property Rebuilder: TCadRebuilder read RB;
@@ -1491,6 +1492,14 @@ begin
   finally
     D.Free;
   end;
+end;
+
+procedure TMainForm.SetNewTarget(const AFile: string);
+begin
+  if FileExists(AFile) then raise Exception.Create('Arquivo ja existe: ' + AFile);
+  if not SameText(ExtractFileExt(AFile), '.mcad') then raise Exception.Create('Esperado arquivo .mcad');
+  Doc.FileName := ExpandFileName(AFile);
+  UpdateCaption;
 end;
 
 function TMainForm.SaveTo(const AFile: string): Boolean;

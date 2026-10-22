@@ -74,6 +74,12 @@ begin
   O.Add('short', T.ShortDesc);
   O.Add('long', T.LongDesc);
   O.Add('parent', P.ParentId(Index));
+  Spec := TJSONObject.Create;
+  Spec.Add('path', T.Artifact.Path); Spec.Add('tool', T.Artifact.Tool);
+  Spec.Add('hash', T.Artifact.Hash); Spec.Add('size', T.Artifact.Size);
+  Spec.Add('mtime', T.Artifact.MTime); Spec.Add('status', T.Artifact.Status);
+  Spec.Add('checked_at', T.Artifact.CheckedAt); Spec.Add('check_msg', T.Artifact.CheckMessage);
+  O.Add('artifact', Spec);
   O.Add('kind', KindName(T.Kind));
   O.Add('process', ProcessName(T.Process));
   O.Add('state', StateName(T.State));
@@ -320,6 +326,18 @@ begin
       Result.TechText := AIJSONStr(Spec, 'text');
     end;
     Result.FuncSpec := CriteriaFromJSON(AIJSONArr(O, 'func_spec'), Result.Id);
+    Spec := AIJSONObj(O, 'artifact');
+    if Spec <> nil then
+    begin
+      Result.Artifact.Path := AIJSONStr(Spec, 'path');
+      Result.Artifact.Tool := AIJSONStr(Spec, 'tool');
+      Result.Artifact.Hash := AIJSONStr(Spec, 'hash');
+      Result.Artifact.Size := AIJSONInt64(Spec, 'size', -1);
+      Result.Artifact.MTime := AIJSONInt64(Spec, 'mtime', -1);
+      Result.Artifact.Status := AIJSONStr(Spec, 'status');
+      Result.Artifact.CheckedAt := AIJSONStr(Spec, 'checked_at');
+      Result.Artifact.CheckMessage := AIJSONStr(Spec, 'check_msg');
+    end;
     Result.Notes := AIJSONStr(O, 'notes');
     Result.Raw := TJSONObject(O.Clone);
   except

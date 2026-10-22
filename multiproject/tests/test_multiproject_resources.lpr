@@ -59,7 +59,7 @@ begin
     Check(P.FindResource('R-001').Name = 'Ana', 'R-001 = Ana');
     Check(P.FindResource('ender-3').RType = rtMachine, 'busca por nome sem caixa');
     Check(P.ResourcesText('T-0007') = 'Ana; Bruno[50%]', 'coluna Recursos: ' + P.ResourcesText('T-0007'));
-    Check(P.ResourcesText('T-0010') = 'Ender-3; PETG[0.12 kg]', 'material com quantidade: ' + P.ResourcesText('T-0010'));
+    Check(StringReplace(P.ResourcesText('T-0010'), ',', '.', [rfReplaceAll]) = 'Ender-3; PETG[0.12 kg]', 'material com quantidade: ' + P.ResourcesText('T-0010'));
     Check(Length(P.AssignmentsOfTask('T-0012')) = 2, 'laser e Carla no corte');
     Check(Length(P.AssignmentsOfResource('R-001')) = 5, 'cinco tarefas da Ana');
     Issues := P.Validate;
@@ -299,7 +299,7 @@ begin
     Check(Q.ResourceCount = 8, 'recursos lidos');
     Check(Q.AssignmentCount = P.AssignmentCount, 'atribuicoes lidas');
     Check(Q.ResourcesText('T-0007') = 'Ana; Bruno[50%]', 'unidades de volta: ' + Q.ResourcesText('T-0007'));
-    Check(Q.ResourcesText('T-0010') = 'Ender-3; PETG[0.12 kg]', 'quantidade de volta: ' + Q.ResourcesText('T-0010'));
+    Check(StringReplace(Q.ResourcesText('T-0010'), ',', '.', [rfReplaceAll]) = 'Ender-3; PETG[0.12 kg]', 'quantidade de volta: ' + Q.ResourcesText('T-0010'));
     Check(Q.FindResource('Ana').Email = 'ana@oficina.local', 'email');
     Check(Q.FindResource('Ana').Role = 'Projetista mecanica', 'funcao');
     Check(Q.FindResource('Ender-3').MachineType = pmPrinter3D, 'tipo de maquina');

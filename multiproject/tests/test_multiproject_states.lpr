@@ -46,11 +46,16 @@ begin
 end;
 
 procedure TestStates;
-var P: TPJProject; Why: string; T: TPJTask;
+var P: TPJProject; Why: string; T: TPJTask; I: Integer;
 begin
   P := TPJProject.Create;
   try
     BuildMotorExample(P);
+    Check(not SetTaskState(P, 'T-0003', tsDone, Why), 'peca sem artefato nao conclui');
+    for I := 0 to P.Count-1 do
+    begin
+      P[I].Artifact.Hash := 'fixture-verificada'; P[I].Artifact.Status := 'valid';
+    end;
     Check(not SetTaskState(P, 'T-0006', tsInProgress, Why) and (Pos('T-0002', Why) > 0),
       'montagem espera as pecas: ' + Why);
     Check(not SetTaskState(P, 'T-0001', tsDone, Why) and (Pos('resumo', Why) > 0), 'resumo nao muda pelo quadro');

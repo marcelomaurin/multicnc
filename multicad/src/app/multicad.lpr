@@ -4,7 +4,7 @@ program multicad;
 
 uses
   {$IFDEF UNIX}cthreads,{$ENDIF}
-  Interfaces, Forms, SysUtils, multicad_main, multisuite_context, multicad_log;
+  Interfaces, Forms, SysUtils, multicad_main, multisuite_context, multisuite_taskpanel, multicad_log;
 
 {$R *.res}
 
@@ -26,6 +26,10 @@ begin
   if (C.FileName <> '') and FileExists(C.FileName) and
     SameText(ExtractFileExt(C.FileName), '.mcad') then
     F.OpenFile(C.FileName);
+  if (C.NewFileName <> '') and not FileExists(C.NewFileName) and
+    SameText(ExtractFileExt(C.NewFileName), '.mcad') then
+    F.SetNewTarget(C.NewFileName);
+  ShowSuiteTaskPanel(F, C.TaskFile);
   if CadLogError<>'' then
     Application.MessageBox(PChar('Nao foi possivel gravar o log: '+CadLogError),'MultiCAD',0);
   Application.Run;

@@ -17,7 +17,7 @@ uses
   aiprojectduration, aitaskgraph, aicpmscheduler, airesourceload, aiganttview, ainetworkview,
   aiboardview, airesourceview,
   multisuite_controls, multisuite_icons,
-  multiproject_types, multiproject_document, multiproject_graph, multiproject_schedule;
+  multiproject_types, multiproject_document, multiproject_graph, multiproject_schedule, multiproject_kinds;
 
 type
   TPJFilter = (pfAll, pfCritical, pfLate, pfSuggested, pfChain, pfKind);
@@ -120,19 +120,8 @@ end;
 
 function KindToolName(K: TPJTaskKind): string;
 begin
-  case K of
-    tkPart: Result := 'MultiCAD';
-    tkElectronics: Result := 'MakePCB';
-    tkAssembly: Result := 'MultiAssembly';
-    tkValidation: Result := 'MultiPhysics';
-    tkPrint3D: Result := 'MultiSlicer';
-    tkRouter: Result := 'MakeRouter';
-    tkLaserCut, tkLaserArt: Result := 'LaserArt';
-    tkPCBFab: Result := 'LaserPCB';
-    tkLathe: Result := 'Torno (manual)';
-  else
-    Result := '';
-  end;
+  Result := PJKindInfo(K).ToolName;
+  if K = tkLathe then Result := 'Torno (manual)';
 end;
 
 function FmtDateTime(D: TDateTime): string;

@@ -2,7 +2,8 @@
 
 - **Aberta em:** 20/10/2026.
 - **Estado:** decisões D1 a D12 **aprovadas como propostas** pelo Marcelo (20/10/2026).
-  Fases 1 a 4 concluídas no Linux (20/10); a conferência no Win64 e o `bin/multiproject.exe` estão pendentes.
+  Fases 1 a 4 conferidas no Win64 (22/10); fase 5 implementada e testada no Win64.
+  Regressão Linux da fase 5 pendente (WSL sem distribuição instalada). O setup 015 segue com a versão anterior.
 - **Solicitação:** um gerenciador de projeto em que se define um **objetivo** (exemplo:
   construir um motor). Uma pessoa ou a IA divide o objetivo em tarefas de peça e de eletrônica.
   As tarefas se relacionam por uma **lista de grafos**, em cadeia ou em paralelo, e têm Nome,
@@ -23,14 +24,14 @@
 
 ## Progresso
 
-| Fase | Estado em 21/10/2026 | Entrega |
+| Fase | Estado em 22/10/2026 | Entrega |
 |---|---|---|
 | 0 Especificação | concluída | README, REQUISITOS, ARCHITECTURE, LAYOUT, TAREFA, AI_GUIDE |
-| 1 Documento e tarefas | concluída no Linux (20/10); Win64 pendente | `multiproject_types`, `multiproject_document`, `multiproject_json`; `test_multiproject_core.lpr` com 102 checks; usa `aiprojectduration`, `aiundohistory` e `aijsonutils` do CHATGPT |
-| 2 Grafo | concluída no Linux (20/10); Win64 pendente | `aitaskgraph` no CHATGPT (`ec5cccf`, 61 checks) + `multiproject_graph` (adaptador com expansão dos resumos) e vínculos no documento e no `.mproj`; `test_multiproject_graph.lpr` com 88 checks |
-| 3 Calendário e cronograma | concluída no Linux (20/10); Win64 pendente | `aiworkcalendar` (`c9ad854`, 57 checks) e `aicpmscheduler` (`3557a7b`, 47 checks) no CHATGPT + `multiproject_schedule`, calendários e restrições no documento e no `.mproj`; `test_multiproject_schedule.lpr` com 82 checks |
+| 1 Documento e tarefas | concluída no Linux (20/10) e conferida no Win64 (22/10) | `multiproject_types`, `multiproject_document`, `multiproject_json`; `test_multiproject_core.lpr` com 102 checks; usa `aiprojectduration`, `aiundohistory` e `aijsonutils` do CHATGPT |
+| 2 Grafo | concluída no Linux (20/10) e conferida no Win64 (22/10) | `aitaskgraph` no CHATGPT (`ec5cccf`, 61 checks) + `multiproject_graph` (adaptador com expansão dos resumos) e vínculos no documento e no `.mproj`; `test_multiproject_graph.lpr` com 88 checks |
+| 3 Calendário e cronograma | concluída no Linux (20/10) e conferida no Win64 (22/10) | `aiworkcalendar` (`c9ad854`, 57 checks) e `aicpmscheduler` (`3557a7b`, 47 checks) no CHATGPT + `multiproject_schedule`, calendários e restrições no documento e no `.mproj`; `test_multiproject_schedule.lpr` com 82 checks |
 | 4 Tela e registro na suíte | concluída (20/10); `bin/multiproject.exe` win64 e setup 015 (21/10) | vistas genéricas no CHATGPT (`TAIGanttView`, `TAINetworkView`, `TAIBoardView`, até `1448eb8`, 42 checks) + `multiproject_main`/`multiproject_views`, registro na suíte (grupo PLANEJAR), `test_multiproject_ui` com 51 checks sob Xvfb e `test_multiproject_states` com 20 |
-| 5 Vínculo com as ferramentas | pendente | `--new`/`--task`, `.task.json`, detecção, verificadores, Abrir na ferramenta |
+| 5 Vínculo com as ferramentas | implementada; Win64 validado (22/10), regressão Linux pendente | `--new`/`--task`, `.task.json`, detecção, verificadores, Abrir na ferramenta |
 | 6 Regras de geração e modelos | pendente | PJ-A01..A08, exemplo Motor DC, modelos |
 | 7 Recursos e custos | 7.1 a 7.4 e 7.8 concluídas (21/10), adiantadas a pedido; custos (7.5), estimativa pelo G-code (7.6) e tipos de tarefa (7.7) pendentes | `airesourceload` (`TAIResourceLoad`, `TAIResourceLeveler`, 83 checks) e `TAIResourceView` (68 checks nas vistas) no CHATGPT, até `78f3f2b` + `multiproject_resources`, recursos e atribuições no documento e no `.mproj`, etapa 4 Recursos, vista Equipe, coluna Recursos e nivelamento na etapa 5; `test_multiproject_resources.lpr` com 116 checks e `test_multiproject_ui` com 84 |
 | 8 Linha de base, acompanhamento e relatórios | pendente | linhas de base, progresso, valor agregado, HTML/PDF, Calendário, Linha do tempo |
@@ -123,7 +124,7 @@ confira o aceite.
 - [x] 1.6 `multiproject_json`: salvar e ler o `.mproj` com salvamento atômico, preservação
       de campos desconhecidos e recusa de versão futura (PJ-X01, Q02, Q04).
 - [x] 1.7 Teste `test_multiproject_core.lpr` (102 checks no Linux, inclusive com `-Cr -gt -Ci -Co`
-      e com a cópia de reserva das units do CHATGPT; Win64 pendente):
+      e com a cópia de reserva das units do CHATGPT; Win64 conferido em 22/10):
       - EAP depois de recuar e mover;
       - ID não reaproveitado depois de excluir;
       - desfazer de cada comando;
@@ -274,26 +275,41 @@ Resultado da fase 4:
 
 ### Fase 5: vínculo com as ferramentas (≈ 5 h)
 
-- [ ] 5.1 `multiproject_kinds`: a tabela de tipos de ARCHITECTURE (PJ-L01).
-- [ ] 5.2 `--new`/`--task` em `ReadSuiteContext` (as duas cópias, ou unificar) e
+- [x] 5.1 `multiproject_kinds`: a tabela de tipos de ARCHITECTURE (PJ-L01).
+- [x] 5.2 `--new`/`--task` em `ReadSuiteContext` (as duas cópias, ou unificar) e
       `TSuiteLauncher.LaunchNew`, com `multisuite/tests/test_context.lpr` ampliado (D4).
-- [ ] 5.3 `multiproject_taskctx`: gravar o `<artefato>.task.json` com as especificações e os
+- [x] 5.3 `multiproject_taskctx`: gravar o `<artefato>.task.json` com as especificações e os
       `inputs` (PJ-L03).
-- [ ] 5.4 MultiCAD e MakePCB tratam `--new` (salvar como no caminho dado) e mostram a
+- [x] 5.4 MultiCAD e MakePCB tratam `--new` (salvar como no caminho dado) e mostram a
       especificação da tarefa num painel informativo.
-- [ ] 5.5 `multiproject_artifacts`:
+- [x] 5.5 `multiproject_artifacts`:
       - vincular arquivo;
       - conferir tamanho e data a cada 2 s e ao ativar a janela, recalculando o SHA-1 se mudaram;
       - estados none/created/valid/ready e desatualização das sucessoras (PJ-L04).
-- [ ] 5.6 `multiproject_checks`: verificadores de `.mcad`, `.mpcb` (DRC e Gerber), G-code
+- [x] 5.6 `multiproject_checks`: verificadores de `.mcad`, `.mpcb` (DRC e Gerber), G-code
       (`SuiteCheckGCode` + `MS-MACHINE`) e "não verificado" para os demais (PJ-L05).
-- [ ] 5.7 Estados e transições (PJ-L06), o botão "Abrir na ferramenta" com rótulo por tipo
+- [x] 5.7 Estados e transições (PJ-L06), o botão "Abrir na ferramenta" com rótulo por tipo
       e "Abrir no MultiCNC" só com `--file` (PJ-L07).
-- [ ] 5.8 Teste `test_multiproject_links.lpr`:
+- [x] 5.8 Teste `test_multiproject_links.lpr`:
       - abrir com `--new` gera o comando certo (lançador falso);
       - o `.task.json` tem os `inputs`;
       - alterar o arquivo deixa as sucessoras desatualizadas;
       - G-code de laser vinculado a uma tarefa de impressão 3D é recusado.
+
+Validação de 22/10/2026 (Win64, FPC 3.2.2):
+- Documento: 103 checks; grafo: 88; cronograma: 82; recursos: 116; estados: 21.
+- `test_multiproject_links`: 36 checks (inclui peça real reconstruída, DRC/Gerber,
+  G-code de impressora/laser, hash, persistência, desfazer e polling sem alterações).
+- `test_multiproject_ui`: 84 checks, incluindo layout em 1024 × 768.
+- `test_multiproject_toolctx`: 6 checks nas interfaces reais do MultiCAD/MakePCB:
+  painel de especificação, Ctrl+S no destino novo e recusa de destino já existente.
+- `test_context` compilado contra cada cópia da unit; `test_launcher_delivery` com
+  processo falso recebendo `--new`/`--task` e preservando espaços nos caminhos.
+- MultiProject, MultiCAD e MakePCB compilados em Win64 para verificação, sem atualizar
+  os executáveis de distribuição nem gerar setup.
+- A conferência automática no Win64 substitui os antigos marcadores de pendência das
+  fases 1 a 3; inspeção visual manual e hardware não fazem parte destes testes.
+- A fase 5 ainda precisa da regressão Linux antes de seu aceite multiplataforma.
 
 ### Fase 6: regras de geração e modelos (≈ 4 h)
 

@@ -323,9 +323,13 @@ MultiAssembly sabe quais peças importar e o MultiSlicer sabe qual STL abrir.
 - Hash mudou numa tarefa `ready` ou `done`: a tarefa volta para `review`, e as sucessoras com
   `artifact=true` ficam `outdated`. Desatualização não se propaga sozinha além de um nível
   sem o usuário ver: a lista de avisos mostra a cadeia inteira.
-- Os verificadores (`multiproject_checks`) leem os arquivos **sem** depender das units de tela
-  das outras ferramentas. O `.mcad` e os demais formatos JSON são lidos com `fpjson` só nos
-  campos necessários. O G-code passa por `SuiteCheckGCode` e `SuiteParseHeader`.
+- Os verificadores (`multiproject_checks`) não dependem das units de tela. O `.mcad`
+  serializa operações, não corpos: o verificador usa `multicad_document` e
+  `multicad_rebuild` sem LCL, exige reconstrução sem erro e pelo menos um corpo.
+  O `.mpcb` usa o modelo e o DRC sem LCL, além de conferir Gerber/Excellon não vazios.
+  O G-code passa por `SuiteCheckGCode` e `SuiteParseHeader`, conferindo `MS-MACHINE`;
+  comandos de impressora são aceitos apenas no modo explícito `Printer3D` do verificador.
+  Formatos sem verificador específico continuam como “não verificado”, sem aprovação.
 
 ### Máquinas (PJ-R02)
 
@@ -376,7 +380,7 @@ ID` fica registrada em `origin.ai_plan`.
 
 | Necessidade | Onde | Situação em 20/10/2026 |
 |---|---|---|
-| `--new` / `--task` no contexto | `multisuite_context` (2 cópias) | a fazer (fase 5) |
+| `--new` / `--task` no contexto | `multisuite_context` (2 cópias) | implementado, teste nas duas cópias (22/10) |
 | Contorno da peça para corte laser | MultiCAD → LaserArt | o MultiCAD exporta DXF R12 do esboço e da face; o LaserArt importa SVG e imagem, mas não DXF. Falta a importação DXF no LaserArt (D8) |
 | Peça mecânica para a router | MultiCAD → MultiCAM / MakeRouter | o MakeRouter ainda não importa DXF/SVG (fase 2 dele); o MultiCAM é o CAM de peça mecânica (D1 do MakeRouter, D9 aqui) |
 | Torno | — | não há tipo de máquina torno no MultiCNC nem CAM de torneamento (D7) |

@@ -8,8 +8,8 @@ unit multiproject_main;
   As vistas sao componentes genericos do CHATGPT (aiganttview, ainetworkview,
   aiboardview, airesourceview); o calculo e do nucleo (multiproject_*). Esta
   unit so liga eventos, campos e comandos. Fases futuras aparecem
-  desabilitadas com a fase em que entram (Gerar tarefas: 6; Abrir na
-  ferramenta: 5; acompanhamento e relatorios: 8).
+  desabilitadas com a fase em que entram (Gerar tarefas: 6;
+  acompanhamento e relatorios: 8).
 
   Recursos (fase 7): etapa 4 com a planilha de pessoas, maquinas e materiais
   e a importacao das maquinas do MultiCNC; secao 8 da pagina da tarefa com as
@@ -28,7 +28,8 @@ uses
   airesourceload, aiganttview, ainetworkview, aiboardview, airesourceview,
   multiproject_types, multiproject_document, multiproject_json, multiproject_graph,
   multiproject_schedule, multiproject_states, multiproject_examples, multiproject_views,
-  multiproject_resources;
+  multiproject_resources, multiproject_kinds, multiproject_artifacts,
+  multiproject_taskctx, multisuite_types, multisuite_registry, multisuite_launcher, multisuite_paths;
 
 const
   PJ_APP_VERSION = '0.1.0.0';
@@ -41,11 +42,19 @@ type
   TMultiProjectForm = class(TForm)
   private
     FUpdating: Boolean;
+    ArtifactTimer: TTimer;
+    ArtifactPathEdit: TEdit;
+    OpenCNCButton: TSuiteButton;
+    FCheckingArtifacts: Boolean;
     FSelectedId: string;
     FIcons: array[TPJTaskKind] of TBitmap;
     FRefreshQueued: Boolean;
     Header: TSuiteHeader;
     WorkPanel, BarPanel: TPanel;
+    procedure CheckArtifacts(Sender: TObject);
+    procedure OpenToolClick(Sender: TObject);
+    procedure LinkArtifactClick(Sender: TObject);
+    procedure OpenCNCClick(Sender: TObject);
     procedure BuildSidebar(S: TPanel);
     procedure BuildBar;
     procedure BuildFooter;
@@ -354,6 +363,10 @@ begin
   KeyPreview := True;
   OnKeyDown := @FormKey;
   OnCloseQuery := @FormCloseQuery;
+  OnActivate := @CheckArtifacts;
+  ArtifactTimer := TTimer.Create(Self);
+  ArtifactTimer.Interval := 2000;
+  ArtifactTimer.OnTimer := @CheckArtifacts;
   Doc := TPJProject.Create;
   Sched := TPJSchedule.Create(Doc);
   Options := DefaultViewOptions;
@@ -423,6 +436,8 @@ end;
 destructor TMultiProjectForm.Destroy;
 var K: TPJTaskKind;
 begin
+  ArtifactTimer.Enabled := False;
+  OnActivate := nil;
   Application.RemoveAsyncCalls(Self);
   for K := Low(K) to High(K) do FIcons[K].Free;
   Sched.Free;
@@ -443,10 +458,10 @@ begin
   GenerateButton.Enabled := False;
   GenerateButton.Hint := 'Regras de geracao de tarefas: fase 6';
   GenerateButton.ShowHint := True;
-  OpenToolButton := Btn(FooterPanel, 'Abrir na ferramenta', 0, 15, 230, sikSend, nil);
+  OpenToolButton := Btn(FooterPanel, 'Abrir na ferramenta', 0, 15, 230, sikSend, @OpenToolClick);
   OpenToolButton.SetLook(sbsSolid, clSuitePrimary, sikSend);
   OpenToolButton.Enabled := False;
-  OpenToolButton.Hint := 'Vinculo com as ferramentas da suite: fase 5';
+  OpenToolButton.Hint := 'Abrir o artefato selecionado na ferramenta da suite';
   OpenToolButton.ShowHint := True;
 end;
 
@@ -778,6 +793,11 @@ begin
   TCalendar := Combo(S, 'Calendario da tarefa', Y); Inc(Y, 60);
   Section(S, '6  VINCULO COM A FERRAMENTA', Y); Inc(Y, 26);
   TToolLabel := Lbl(S, '', 16, Y, 290, 44); Inc(Y, 50);
+  ArtifactPathEdit := Edit(S, 'Arquivo (caminho copiavel)', Y);
+  ArtifactPathEdit.ReadOnly := True; Inc(Y, 54);
+  Btn(S, 'Vincular arquivo...', 16, Y, 290, sikImport, @LinkArtifactClick); Inc(Y, 42);
+  Btn(S, 'Verificar arquivo', 16, Y, 290, sikTests, @CheckArtifacts); Inc(Y, 42);
+  OpenCNCButton := Btn(S, 'Abrir no MultiCNC', 16, Y, 290, sikSend, @OpenCNCClick); Inc(Y, 42);
   Section(S, '7  PREDECESSORAS E SUCESSORAS', Y); Inc(Y, 26);
   TPredLabel := Lbl(S, '', 16, Y, 290, 60); Inc(Y, 66);
   Section(S, '8  RECURSOS', Y); Inc(Y, 26);
@@ -990,8 +1010,12 @@ begin
         G.Free;
       end;
   end;
+  OpenToolButton.Enabled := (T <> nil);
+  if T <> nil then OpenToolButton.Enabled := PJKindInfo(T.Kind).HasTool;
   OpenToolButton.Caption := 'Abrir na ferramenta';
   if (T <> nil) and (KindToolName(T.Kind) <> '') then OpenToolButton.Caption := 'Abrir no ' + KindToolName(T.Kind);
+  if (T <> nil) and PJKindInfo(T.Kind).Fabrication and PJIsGCode(T.Artifact.Path) and
+    FileExists(PJArtifactFile(T, FileName)) then OpenToolButton.Caption := 'Abrir no MultiCNC';
 end;
 
 procedure TMultiProjectForm.RefreshChains;
@@ -1210,6 +1234,7 @@ procedure TMultiProjectForm.BoardMove(Sender: TObject; ACard, ANewColumn: Intege
 var Id: string;
 begin
   Id := Board.Card(ACard).Id;
+  CheckArtifacts(nil);
   Accept := SetTaskState(Doc, Id, BOARD_STATES[ANewColumn], Reason);
   if Accept then
   begin
@@ -2112,6 +2137,78 @@ begin
   RefreshAll;
 end;
 
+procedure TMultiProjectForm.CheckArtifacts(Sender: TObject);
+var W: string;
+begin
+  if FUpdating or FCheckingArtifacts or (FileName = '') or (Doc = nil) then Exit;
+  if (Sender = ArtifactTimer) and not Active then Exit;
+  FCheckingArtifacts := True;
+  try
+    if PJRefreshArtifacts(Doc, FileName, Sender <> ArtifactTimer, W) then
+    begin
+      UpdateHeader; UpdateFooter; QueueRefresh;
+    end;
+    if W <> '' then SetStatus(W, 2);
+  finally FCheckingArtifacts := False; end;
+end;
+
+procedure TMultiProjectForm.LinkArtifactClick(Sender: TObject);
+var D: TOpenDialog; T: TPJTask;
+begin
+  T := SelectedTask; if T = nil then Exit;
+  if FileName = '' then SaveClick(nil);
+  if FileName = '' then Exit;
+  D := TOpenDialog.Create(Self);
+  try
+    D.InitialDir := ExtractFilePath(FileName); D.Options := D.Options + [ofFileMustExist];
+    if D.Execute then
+    begin
+      PJLinkArtifact(Doc, T, FileName, D.FileName); CheckArtifacts(nil); RefreshAll;
+    end;
+  finally D.Free; end;
+end;
+
+procedure TMultiProjectForm.OpenToolClick(Sender: TObject);
+var T: TPJTask; Info: TPJKindInfo; FN, Err, Root: string; R: TSuiteRegistry; N: Integer; OK: Boolean;
+begin
+  T := SelectedTask; if T = nil then Exit;
+  Info := PJKindInfo(T.Kind); if not Info.HasTool then Exit;
+  if FileName = '' then SaveClick(nil);
+  if FileName = '' then Exit;
+  Root := ExtractFilePath(ExpandFileName(FileName)); FN := PJArtifactFile(T, FileName);
+  if Info.Fabrication and PJIsGCode(FN) and FileExists(FN) then
+  begin OpenCNCClick(Sender); Exit; end;
+  if FN = '' then FN := Root + PJDefaultArtifact(T.Kind, T.Id, T.Name);
+  try
+    if not ForceDirectories(ExtractFilePath(FN)) then raise Exception.Create('Nao foi possivel criar a pasta');
+    PJWriteTaskContext(Doc, T, FileName, FN);
+    R := TSuiteRegistry.Create;
+    try
+      N := R.Find(Info.Tool); if N < 0 then raise Exception.Create('Ferramenta nao cadastrada');
+      if FileExists(FN) then OK := TSuiteLauncher.LaunchArtifact(R.Tool(N), SuiteRootForExecutable(ParamStr(0)), Root, FN, Err, FN + '.task.json')
+      else OK := TSuiteLauncher.LaunchNew(R.Tool(N), SuiteRootForExecutable(ParamStr(0)), Root, FN, FN + '.task.json', Err);
+    finally R.Free; end;
+    if not OK then begin SetStatus(Err, 3); Exit; end;
+    if T.Artifact.Path = '' then PJLinkArtifact(Doc, T, FileName, FN);
+    SetStatus('Ferramenta aberta. Salve como: ' + FN, 1); RefreshAll;
+  except on E: Exception do SetStatus(E.Message, 3); end;
+end;
+
+procedure TMultiProjectForm.OpenCNCClick(Sender: TObject);
+var T: TPJTask; FN, Err: string; R: TSuiteRegistry; N: Integer;
+begin
+  T := SelectedTask; if T = nil then Exit;
+  FN := PJArtifactFile(T, FileName);
+  if not PJKindInfo(T.Kind).Fabrication or not PJIsGCode(FN) or not FileExists(FN) then
+  begin SetStatus('Vincule o G-code existente da tarefa de fabricacao', 2); Exit; end;
+  R := TSuiteRegistry.Create;
+  try
+    N := R.Find(stiMultiCNC);
+    if (N >= 0) and not TSuiteLauncher.LaunchArtifact(R.Tool(N), SuiteRootForExecutable(ParamStr(0)),
+      ExtractFilePath(ExpandFileName(FileName)), FN, Err) then SetStatus(Err, 3);
+  finally R.Free; end;
+end;
+
 { ---------------- pagina da tarefa ---------------- }
 
 procedure TMultiProjectForm.LoadTaskPage;
@@ -2177,7 +2274,11 @@ begin
   if T.CalendarName = '' then TCalendar.ItemIndex := 0;
   Tool := KindToolName(T.Kind);
   if Tool = '' then TToolLabel.Caption := 'Este tipo de tarefa nao usa ferramenta da suite.'
-  else TToolLabel.Caption := 'Ferramenta: ' + Tool + '. Abrir, vincular e verificar o arquivo: fase 5.';
+  else TToolLabel.Caption := Tool + ': ' + T.Artifact.Path + LineEnding + T.Artifact.Status + ' - ' + T.Artifact.CheckMessage;
+  TToolLabel.Hint := TToolLabel.Caption; TToolLabel.ShowHint := True;
+  ArtifactPathEdit.Text := PJArtifactFile(T, FileName);
+  OpenCNCButton.Enabled := PJKindInfo(T.Kind).Fabrication and
+    PJIsGCode(T.Artifact.Path) and FileExists(ArtifactPathEdit.Text);
   Succ := Doc.SuccessorsText(T.Id);
   TPredLabel.Caption := 'Predecessoras: ' + IfThen(Doc.PredecessorsText(T.Id) = '', '(nenhuma)', Doc.PredecessorsText(T.Id)) +
     LineEnding + 'Sucessoras: ' + IfThen(Succ = '', '(nenhuma)', Succ);
@@ -2279,12 +2380,14 @@ begin
     SetStatus('Prioridade: um numero de 0 a 1000 (padrao 500).', 3);
     Exit;
   end;
+  CheckArtifacts(nil);
   Doc.BeginChange('Editar tarefa');
   try
     T.Name := Trim(TName.Text);
+    if T.Kind <> TPJTaskKind(Max(0, TKind.ItemIndex)) then T.Artifact.Status := 'created';
     T.Kind := TPJTaskKind(Max(0, TKind.ItemIndex));
     T.Process := TPJProcess(Max(0, TProcess.ItemIndex));
-    T.State := TPJTaskState(Max(0, TState.ItemIndex));
+
     T.Mode := TPJScheduleMode(Max(0, TMode.ItemIndex));
     if (T.Mode = smManual) and (T.ManualStart = 0) and Sched.Valid then
       T.ManualStart := Sched[Doc.IndexOfId(T.Id)].Start;
@@ -2312,11 +2415,13 @@ begin
     else T.CalendarName := TCalendar.Items[TCalendar.ItemIndex];
     T.Notes := TNotes.Text;
     T.Priority := Prio;
+    if CanSetState(Doc, T.Id, TPJTaskState(Max(0, TState.ItemIndex)), Err) then
+      T.State := TPJTaskState(Max(0, TState.ItemIndex));
   finally
     Doc.EndChange;
   end;
   AfterCommand(T.Id);
-  SetStatus(T.Id + ' atualizada.', 1);
+  if Err <> '' then SetStatus(Err, 3) else SetStatus(T.Id + ' atualizada.', 1);
 end;
 
 procedure TMultiProjectForm.TaskApplyForTest;

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+ <ProjectOptions>
+  <Version Value="12"/>
+  <General><Title Value="test_multiproject_toolctx"/><UseAppBundle Value="False"/><ResourceType Value="res"/></General>
+  <BuildModes Count="1"><Item1 Name="Default" Default="True"/></BuildModes>
+  <Units Count="1"><Unit0><Filename Value="test_multiproject_toolctx.lpr"/><IsPartOfProject Value="True"/></Unit0></Units>
+  <RequiredPackages Count="2"><Item2><PackageName Value="Printer4Lazarus"/></Item2><Item1><PackageName Value="LCL"/></Item1></RequiredPackages>
+ </ProjectOptions>
+ <CompilerOptions>
+  <Version Value="11"/>
+  <Target><Filename Value="test_multiproject_toolctx"/></Target>
+  <SearchPaths><OtherUnitFiles Value="../src/core;../src/integration;../../makepcb/src/app;../../makepcb/src/ui;../../makepcb/src/export;../../multicad/src/app;../../multicad/src/ui;../../src/shared/clipper2;../../makepcb/src/core;../../makepcb/src/route;../../multicad/src/core;../../multicad/src/features;../../multicad/src/kernel;../../multicad/src/sketch;../../multisuite/src/core;../src/io;../src/view;../src/app;../../multisuite/src/core;../../src/shared;../../src/core;../src/integration;../../makepcb/src/app;../../makepcb/src/ui;../../makepcb/src/export;../../multicad/src/app;../../multicad/src/ui;../../src/shared/clipper2;../../makepcb/src/core;../../makepcb/src/route;../../multicad/src/core;../../multicad/src/features;../../multicad/src/kernel;../../multicad/src/sketch;../../multisuite/src/core;../../../CHATGPT/pacote/AI Project Core;../../../CHATGPT/pacote/AI Project;../../third_party/chatgpt/AIProjectCore;../../third_party/chatgpt/AIProject"/><UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)/test_multiproject_toolctx"/></SearchPaths>
+  <Parsing><SyntaxOptions><SyntaxMode Value="ObjFPC"/></SyntaxOptions></Parsing>
+  <CodeGeneration><Checks><IOChecks Value="True"/><RangeChecks Value="True"/><OverflowChecks Value="True"/></Checks></CodeGeneration>
+ </CompilerOptions>
+</CONFIG>

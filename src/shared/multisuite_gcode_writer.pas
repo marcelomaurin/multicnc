@@ -89,7 +89,7 @@ type
 function SuiteFmt(V: Double): string;
 function SuiteEmptyHeader: TSuiteGCodeHeader;
 { confere as regras do contrato; True se tudo certo }
-function SuiteCheckGCode(Lines: TStrings; Errors: TStrings): Boolean;
+function SuiteCheckGCode(Lines: TStrings; Errors: TStrings; Printer3D: Boolean = False): Boolean;
 { le as linhas "; MS-..." do inicio do programa (o que nao achar fica vazio) }
 function SuiteParseHeader(Lines: TStrings; out H: TSuiteGCodeHeader; out B: TSuiteBounds): Boolean;
 
@@ -279,9 +279,12 @@ end;
 
 { ---------------- verificacao ---------------- }
 
-function SuiteCheckGCode(Lines: TStrings; Errors: TStrings): Boolean;
+function SuiteCheckGCode(Lines: TStrings; Errors: TStrings; Printer3D: Boolean): Boolean;
 const
   Allowed: array[0..9] of string = ('G0', 'G1', 'G4', 'G21', 'G90', 'G94', 'M0', 'M2', 'M3', 'M5');
+  PrinterAllowed: array[0..26] of string = ('G28','G92','M82','M83','M104','M109','M140','M190',
+    'M106','M107','M84','M400','M201','M203','M204','M205','M220','M221','M300',
+    'G91','G29','M420','M413','G10','G11','M18','M73');
 var
   I, K, P: Integer;
   L, W, U: string;
@@ -309,6 +312,7 @@ begin
         if L[K] < ' ' then begin Bad('caractere de controle'); Result := False; Break; end;
       if (L = '') or (L[1] = ';') then Continue;
       if Pos(',', L) > 0 then begin Bad('virgula'); Result := False; end;
+      if Printer3D and (Pos(';', L) > 0) then L := Copy(L, 1, Pos(';', L)-1);
       Parts.DelimitedText := Trim(L);
       for K := 0 to Parts.Count - 1 do
       begin
@@ -319,9 +323,11 @@ begin
           U := W;
           Ok := False;
           for P := 0 to High(Allowed) do if U = Allowed[P] then Ok := True;
+          if Printer3D then
+            for P := 0 to High(PrinterAllowed) do if U = PrinterAllowed[P] then Ok := True;
           if not Ok then begin Bad('codigo nao permitido ' + U); Result := False; end;
         end
-        else if not (W[1] in ['X', 'Y', 'Z', 'F', 'S', 'P']) then
+        else if not ((W[1] in ['X', 'Y', 'Z', 'F', 'S', 'P']) or (Printer3D and (W[1] in ['E','T','R','I','J']))) then
         begin
           Bad('palavra desconhecida ' + W); Result := False;
         end;

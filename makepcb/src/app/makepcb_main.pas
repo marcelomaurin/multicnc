@@ -141,6 +141,7 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     procedure OpenFile(const FN: string);
+    procedure SetNewTarget(const FN: string);
     { exporta para Folder; devolve a lista de arquivos }
     procedure ExportTo(const Folder: string; Files: TStrings);
     { acoes usadas pelos testes e pela linha de comando }
@@ -1132,6 +1133,14 @@ begin
   finally
     D.Free;
   end;
+end;
+
+procedure TMakePCBForm.SetNewTarget(const FN: string);
+begin
+  if FileExists(FN) then raise Exception.Create('Arquivo ja existe: ' + FN);
+  if not SameText(ExtractFileExt(FN), '.mpcb') then raise Exception.Create('Esperado arquivo .mpcb');
+  FFileName := ExpandFileName(FN);
+  RefreshInfo;
 end;
 
 procedure TMakePCBForm.SaveAsClick(Sender: TObject);
