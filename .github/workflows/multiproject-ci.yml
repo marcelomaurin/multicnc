@@ -1,0 +1,41 @@
+name: MultiProject CI
+on:
+  push:
+    paths:
+      - 'multiproject/**'
+      - 'models/multiproject/**'
+      - 'src/shared/multisuite*'
+      - 'multisuite/src/core/**'
+      - 'third_party/chatgpt/AIProject*/**'
+      - '.github/workflows/multiproject-ci.yml'
+  pull_request:
+    paths:
+      - 'multiproject/**'
+      - 'models/multiproject/**'
+      - 'src/shared/multisuite*'
+      - 'multisuite/src/core/**'
+      - 'third_party/chatgpt/AIProject*/**'
+      - '.github/workflows/multiproject-ci.yml'
+permissions:
+  contents: read
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install compiler, Lazarus and virtual display
+        run: sudo apt-get update && sudo apt-get install -y lazarus xvfb xauth
+      - name: Console regressions
+        run: bash tests/run_all.sh multiproject
+      - name: Build application and UI regressions
+        run: |
+          lazbuild -q --ws=gtk2 multiproject/src/app/multiproject.lpi
+          lazbuild -q --ws=gtk2 multiproject/tests/test_multiproject_ui.lpi
+          lazbuild -q --ws=gtk2 multiproject/tests/test_multiproject_rules_ui.lpi
+          lazbuild -q --ws=gtk2 multiproject/tests/test_multiproject_toolctx.lpi
+      - name: Run UI regressions without hardware
+        run: |
+          xvfb-run -a multiproject/tests/test_multiproject_ui
+          xvfb-run -a multiproject/tests/test_multiproject_rules_ui
+          xvfb-run -a multiproject/tests/test_multiproject_toolctx

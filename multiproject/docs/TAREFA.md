@@ -352,7 +352,9 @@ Resultado em 22/10/2026:
   incluindo decisões individuais/em lote, desfazer, origem, filtro, modelos e 1024 × 768.
 - O exemplo completo tem 15 tarefas e 21 vínculos. Os quatro vínculos de projeto para
   fabricação, necessários para entregar os arquivos, agora estão explícitos no README.
-- Regressão Linux e conclusão do empacotamento ainda pendentes nesta preparação.
+- Console do MultiProject aprovado também no Linux pelo Suite CI (`5fe749d`, 22/10).
+  Interface Linux em validação pelo workflow próprio MultiProject CI; setup 016 em preparação.
+  O Suite CI geral registrou falhas de TCP/Winsock2, catálogo FDM e fonte do MultiCAD, fora deste módulo.
 
 ### Fase 7: recursos e custos (≈ 5 h)
 
