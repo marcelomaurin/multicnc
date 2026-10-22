@@ -1,6 +1,6 @@
 # MultiProject — guia rápido
 
-Versão 0.2 · Windows 64 bits · 22/10/2026. Fontes preparadas para o setup 016.
+Versão 0.2 · Windows 64 bits · 22/10/2026. Incluído no setup 016.
 
 ## Começar pelo objetivo
 

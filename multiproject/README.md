@@ -4,6 +4,8 @@
 > `.mproj`, grafo de tarefas com vínculos TI/II/TT/IT, calendários, cronograma pelo caminho
 > crítico, tela no padrão da suíte e registro na MultiSuite) e os recursos da fase 7
 > (pessoas, máquinas e materiais, atribuições, superalocação, nivelamento e vista Equipe).
+> O **setup 016 (22/10)** acrescenta a integração com arquivos e as regras/modelos
+> das fases 5 e 6. [Notas da edição](../docs/SETUP_016.md).
 > As próximas etapas estão em [docs/TAREFA.md](docs/TAREFA.md).
 
 ## Vínculo com ferramentas (fontes de 22/10/2026)
@@ -19,8 +21,8 @@ sucessoras diretas que os consomem; o aviso mostra toda a cadeia. Concluir exige
 artefato verificado para os tipos que o usam. G-code de fabricação abre no MultiCNC
 com `--file`; posicionamento e execução ficam no MultiCNC.
 
-Testes Win64 concluídos; regressão Linux da fase 5 pendente. Esta mudança ainda não
-foi incorporada ao setup 015.
+Integração incluída no setup 016. Testes Win64 concluídos; resultados Linux registrados
+em [TAREFA.md](docs/TAREFA.md).
 
 ## Regras e modelos (fase 6)
 

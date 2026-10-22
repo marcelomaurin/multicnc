@@ -1,5 +1,25 @@
 # MultiSuite — Notas de Lançamento / News
 
+## [0.16] — Setup 016 (22/10/2026)
+
+### MultiProject: integração, sugestões e modelos
+
+- Integração com arquivos das ferramentas, contexto `.task.json`, `--new`/`--task` no
+  MultiCAD e MakePCB e verificadores de entrega com acompanhamento de alterações.
+- Regras A01 a A08 propõem fabricação, compra, montagem, validação, liberação e
+  fechamento. Aceitar e recusar sugestões em lote é um único passo de desfazer.
+- Origem de cada tarefa e deduplicação, inclusive após recusar uma proposta.
+- Liberação antes da fabricação configurável por projeto; revisão por reprovação sem ciclos.
+- Modelos Peça impressa, Placa eletrônica e Motor DC, com IDs novos ao criar o projeto.
+- Exemplo Motor DC gerado pelas regras: 15 tarefas e 21 vínculos, com as entregas de arquivos.
+- Folha de processo de torno em Markdown e checklist da montagem física a partir do manual MultiAssembly.
+- Guia rápido, modelos, exemplos e capturas incluídos no pacote e na documentação offline.
+- Compilação Win64 dos 14 aplicativos e 119 testes de console aprovados (1 integração separada).
+
+[Instalador e rastreabilidade](docs/SETUP_016.md).
+
+---
+
 ## [0.15] — Setup 015 (21/10/2026)
 
 ### 🗂️ MultiProject: gestão de projetos mecânicos e eletrônicos (novo)

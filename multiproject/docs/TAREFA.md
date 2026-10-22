@@ -2,8 +2,8 @@
 
 - **Aberta em:** 20/10/2026.
 - **Estado:** decisões D1 a D12 **aprovadas como propostas** pelo Marcelo (20/10/2026).
-  Fases 1 a 4 conferidas no Win64 (22/10); fase 5 implementada e testada no Win64.
-  Regressão Linux da fase 5 pendente (WSL sem distribuição instalada). O setup 015 segue com a versão anterior.
+  Fases 1 a 6 implementadas e conferidas no Win64 (22/10), com setup 016 gerado.
+  Console do MultiProject aprovado no Linux; interfaces Linux em validação no GitHub Actions.
 - **Solicitação:** um gerenciador de projeto em que se define um **objetivo** (exemplo:
   construir um motor). Uma pessoa ou a IA divide o objetivo em tarefas de peça e de eletrônica.
   As tarefas se relacionam por uma **lista de grafos**, em cadeia ou em paralelo, e têm Nome,
@@ -32,7 +32,7 @@
 | 3 Calendário e cronograma | concluída no Linux (20/10) e conferida no Win64 (22/10) | `aiworkcalendar` (`c9ad854`, 57 checks) e `aicpmscheduler` (`3557a7b`, 47 checks) no CHATGPT + `multiproject_schedule`, calendários e restrições no documento e no `.mproj`; `test_multiproject_schedule.lpr` com 82 checks |
 | 4 Tela e registro na suíte | concluída (20/10); `bin/multiproject.exe` win64 e setup 015 (21/10) | vistas genéricas no CHATGPT (`TAIGanttView`, `TAINetworkView`, `TAIBoardView`, até `1448eb8`, 42 checks) + `multiproject_main`/`multiproject_views`, registro na suíte (grupo PLANEJAR), `test_multiproject_ui` com 51 checks sob Xvfb e `test_multiproject_states` com 20 |
 | 5 Vínculo com as ferramentas | implementada; Win64 validado (22/10), regressão Linux pendente | `--new`/`--task`, `.task.json`, detecção, verificadores, Abrir na ferramenta |
-| 6 Regras de geração e modelos | implementada; testes Win64 aprovados (22/10); setup 016 em preparação; Linux pendente | PJ-A01..A08, exemplo Motor DC, modelos |
+| 6 Regras de geração e modelos | implementada; testes Win64 aprovados (22/10); setup 016 gerado; console Linux aprovado, interface Linux em validação | PJ-A01..A08, exemplo Motor DC, modelos |
 | 7 Recursos e custos | 7.1 a 7.4 e 7.8 concluídas (21/10), adiantadas a pedido; custos (7.5), estimativa pelo G-code (7.6) e tipos de tarefa (7.7) pendentes | `airesourceload` (`TAIResourceLoad`, `TAIResourceLeveler`, 83 checks) e `TAIResourceView` (68 checks nas vistas) no CHATGPT, até `78f3f2b` + `multiproject_resources`, recursos e atribuições no documento e no `.mproj`, etapa 4 Recursos, vista Equipe, coluna Recursos e nivelamento na etapa 5; `test_multiproject_resources.lpr` com 116 checks e `test_multiproject_ui` com 84 |
 | 8 Linha de base, acompanhamento e relatórios | pendente | linhas de base, progresso, valor agregado, HTML/PDF, Calendário, Linha do tempo |
 | 9 IA | pendente | contrato do plano, decomposição do objetivo pela suíte CHATGPT |
@@ -330,7 +330,7 @@ Validação de 22/10/2026 (Win64, FPC 3.2.2):
       - rodar de novo não duplica;
       - a reprovação gera revisão e o grafo continua acíclico;
       - sem `fabrication_gate`, as fabricações dependem só das peças.
-- [ ] 6.8 **Primeira entrega:**
+- [x] 6.8 **Primeira entrega Windows (setup 016):**
       - setup com o MultiProject;
       - manual curto em `docs/Manuals`;
       - capturas em `imgs/`;
@@ -444,3 +444,11 @@ Resultado em 22/10/2026:
   tela.
 - **IA produzindo planos ruins:** o contrato barra a forma, não o mérito. Por isso tudo entra
   como Sugerida para revisão humana.
+
+## Setup 016 (22/10/2026)
+
+- 14 aplicativos Win64 compilados; 119 testes de console aprovados e 1 integração separada.
+- `setup/setup_multcnc_016.exe` e `bin/setup_multcnc_016.exe`, com o mesmo SHA-256.
+- Manifesto de fontes limpas e QA em `setup/build-manifest-016.json` e `setup/qa-tests-016.json`.
+- Modelos instalados com o componente MultiProject; guia e capturas na documentação offline.
+- [Notas da edição](../../docs/SETUP_016.md) e [verificação da fase 6](../../docs/qa/multiproject-fase6-2026-10-22.md).
