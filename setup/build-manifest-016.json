@@ -1,6 +1,6 @@
 {
   "version": "0.16",
-  "source_commit": "5fe749d81d5a404d9b19cdc48febc1cf7027cef9",
+  "source_commit": "cbb8f0e05c16a5a8ec291923a06043347515d57b",
   "source_dirty": false,
   "os": "windows",
   "arch": "amd64",
@@ -108,7 +108,7 @@
     },
     {
       "path": "documentation/docs/Manuals/MultiProject_Guia_Rapido.md",
-      "sha256": "d36355e33231bd419719e550c5b00e02b907ccae0792c0afd3d20ea23c59fc60"
+      "sha256": "6a9ccb35f52346f257489c88c526bfe5ac45f12041440d4c196e2fc54cc21e94"
     },
     {
       "path": "documentation/docs/Manuals/README.md",
@@ -663,6 +663,10 @@
       "sha256": "10030edf79744012973feb6d7eb8aae3cb5819ccba62911ca0e6b24337d9b39c"
     },
     {
+      "path": "documentation/docs/qa/multiproject-fase6-2026-10-22.md",
+      "sha256": "8ec117d96e72ba44a9cf22a3f14656ab8ca7019877ab8b8f79cdc83c820c5d51"
+    },
+    {
       "path": "documentation/docs/SETUP_007.md",
       "sha256": "85da3f22c518323cf245ef538cb64fdfd3d258e6757bc4fec75697f4b7e243c6"
     },
@@ -697,6 +701,10 @@
     {
       "path": "documentation/docs/SETUP_015.md",
       "sha256": "ec633150ce32f873802a0940466742ca5893c24adfc77001022be21ab7a51e45"
+    },
+    {
+      "path": "documentation/docs/SETUP_016.md",
+      "sha256": "64a64261b70edaa178443981843a5c0d20fee1dcec5fba5f95fda5099a501047"
     },
     {
       "path": "documentation/docs/SIMUCNC_COM0COM.md",
@@ -2228,7 +2236,7 @@
     },
     {
       "path": "documentation/multiproject/docs/TAREFA.md",
-      "sha256": "b4ef7e3f79a05a89f3ef00ae87cb073f01854f2b049ab7722e8f6dec5177c29e"
+      "sha256": "a6073346a4894df9822e346674a4808731aad164fc5b5c57bdc799fa2fa78cad"
     },
     {
       "path": "documentation/multiproject/examples/motor_dc.mproj",
@@ -2244,7 +2252,7 @@
     },
     {
       "path": "documentation/multiproject/README.md",
-      "sha256": "a86528dbcd1d06af3b6bed5d941ebdc436e06365acc78c376e2144b07f40521e"
+      "sha256": "3fda85b385fb18c4500512d73c12eb424d425512ef87fff9f26344b956ffd7af"
     },
     {
       "path": "documentation/multislicer/docs/AI_GUIDE.md",
@@ -2288,7 +2296,7 @@
     },
     {
       "path": "documentation/README.md",
-      "sha256": "554f9d8f528ad187004270dd4825b2bcb73c9ae9980f7c536adc2a7d5c34b125"
+      "sha256": "d2b326f4b73262f25565f5336e7ba455e648c5ad1d3614cce20fb9aeedc3a3a6"
     },
     {
       "path": "documentation/routerpcb/docs/AI_GUIDE.md",

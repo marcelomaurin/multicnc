@@ -6,7 +6,7 @@ Edição de **22/10/2026**, para **Windows x64**. MultiProject 0.2.0.0.
 
 ## Correcao da inclusao do SimuCNC
 
-O SimuCNC agora e obrigatorio nas instalacoes completa, basica e personalizada, inclusive em atualizacoes. Antes ele ficava fora da selecao basica. O arquivo por versao `setup_multcnc_0.16.exe` e identico a copia `setup_multcnc_016.exe`.
+O SimuCNC agora e obrigatorio nas instalacoes completa, basica e personalizada, inclusive em atualizacoes. Validado com um pacote de teste isolado (mesmas definicoes de componentes), nos tres modos, sem registro ou atalhos. Os 11 testes de empacotamento tambem passaram. Antes ele ficava fora da selecao basica. O arquivo por versao `setup_multcnc_0.16.exe` e identico a copia `setup_multcnc_016.exe`.
 
 ## MultiProject: ferramentas, regras e modelos
 
@@ -40,11 +40,11 @@ como não verificados. A execução das máquinas permanece no MultiCNC.
 - O Suite CI geral no Linux registrou falhas em outros módulos (TCP/Winsock2,
   catálogo FDM e teste de fontes), fora da entrega do MultiProject.
 - Não inclui ensaios em máquinas reais.
-- [Manifesto de compilação](../setup/build-manifest-016.json): fontes `5fe749d`, árvore limpa na geração.
+- [Manifesto de compilação](../setup/build-manifest-016.json): fontes `cbb8f0e`, árvore limpa na geração.
 - [Resultados de console](../setup/qa-tests-016.json).
 
 SHA-256 do instalador:
 
 ```text
-3af23dbcf00a5d7a226396d4fdc9b9350b5c74f07f42aec09b58ec4eb715800a  setup_multcnc_016.exe
+9a5004172f0ac0d3ec524cd927e2461f6540ebb0e97aba367412794040fec532  setup_multcnc_0.16.exe
 ```
