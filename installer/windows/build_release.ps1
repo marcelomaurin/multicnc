@@ -1,11 +1,11 @@
 param(
   [string]$Version = $env:VERSION,
-  [ValidatePattern('^\d{3}$')][string]$SetupSeq = '015',
+  [ValidatePattern('^\d{3}$')][string]$SetupSeq = '016',
   [switch]$AllowDirty,
   [switch]$SkipBinUpdate
 )
 $ErrorActionPreference = 'Stop'
-if (-not $Version) { $Version = '0.15' }
+if (-not $Version) { $Version = '0.16' }
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 Set-Location -LiteralPath $root
 $dist = Join-Path $root 'dist'
@@ -75,6 +75,10 @@ if (-not (Test-Path -LiteralPath $library)) { throw 'Biblioteca ausente: models\
 $libraryDest = Join-Path $app 'models\components'
 New-Item -ItemType Directory -Force -Path $libraryDest | Out-Null
 Copy-Item -LiteralPath $library -Destination $libraryDest -Recurse -Force
+# Modelos do MultiProject acompanham o aplicativo, mesmo sem os manuais opcionais.
+$projectModels = Join-Path $root 'models\multiproject'
+if (-not (Test-Path -LiteralPath $projectModels)) { throw 'Modelos ausentes: models\multiproject.' }
+Copy-Item -LiteralPath $projectModels -Destination (Join-Path $app 'models') -Recurse -Force
 $strip = Join-Path (Split-Path $env:FPC) 'x86_64-win64-strip.exe'
 if (-not (Test-Path -LiteralPath $strip)) {
   $strip = Join-Path (Split-Path $env:FPC) 'strip.exe'

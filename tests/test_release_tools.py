@@ -12,7 +12,7 @@ release = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(release)
 NAMES = ("multisuite", "multicad", "multiassembly", "multiphysics",
          "multicam", "multislicer", "laserpcb", "laserart", "multicnc", "multisuite_test_center",
-         "makepcb", "makerouter", "routerpcb")
+         "makepcb", "makerouter", "routerpcb", "multiproject")
 
 
 def elf(machine=62, bits=2, flags=0):

@@ -44,6 +44,24 @@ uses
   multiproject_graph;
 
 { ---------------- gravacao ---------------- }
+function StringsToJSON(const S: TPJStrings): TJSONArray;
+var I: Integer;
+begin
+  Result := TJSONArray.Create;
+  for I := 0 to High(S) do Result.Add(S[I]);
+end;
+function StringsFromJSON(A: TJSONArray): TPJStrings;
+var I: Integer;
+begin
+  Result := nil;
+  if A = nil then Exit;
+  SetLength(Result, A.Count);
+  for I := 0 to A.Count-1 do
+  begin
+    if A[I].JSONType <> jtString then raise EPJFormat.Create('Esperada lista de textos');
+    Result[I] := A.Strings[I];
+  end;
+end;
 
 function CriteriaToJSON(const C: TPJCriteria): TJSONArray;
 var I: Integer; O: TJSONObject;
@@ -80,6 +98,10 @@ begin
   Spec.Add('mtime', T.Artifact.MTime); Spec.Add('status', T.Artifact.Status);
   Spec.Add('checked_at', T.Artifact.CheckedAt); Spec.Add('check_msg', T.Artifact.CheckMessage);
   O.Add('artifact', Spec);
+  Spec := TJSONObject.Create;
+  Spec.Add('by', T.Origin.By); Spec.Add('rule', T.Origin.Rule);
+  Spec.Add('scope', T.Origin.Scope); Spec.Add('sources', StringsToJSON(T.Origin.Sources));
+  O.Add('origin', Spec);
   O.Add('kind', KindName(T.Kind));
   O.Add('process', ProcessName(T.Process));
   O.Add('state', StateName(T.State));
@@ -196,6 +218,8 @@ begin
   O.Add('schedule_from', ScheduleFromName(P.ScheduleFrom));
   O.Add('calendar', P.ProjectCalendarName);
   Opt := TJSONObject.Create;
+  Opt.Add('fabrication_gate', P.FabricationGate);
+  Opt.Add('rules', StringsToJSON(P.EnabledRules));
   Opt.Add('minutes_per_day', P.MinutesPerDay);
   Opt.Add('minutes_per_week', P.MinutesPerWeek);
   Opt.Add('critical_slack', AIJSONInt(P.CriticalSlack));
@@ -338,6 +362,13 @@ begin
       Result.Artifact.CheckedAt := AIJSONStr(Spec, 'checked_at');
       Result.Artifact.CheckMessage := AIJSONStr(Spec, 'check_msg');
     end;
+    Spec := AIJSONObj(O, 'origin');
+    if Spec <> nil then
+    begin
+      Result.Origin.By := AIJSONStr(Spec, 'by'); Result.Origin.Rule := AIJSONStr(Spec, 'rule');
+      Result.Origin.Scope := AIJSONStr(Spec, 'scope');
+      Result.Origin.Sources := StringsFromJSON(AIJSONArr(Spec, 'sources'));
+    end;
     Result.Notes := AIJSONStr(O, 'notes');
     Result.Raw := TJSONObject(O.Clone);
   except
@@ -451,6 +482,7 @@ var
   NFrom: TPJScheduleFrom;
   NMpd, NMpw, NNext, NCrit: Int64;
   NCalName: string;
+  NGate: Boolean; NRules: TPJStrings;
   CalList: TFPObjectList;
   Cal: TAIWorkCalendar;
   K: Integer;
@@ -489,6 +521,10 @@ begin
   NMpw := AI_DEFAULT_MINUTES_PER_WEEK;
   NCrit := 0;
   Opt := AIJSONObj(Obj, 'options');
+  NGate := True;
+  if Opt<>nil then NGate := AIJSONBool(Opt, 'fabrication_gate', True);
+  NRules := ['A01','A02','A03','A04','A05','A06','A07'];
+  if (Opt <> nil) and (Opt.Find('rules') <> nil) then NRules := StringsFromJSON(AIJSONArr(Opt, 'rules'));
   if Opt <> nil then
   begin
     NMpd := AIJSONInt64(Opt, 'minutes_per_day', NMpd);
@@ -609,6 +645,7 @@ begin
     P.MinutesPerDay := NMpd; P.MinutesPerWeek := NMpw;
     P.NextNumber := NNext;
     P.ProjectCalendarName := NCalName;
+    P.FabricationGate := NGate; P.EnabledRules := NRules;
     P.CriticalSlack := NCrit;
     if CalList <> nil then P.AdoptCalendars(CalList) else P.ResetCalendars;
     P.Raw.Free;

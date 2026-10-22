@@ -6,12 +6,12 @@
 # Requisitos: lazbuild, fpc com as units x86_64-win64 (RTL e pacotes), wine
 # (32 e 64 bits), python3 com Pillow e o Inno Setup 6.3+ (ISCC.exe).
 #
-#   ISCC=/caminho/ISCC.exe installer/windows/build_release_wine.sh 0.15 015 [--allow-dirty]
+#   ISCC=/caminho/ISCC.exe installer/windows/build_release_wine.sh 0.16 016 [--allow-dirty]
 #
 # MULTICNC_CHATGPT_DIR aponta para o repositorio CHATGPT (padrao: ../CHATGPT).
 set -euo pipefail
-VERSION=${1:-0.15}
-SEQ=${2:-015}
+VERSION=${1:-0.16}
+SEQ=${2:-016}
 ALLOW_DIRTY=${3:-}
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$ROOT"
@@ -69,6 +69,8 @@ cp "$BIN/mcad_occt.dll" "$APP/"
 [ -d models/components/mec ] || { echo "Biblioteca ausente: models/components/mec"; exit 1; }
 mkdir -p "$APP/models/components"
 cp -r models/components/mec "$APP/models/components/"
+[ -d models/multiproject ] || { echo "Modelos ausentes: models/multiproject"; exit 1; }
+cp -r models/multiproject "$APP/models/"
 for exe in "$APP"/*.exe; do strip --strip-debug "$exe"; done
 # o Wine nao tem Times New Roman: test_sketch_text compara duas fontes diferentes
 "$WINE" reg add 'HKLM\Software\Microsoft\Windows NT\CurrentVersion\FontSubstitutes' \

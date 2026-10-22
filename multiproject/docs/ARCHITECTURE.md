@@ -385,3 +385,13 @@ ID` fica registrada em `origin.ai_plan`.
 | Peça mecânica para a router | MultiCAD → MultiCAM / MakeRouter | o MakeRouter ainda não importa DXF/SVG (fase 2 dele); o MultiCAM é o CAM de peça mecânica (D1 do MakeRouter, D9 aqui) |
 | Torno | — | não há tipo de máquina torno no MultiCNC nem CAM de torneamento (D7) |
 | Real das máquinas | log do MultiCNC | depende do BUG-016 (log persistente) |
+
+## Regras, decisões e modelos (fase 6)
+
+Implementação em `multiproject_rules`, `multiproject_templates` e `multiproject_lathe`.
+[REGRAS.md](REGRAS.md) registra identidade, gatilhos, liberação, revisões e transações.
+O arquivo guarda `options.fabrication_gate`, `options.rules` e `origin.{by,rule,scope,sources}`.
+A cópia transacional usa o mesmo serializador do documento, preservando campos desconhecidos.
+
+Os exemplos são construídos pelo motor de regras em `multiproject/tools/generate_examples.lpr`.
+Ao distribuir ou instanciar um modelo, resultados, aprovações e arquivos de entrega são limpos.

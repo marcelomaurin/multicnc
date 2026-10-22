@@ -32,7 +32,7 @@
 | 3 Calendário e cronograma | concluída no Linux (20/10) e conferida no Win64 (22/10) | `aiworkcalendar` (`c9ad854`, 57 checks) e `aicpmscheduler` (`3557a7b`, 47 checks) no CHATGPT + `multiproject_schedule`, calendários e restrições no documento e no `.mproj`; `test_multiproject_schedule.lpr` com 82 checks |
 | 4 Tela e registro na suíte | concluída (20/10); `bin/multiproject.exe` win64 e setup 015 (21/10) | vistas genéricas no CHATGPT (`TAIGanttView`, `TAINetworkView`, `TAIBoardView`, até `1448eb8`, 42 checks) + `multiproject_main`/`multiproject_views`, registro na suíte (grupo PLANEJAR), `test_multiproject_ui` com 51 checks sob Xvfb e `test_multiproject_states` com 20 |
 | 5 Vínculo com as ferramentas | implementada; Win64 validado (22/10), regressão Linux pendente | `--new`/`--task`, `.task.json`, detecção, verificadores, Abrir na ferramenta |
-| 6 Regras de geração e modelos | pendente | PJ-A01..A08, exemplo Motor DC, modelos |
+| 6 Regras de geração e modelos | implementada; testes Win64 aprovados (22/10); setup 016 em preparação; Linux pendente | PJ-A01..A08, exemplo Motor DC, modelos |
 | 7 Recursos e custos | 7.1 a 7.4 e 7.8 concluídas (21/10), adiantadas a pedido; custos (7.5), estimativa pelo G-code (7.6) e tipos de tarefa (7.7) pendentes | `airesourceload` (`TAIResourceLoad`, `TAIResourceLeveler`, 83 checks) e `TAIResourceView` (68 checks nas vistas) no CHATGPT, até `78f3f2b` + `multiproject_resources`, recursos e atribuições no documento e no `.mproj`, etapa 4 Recursos, vista Equipe, coluna Recursos e nivelamento na etapa 5; `test_multiproject_resources.lpr` com 116 checks e `test_multiproject_ui` com 84 |
 | 8 Linha de base, acompanhamento e relatórios | pendente | linhas de base, progresso, valor agregado, HTML/PDF, Calendário, Linha do tempo |
 | 9 IA | pendente | contrato do plano, decomposição do objetivo pela suíte CHATGPT |
@@ -313,18 +313,18 @@ Validação de 22/10/2026 (Win64, FPC 3.2.2):
 
 ### Fase 6: regras de geração e modelos (≈ 4 h)
 
-- [ ] 6.1 `multiproject_rules`: A01 (processo da peça → fabricação) e A02 (placa →
+- [x] 6.1 `multiproject_rules`: A01 (processo da peça → fabricação) e A02 (placa →
       fabricar e comprar).
-- [ ] 6.2 A03 (prontas → montagem por subsistema e do objetivo) e A04 (montagem → validação,
+- [x] 6.2 A03 (prontas → montagem por subsistema e do objetivo) e A04 (montagem → validação,
       com o tipo de estudo pela especificação técnica).
-- [ ] 6.3 A05 (marco de liberação e `fabrication_gate`), A06 (montagem física → teste
+- [x] 6.3 A05 (marco de liberação e `fabrication_gate`), A06 (montagem física → teste
       funcional → objetivo concluído) e A07 (reprovação → tarefa de revisão sem ciclo).
-- [ ] 6.4 A08: origem registrada, sem duplicar (chave regra + origens). Aceitar e recusar
+- [x] 6.4 A08: origem registrada, sem duplicar (chave regra + origens). Aceitar e recusar
       sugestão sozinha ou em lote, como um passo de desfazer, e a lista SUGESTÕES na lateral.
-- [ ] 6.5 Exemplo `multiproject/examples/motor_dc.mproj` (o grafo do README) e modelos em
+- [x] 6.5 Exemplo `multiproject/examples/motor_dc.mproj` (o grafo do README) e modelos em
       `models/multiproject/` (Peça impressa, Placa eletrônica, Motor DC) (PJ-T03).
-- [ ] 6.6 Folha de processo de torno em Markdown a partir da especificação técnica (D7).
-- [ ] 6.7 Teste `test_multiproject_rules.lpr`:
+- [x] 6.6 Folha de processo de torno em Markdown a partir da especificação técnica (D7).
+- [x] 6.7 Teste `test_multiproject_rules.lpr`:
       - o exemplo do motor, a partir só das 4 tarefas de projeto, gera exatamente as tarefas e
         os vínculos do README;
       - rodar de novo não duplica;
@@ -336,6 +336,23 @@ Validação de 22/10/2026 (Win64, FPC 3.2.2):
       - capturas em `imgs/`;
       - linha no README da suíte e na tabela de `docs/AI_TOOLS_GUIDE.md`;
       - `NEWS.md`.
+
+Resultado em 22/10/2026:
+- A01/A02 propõem fabricação pelo processo, gravação encadeada quando especificada,
+  compra quando há componentes e máquina compatível sugerida (RouterPCB quando há router).
+- A03/A04 respeitam a prontidão das entregas e os subsistemas; A05 só propõe liberação
+  depois da validação aprovada. Aceitar o marco acrescenta os vínculos às fabricações futuras.
+- A06 deriva verificações de `manual_steps` do MultiAssembly, quando vinculado, e copia
+  os critérios do objetivo para o teste final. A07 exige o ID `revisar_tarefa` e leva a evidência.
+- A08 usa regra + tipo de saída + origens ordenadas: os dois resultados de A02 e a cadeia
+  de A06 têm identidades distintas. Recusas ficam como canceladas e não reaparecem.
+- Gerar, decidir em lote e alterar a liberação são transações com um único desfazer.
+  Os modelos recriam IDs e limpam resultados e artefatos anteriores.
+- `test_multiproject_rules`: 145 checks; `test_multiproject_rules_ui`: 34 checks no Win64,
+  incluindo decisões individuais/em lote, desfazer, origem, filtro, modelos e 1024 × 768.
+- O exemplo completo tem 15 tarefas e 21 vínculos. Os quatro vínculos de projeto para
+  fabricação, necessários para entregar os arquivos, agora estão explícitos no README.
+- Regressão Linux e conclusão do empacotamento ainda pendentes nesta preparação.
 
 ### Fase 7: recursos e custos (≈ 5 h)
 

@@ -16,8 +16,8 @@
   </General>
   <VersionInfo>
    <UseVersionInfo Value="True" />
-   <MinorVersionNr Value="1" />
-   <StringTable CompanyName="Maurinsoft" FileDescription="MultiProject - gestao de projetos mecanicos e eletronicos" ProductName="MultiSuite" ProductVersion="0.01" />
+   <MinorVersionNr Value="2" />
+   <StringTable CompanyName="Maurinsoft" FileDescription="MultiProject - gestao de projetos mecanicos e eletronicos" ProductName="MultiSuite" ProductVersion="0.02" />
   </VersionInfo>
   <BuildModes Count="1">
    <Item1 Name="Default" Default="True" />

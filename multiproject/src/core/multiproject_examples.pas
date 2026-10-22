@@ -17,8 +17,73 @@ uses
   SysUtils, aiprojectduration, aitaskgraph, multiproject_types, multiproject_document;
 
 procedure BuildMotorExample(P: TPJProject);
+procedure BuildMotorSeed(P: TPJProject);
+procedure BuildMotorRuleExample(P: TPJProject);
+procedure BuildRuleExample(P: TPJProject);
 
 implementation
+
+uses multiproject_rules;
+
+procedure BuildMotorSeed(P: TPJProject);
+var T: TPJTask; R: TPJResource;
+begin
+  P.Clear; P.Id:='P-MOTOR-DC'; P.Name:='Motor DC didatico';
+  P.ObjectiveShort:='Construir um motor DC escovado de 12 V para aula';
+  P.ObjectiveLong:='Carcaca impressa, eixo torneado, base MDF com logo e driver ponte H.';
+  SetLength(P.ObjectiveSuccess,1); P.ObjectiveSuccess[0].Id:='OK-1';
+  P.ObjectiveSuccess[0].Text:='3000 rpm +/- 10% a 12 V sem carga';
+  P.ObjectiveSuccess[0].State:=csPending;
+  P.StartDate:=EncodeDate(2026,10,26)+EncodeTime(8,0,0,0);
+  T:=P.AddTask('',tkPart,'Carcaca do estator','Carcaca que fixa os imas'); T.Process:=prPrint3D;
+  T.AddTechItem('material','PETG',''); T.AddTechItem('diametro_externo','60','mm');
+  T.AddTechItem('temperatura','60','C'); T.AddTechItem('carga','5','N');
+  T.AddCriterion('F-1','Suporta 60 C sem deformar');
+  T:=P.AddTask('',tkPart,'Eixo do rotor','Eixo de aco 5 mm'); T.Process:=prLathe;
+  T.AddTechItem('material','aco 1045',''); T.AddTechItem('diametro','5','mm');
+  T.AddTechItem('comprimento','80','mm'); T.AddTechItem('rotacao','3000','rpm');
+  T.AddTechItem('operacoes','Facear;Desbastar;Acabar;Chanfrar;Conferir cotas','');
+  T:=P.AddTask('',tkPart,'Base em MDF','Base de fixacao do motor'); T.Process:=prLaserCut;
+  T.AddTechItem('espessura','3','mm'); T.AddTechItem('gravacao','logo','');
+  T:=P.AddTask('',tkElectronics,'Driver ponte H','Placa de acionamento do motor');
+  T.AddTechItem('tensao','12','V'); T.AddTechItem('corrente','2','A');
+  T.AddCriterion('F-1','Inverte o sentido de rotacao pelo sinal DIR');
+  R:=P.AddResource('Ender-3',rtMachine); R.MachineType:=pmPrinter3D; R.CalendarName:=PJ_CAL_24H;
+  R:=P.AddResource('Laser 10 W',rtMachine); R.MachineType:=pmLaser;
+  R:=P.AddResource('Torno',rtMachine); R.MachineType:=pmLathe;
+  P.ClearHistory; P.MarkSaved;
+end;
+procedure BuildMotorRuleExample(P: TPJProject);
+begin BuildMotorSeed(P); BuildRuleExample(P); end;
+procedure BuildRuleExample(P: TPJProject);
+var I,J,N,Pass: Integer; Why: string; HasGate: Boolean;
+begin
+  { Construct the sample DAG through the rules, then reset all approvals and
+    artifacts: a distributed example never claims real completed work. }
+  for Pass:=1 to 10 do
+  begin
+    for I:=0 to P.Count-1 do
+    begin
+      P[I].State:=tsDone;
+      P[I].Artifact.Hash:='example-only'; P[I].Artifact.Status:='valid';
+      for J:=0 to High(P[I].FuncSpec) do P[I].FuncSpec[J].State:=csPassed;
+    end;
+    N:=PJGenerateSuggestions(P,Why);
+    if N<0 then raise EPJError.Create(Why);
+    if N=0 then Break;
+    if not PJDecideSuggestions(P,[],True,Why) then raise EPJError.Create(Why);
+  end;
+  for I:=0 to P.Count-1 do
+  begin
+    P[I].State:=tsPlanned; P[I].Artifact:=Default(TPJArtifact);
+    P[I].Artifact.Status:='none'; P[I].Artifact.Size:=-1; P[I].Artifact.MTime:=-1;
+    for J:=0 to High(P[I].FuncSpec) do begin P[I].FuncSpec[J].State:=csPending; P[I].FuncSpec[J].Evidence:=''; end;
+  end;
+  HasGate:=False;
+  for I:=0 to P.Count-1 do if P[I].Origin.Rule='A05' then begin P[I].State:=tsSuggested; HasGate:=True; end;
+  if HasGate and not PJDecideSuggestions(P,[],True,Why) then raise EPJError.Create(Why);
+  P.ClearHistory; P.MarkSaved;
+end;
 
 procedure BuildMotorExample(P: TPJProject);
 var

@@ -50,6 +50,14 @@ begin
       end;
       if Info.HasTool and not SameText(ExtractFileExt(FileName), Info.Extension) then
       begin Msg := 'Extensao incompativel: esperado ' + Info.Extension; Exit; end;
+      if K=tkLathe then
+      begin
+        Verified:=True;
+        Result:=SameText(ExtractFileExt(FileName),'.md') and
+          (Pos('# Folha de processo de torno',L.Text)>0) and (Pos('| Operacao |',L.Text)>0);
+        if Result then Msg:='Folha de processo manual anexada' else Msg:='Esperada folha de processo de torno em Markdown';
+        Exit;
+      end;
       J := GetJSON(L.Text);
       if not (J is TJSONObject) then begin Msg := 'Documento JSON deve ser um objeto'; Exit; end;
       if K = tkPart then

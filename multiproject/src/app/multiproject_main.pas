@@ -29,10 +29,10 @@ uses
   multiproject_types, multiproject_document, multiproject_json, multiproject_graph,
   multiproject_schedule, multiproject_states, multiproject_examples, multiproject_views,
   multiproject_resources, multiproject_kinds, multiproject_artifacts,
-  multiproject_taskctx, multisuite_types, multisuite_registry, multisuite_launcher, multisuite_paths;
+  multiproject_taskctx, multiproject_rules, multiproject_templates, multiproject_lathe, multisuite_types, multisuite_registry, multisuite_launcher, multisuite_paths;
 
 const
-  PJ_APP_VERSION = '0.1.0.0';
+  PJ_APP_VERSION = '0.2.0.0';
   PJ_STEPS: array[0..6] of string = ('1  Objetivo', '2  Tarefas', '3  Relacoes',
     '4  Recursos', '5  Cronograma', '6  Acompanhar', '7  Relatorios');
   PAGE_TASK = 7;
@@ -45,6 +45,9 @@ type
     ArtifactTimer: TTimer;
     ArtifactPathEdit: TEdit;
     OpenCNCButton: TSuiteButton;
+    LatheButton: TSuiteButton;
+    SidebarBody: TPanel;
+    ChainTitleLabel: TLabel;
     FCheckingArtifacts: Boolean;
     FSelectedId: string;
     FIcons: array[TPJTaskKind] of TBitmap;
@@ -55,6 +58,14 @@ type
     procedure OpenToolClick(Sender: TObject);
     procedure LinkArtifactClick(Sender: TObject);
     procedure OpenCNCClick(Sender: TObject);
+    procedure GenerateClick(Sender: TObject);
+    procedure RefreshSuggestions;
+    procedure SuggestionOpen(Sender: TObject);
+    procedure AcceptSuggestions(Sender: TObject);
+    procedure RejectSuggestions(Sender: TObject);
+    procedure DecideSuggestions(Accept: Boolean);
+    procedure TemplateClick(Sender: TObject);
+    procedure LatheSheetClick(Sender: TObject);
     procedure BuildSidebar(S: TPanel);
     procedure BuildBar;
     procedure BuildFooter;
@@ -179,6 +190,8 @@ type
     FooterPanel: TPanel;
     StatusLabel, InfoLabel: TLabel;
     ValidateButton, GenerateButton, OpenToolButton: TSuiteButton;
+    AcceptSuggestionButton, RejectSuggestionButton: TSuiteButton;
+    GateBox: TCheckBox;
     ChainList, SuggestList: TListBox;
     FilterCombo, GroupCombo: TComboBox;
     CriticalBox: TCheckBox;
@@ -222,6 +235,7 @@ type
     procedure NewProject;
     procedure LoadExample;
     procedure OpenFile(const AFileName: string);
+    procedure CreateFromTemplateFile(const AFileName: string);
     procedure SaveFile(const AFileName: string);
     procedure RefreshAll;
     procedure ShowStep(N: Integer);
@@ -454,9 +468,8 @@ begin
   StatusLabel.Font.Color := clSuiteText;
   InfoLabel := Lbl(FooterPanel, '', 18, 36, 600, 22);
   ValidateButton := Btn(FooterPanel, 'Validar', 0, 15, 120, sikTests, @ValidateClick);
-  GenerateButton := Btn(FooterPanel, 'Gerar tarefas', 0, 15, 150, sikWand, nil);
-  GenerateButton.Enabled := False;
-  GenerateButton.Hint := 'Regras de geracao de tarefas: fase 6';
+  GenerateButton := Btn(FooterPanel, 'Gerar tarefas', 0, 15, 150, sikWand, @GenerateClick);
+  GenerateButton.Hint := 'Propor tarefas pelas especificacoes, estados e regras do projeto';
   GenerateButton.ShowHint := True;
   OpenToolButton := Btn(FooterPanel, 'Abrir na ferramenta', 0, 15, 230, sikSend, @OpenToolClick);
   OpenToolButton.SetLook(sbsSolid, clSuitePrimary, sikSend);
@@ -466,7 +479,7 @@ begin
 end;
 
 procedure TMultiProjectForm.BuildSidebar(S: TPanel);
-var I: Integer;
+var I: Integer; Body, Actions: TPanel; Title: TLabel;
 begin
   for I := 0 to 6 do
   begin
@@ -477,18 +490,21 @@ begin
   Btn(S, 'Abrir', 110, 332, 92, sikFolder, @OpenClick).Hint := 'Abrir .mproj (Ctrl+O)';
   Btn(S, 'Salvar', 12, 372, 92, sikSave, @SaveClick).Hint := 'Salvar (Ctrl+S)';
   Btn(S, 'Demo', 110, 372, 92, sikWand, @DemoClick).Hint := 'Abrir o exemplo do motor DC';
-  Lbl(S, 'CADEIAS', 16, 420, 180, 20).Font.Style := [fsBold];
-  ChainList := TListBox.Create(Self);
-  ChainList.Parent := S;
-  ChainList.SetBounds(12, 442, 190, 120);
-  ChainList.OnClick := @ChainClick;
-  Lbl(S, 'SUGESTOES', 16, 572, 180, 20).Font.Style := [fsBold];
-  SuggestList := TListBox.Create(Self);
-  SuggestList.Parent := S;
-  SuggestList.SetBounds(12, 594, 190, 80);
-  SuggestList.Anchors := [akLeft, akTop, akRight, akBottom];
-  SuggestList.Items.Add('Nenhuma sugestao');
-  SuggestList.Enabled := False;
+  Body := TPanel.Create(Self); SidebarBody:=Body; Body.Parent := S; Body.BevelOuter := bvNone; Body.Color := S.Color;
+  Body.SetBounds(12, 416, 190, Max(120,S.ClientHeight-428));
+  Body.Anchors := [akLeft,akTop,akRight,akBottom];
+  Title := Lbl(Body,'CADEIAS',0,0,190,20); ChainTitleLabel:=Title; Title.Align := alTop; Title.Font.Style := [fsBold];
+  ChainList := TListBox.Create(Self); ChainList.Parent := Body; ChainList.Top:=20;
+  ChainList.Align := alTop; ChainList.Height := 40; ChainList.OnClick := @ChainClick;
+  Title := Lbl(Body,'SUGESTOES',0,60,190,20); Title.Align := alTop; Title.Font.Style := [fsBold];
+  Actions := TPanel.Create(Self); Actions.Parent := Body; Actions.Align := alBottom;
+  Actions.Height:=38; Actions.BevelOuter:=bvNone; Actions.Color:=S.Color;
+  AcceptSuggestionButton := Btn(Actions,'Aceitar',0,2,92,sikSave,@AcceptSuggestions);
+  RejectSuggestionButton := Btn(Actions,'Recusar',98,2,92,sikTrash,@RejectSuggestions);
+  SuggestList := TListBox.Create(Self); SuggestList.Parent := Body; SuggestList.Align := alClient;
+  SuggestList.MultiSelect:=True; SuggestList.ExtendedSelect:=True; SuggestList.OnDblClick:=@SuggestionOpen;
+  SuggestList.Hint:='Selecione uma ou varias sugestoes. Sem selecao, Aceitar/Recusar vale para todas.';
+  SuggestList.ShowHint:=True;
 end;
 
 procedure TMultiProjectForm.BuildBar;
@@ -530,7 +546,7 @@ begin
   FilterCombo.Parent := BarPanel;
   FilterCombo.SetBounds(X, 54, 150, 28);
   FilterCombo.Style := csDropDownList;
-  FilterCombo.Items.CommaText := '"Todas as tarefas",Criticas,Atrasadas,Sugeridas,"Cadeia selecionada"';
+  FilterCombo.Items.CommaText := '"Todas as tarefas",Criticas,Atrasadas,Sugeridas,"Cadeia selecionada","Geradas por regra"';
   FilterCombo.ItemIndex := 0;
   FilterCombo.OnChange := @FilterChange;
   Inc(X, 158);
@@ -596,6 +612,9 @@ begin
   OCalendar := Combo(S, 'Calendario do projeto', 480);
   ORevision := Edit(S, 'Revisao', 534);
   OAuthor := Edit(S, 'Autor', 586);
+  GateBox:=TCheckBox.Create(Self); GateBox.Parent:=S; GateBox.SetBounds(16,688,290,24);
+  GateBox.Caption:='Exigir liberacao antes de fabricar'; GateBox.Checked:=True;
+  Btn(S,'Novo a partir de modelo...',16,724,290,sikFolder,@TemplateClick);
   Btn(S, 'Aplicar', 16, 644, 140, sikSave, @ObjectiveApply).SetLook(sbsSolid, clSuitePrimary, sikSave);
   with Btn(S, 'Decompor com IA', 166, 644, 140, sikWand, nil) do
   begin
@@ -798,6 +817,7 @@ begin
   Btn(S, 'Vincular arquivo...', 16, Y, 290, sikImport, @LinkArtifactClick); Inc(Y, 42);
   Btn(S, 'Verificar arquivo', 16, Y, 290, sikTests, @CheckArtifacts); Inc(Y, 42);
   OpenCNCButton := Btn(S, 'Abrir no MultiCNC', 16, Y, 290, sikSend, @OpenCNCClick); Inc(Y, 42);
+  LatheButton:=Btn(S,'Gerar folha de torno...',16,Y,290,sikExport,@LatheSheetClick); Inc(Y,42);
   Section(S, '7  PREDECESSORAS E SUCESSORAS', Y); Inc(Y, 26);
   TPredLabel := Lbl(S, '', 16, Y, 290, 60); Inc(Y, 66);
   Section(S, '8  RECURSOS', Y); Inc(Y, 26);
@@ -819,6 +839,11 @@ end;
 procedure TMultiProjectForm.FormResizeUI(Sender: TObject);
 begin
   if FooterPanel = nil then Exit;
+  if SidebarBody<>nil then
+  begin
+    SidebarBody.SetBounds(12,416,190,Max(64,SidebarBody.Parent.ClientHeight-428));
+    ChainList.Visible:=SidebarBody.Height>=180; ChainTitleLabel.Visible:=ChainList.Visible;
+  end;
   OpenToolButton.Left := FooterPanel.ClientWidth - OpenToolButton.Width - 18;
   GenerateButton.Left := OpenToolButton.Left - GenerateButton.Width - 10;
   ValidateButton.Left := GenerateButton.Left - ValidateButton.Width - 10;
@@ -1014,6 +1039,7 @@ begin
   if T <> nil then OpenToolButton.Enabled := PJKindInfo(T.Kind).HasTool;
   OpenToolButton.Caption := 'Abrir na ferramenta';
   if (T <> nil) and (KindToolName(T.Kind) <> '') then OpenToolButton.Caption := 'Abrir no ' + KindToolName(T.Kind);
+  if (T<>nil) and (T.Kind=tkPCBFab) and SameText(T.TechValue('ferramenta_sugerida'),'RouterPCB') then OpenToolButton.Caption:='Abrir no RouterPCB';
   if (T <> nil) and PJKindInfo(T.Kind).Fabrication and PJIsGCode(T.Artifact.Path) and
     FileExists(PJArtifactFile(T, FileName)) then OpenToolButton.Caption := 'Abrir no MultiCNC';
 end;
@@ -1048,6 +1074,7 @@ begin
     FillBoard(Board, Doc, Sched);
     FillTeam(Team, Doc, Sched, CriticalBox.Checked);
     RefreshChains;
+    RefreshSuggestions;
     UpdateHeader;
     if FSelectedId <> '' then SelectTask(FSelectedId);
     UpdateFooter;
@@ -1293,6 +1320,7 @@ begin
     2: Options.Filter := pfLate;
     3: Options.Filter := pfSuggested;
     4: begin Options.Filter := pfChain; Options.FilterChain := Max(0, ChainList.ItemIndex); end;
+    5: Options.Filter := pfRules;
   else
     Options.Filter := pfAll;
   end;
@@ -1436,10 +1464,11 @@ begin
   OCalendar.ItemIndex := Doc.IndexOfCalendar(Doc.ProjectCalendarName);
   ORevision.Text := Doc.Revision;
   OAuthor.Text := Doc.Author;
+  GateBox.Checked := Doc.FabricationGate;
 end;
 
 procedure TMultiProjectForm.ObjectiveApply(Sender: TObject);
-var D: TDateTime; I, N: Integer; Old: TPJCriteria;
+var D: TDateTime; I, N: Integer; Old: TPJCriteria; Err: string;
 begin
   if not TryParseBRDateTime(OStart.Text, D) or (D = 0) then
   begin
@@ -1472,6 +1501,7 @@ begin
     if OCalendar.ItemIndex >= 0 then Doc.ProjectCalendarName := OCalendar.Items[OCalendar.ItemIndex];
     Doc.Revision := Trim(ORevision.Text);
     Doc.Author := Trim(OAuthor.Text);
+    if not PJSetFabricationGate(Doc,GateBox.Checked,Err) then SetStatus(Err,3);
   finally
     Doc.EndChange;
   end;
@@ -2137,6 +2167,89 @@ begin
   RefreshAll;
 end;
 
+procedure TMultiProjectForm.GenerateClick(Sender: TObject);
+var N: Integer; Why: string;
+begin
+  CheckArtifacts(nil); N:=PJGenerateSuggestions(Doc,Why,FileName); RefreshAll;
+  if N<0 then SetStatus(Why,3)
+  else if Why<>'' then SetStatus(Format('%d sugestoes. %s',[N,Why]),2)
+  else SetStatus(Format('%d novas sugestoes. Confira e aceite ou recuse na lateral.',[N]),1);
+end;
+procedure TMultiProjectForm.RefreshSuggestions;
+var I: Integer;
+begin
+  SuggestList.Items.BeginUpdate;
+  try
+    SuggestList.Items.Clear;
+    for I:=0 to Doc.Count-1 do if Doc[I].State=tsSuggested then
+      SuggestList.Items.AddObject(Doc[I].Id+' ['+Doc[I].Origin.Rule+'] '+Doc[I].Name,TObject(PtrInt(I)));
+  finally SuggestList.Items.EndUpdate; end;
+  SuggestList.Enabled:=SuggestList.Items.Count>0;
+  AcceptSuggestionButton.Enabled:=SuggestList.Enabled; RejectSuggestionButton.Enabled:=SuggestList.Enabled;
+end;
+procedure TMultiProjectForm.SuggestionOpen(Sender: TObject);
+begin
+  if SuggestList.ItemIndex<0 then Exit;
+  SelectTask(Doc[PtrInt(SuggestList.Items.Objects[SuggestList.ItemIndex])].Id); ShowStep(PAGE_TASK);
+end;
+procedure TMultiProjectForm.DecideSuggestions(Accept: Boolean);
+var IDs: TPJStrings; I: Integer; Why: string;
+begin
+  IDs:=nil;
+  for I:=0 to SuggestList.Items.Count-1 do if SuggestList.Selected[I] then
+  begin
+    SetLength(IDs,Length(IDs)+1); IDs[High(IDs)]:=Doc[PtrInt(SuggestList.Items.Objects[I])].Id;
+  end;
+  if PJDecideSuggestions(Doc,IDs,Accept,Why) then
+  begin RefreshAll; SetStatus('Sugestoes atualizadas. Ctrl+Z desfaz a decisao.',1); end
+  else SetStatus(Why,2);
+end;
+procedure TMultiProjectForm.AcceptSuggestions(Sender: TObject);
+begin DecideSuggestions(True); end;
+procedure TMultiProjectForm.RejectSuggestions(Sender: TObject);
+begin DecideSuggestions(False); end;
+procedure TMultiProjectForm.CreateFromTemplateFile(const AFileName: string);
+var Model: TPJProject;
+begin
+  Model:=TPJProject.Create;
+  try
+    LoadProjectFile(Model,AFileName); PJCreateFromTemplate(Doc,Model);
+    FileName:=''; FSelectedId:=''; RefreshAll; ShowStep(0);
+    SetStatus('Novo projeto criado do modelo. Salve em sua pasta de trabalho.',1);
+  finally Model.Free; end;
+end;
+procedure TMultiProjectForm.TemplateClick(Sender: TObject);
+var D: TOpenDialog; Root: string;
+begin
+  if Doc.Modified and (MessageDlg('MultiProject','Descartar as alteracoes do projeto atual?',mtConfirmation,[mbYes,mbNo],0)<>mrYes) then Exit;
+  D:=TOpenDialog.Create(Self);
+  try
+    Root:=IncludeTrailingPathDelimiter(SuiteRootForExecutable(ParamStr(0)));
+    D.InitialDir:=Root+'models'+DirectorySeparator+'multiproject';
+    if not DirectoryExists(D.InitialDir) then D.InitialDir:=Root+'documentation'+DirectorySeparator+'models'+DirectorySeparator+'multiproject';
+    D.Filter:='Modelos MultiProject|*.mproj;*.mpt';
+    if D.Execute then
+      try CreateFromTemplateFile(D.FileName); except on E: Exception do SetStatus(E.Message,3); end;
+  finally D.Free; end;
+end;
+procedure TMultiProjectForm.LatheSheetClick(Sender: TObject);
+var T: TPJTask; D: TSaveDialog; FN: string;
+begin
+  T:=SelectedTask; if (T=nil) or (T.Kind<>tkLathe) then Exit;
+  if FileName='' then SaveClick(nil);
+  if FileName='' then Exit;
+  FN:=ExtractFilePath(ExpandFileName(FileName))+PJDefaultArtifact(T.Kind,T.Id,T.Name);
+  D:=TSaveDialog.Create(Self);
+  try
+    D.FileName:=FN; D.DefaultExt:='md'; D.Filter:='Folha de processo Markdown|*.md'; D.Options:=D.Options+[ofOverwritePrompt];
+    if D.Execute then
+    try
+      PJSaveLatheSheet(Doc,T,D.FileName,True); PJLinkArtifact(Doc,T,FileName,D.FileName);
+      CheckArtifacts(nil); RefreshAll; SetStatus('Folha de torno salva: '+D.FileName,1);
+    except on E: Exception do SetStatus(E.Message,3); end;
+  finally D.Free; end;
+end;
+
 procedure TMultiProjectForm.CheckArtifacts(Sender: TObject);
 var W: string;
 begin
@@ -2173,6 +2286,7 @@ var T: TPJTask; Info: TPJKindInfo; FN, Err, Root: string; R: TSuiteRegistry; N: 
 begin
   T := SelectedTask; if T = nil then Exit;
   Info := PJKindInfo(T.Kind); if not Info.HasTool then Exit;
+  if (T.Kind=tkPCBFab) and SameText(T.TechValue('ferramenta_sugerida'),'RouterPCB') then Info.Tool:=stiRouterPCB;
   if FileName = '' then SaveClick(nil);
   if FileName = '' then Exit;
   Root := ExtractFilePath(ExpandFileName(FileName)); FN := PJArtifactFile(T, FileName);
@@ -2277,6 +2391,7 @@ begin
   else TToolLabel.Caption := Tool + ': ' + T.Artifact.Path + LineEnding + T.Artifact.Status + ' - ' + T.Artifact.CheckMessage;
   TToolLabel.Hint := TToolLabel.Caption; TToolLabel.ShowHint := True;
   ArtifactPathEdit.Text := PJArtifactFile(T, FileName);
+  LatheButton.Enabled := T.Kind=tkLathe;
   OpenCNCButton.Enabled := PJKindInfo(T.Kind).Fabrication and
     PJIsGCode(T.Artifact.Path) and FileExists(ArtifactPathEdit.Text);
   Succ := Doc.SuccessorsText(T.Id);
@@ -2302,6 +2417,12 @@ begin
   end;
   TPriority.Text := IntToStr(T.Priority);
   TOriginLabel.Caption := 'Criada pelo usuario';
+  if T.Origin.By='rule' then
+  begin
+    TOriginLabel.Caption:='Regra '+T.Origin.Rule+':';
+    for I:=0 to High(T.Origin.Sources) do TOriginLabel.Caption:=TOriginLabel.Caption+' '+T.Origin.Sources[I];
+  end;
+  TOriginLabel.Hint:=TOriginLabel.Caption; TOriginLabel.ShowHint:=True;
   TNotes.Text := T.Notes;
 end;
 

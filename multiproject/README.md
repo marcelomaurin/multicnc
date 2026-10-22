@@ -22,6 +22,21 @@ com `--file`; posicionamento e execução ficam no MultiCNC.
 Testes Win64 concluídos; regressão Linux da fase 5 pendente. Esta mudança ainda não
 foi incorporada ao setup 015.
 
+## Regras e modelos (fase 6)
+
+**Gerar tarefas** propõe fabricação, compra, montagem, validação, liberação e
+fechamento pelas regras A01 a A08. Aceite ou recuse uma ou várias propostas na
+lista **SUGESTÕES**; Ctrl+Z desfaz o lote. A origem é preservada no `.mproj`, e
+repetir a geração não duplica as sugestões, inclusive as recusadas.
+
+A página **Objetivo** oferece **Novo a partir de modelo...** e a opção de exigir
+liberação antes de fabricar. Na página de uma tarefa de torno, **Gerar folha de
+torno...** prepara e vincula a folha Markdown a partir da especificação técnica.
+
+- [Guia rápido](../docs/Manuals/MultiProject_Guia_Rapido.md)
+- [Motor DC inicial](examples/motor_dc_inicial.mproj) e [plano completo](examples/motor_dc.mproj)
+- [Modelos de projeto](../models/multiproject/README.md)
+
 ## Recursos e conflitos
 
 - **Pessoas** (os usuários da equipe, com função e e-mail), **máquinas** (router, laser,
@@ -96,10 +111,15 @@ flowchart LR
   OBJ --> C1 & C2 & C3 & E1
   C1 & C2 & C3 & E1 --> A1 --> V1 --> M1
   M1 --> F1 & F2 & F3 & F5
+  C1 --> F1
+  C2 --> F2
+  C3 --> F3
+  E1 --> F5
   F3 --> F4
   F1 & F2 & F4 & F5 --> MF --> TF --> FIM
 ```
 
+O exemplo gerado contém **15 tarefas e 21 vínculos**, incluindo a entrega de arquivos do projeto à fabricação.
 As quatro tarefas de projeto correm **em paralelo**. A montagem virtual só começa quando
 todas ficam prontas (vínculo término-início). As fabricações correm em paralelo **em
 máquinas diferentes**. A gravação do logo vem **encadeada** depois do corte da base, porque as

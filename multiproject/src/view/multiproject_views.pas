@@ -20,7 +20,7 @@ uses
   multiproject_types, multiproject_document, multiproject_graph, multiproject_schedule, multiproject_kinds;
 
 type
-  TPJFilter = (pfAll, pfCritical, pfLate, pfSuggested, pfChain, pfKind);
+  TPJFilter = (pfAll, pfCritical, pfLate, pfSuggested, pfChain, pfKind, pfRules);
   TPJGroupBy = (pgOutline, pgKind, pgState);
 
   TPJViewOptions = record
@@ -232,6 +232,7 @@ begin
     pfAll: Result := True;
     pfCritical: Result := Sc.Valid and Sc[I].Critical;
     pfLate: Result := Sc.Valid and IsLate(Sc, P, I);
+    pfRules: Result := P[I].Origin.By='rule';
     pfSuggested: Result := P[I].State = tsSuggested;
     pfKind: Result := P[I].Kind = O.FilterKind;
     pfChain:

@@ -24,7 +24,7 @@ function SetTaskState(P: TPJProject; const ATaskId: string; ANew: TPJTaskState;
 
 implementation
 
-uses multiproject_kinds;
+uses multiproject_kinds, multiproject_rules;
 
 function OpenFSPredecessors(P: TPJProject; const ATaskId: string): string;
 var I: Integer; L: TPJLink; T: TPJTask;
@@ -61,6 +61,8 @@ begin
     Reason := T.Id + ' e um resumo: o estado vem das subtarefas';
     Exit(False);
   end;
+  if (ANew in [tsInProgress, tsReview, tsDone]) and
+    not PJCanStartFabrication(P,T,Reason) then Exit(False);
   if ANew in [tsInProgress, tsDone] then
   begin
     Open := OpenFSPredecessors(P, T.Id);

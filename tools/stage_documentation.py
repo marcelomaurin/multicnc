@@ -25,6 +25,9 @@ def stage(repo, app, version):
         shutil.copy2(source, target)
         if (source.parent / "docs").is_dir():
             shutil.copytree(source.parent / "docs", target.parent / "docs", dirs_exist_ok=True)
+    project_examples = repo / "multiproject/examples"
+    if project_examples.is_dir():
+        shutil.copytree(project_examples, destination / "multiproject/examples", dirs_exist_ok=True)
     source = repo / "src/app/README.md"
     target = destination / "src/app/README.md"
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -53,6 +56,10 @@ footer{border-top:1px solid #d5dfeb;margin-top:28px;padding-top:16px}code{backgr
 <h1>Documentação MultiSuite</h1>
 <p>Setup ''' + html.escape(version) + ''' · Windows 64 bits. Os manuais e as imagens desta página estão incluídos no computador e podem ser consultados sem conexão à internet.</p>
 <h2>Manuais do usuário</h2><ul class="manuals">''' + "\n".join(cards) + '''</ul>
+<h2>MultiProject: planejar, conferir e gerar tarefas</h2>
+<p><a href="Manuals/MultiProject_Guia_Rapido.md">Guia rápido do MultiProject</a> · <a href="../models/multiproject/README.md">Modelos e exemplos</a></p>
+<p>As sugestões de fabricação, montagem, validação e fechamento são revisadas pelo usuário. Os modelos criam um projeto com IDs novos; a execução das máquinas permanece no MultiCNC.</p>
+<figure><img src="../imgs/multiproject_sugestoes.png" alt="Lista de sugestões e decisões do MultiProject"><figcaption>Conferir e aceitar ou recusar sugestões.</figcaption></figure>
 <h2>MultiSlicer @@SLICER_VERSION@@: preparar uma impressão</h2>
 <ol>
 <li>Selecione no topo a impressora cadastrada no MultiCNC ou use <strong>Ajuste manual</strong>. Confira as dimensões da mesa e o bico.</li>

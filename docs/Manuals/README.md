@@ -102,3 +102,7 @@ O executável atual é o **MultiSlicer 0.1.0.1**. A versão em texto ganhou em 1
 - Inclui quatro exercícios guiados com resultados de referência, mensagens e solução de problemas, boas práticas, termos e limites.
 
 [12 capturas completas](../../imgs/manual_multiphysics_0_2_0_0/README.md) · [Guia do MultiPhysics](../../multiphysics/README.md) · [Exemplos](../../models/multiphysics/README.md)
+
+## MultiProject
+
+[Guia rápido do MultiProject](MultiProject_Guia_Rapido.md): tarefas, sugestões, modelos, arquivos e folha de torno.

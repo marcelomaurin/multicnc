@@ -56,6 +56,7 @@ type
   end;
   TPJCriteria = array of TPJCriterion;
 
+  TPJStrings = array of string;
   TPJIntArray = array of Integer;
 
   TPJSeverity = (svError, svWarning);

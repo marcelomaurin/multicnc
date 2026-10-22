@@ -37,6 +37,10 @@ type
     Path, Tool, Hash, Status, CheckMessage, CheckedAt: string;
     Size, MTime: Int64;
   end;
+  TPJOrigin = record
+    By, Rule, Scope: string;
+    Sources: TPJStrings;
+  end;
   TPJTask = class
   public
     Id: string;
@@ -61,6 +65,7 @@ type
     Priority: Integer;             // 0..1000, padrao 500 (nivelamento)
     LevelStart: TDateTime;         // atraso do nivelamento: nao iniciar antes; 0 = sem
     Artifact: TPJArtifact;
+    Origin: TPJOrigin;
     Notes: string;
     Level: Integer;
     { objeto JSON lido do arquivo: preserva campos que esta versao nao conhece }
@@ -155,6 +160,8 @@ type
     MinutesPerWeek: Integer;
     NextNumber: Integer;
     ProjectCalendarName: string;
+    FabricationGate: Boolean;
+    EnabledRules: TPJStrings;
     CriticalSlack: Int64;          // minutos; critica = margem total <= limiar
     Raw: TJSONObject;
     constructor Create;
@@ -394,6 +401,8 @@ begin
   MinutesPerWeek := AI_DEFAULT_MINUTES_PER_WEEK;
   NextNumber := 1;
   ProjectCalendarName := PJ_CAL_STANDARD;
+  FabricationGate := True;
+  EnabledRules := ['A01','A02','A03','A04','A05','A06','A07'];
   CriticalSlack := 0;
   ResetCalendars;
   ClearHistory;

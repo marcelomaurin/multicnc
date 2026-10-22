@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+ <ProjectOptions>
+  <Version Value="12"/>
+  <General><Title Value="test_multiproject_rules_ui"/><UseAppBundle Value="False"/><ResourceType Value="res"/></General>
+  <BuildModes Count="1"><Item1 Name="Default" Default="True"/></BuildModes>
+  <Units Count="1"><Unit0><Filename Value="test_multiproject_rules_ui.lpr"/><IsPartOfProject Value="True"/></Unit0></Units>
+  <RequiredPackages Count="1"><Item1><PackageName Value="LCL"/></Item1></RequiredPackages>
+ </ProjectOptions>
+ <CompilerOptions>
+  <Version Value="11"/>
+  <Target><Filename Value="test_multiproject_rules_ui"/></Target>
+  <SearchPaths><OtherUnitFiles Value="../src/core;../src/integration;../../makepcb/src/core;../../makepcb/src/route;../../multicad/src/core;../../multicad/src/features;../../multicad/src/kernel;../../multicad/src/sketch;../../multisuite/src/core;../src/io;../src/view;../src/app;../../src/shared;../../src/core;../../../CHATGPT/pacote/AI Project Core;../../../CHATGPT/pacote/AI Project;../../third_party/chatgpt/AIProjectCore;../../third_party/chatgpt/AIProject"/><UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)/test_multiproject_rules_ui"/></SearchPaths>
+  <Parsing><SyntaxOptions><SyntaxMode Value="ObjFPC"/></SyntaxOptions></Parsing>
+  <CodeGeneration><Checks><IOChecks Value="True"/><RangeChecks Value="True"/><OverflowChecks Value="True"/></Checks></CodeGeneration>
+ </CompilerOptions>
+</CONFIG>

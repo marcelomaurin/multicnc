@@ -1,0 +1,1245 @@
+{
+  "schema_version" : 1,
+  "format" : "MultiProject",
+  "id" : "MODELO-PECA-IMPRESSA",
+  "name" : "Peca impressa",
+  "revision" : "A",
+  "author" : "",
+  "objective" : {
+    "short" : "Projetar, validar e imprimir uma peca",
+    "long" : "",
+    "scope" : "",
+    "success" : [
+    ]
+  },
+  "start" : "2026-10-22T08:00:00",
+  "status_date" : "",
+  "schedule_from" : "start",
+  "calendar" : "padrao",
+  "options" : {
+    "fabrication_gate" : true,
+    "rules" : [
+      "A01",
+      "A02",
+      "A03",
+      "A04",
+      "A05",
+      "A06",
+      "A07"
+    ],
+    "minutes_per_day" : 480,
+    "minutes_per_week" : 2400,
+    "critical_slack" : 0
+  },
+  "calendars" : [
+    {
+      "name" : "padrao",
+      "week" : [
+        [
+        ],
+        [
+          [
+            480,
+            720
+          ],
+          [
+            780,
+            1020
+          ]
+        ],
+        [
+          [
+            480,
+            720
+          ],
+          [
+            780,
+            1020
+          ]
+        ],
+        [
+          [
+            480,
+            720
+          ],
+          [
+            780,
+            1020
+          ]
+        ],
+        [
+          [
+            480,
+            720
+          ],
+          [
+            780,
+            1020
+          ]
+        ],
+        [
+          [
+            480,
+            720
+          ],
+          [
+            780,
+            1020
+          ]
+        ],
+        [
+        ]
+      ],
+      "exceptions" : [
+        {
+          "date" : "2025-01-01",
+          "name" : "Confraternizacao Universal",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2025-03-03",
+          "name" : "Carnaval (segunda-feira)",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2025-03-04",
+          "name" : "Carnaval (terca-feira)",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2025-04-18",
+          "name" : "Sexta-feira Santa",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2025-04-21",
+          "name" : "Tiradentes",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2025-05-01",
+          "name" : "Dia do Trabalho",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2025-06-19",
+          "name" : "Corpus Christi",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2025-09-07",
+          "name" : "Independencia do Brasil",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2025-10-12",
+          "name" : "Nossa Senhora Aparecida",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2025-11-02",
+          "name" : "Finados",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2025-11-15",
+          "name" : "Proclamacao da Republica",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2025-11-20",
+          "name" : "Dia Nacional de Zumbi e da Consciencia Negra",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2025-12-25",
+          "name" : "Natal",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2026-01-01",
+          "name" : "Confraternizacao Universal",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2026-02-16",
+          "name" : "Carnaval (segunda-feira)",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2026-02-17",
+          "name" : "Carnaval (terca-feira)",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2026-04-03",
+          "name" : "Sexta-feira Santa",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2026-04-21",
+          "name" : "Tiradentes",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2026-05-01",
+          "name" : "Dia do Trabalho",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2026-06-04",
+          "name" : "Corpus Christi",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2026-09-07",
+          "name" : "Independencia do Brasil",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2026-10-12",
+          "name" : "Nossa Senhora Aparecida",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2026-11-02",
+          "name" : "Finados",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2026-11-15",
+          "name" : "Proclamacao da Republica",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2026-11-20",
+          "name" : "Dia Nacional de Zumbi e da Consciencia Negra",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2026-12-25",
+          "name" : "Natal",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2027-01-01",
+          "name" : "Confraternizacao Universal",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2027-02-08",
+          "name" : "Carnaval (segunda-feira)",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2027-02-09",
+          "name" : "Carnaval (terca-feira)",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2027-03-26",
+          "name" : "Sexta-feira Santa",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2027-04-21",
+          "name" : "Tiradentes",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2027-05-01",
+          "name" : "Dia do Trabalho",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2027-05-27",
+          "name" : "Corpus Christi",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2027-09-07",
+          "name" : "Independencia do Brasil",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2027-10-12",
+          "name" : "Nossa Senhora Aparecida",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2027-11-02",
+          "name" : "Finados",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2027-11-15",
+          "name" : "Proclamacao da Republica",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2027-11-20",
+          "name" : "Dia Nacional de Zumbi e da Consciencia Negra",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2027-12-25",
+          "name" : "Natal",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2028-01-01",
+          "name" : "Confraternizacao Universal",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2028-02-28",
+          "name" : "Carnaval (segunda-feira)",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2028-02-29",
+          "name" : "Carnaval (terca-feira)",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2028-04-14",
+          "name" : "Sexta-feira Santa",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2028-04-21",
+          "name" : "Tiradentes",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2028-05-01",
+          "name" : "Dia do Trabalho",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2028-06-15",
+          "name" : "Corpus Christi",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2028-09-07",
+          "name" : "Independencia do Brasil",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2028-10-12",
+          "name" : "Nossa Senhora Aparecida",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2028-11-02",
+          "name" : "Finados",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2028-11-15",
+          "name" : "Proclamacao da Republica",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2028-11-20",
+          "name" : "Dia Nacional de Zumbi e da Consciencia Negra",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2028-12-25",
+          "name" : "Natal",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2029-01-01",
+          "name" : "Confraternizacao Universal",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2029-02-12",
+          "name" : "Carnaval (segunda-feira)",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2029-02-13",
+          "name" : "Carnaval (terca-feira)",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2029-03-30",
+          "name" : "Sexta-feira Santa",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2029-04-21",
+          "name" : "Tiradentes",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2029-05-01",
+          "name" : "Dia do Trabalho",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2029-05-31",
+          "name" : "Corpus Christi",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2029-09-07",
+          "name" : "Independencia do Brasil",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2029-10-12",
+          "name" : "Nossa Senhora Aparecida",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2029-11-02",
+          "name" : "Finados",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2029-11-15",
+          "name" : "Proclamacao da Republica",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2029-11-20",
+          "name" : "Dia Nacional de Zumbi e da Consciencia Negra",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2029-12-25",
+          "name" : "Natal",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2030-01-01",
+          "name" : "Confraternizacao Universal",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2030-03-04",
+          "name" : "Carnaval (segunda-feira)",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2030-03-05",
+          "name" : "Carnaval (terca-feira)",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2030-04-19",
+          "name" : "Sexta-feira Santa",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2030-04-21",
+          "name" : "Tiradentes",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2030-05-01",
+          "name" : "Dia do Trabalho",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2030-06-20",
+          "name" : "Corpus Christi",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2030-09-07",
+          "name" : "Independencia do Brasil",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2030-10-12",
+          "name" : "Nossa Senhora Aparecida",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2030-11-02",
+          "name" : "Finados",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2030-11-15",
+          "name" : "Proclamacao da Republica",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2030-11-20",
+          "name" : "Dia Nacional de Zumbi e da Consciencia Negra",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2030-12-25",
+          "name" : "Natal",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2031-01-01",
+          "name" : "Confraternizacao Universal",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2031-02-24",
+          "name" : "Carnaval (segunda-feira)",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2031-02-25",
+          "name" : "Carnaval (terca-feira)",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2031-04-11",
+          "name" : "Sexta-feira Santa",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2031-04-21",
+          "name" : "Tiradentes",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2031-05-01",
+          "name" : "Dia do Trabalho",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2031-06-12",
+          "name" : "Corpus Christi",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2031-09-07",
+          "name" : "Independencia do Brasil",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2031-10-12",
+          "name" : "Nossa Senhora Aparecida",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2031-11-02",
+          "name" : "Finados",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2031-11-15",
+          "name" : "Proclamacao da Republica",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2031-11-20",
+          "name" : "Dia Nacional de Zumbi e da Consciencia Negra",
+          "intervals" : [
+          ]
+        },
+        {
+          "date" : "2031-12-25",
+          "name" : "Natal",
+          "intervals" : [
+          ]
+        }
+      ]
+    },
+    {
+      "name" : "24h",
+      "week" : [
+        [
+          [
+            0,
+            1440
+          ]
+        ],
+        [
+          [
+            0,
+            1440
+          ]
+        ],
+        [
+          [
+            0,
+            1440
+          ]
+        ],
+        [
+          [
+            0,
+            1440
+          ]
+        ],
+        [
+          [
+            0,
+            1440
+          ]
+        ],
+        [
+          [
+            0,
+            1440
+          ]
+        ],
+        [
+          [
+            0,
+            1440
+          ]
+        ]
+      ],
+      "exceptions" : [
+      ]
+    }
+  ],
+  "next_task_number" : 9,
+  "tasks" : [
+    {
+      "id" : "T-0001",
+      "name" : "Peca impressa",
+      "short" : "Definir a peca e as cotas de controle",
+      "long" : "",
+      "parent" : "",
+      "artifact" : {
+        "path" : "",
+        "tool" : "",
+        "hash" : "",
+        "size" : -1,
+        "mtime" : -1,
+        "status" : "none",
+        "checked_at" : "",
+        "check_msg" : ""
+      },
+      "origin" : {
+        "by" : "",
+        "rule" : "",
+        "scope" : "",
+        "sources" : [
+        ]
+      },
+      "kind" : "part",
+      "process" : "print3d",
+      "state" : "planned",
+      "mode" : "auto",
+      "duration" : 480,
+      "duration_unit" : "d",
+      "elapsed" : false,
+      "estimated" : true,
+      "constraint" : {
+        "type" : "ASAP",
+        "date" : ""
+      },
+      "deadline" : "",
+      "manual_start" : "",
+      "manual_finish" : "",
+      "calendar" : "",
+      "priority" : 500,
+      "level_start" : "",
+      "tech_spec" : {
+        "items" : [
+          {
+            "key" : "material",
+            "value" : "PETG",
+            "unit" : ""
+          }
+        ],
+        "text" : ""
+      },
+      "func_spec" : [
+        {
+          "id" : "F1",
+          "text" : "Atende as cotas e a funcao definidas no desenho",
+          "state" : "pending",
+          "evidence" : ""
+        }
+      ],
+      "notes" : ""
+    },
+    {
+      "id" : "T-0002",
+      "name" : "Imprimir Peca impressa",
+      "short" : "Imprimir Peca impressa",
+      "long" : "",
+      "parent" : "",
+      "artifact" : {
+        "path" : "",
+        "tool" : "",
+        "hash" : "",
+        "size" : -1,
+        "mtime" : -1,
+        "status" : "none",
+        "checked_at" : "",
+        "check_msg" : ""
+      },
+      "origin" : {
+        "by" : "rule",
+        "rule" : "A01",
+        "scope" : "",
+        "sources" : [
+          "T-0001"
+        ]
+      },
+      "kind" : "print3d",
+      "process" : "none",
+      "state" : "planned",
+      "mode" : "auto",
+      "duration" : 480,
+      "duration_unit" : "d",
+      "elapsed" : false,
+      "estimated" : true,
+      "constraint" : {
+        "type" : "ASAP",
+        "date" : ""
+      },
+      "deadline" : "",
+      "manual_start" : "",
+      "manual_finish" : "",
+      "calendar" : "",
+      "priority" : 500,
+      "level_start" : "",
+      "tech_spec" : {
+        "items" : [
+          {
+            "key" : "material",
+            "value" : "PETG",
+            "unit" : ""
+          }
+        ],
+        "text" : ""
+      },
+      "func_spec" : [
+        {
+          "id" : "F1",
+          "text" : "Atende as cotas e a funcao definidas no desenho",
+          "state" : "pending",
+          "evidence" : ""
+        }
+      ],
+      "notes" : ""
+    },
+    {
+      "id" : "T-0003",
+      "name" : "Montagem virtual",
+      "short" : "Montagem virtual",
+      "long" : "",
+      "parent" : "",
+      "artifact" : {
+        "path" : "",
+        "tool" : "",
+        "hash" : "",
+        "size" : -1,
+        "mtime" : -1,
+        "status" : "none",
+        "checked_at" : "",
+        "check_msg" : ""
+      },
+      "origin" : {
+        "by" : "rule",
+        "rule" : "A03",
+        "scope" : "",
+        "sources" : [
+          "T-0001"
+        ]
+      },
+      "kind" : "assembly",
+      "process" : "none",
+      "state" : "planned",
+      "mode" : "auto",
+      "duration" : 480,
+      "duration_unit" : "d",
+      "elapsed" : false,
+      "estimated" : true,
+      "constraint" : {
+        "type" : "ASAP",
+        "date" : ""
+      },
+      "deadline" : "",
+      "manual_start" : "",
+      "manual_finish" : "",
+      "calendar" : "",
+      "priority" : 500,
+      "level_start" : "",
+      "tech_spec" : {
+        "items" : [
+          {
+            "key" : "material",
+            "value" : "PETG",
+            "unit" : ""
+          }
+        ],
+        "text" : ""
+      },
+      "func_spec" : [
+        {
+          "id" : "T-0001:F1",
+          "text" : "Atende as cotas e a funcao definidas no desenho",
+          "state" : "pending",
+          "evidence" : ""
+        }
+      ],
+      "notes" : ""
+    },
+    {
+      "id" : "T-0004",
+      "name" : "Validar Montagem virtual",
+      "short" : "Validar Montagem virtual",
+      "long" : "",
+      "parent" : "",
+      "artifact" : {
+        "path" : "",
+        "tool" : "",
+        "hash" : "",
+        "size" : -1,
+        "mtime" : -1,
+        "status" : "none",
+        "checked_at" : "",
+        "check_msg" : ""
+      },
+      "origin" : {
+        "by" : "rule",
+        "rule" : "A04",
+        "scope" : "",
+        "sources" : [
+          "T-0003"
+        ]
+      },
+      "kind" : "validation",
+      "process" : "none",
+      "state" : "planned",
+      "mode" : "auto",
+      "duration" : 480,
+      "duration_unit" : "d",
+      "elapsed" : false,
+      "estimated" : true,
+      "constraint" : {
+        "type" : "ASAP",
+        "date" : ""
+      },
+      "deadline" : "",
+      "manual_start" : "",
+      "manual_finish" : "",
+      "calendar" : "",
+      "priority" : 500,
+      "level_start" : "",
+      "tech_spec" : {
+        "items" : [
+          {
+            "key" : "material",
+            "value" : "PETG",
+            "unit" : ""
+          },
+          {
+            "key" : "estudo_sugerido",
+            "value" : "static",
+            "unit" : ""
+          }
+        ],
+        "text" : ""
+      },
+      "func_spec" : [
+        {
+          "id" : "T-0001:F1",
+          "text" : "Atende as cotas e a funcao definidas no desenho",
+          "state" : "pending",
+          "evidence" : ""
+        }
+      ],
+      "notes" : ""
+    },
+    {
+      "id" : "T-0005",
+      "name" : "Montagem fisica",
+      "short" : "Montagem fisica",
+      "long" : "",
+      "parent" : "",
+      "artifact" : {
+        "path" : "",
+        "tool" : "",
+        "hash" : "",
+        "size" : -1,
+        "mtime" : -1,
+        "status" : "none",
+        "checked_at" : "",
+        "check_msg" : ""
+      },
+      "origin" : {
+        "by" : "rule",
+        "rule" : "A06",
+        "scope" : "",
+        "sources" : [
+          "T-0002"
+        ]
+      },
+      "kind" : "physical_assembly",
+      "process" : "none",
+      "state" : "planned",
+      "mode" : "auto",
+      "duration" : 480,
+      "duration_unit" : "d",
+      "elapsed" : false,
+      "estimated" : true,
+      "constraint" : {
+        "type" : "ASAP",
+        "date" : ""
+      },
+      "deadline" : "",
+      "manual_start" : "",
+      "manual_finish" : "",
+      "calendar" : "",
+      "priority" : 500,
+      "level_start" : "",
+      "tech_spec" : {
+        "items" : [
+        ],
+        "text" : ""
+      },
+      "func_spec" : [
+      ],
+      "notes" : "Checklist: conferir pecas e componentes; montar conforme o manual do MultiAssembly; conferir fixacoes e ligacoes."
+    },
+    {
+      "id" : "M-0006",
+      "name" : "Liberado para fabricacao",
+      "short" : "Liberado para fabricacao",
+      "long" : "",
+      "parent" : "",
+      "artifact" : {
+        "path" : "",
+        "tool" : "",
+        "hash" : "",
+        "size" : -1,
+        "mtime" : -1,
+        "status" : "none",
+        "checked_at" : "",
+        "check_msg" : ""
+      },
+      "origin" : {
+        "by" : "rule",
+        "rule" : "A05",
+        "scope" : "",
+        "sources" : [
+          "T-0004"
+        ]
+      },
+      "kind" : "milestone",
+      "process" : "none",
+      "state" : "planned",
+      "mode" : "auto",
+      "duration" : 0,
+      "duration_unit" : "d",
+      "elapsed" : false,
+      "estimated" : true,
+      "constraint" : {
+        "type" : "ASAP",
+        "date" : ""
+      },
+      "deadline" : "",
+      "manual_start" : "",
+      "manual_finish" : "",
+      "calendar" : "",
+      "priority" : 500,
+      "level_start" : "",
+      "tech_spec" : {
+        "items" : [
+        ],
+        "text" : ""
+      },
+      "func_spec" : [
+      ],
+      "notes" : ""
+    },
+    {
+      "id" : "T-0007",
+      "name" : "Teste funcional",
+      "short" : "Teste funcional",
+      "long" : "",
+      "parent" : "",
+      "artifact" : {
+        "path" : "",
+        "tool" : "",
+        "hash" : "",
+        "size" : -1,
+        "mtime" : -1,
+        "status" : "none",
+        "checked_at" : "",
+        "check_msg" : ""
+      },
+      "origin" : {
+        "by" : "rule",
+        "rule" : "A06",
+        "scope" : "",
+        "sources" : [
+          "T-0005"
+        ]
+      },
+      "kind" : "functional_test",
+      "process" : "none",
+      "state" : "planned",
+      "mode" : "auto",
+      "duration" : 480,
+      "duration_unit" : "d",
+      "elapsed" : false,
+      "estimated" : true,
+      "constraint" : {
+        "type" : "ASAP",
+        "date" : ""
+      },
+      "deadline" : "",
+      "manual_start" : "",
+      "manual_finish" : "",
+      "calendar" : "",
+      "priority" : 500,
+      "level_start" : "",
+      "tech_spec" : {
+        "items" : [
+        ],
+        "text" : ""
+      },
+      "func_spec" : [
+      ],
+      "notes" : ""
+    },
+    {
+      "id" : "M-0008",
+      "name" : "Objetivo concluido",
+      "short" : "Objetivo concluido",
+      "long" : "",
+      "parent" : "",
+      "artifact" : {
+        "path" : "",
+        "tool" : "",
+        "hash" : "",
+        "size" : -1,
+        "mtime" : -1,
+        "status" : "none",
+        "checked_at" : "",
+        "check_msg" : ""
+      },
+      "origin" : {
+        "by" : "rule",
+        "rule" : "A06",
+        "scope" : "",
+        "sources" : [
+          "T-0007"
+        ]
+      },
+      "kind" : "milestone",
+      "process" : "none",
+      "state" : "planned",
+      "mode" : "auto",
+      "duration" : 0,
+      "duration_unit" : "d",
+      "elapsed" : false,
+      "estimated" : true,
+      "constraint" : {
+        "type" : "ASAP",
+        "date" : ""
+      },
+      "deadline" : "",
+      "manual_start" : "",
+      "manual_finish" : "",
+      "calendar" : "",
+      "priority" : 500,
+      "level_start" : "",
+      "tech_spec" : {
+        "items" : [
+        ],
+        "text" : ""
+      },
+      "func_spec" : [
+      ],
+      "notes" : ""
+    }
+  ],
+  "links" : [
+    {
+      "from" : "T-0001",
+      "to" : "T-0002",
+      "type" : "FS",
+      "lag" : 0,
+      "lag_unit" : "d",
+      "lag_elapsed" : false,
+      "lag_is_percent" : false,
+      "lag_percent" : 0,
+      "artifact" : true
+    },
+    {
+      "from" : "T-0001",
+      "to" : "T-0003",
+      "type" : "FS",
+      "lag" : 0,
+      "lag_unit" : "d",
+      "lag_elapsed" : false,
+      "lag_is_percent" : false,
+      "lag_percent" : 0,
+      "artifact" : true
+    },
+    {
+      "from" : "T-0003",
+      "to" : "T-0004",
+      "type" : "FS",
+      "lag" : 0,
+      "lag_unit" : "d",
+      "lag_elapsed" : false,
+      "lag_is_percent" : false,
+      "lag_percent" : 0,
+      "artifact" : true
+    },
+    {
+      "from" : "T-0002",
+      "to" : "T-0005",
+      "type" : "FS",
+      "lag" : 0,
+      "lag_unit" : "d",
+      "lag_elapsed" : false,
+      "lag_is_percent" : false,
+      "lag_percent" : 0,
+      "artifact" : true
+    },
+    {
+      "from" : "T-0004",
+      "to" : "M-0006",
+      "type" : "FS",
+      "lag" : 0,
+      "lag_unit" : "d",
+      "lag_elapsed" : false,
+      "lag_is_percent" : false,
+      "lag_percent" : 0,
+      "artifact" : false
+    },
+    {
+      "from" : "T-0005",
+      "to" : "T-0007",
+      "type" : "FS",
+      "lag" : 0,
+      "lag_unit" : "d",
+      "lag_elapsed" : false,
+      "lag_is_percent" : false,
+      "lag_percent" : 0,
+      "artifact" : false
+    },
+    {
+      "from" : "T-0007",
+      "to" : "M-0008",
+      "type" : "FS",
+      "lag" : 0,
+      "lag_unit" : "d",
+      "lag_elapsed" : false,
+      "lag_is_percent" : false,
+      "lag_percent" : 0,
+      "artifact" : false
+    },
+    {
+      "from" : "M-0006",
+      "to" : "T-0002",
+      "type" : "FS",
+      "lag" : 0,
+      "lag_unit" : "d",
+      "lag_elapsed" : false,
+      "lag_is_percent" : false,
+      "lag_percent" : 0,
+      "artifact" : false
+    }
+  ],
+  "resources" : [
+  ],
+  "assignments" : [
+  ]
+}
