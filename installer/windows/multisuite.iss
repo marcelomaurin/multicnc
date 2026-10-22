@@ -43,14 +43,14 @@ Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortugue
 
 [Types]
 Name: "full"; Description: "Instalacao Completa (Instalar todas as ferramentas)"
-Name: "compact"; Description: "Instalacao Basica (MultiCNC e MultiSuite Bandeja)"
+Name: "compact"; Description: "Instalacao Basica (MultiCNC, SimuCNC e MultiSuite Bandeja)"
 Name: "custom"; Description: "Instalacao Personalizada (Escolher as ferramentas desejadas)"; Flags: iscustom
 
 [Components]
 Name: "tools"; Description: "Ferramentas do MultiSuite"; Types: full compact custom; Flags: fixed
 Name: "tools\multicnc"; Description: "MultiCNC - Controle de Maquinas CNC (GRBL, Marlin, Simulador)"; Types: full compact custom
 Name: "tools\tray"; Description: "MultiSuite Bandeja - Ferramentas ao lado do relogio"; Types: full compact custom
-Name: "tools\simucnc"; Description: "SimuCNC - Simulador de maquina (impressora, router e laser) com porta serial virtual"; Types: full custom
+Name: "tools\simucnc"; Description: "SimuCNC - Simulador de maquina (impressora, router e laser) com porta serial virtual"; Types: full compact custom; Flags: fixed
 Name: "tools\multiproject"; Description: "MultiProject - Gestao de Projetos Mecanicos e Eletronicos (tarefas, grafo, Gantt)"; Types: full custom
 Name: "tools\multicad"; Description: "MultiCAD - Modelagem e Desenho CAD 2D/3D"; Types: full custom
 Name: "tools\multiassembly"; Description: "MultiAssembly - Montagem Eletromecanica"; Types: full custom

@@ -89,10 +89,12 @@ ISS="Z:$(printf '%s' "$ROOT/installer/windows/multisuite.iss" | tr '/' '\\')"
 mkdir -p setup
 cp "$DIST/$NAME.exe" "$BIN/"
 cp "$DIST/$NAME.exe" setup/
+VERSIONED="setup_multcnc_$VERSION.exe"
+for destination in "$DIST" "$BIN" setup; do cp "$DIST/$NAME.exe" "$destination/$VERSIONED"; done
 for t in "${TARGETS[@]}"; do cp "$APP/${t##*|}.exe" "$BIN/"; done
 HASH=$(sha256sum "$DIST/$NAME.exe" | cut -d' ' -f1)
 echo "$HASH  $NAME.exe" > "$DIST/SHA256SUMS"
-{ [ -f setup/SHA256SUMS ] && grep -v "  $NAME.exe\$" setup/SHA256SUMS | grep '\S' || true; echo "$HASH  $NAME.exe"; } > setup/SHA256SUMS.new
+{ [ -f setup/SHA256SUMS ] && grep -vF -e "  $NAME.exe" -e "  $VERSIONED" setup/SHA256SUMS | grep '\S' || true; echo "$HASH  $NAME.exe"; echo "$HASH  $VERSIONED"; } > setup/SHA256SUMS.new
 mv setup/SHA256SUMS.new setup/SHA256SUMS
 cp "$APP/build-manifest.json" "setup/build-manifest-$SEQ.json"
 cp "$APP/qa-tests.json" "setup/qa-tests-$SEQ.json"

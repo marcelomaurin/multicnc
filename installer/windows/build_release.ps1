@@ -105,6 +105,11 @@ Copy-Item -LiteralPath (Join-Path $dist "$name.exe") -Destination $bin -Force
 $setup = Join-Path $root 'setup'
 New-Item -ItemType Directory -Force -Path $setup | Out-Null
 Copy-Item -LiteralPath (Join-Path $dist "$name.exe") -Destination $setup -Force
+# Alias por versao para o nome de download publicado.
+$versionedName = "setup_multcnc_$Version.exe"
+foreach ($destination in @($dist, $bin, $setup)) {
+  Copy-Item -LiteralPath (Join-Path $dist "$name.exe") -Destination (Join-Path $destination $versionedName) -Force
+}
 $blocked = @()
 foreach ($target in $targets) {
   if ($SkipBinUpdate) { continue }
@@ -116,9 +121,9 @@ $hash = (Get-FileHash -LiteralPath (Join-Path $dist "$name.exe") -Algorithm SHA2
 $checksumFile = Join-Path $setup 'SHA256SUMS'
 $previousChecksums = @()
 if (Test-Path -LiteralPath $checksumFile) {
-  $previousChecksums = @(Get-Content -LiteralPath $checksumFile | Where-Object { $_ -match '\S' -and $_ -notmatch ('  ' + [regex]::Escape($name + '.exe') + '$') })
+  $previousChecksums = @(Get-Content -LiteralPath $checksumFile | Where-Object { $_ -match '\S' -and $_ -notmatch ('  (' + [regex]::Escape($name + '.exe') + '|' + [regex]::Escape($versionedName) + ')$') })
 }
-@($previousChecksums; "$hash  $name.exe") | Set-Content -LiteralPath $checksumFile -Encoding ascii
+@($previousChecksums; "$hash  $name.exe"; "$hash  $versionedName") | Set-Content -LiteralPath $checksumFile -Encoding ascii
 Copy-Item -LiteralPath (Join-Path $app 'build-manifest.json') -Destination (Join-Path $setup ('build-manifest-' + $SetupSeq + '.json')) -Force
 Copy-Item -LiteralPath (Join-Path $app 'qa-tests.json') -Destination (Join-Path $setup ('qa-tests-' + $SetupSeq + '.json')) -Force
 if ($blocked.Count) { throw "Setup gerado; executaveis de bin bloqueados: $($blocked -join ', ')" }

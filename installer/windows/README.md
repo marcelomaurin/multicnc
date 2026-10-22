@@ -93,3 +93,5 @@ Os manuais PDF mantêm as versões de referência indicadas nas capas.
 Os pacotes ZIP de drivers guardados em `imgs` no repositório não são imagens de
 documentação e não são instalados automaticamente. Os hashes dos setups anteriores
 são preservados em `setup/SHA256SUMS`.
+
+O SimuCNC e obrigatorio nas instalacoes completa, basica e personalizada. O setup tambem e publicado com o nome por versao `setup_multcnc_0.16.exe` (mesmo conteudo de `setup_multcnc_016.exe`).

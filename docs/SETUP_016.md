@@ -2,7 +2,11 @@
 
 Edição de **22/10/2026**, para **Windows x64**. MultiProject 0.2.0.0.
 
-[Instalador](../setup/setup_multcnc_016.exe) · [Cópia em bin](../bin/setup_multcnc_016.exe) · [SHA-256](../setup/SHA256SUMS)
+[Instalador](../setup/setup_multcnc_0.16.exe) · [Cópia em bin](../bin/setup_multcnc_0.16.exe) · [SHA-256](../setup/SHA256SUMS)
+
+## Correcao da inclusao do SimuCNC
+
+O SimuCNC agora e obrigatorio nas instalacoes completa, basica e personalizada, inclusive em atualizacoes. Antes ele ficava fora da selecao basica. O arquivo por versao `setup_multcnc_0.16.exe` e identico a copia `setup_multcnc_016.exe`.
 
 ## MultiProject: ferramentas, regras e modelos
 

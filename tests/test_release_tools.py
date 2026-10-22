@@ -67,6 +67,21 @@ class ReleaseChecks(unittest.TestCase):
         with self.assertRaises(SystemExit):
             release.verify_architecture(self.app, "windows", "amd64")
 
+    def test_windows_requires_simucnc(self):
+        self.fill(".exe", pe())
+        (self.app / "SimuCNC.exe").unlink()
+        with self.assertRaises(SystemExit):
+            release.verify_architecture(self.app, "windows", "amd64")
+
+    def test_installer_always_selects_simulator(self):
+        script = (Path(__file__).resolve().parents[1] /
+                  "installer/windows/multisuite.iss").read_text(encoding="utf-8")
+        component = next(line for line in script.splitlines()
+                         if line.startswith('Name: "tools\\simucnc";'))
+        self.assertIn("Types: full compact custom", component)
+        self.assertIn("Flags: fixed", component)
+        self.assertIn('SimuCNC.exe"; DestDir: "{app}"; Components: tools\\simucnc;', script)
+
     def test_windows_requires_cad_dll(self):
         self.fill(".exe", pe())
         (self.app / "mcad_occt.dll").unlink()
