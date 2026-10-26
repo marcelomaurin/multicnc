@@ -114,6 +114,22 @@ var
     if not P.Assign(ATask, AResource, AUnits, Err) then raise EPJError.Create(Err);
   end;
 
+  { varios recursos de uma vez: atribuicao inicial, a duracao nao muda }
+  procedure AS_(const ATask, AText: string);
+  var Err: string;
+  begin
+    if not P.SetResourcesText(ATask, AText, Err) then raise EPJError.Create(Err);
+  end;
+
+  procedure Cost(const AName: string; ARate, APerUse: Double; AUnitCost: Double = 0);
+  var R: TPJResource;
+  begin
+    R := P.FindResource(AName);
+    R.Rate := ARate;
+    R.PerUse := APerUse;
+    R.UnitCost := AUnitCost;
+  end;
+
   procedure L(const A, B: string; Artifact: Boolean = True);
   var Err: string;
   begin
@@ -190,16 +206,20 @@ begin
   Res('Torno', rtMachine, '', pmLathe);
   Res('CNC Router', rtMachine, '', pmRouter).Equipment := 'CNC Router';
   Res('PETG', rtMaterial, '').MaterialUnit := 'kg';
+  { custos de referencia (R$): hora da equipe, hora e preparacao das maquinas }
+  Cost('Ana', 90, 0); Cost('Bruno', 90, 0); Cost('Carla', 70, 0);
+  Cost('Ender-3', 3, 5); Cost('Laser 10 W', 12, 5); Cost('Torno', 25, 15);
+  Cost('CNC Router', 20, 10); Cost('PETG', 0, 0, 120);
   A('T-0002', 'Ana'); A('T-0003', 'Ana'); A('T-0004', 'Ana');
   A('T-0005', 'Bruno');
-  A('T-0006', 'Ana'); A('T-0007', 'Ana'); A('T-0007', 'Bruno', 0.5);
+  A('T-0006', 'Ana'); AS_('T-0007', 'Ana; Bruno[50%]');
   A('T-0010', 'Ender-3'); A('T-0010', 'PETG', 0.12);
   A('T-0011', 'Torno'); A('T-0011', 'Carla');
   A('T-0012', 'Laser 10 W'); A('T-0012', 'Carla');
   A('T-0013', 'Laser 10 W'); A('T-0013', 'Carla');
   A('T-0014', 'Laser 10 W'); A('T-0014', 'Bruno');
   A('T-0015', 'Carla');
-  A('T-0016', 'Bruno'); A('T-0016', 'Carla', 0.5);
+  AS_('T-0016', 'Bruno; Carla[50%]');
   P.ClearHistory;
   P.Modified := False;
 end;

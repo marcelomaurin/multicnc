@@ -41,7 +41,7 @@ implementation
 
 uses
   Contnrs, aijsonutils, aiprojectduration, aitaskgraph, aiworkcalendar, aicpmscheduler,
-  multiproject_graph;
+  aitasktype, aicostmodel, multiproject_graph;
 
 { ---------------- gravacao ---------------- }
 function StringsToJSON(const S: TPJStrings): TJSONArray;
@@ -77,6 +77,9 @@ begin
     Result.Add(O);
   end;
 end;
+
+function MoneyJSON(V: Double): TJSONData; forward;
+function JSONNumber(O: TJSONObject; const K: string; Def: Double; const Where: string): Double; forward;
 
 function TaskToJSON(P: TPJProject; Index: Integer): TJSONObject;
 var
@@ -120,6 +123,24 @@ begin
   O.Add('calendar', T.CalendarName);
   O.Add('priority', T.Priority);
   O.Add('level_start', AIDateToISO(T.LevelStart));
+  if T.TaskTypeAuto then O.Add('task_type', '')
+  else O.Add('task_type', AITaskTypeName(T.TaskType));
+  O.Add('effort_driven', T.EffortDriven);
+  O.Add('fixed_cost', MoneyJSON(T.FixedCost));
+  O.Add('fixed_cost_accrual', AICostAccrualName(T.FixedCostAccrual));
+  Spec := TJSONObject.Create;
+  if T.Estimate.Minutes > 0 then
+  begin
+    Spec.Add('minutes', AIJSONInt(T.Estimate.Minutes));
+    Spec.Add('mass_g', MoneyJSON(T.Estimate.MassG));
+    Spec.Add('material', T.Estimate.Material);
+    Spec.Add('source', T.Estimate.Source);
+    Spec.Add('file', T.Estimate.FileName);
+    Spec.Add('machine', T.Estimate.Machine);
+    Spec.Add('date', T.Estimate.Date);
+    Spec.Add('note', T.Estimate.Note);
+  end;
+  O.Add('estimate', Spec);
   Spec := TJSONObject.Create;
   Items := TJSONArray.Create;
   for I := 0 to High(T.TechItems) do
@@ -165,6 +186,13 @@ begin
   else Result := TJSONFloatNumber.Create(V);
 end;
 
+{ dinheiro e massa: duas casas, inteiro quando nao ha centavos }
+function MoneyJSON(V: Double): TJSONData;
+begin
+  V := Round(V * 100) / 100;
+  Result := NumberJSON(V);
+end;
+
 function ResourceToJSON(R: TPJResource): TJSONObject;
 var O: TJSONObject;
 begin
@@ -180,6 +208,9 @@ begin
   O.Add('machine_type', MachineTypeName(R.MachineType));
   O.Add('equipment', R.Equipment);
   O.Add('unit', R.MaterialUnit);
+  O.Add('rate', MoneyJSON(R.Rate));
+  O.Add('per_use', MoneyJSON(R.PerUse));
+  O.Add('unit_cost', MoneyJSON(R.UnitCost));
   Result := AIJSONMergeKnown(R.Raw, O);
 end;
 
@@ -191,6 +222,8 @@ begin
   O.Add('resource', A.ResourceId);
   O.Add('units', AIJSONInt(PercentOf(A.Units)));
   O.Add('quantity', NumberJSON(A.Quantity));
+  O.Add('cost', MoneyJSON(A.Cost));
+  O.Add('source', A.Source);
   Result := AIJSONMergeKnown(A.Raw, O);
 end;
 
@@ -335,6 +368,31 @@ begin
     if (Result.Priority < 0) or (Result.Priority > 1000) then
       raise EPJFormat.CreateFmt('%s: prioridade fora de 0..1000', [Result.Id]);
     Result.LevelStart := AIJSONDate(O, 'level_start');
+    S := Trim(AIJSONStr(O, 'task_type'));
+    Result.TaskTypeAuto := S = '';
+    if not Result.TaskTypeAuto and not AITryTaskTypeFromName(S, Result.TaskType) then
+      raise EPJFormat.CreateFmt('%s: tipo de tarefa desconhecido "%s"', [Result.Id, S]);
+    if Result.TaskTypeAuto then Result.TaskType := PJDefaultTaskType(Result.Kind);
+    Result.EffortDriven := AIJSONBool(O, 'effort_driven', False);
+    Result.FixedCost := JSONNumber(O, 'fixed_cost', 0, Result.Id);
+    if Result.FixedCost < 0 then raise EPJFormat.CreateFmt('%s: custo fixo negativo', [Result.Id]);
+    S := AIJSONStr(O, 'fixed_cost_accrual', 'prorated');
+    if not AITryCostAccrualFromName(S, Result.FixedCostAccrual) then
+      raise EPJFormat.CreateFmt('%s: acumulacao desconhecida "%s"', [Result.Id, S]);
+    Spec := AIJSONObj(O, 'estimate');
+    if Spec <> nil then
+    begin
+      Result.Estimate.Minutes := AIJSONInt64(Spec, 'minutes', 0);
+      if Result.Estimate.Minutes < 0 then
+        raise EPJFormat.CreateFmt('%s: estimativa negativa', [Result.Id]);
+      Result.Estimate.MassG := JSONNumber(Spec, 'mass_g', 0, Result.Id);
+      Result.Estimate.Material := AIJSONStr(Spec, 'material');
+      Result.Estimate.Source := AIJSONStr(Spec, 'source');
+      Result.Estimate.FileName := AIJSONStr(Spec, 'file');
+      Result.Estimate.Machine := AIJSONStr(Spec, 'machine');
+      Result.Estimate.Date := AIJSONStr(Spec, 'date');
+      Result.Estimate.Note := AIJSONStr(Spec, 'note');
+    end;
     Spec := AIJSONObj(O, 'tech_spec');
     if Spec <> nil then
     begin
@@ -437,6 +495,11 @@ begin
       raise EPJFormat.CreateFmt('%s: tipo de maquina desconhecido "%s"', [Result.Id, S]);
     Result.Equipment := AIJSONStr(O, 'equipment');
     Result.MaterialUnit := AIJSONStr(O, 'unit');
+    Result.Rate := JSONNumber(O, 'rate', 0, Result.Id);
+    Result.PerUse := JSONNumber(O, 'per_use', 0, Result.Id);
+    Result.UnitCost := JSONNumber(O, 'unit_cost', 0, Result.Id);
+    if (Result.Rate < 0) or (Result.PerUse < 0) or (Result.UnitCost < 0) then
+      raise EPJFormat.CreateFmt('%s: custo negativo', [Result.Id]);
     Result.Raw := TJSONObject(O.Clone);
   except
     Result.Free;
@@ -454,7 +517,9 @@ begin
       raise EPJFormat.CreateFmt('atribuicao %d sem "task"/"resource"', [Index + 1]);
     Result.Units := JSONNumber(O, 'units', 100, Result.TaskId) / 100;
     Result.Quantity := JSONNumber(O, 'quantity', 0, Result.TaskId);
-    if (Result.Units < 0) or (Result.Quantity < 0) then
+    Result.Cost := JSONNumber(O, 'cost', 0, Result.TaskId);
+    Result.Source := AIJSONStr(O, 'source');
+    if (Result.Units < 0) or (Result.Quantity < 0) or (Result.Cost < 0) then
       raise EPJFormat.CreateFmt('atribuicao %s/%s com valor negativo', [Result.TaskId, Result.ResourceId]);
     Result.Raw := TJSONObject(O.Clone);
   except

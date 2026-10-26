@@ -25,7 +25,7 @@ interface
 
 uses
   Classes, SysUtils, Contnrs, fpjson, aiprojectduration, aiundohistory, aitaskgraph,
-  aiworkcalendar, aicpmscheduler, multiproject_types;
+  aiworkcalendar, aicpmscheduler, aitasktype, aicostmodel, multiproject_types;
 
 const
   PJ_UNDO_LIMIT = 100;
@@ -40,6 +40,18 @@ type
   TPJOrigin = record
     By, Rule, Scope: string;
     Sources: TPJStrings;
+  end;
+  { estimativa automatica da fabricacao (fase 7.6, PJ-L08): sugestao com
+    origem e data; so vira duracao quando o usuario aceita }
+  TPJEstimate = record
+    Minutes: Int64;                // 0 = sem estimativa
+    MassG: Double;                 // filamento (MultiSlicer)
+    Material: string;              // MS-MATERIAL
+    Source: string;                // 'multislicer' ou 'gcode'
+    FileName: string;              // relativo a pasta do projeto
+    Machine: string;               // equipamento usado no calculo
+    Date: string;                  // ISO 8601
+    Note: string;
   end;
   TPJTask = class
   public
@@ -64,6 +76,14 @@ type
     { recursos (fase 7, PJ-T24, PJ-R05) }
     Priority: Integer;             // 0..1000, padrao 500 (nivelamento)
     LevelStart: TDateTime;         // atraso do nivelamento: nao iniciar antes; 0 = sem
+    { tipo de tarefa (fase 7.7, PJ-T19); TaskTypeAuto = padrao pelo tipo }
+    TaskTypeAuto: Boolean;
+    TaskType: TAITaskType;
+    EffortDriven: Boolean;
+    { custos (fase 7.5, PJ-$02) }
+    FixedCost: Double;
+    FixedCostAccrual: TAICostAccrual;
+    Estimate: TPJEstimate;
     Artifact: TPJArtifact;
     Origin: TPJOrigin;
     Notes: string;
@@ -103,6 +123,10 @@ type
     MachineType: TPJMachineType;
     Equipment: string;             // nome do equipamento no cadastro do MultiCNC
     MaterialUnit: string;          // kg, m2, un
+    { custos (fase 7.5, PJ-$01) }
+    Rate: Double;                  // por hora de trabalho (pessoa, IA, maquina)
+    PerUse: Double;                // por uso numa tarefa (preparacao)
+    UnitCost: Double;              // por unidade de material
     Raw: TJSONObject;
     constructor Create;
     destructor Destroy; override;
@@ -114,6 +138,8 @@ type
     TaskId, ResourceId: string;
     Units: Double;                 // 1 = 100% (pessoa e maquina)
     Quantity: Double;              // material
+    Cost: Double;                  // recurso do tipo custo (frete, servico)
+    Source: string;                // '' = usuario, 'multislicer', 'bom' (PJ-$03)
     Raw: TJSONObject;
     destructor Destroy; override;
   end;
@@ -128,6 +154,10 @@ type
     FLastError: string;
     FHistory: TAIUndoHistory;
     FModified: Boolean;
+    FHoldTaskType: Integer;        // > 0: atribuicoes em lote, sem recalculo
+    procedure ApplyUnitsChange(const ATaskId: string; AOldUnits: Double; ASetChanged: Boolean);
+    procedure ScaleWorkUnits(const ATaskId: string; AFactor: Double);
+    function WorkResourceSet(const ATaskId: string): string;
     function GetCalendarCount: Integer;
     function GetCalendar(I: Integer): TAIWorkCalendar;
     function GetLinkCount: Integer;
@@ -232,6 +262,38 @@ type
     function ResourcesText(const ATaskId: string): string;
     function SetResourcesText(const ATaskId, AText: string; out Err: string): Boolean;
     function SetPriority(const ATaskId: string; APriority: Integer): Boolean;
+
+    { --- tipo de tarefa e trabalho (fase 7.7, PJ-T19) --- }
+    function EffectiveTaskType(T: TPJTask): TAITaskType;
+    function IsEffortDriven(T: TPJTask): Boolean;
+    { soma das unidades dos recursos de trabalho (pessoa, IA, maquina) }
+    function TaskWorkUnits(const ATaskId: string): Double;
+    { Trabalho = Duracao x Unidades, em minutos }
+    function TaskWork(const ATaskId: string): Int64;
+    function AssignmentWorkOf(A: TPJAssignment): Int64;
+    { muda a duracao respeitando o tipo da tarefa (trabalho fixo ajusta unidades) }
+    function SetTaskDuration(const ATaskId: string; const D: TAIDuration; out Err: string): Boolean;
+    { trabalho digitado ("16h", "2d"): unidades fixas e trabalho fixo mudam a
+      duracao; duracao fixa muda as unidades }
+    function SetWorkText(const ATaskId, AText: string; out Err: string): Boolean;
+    function SetTaskType(const ATaskId: string; AAuto: Boolean; AType: TAITaskType;
+      AEffortDriven: Boolean): Boolean;
+    function FormatWork(AMinutes: Int64): string;
+
+    { --- custos (fase 7.5, PJ-$01..$03) --- }
+    function AssignmentCost(A: TPJAssignment): TAICostBreakdown;
+    { custo da tarefa; resumo = soma das subtarefas mais o custo fixo dele }
+    function TaskCost(const ATaskId: string): TAICostBreakdown;
+    function ProjectCost: TAICostBreakdown;
+    function SetFixedCost(const ATaskId: string; AValue: Double; AAccrual: TAICostAccrual): Boolean;
+    { quantidade de material com origem (MultiSlicer, BOM); cria ou atualiza }
+    function SetMaterialQuantity(const ATaskId, AResourceId: string; AQuantity: Double;
+      const ASource: string; out Err: string): Boolean;
+
+    { --- estimativas (fase 7.6, PJ-L08) --- }
+    function SetEstimate(const ATaskId: string; const E: TPJEstimate): Boolean;
+    { aplica a duracao estimada e o filamento num passo de desfazer }
+    function AcceptEstimate(const ATaskId: string; out Msg: string): Boolean;
     procedure ValidateResources(var Issues: TPJIssues);
     function HasLeveling: Boolean;
     procedure AdoptResources(AResources, AAssignments: TFPObjectList);
@@ -271,10 +333,16 @@ type
     property Modified: Boolean read FModified write FModified;
   end;
 
+{ tipo padrao (PJ-T19): duracao fixa para tarefa de maquina, trabalho fixo
+  para tarefa de pessoa; resumo e marco ficam em duracao fixa }
+function PJDefaultTaskType(K: TPJTaskKind): TAITaskType;
+{ recursos que entram em Trabalho = Duracao x Unidades }
+function PJIsWorkResource(R: TPJResource): Boolean;
+
 implementation
 
 uses
-  multiproject_json, multiproject_graph;
+  Math, multiproject_json, multiproject_graph;
 
 { ---------------- TPJLink ---------------- }
 
@@ -319,6 +387,10 @@ begin
   Duration := AIMakeDuration(AI_DEFAULT_MINUTES_PER_DAY, aduDay, False, True);
   Constraint := actASAP;
   Priority := 500;
+  TaskTypeAuto := True;
+  TaskType := attFixedDuration;
+  EffortDriven := False;
+  FixedCostAccrual := acaProrated;
   Level := 1;
 end;
 
@@ -829,12 +901,7 @@ begin
     Err := T.Id + ' e um marco: a duracao deve ser zero';
     Exit(False);
   end;
-  BeginChange('Alterar duracao');
-  try
-    T.Duration := D;
-  finally
-    EndChange;
-  end;
+  Result := SetTaskDuration(T.Id, D, Err);
 end;
 
 procedure TPJProject.AdoptLinks(AList: TFPObjectList);
@@ -1034,7 +1101,7 @@ begin
 end;
 
 function TPJProject.Assign(const ATaskId, AResourceId: string; AUnits: Double; out Err: string): Boolean;
-var T, R, A: Integer; X: TPJAssignment;
+var T, R, A: Integer; X: TPJAssignment; OldUnits: Double; IsNew: Boolean;
 begin
   Err := '';
   T := IndexOfId(ATaskId);
@@ -1043,16 +1110,20 @@ begin
   else if R < 0 then Err := Format('recurso inexistente: %s', [AResourceId])
   else if HasChildren(T) then
     Err := Format('%s e um resumo: atribua o recurso nas subtarefas', [ATaskId])
+  else if AUnits < 0 then
+    Err := Format('%s: valor negativo', [Resources[R].Name])
   else if (AUnits <= 0) and not (Resources[R].RType in [rtMaterial, rtCost]) then
     Err := Format('%s: unidades devem ser maiores que zero', [Resources[R].Name])
-  else if AUnits > 100 then
+  else if (AUnits > 100) and PJIsWorkResource(Resources[R]) then
     Err := Format('%s: %.0f%% e demais', [Resources[R].Name, AUnits * 100]);
   Result := Err = '';
   if not Result then Exit;
   BeginChange('Atribuir recurso');
   try
+    OldUnits := TaskWorkUnits(Tasks[T].Id);
     A := IndexOfAssignment(Tasks[T].Id, Resources[R].Id);
-    if A >= 0 then X := Assignments[A]
+    IsNew := A < 0;
+    if not IsNew then X := Assignments[A]
     else
     begin
       X := TPJAssignment.Create;
@@ -1060,20 +1131,30 @@ begin
       X.ResourceId := Resources[R].Id;
       FAssignments.Add(X);
     end;
-    if Resources[R].RType = rtMaterial then
-    begin
-      X.Quantity := AUnits;
-      X.Units := 0;
-    end
+    case Resources[R].RType of
+      rtMaterial:
+        begin
+          X.Quantity := AUnits;
+          X.Units := 0;
+          X.Source := '';             // valor digitado pelo usuario
+        end;
+      rtCost:
+        begin
+          X.Cost := AUnits;
+          X.Units := 0;
+        end;
     else
       X.Units := AUnits;
+    end;
+    if PJIsWorkResource(Resources[R]) then
+      ApplyUnitsChange(Tasks[T].Id, OldUnits, IsNew);
   finally
     EndChange;
   end;
 end;
 
 function TPJProject.Unassign(const ATaskId, AResourceId: string): Boolean;
-var A, R: Integer;
+var A, R: Integer; OldUnits: Double;
 begin
   R := IndexOfResource(AResourceId);
   if R < 0 then Exit(False);
@@ -1082,7 +1163,9 @@ begin
   if not Result then Exit;
   BeginChange('Remover atribuicao');
   try
+    OldUnits := TaskWorkUnits(ATaskId);
     FAssignments.Delete(A);
+    if PJIsWorkResource(Resources[R]) then ApplyUnitsChange(ATaskId, OldUnits, True);
   finally
     EndChange;
   end;
@@ -1128,6 +1211,8 @@ begin
     if R < 0 then S := X.ResourceId else S := Resources[R].Name;
     if (R >= 0) and (Resources[R].RType = rtMaterial) then
       S := S + '[' + FloatToStr(X.Quantity) + ' ' + Resources[R].MaterialUnit + ']'
+    else if (R >= 0) and (Resources[R].RType = rtCost) then
+      S := S + '[' + AIFormatMoney(X.Cost) + ']'
     else if Abs(X.Units - 1) > 1E-6 then
       S := S + '[' + UnitsText(X.Units) + ']';
     if Result <> '' then Result := Result + '; ';
@@ -1144,6 +1229,10 @@ var
   Ids: array of string;
   Units: array of Double;
   FS: TFormatSettings;
+  OldUnits: Double;
+  OldSet: string;
+  OldQty, OldSrc: TStringList;
+  Depth: Integer;
 begin
   Err := '';
   if IndexOfId(ATaskId) < 0 then begin Err := 'tarefa inexistente: ' + ATaskId; Exit(False); end;
@@ -1152,9 +1241,23 @@ begin
   Ids := nil; Units := nil;
   Parts := TStringList.Create;
   try
-    Parts.StrictDelimiter := True;
-    Parts.Delimiter := ';';
-    Parts.DelimitedText := StringReplace(AText, ',', ';', [rfReplaceAll]);
+    { ";" ou "," separam os recursos, mas nao dentro dos colchetes
+      ("Frete[R$ 1.250,00]", "PETG[0,12 kg]") }
+    Item := '';
+    Depth := 0;
+    for I := 1 to Length(AText) do
+    begin
+      if AText[I] = '[' then Inc(Depth)
+      else if (AText[I] = ']') and (Depth > 0) then Dec(Depth);
+      if (AText[I] in [';', ',']) and (Depth = 0) then
+      begin
+        Parts.Add(Item);
+        Item := '';
+      end
+      else
+        Item := Item + AText[I];
+    end;
+    Parts.Add(Item);
     for I := 0 to Parts.Count - 1 do
     begin
       Item := Trim(Parts[I]);
@@ -1166,16 +1269,28 @@ begin
         Q := Pos(']', Item);
         if Q < P then begin Err := Format('"%s": feche o colchete, ex.: Ana[50%%]', [Item]); Exit(False); end;
         NamePart := Trim(Copy(Item, 1, P - 1));
-        Inner := Trim(Copy(Item, P + 1, Q - P - 1));
-        Inner := Trim(StringReplace(Inner, '%', '', []));
-        if Pos(' ', Inner) > 0 then Inner := Copy(Inner, 1, Pos(' ', Inner) - 1);   // "0.4 kg"
-        if not TryStrToFloat(StringReplace(Inner, ',', '.', []), U, FS) then
-        begin
-          Err := Format('"%s": unidades invalidas', [Item]);
-          Exit(False);
-        end;
         R := IndexOfResource(NamePart);
-        if (R >= 0) and (Resources[R].RType <> rtMaterial) then U := U / 100;
+        Inner := Trim(Copy(Item, P + 1, Q - P - 1));
+        if (R >= 0) and (Resources[R].RType = rtCost) then
+        begin
+          { recurso de custo: valor em dinheiro ("150", "R$ 1.250,00") }
+          if not AITryParseMoney(Inner, U) or (U < 0) then
+          begin
+            Err := Format('"%s": valor invalido', [Item]);
+            Exit(False);
+          end;
+        end
+        else
+        begin
+          Inner := Trim(StringReplace(Inner, '%', '', []));
+          if Pos(' ', Inner) > 0 then Inner := Copy(Inner, 1, Pos(' ', Inner) - 1);   // "0.4 kg"
+          if not TryStrToFloat(StringReplace(Inner, ',', '.', []), U, FS) then
+          begin
+            Err := Format('"%s": unidades invalidas', [Item]);
+            Exit(False);
+          end;
+          if (R >= 0) and PJIsWorkResource(Resources[R]) then U := U / 100;
+        end;
       end
       else
       begin
@@ -1195,13 +1310,39 @@ begin
   end;
   BeginChange('Recursos da tarefa');
   try
-    DeleteAssignmentsOf(ATaskId, '');
-    for I := 0 to High(Ids) do
-      if not Assign(ATaskId, Ids[I], Units[I], Err) then
-      begin
-        Result := False;
-        Exit;
+    OldUnits := TaskWorkUnits(ATaskId);
+    OldSet := WorkResourceSet(ATaskId);
+    { origem do material (MultiSlicer, BOM) fica se a quantidade nao mudou }
+    OldQty := TStringList.Create;
+    OldSrc := TStringList.Create;
+    try
+      for I in AssignmentsOfTask(ATaskId) do
+        if Assignments[I].Source <> '' then
+        begin
+          OldQty.Values[Assignments[I].ResourceId] := FloatToStr(Assignments[I].Quantity, FS);
+          OldSrc.Values[Assignments[I].ResourceId] := Assignments[I].Source;
+        end;
+      DeleteAssignmentsOf(ATaskId, '');
+      Inc(FHoldTaskType);
+      try
+        for I := 0 to High(Ids) do
+          if not Assign(ATaskId, Ids[I], Units[I], Err) then
+          begin
+            Result := False;
+            Exit;
+          end;
+      finally
+        Dec(FHoldTaskType);
       end;
+      for I in AssignmentsOfTask(ATaskId) do
+        if (OldSrc.Values[Assignments[I].ResourceId] <> '') and
+           (OldQty.Values[Assignments[I].ResourceId] = FloatToStr(Assignments[I].Quantity, FS)) then
+          Assignments[I].Source := OldSrc.Values[Assignments[I].ResourceId];
+    finally
+      OldQty.Free;
+      OldSrc.Free;
+    end;
+    ApplyUnitsChange(ATaskId, OldUnits, OldSet <> WorkResourceSet(ATaskId));
     Result := True;
   finally
     EndChange;
@@ -1218,6 +1359,352 @@ begin
   BeginChange('Prioridade');
   try
     T.Priority := APriority;
+  finally
+    EndChange;
+  end;
+end;
+
+{ ---------------- tipo de tarefa e trabalho (fase 7.7) ---------------- }
+
+function PJDefaultTaskType(K: TPJTaskKind): TAITaskType;
+begin
+  if (K in [tkSummary, tkMilestone]) or (MachineTypesFor(K) <> []) then
+    Result := attFixedDuration
+  else
+    Result := attFixedWork;
+end;
+
+function PJIsWorkResource(R: TPJResource): Boolean;
+begin
+  Result := (R <> nil) and (R.RType in [rtPerson, rtAI, rtMachine]);
+end;
+
+function TPJProject.EffectiveTaskType(T: TPJTask): TAITaskType;
+begin
+  if T.TaskTypeAuto then Result := PJDefaultTaskType(T.Kind) else Result := T.TaskType;
+end;
+
+function TPJProject.IsEffortDriven(T: TPJTask): Boolean;
+begin
+  Result := AIIsEffortDriven(EffectiveTaskType(T), T.EffortDriven);
+end;
+
+function TPJProject.TaskWorkUnits(const ATaskId: string): Double;
+var A: Integer;
+begin
+  Result := 0;
+  for A in AssignmentsOfTask(ATaskId) do
+    if PJIsWorkResource(FindResource(Assignments[A].ResourceId)) then
+      Result := Result + Assignments[A].Units;
+end;
+
+function TPJProject.TaskWork(const ATaskId: string): Int64;
+var I: Integer;
+begin
+  I := IndexOfId(ATaskId);
+  if (I < 0) or HasChildren(I) then
+  begin
+    Result := 0;
+    if I >= 0 then
+      for I in ChildIndexes(I) do Result := Result + TaskWork(Tasks[I].Id);
+    Exit;
+  end;
+  Result := AIWorkOf(Tasks[I].Duration.Minutes, TaskWorkUnits(ATaskId));
+end;
+
+function TPJProject.AssignmentWorkOf(A: TPJAssignment): Int64;
+var T: TPJTask;
+begin
+  T := FindTask(A.TaskId);
+  if (T = nil) or not PJIsWorkResource(FindResource(A.ResourceId)) then Exit(0);
+  Result := AIWorkOf(T.Duration.Minutes, A.Units);
+end;
+
+function TPJProject.WorkResourceSet(const ATaskId: string): string;
+var A: Integer; L: TStringList;
+begin
+  L := TStringList.Create;
+  try
+    L.Sorted := True;
+    for A in AssignmentsOfTask(ATaskId) do
+      if PJIsWorkResource(FindResource(Assignments[A].ResourceId)) then
+        L.Add(UpperCase(Assignments[A].ResourceId));
+    Result := L.CommaText;
+  finally
+    L.Free;
+  end;
+end;
+
+procedure TPJProject.ScaleWorkUnits(const ATaskId: string; AFactor: Double);
+var A: Integer;
+begin
+  if Abs(AFactor - 1) < 1E-9 then Exit;
+  for A in AssignmentsOfTask(ATaskId) do
+    if PJIsWorkResource(FindResource(Assignments[A].ResourceId)) then
+      Assignments[A].Units := Max(AI_MIN_UNITS, Assignments[A].Units * AFactor);
+end;
+
+procedure TPJProject.ApplyUnitsChange(const ATaskId: string; AOldUnits: Double; ASetChanged: Boolean);
+var T: TPJTask; R: TAITaskTypeResult;
+begin
+  if FHoldTaskType > 0 then Exit;
+  T := FindTask(ATaskId);
+  if (T = nil) or (T.Kind = tkMilestone) or (T.Mode = smManual) then Exit;
+  R := AIOnUnitsChange(EffectiveTaskType(T), T.EffortDriven, ASetChanged,
+    T.Duration.Minutes, AOldUnits, TaskWorkUnits(ATaskId));
+  if not R.Ok then Exit;
+  T.Duration.Minutes := R.Duration;
+  ScaleWorkUnits(ATaskId, R.UnitScale);
+end;
+
+function TPJProject.SetTaskDuration(const ATaskId: string; const D: TAIDuration; out Err: string): Boolean;
+var T: TPJTask; R: TAITaskTypeResult; Units: Double;
+begin
+  Err := '';
+  T := FindTask(ATaskId);
+  if T = nil then begin Err := 'tarefa inexistente: ' + ATaskId; Exit(False); end;
+  if (T.Kind = tkMilestone) and (D.Minutes <> 0) then
+  begin
+    Err := T.Id + ' e um marco: a duracao deve ser zero';
+    Exit(False);
+  end;
+  if AISameDuration(T.Duration, D) then Exit(True);
+  Units := TaskWorkUnits(ATaskId);
+  R := AIOnDurationChange(EffectiveTaskType(T), T.Duration.Minutes, D.Minutes, Units);
+  if not R.Ok then begin Err := T.Id + ': ' + R.Error; Exit(False); end;
+  BeginChange('Alterar duracao');
+  try
+    T.Duration := D;
+    ScaleWorkUnits(ATaskId, R.UnitScale);
+  finally
+    EndChange;
+  end;
+  Result := True;
+end;
+
+function TPJProject.FormatWork(AMinutes: Int64): string;
+begin
+  Result := AIFormatDuration(AIMakeDuration(AMinutes, aduHour), MinutesPerDay, MinutesPerWeek);
+end;
+
+function TPJProject.SetWorkText(const ATaskId, AText: string; out Err: string): Boolean;
+var
+  T: TPJTask;
+  D: TAIDuration;
+  R: TAITaskTypeResult;
+  S: string;
+begin
+  Err := '';
+  T := FindTask(ATaskId);
+  if T = nil then begin Err := 'tarefa inexistente: ' + ATaskId; Exit(False); end;
+  if HasChildren(IndexOfId(ATaskId)) then
+  begin
+    Err := T.Id + ' e um resumo: o trabalho e a soma das subtarefas';
+    Exit(False);
+  end;
+  S := Trim(AText);
+  { trabalho sem unidade e em horas (como no Project) }
+  if (S <> '') and (S[Length(S)] in ['0'..'9']) then S := S + 'h';
+  if not ParseDur(S, D, Err) then Exit(False);
+  if D.Elapsed then begin Err := 'trabalho nao pode ser decorrido'; Exit(False); end;
+  R := AIOnWorkChange(EffectiveTaskType(T), T.Duration.Minutes, TaskWorkUnits(ATaskId), D.Minutes);
+  if not R.Ok then begin Err := T.Id + ': ' + R.Error; Exit(False); end;
+  BeginChange('Alterar trabalho');
+  try
+    T.Duration.Minutes := R.Duration;
+    ScaleWorkUnits(ATaskId, R.UnitScale);
+  finally
+    EndChange;
+  end;
+  Result := True;
+end;
+
+function TPJProject.SetTaskType(const ATaskId: string; AAuto: Boolean; AType: TAITaskType;
+  AEffortDriven: Boolean): Boolean;
+var T: TPJTask;
+begin
+  T := FindTask(ATaskId);
+  Result := T <> nil;
+  if not Result then Exit;
+  if (T.TaskTypeAuto = AAuto) and (AAuto or (T.TaskType = AType)) and
+     (T.EffortDriven = AEffortDriven) then Exit;
+  BeginChange('Tipo de tarefa');
+  try
+    T.TaskTypeAuto := AAuto;
+    if AAuto then T.TaskType := PJDefaultTaskType(T.Kind) else T.TaskType := AType;
+    T.EffortDriven := AEffortDriven;
+  finally
+    EndChange;
+  end;
+end;
+
+{ ---------------- custos (fase 7.5) ---------------- }
+
+function TPJProject.AssignmentCost(A: TPJAssignment): TAICostBreakdown;
+var R: TPJResource;
+begin
+  AIClearCost(Result);
+  R := FindResource(A.ResourceId);
+  if R = nil then Exit;
+  case R.RType of
+    rtMaterial: Result.Material := AIMaterialCost(A.Quantity, R.UnitCost);
+    rtCost: Result.Resource := Max(0, A.Cost);
+  else
+    Result.Work := AIWorkCost(AssignmentWorkOf(A), R.Rate);
+  end;
+  if R.RType <> rtCost then Result.PerUse := Max(0, R.PerUse);
+end;
+
+function TPJProject.TaskCost(const ATaskId: string): TAICostBreakdown;
+var I, A, C: Integer;
+begin
+  AIClearCost(Result);
+  I := IndexOfId(ATaskId);
+  if I < 0 then Exit;
+  if Tasks[I].State = tsCancelled then Exit;
+  if HasChildren(I) then
+    for C in ChildIndexes(I) do AIAddCost(Result, TaskCost(Tasks[C].Id))
+  else
+    for A in AssignmentsOfTask(ATaskId) do AIAddCost(Result, AssignmentCost(Assignments[A]));
+  Result.Fixed := Result.Fixed + Max(0, Tasks[I].FixedCost);
+end;
+
+function TPJProject.ProjectCost: TAICostBreakdown;
+var I: Integer;
+begin
+  AIClearCost(Result);
+  for I := 0 to Count - 1 do
+    if Tasks[I].Level = 1 then AIAddCost(Result, TaskCost(Tasks[I].Id));
+end;
+
+function TPJProject.SetFixedCost(const ATaskId: string; AValue: Double; AAccrual: TAICostAccrual): Boolean;
+var T: TPJTask;
+begin
+  T := FindTask(ATaskId);
+  Result := (T <> nil) and (AValue >= 0);
+  if not Result then Exit;
+  if (Abs(T.FixedCost - AValue) < 0.005) and (T.FixedCostAccrual = AAccrual) then Exit;
+  BeginChange('Custo fixo');
+  try
+    T.FixedCost := AValue;
+    T.FixedCostAccrual := AAccrual;
+  finally
+    EndChange;
+  end;
+end;
+
+function TPJProject.SetMaterialQuantity(const ATaskId, AResourceId: string; AQuantity: Double;
+  const ASource: string; out Err: string): Boolean;
+var R, A: Integer;
+begin
+  R := IndexOfResource(AResourceId);
+  if (R >= 0) and (Resources[R].RType <> rtMaterial) then
+  begin
+    Err := Resources[R].Name + ' nao e material';
+    Exit(False);
+  end;
+  BeginChange('Material da tarefa');
+  try
+    Result := Assign(ATaskId, AResourceId, AQuantity, Err);
+    if Result then
+    begin
+      A := IndexOfAssignment(ATaskId, Resources[R].Id);
+      if A >= 0 then Assignments[A].Source := ASource;
+    end;
+  finally
+    EndChange;
+  end;
+end;
+
+{ ---------------- estimativas (fase 7.6) ---------------- }
+
+function TPJProject.SetEstimate(const ATaskId: string; const E: TPJEstimate): Boolean;
+var T: TPJTask;
+begin
+  T := FindTask(ATaskId);
+  Result := T <> nil;
+  if not Result then Exit;
+  BeginChange('Estimativa da fabricacao');
+  try
+    T.Estimate := E;
+  finally
+    EndChange;
+  end;
+end;
+
+{ material ja atribuido medido em massa (kg ou g); senao, o de mesmo nome do filamento }
+function FindFilament(P: TPJProject; T: TPJTask; out Factor: Double): TPJResource;
+var A, I: Integer; R: TPJResource;
+
+  function MassFactor(const U: string): Double;
+  begin
+    if SameText(Trim(U), 'kg') then Result := 0.001
+    else if SameText(Trim(U), 'g') then Result := 1
+    else Result := 0;
+  end;
+
+begin
+  Result := nil;
+  Factor := 0;
+  for A in P.AssignmentsOfTask(T.Id) do
+  begin
+    R := P.FindResource(P.Assignments[A].ResourceId);
+    if (R <> nil) and (R.RType = rtMaterial) and (MassFactor(R.MaterialUnit) > 0) then
+    begin
+      Factor := MassFactor(R.MaterialUnit);
+      Exit(R);
+    end;
+  end;
+  if T.Estimate.Material = '' then Exit;
+  for I := 0 to P.ResourceCount - 1 do
+  begin
+    R := P.Resources[I];
+    if (R.RType = rtMaterial) and (MassFactor(R.MaterialUnit) > 0) and
+       ((Pos(UpperCase(T.Estimate.Material), UpperCase(R.Name)) > 0) or
+        (Pos(UpperCase(R.Name), UpperCase(T.Estimate.Material)) > 0)) then
+    begin
+      Factor := MassFactor(R.MaterialUnit);
+      Exit(R);
+    end;
+  end;
+end;
+
+function TPJProject.AcceptEstimate(const ATaskId: string; out Msg: string): Boolean;
+var
+  T: TPJTask;
+  D: TAIDuration;
+  R: TPJResource;
+  Factor: Double;
+  Err: string;
+begin
+  Msg := '';
+  T := FindTask(ATaskId);
+  if (T = nil) or (T.Estimate.Minutes <= 0) then
+  begin
+    Msg := 'Sem estimativa para aplicar';
+    Exit(False);
+  end;
+  D := T.Duration;
+  D.Minutes := T.Estimate.Minutes;
+  D.Estimated := False;
+  if D.Minutes < MinutesPerDay then D.DisplayUnit := aduHour;
+  BeginChange('Aplicar estimativa');
+  try
+    Result := SetTaskDuration(T.Id, D, Err);
+    if not Result then begin Msg := Err; Exit; end;
+    Msg := 'Duracao ' + FormatDur(T.Duration);
+    if T.Estimate.MassG > 0 then
+    begin
+      R := FindFilament(Self, T, Factor);
+      if R = nil then
+        Msg := Msg + Format('; %.0f g de filamento: cadastre o material (kg ou g) para lancar o custo',
+          [T.Estimate.MassG])
+      else if SetMaterialQuantity(T.Id, R.Id, T.Estimate.MassG * Factor, T.Estimate.Source, Err) then
+        Msg := Msg + Format('; %s %s %s', [FloatToStrF(T.Estimate.MassG * Factor, ffGeneral, 4, 0),
+          R.MaterialUnit, R.Name])
+      else
+        Msg := Msg + '; ' + Err;
+    end;
   finally
     EndChange;
   end;
