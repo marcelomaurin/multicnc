@@ -391,6 +391,18 @@ Resultado em 22/10/2026:
 - [x] 7.8 Testes: impressões na mesma máquina viram sequenciais; limpar o nivelamento
       restaura as datas; a fórmula do trabalho nos três tipos está em `test_multiproject_costs`.
 
+Pendências da fase 7 (levantadas em 26/10):
+
+- [ ] Compilar os 14 aplicativos e rodar `test_multiproject_costs` e `test_multiproject_ui`
+      no Win64 (regra 13 do AI_GUIDE); no Linux já passaram.
+- [ ] Recurso genérico ("impressora FDM qualquer"), trocado depois pelo real (PJ-R06).
+- [ ] Taxa de horas extras (PJ-$01): depende de modelar hora extra no plano.
+- [ ] Tabelas de taxa A–E e recurso de orçamento (PJ-$04, P2).
+- [ ] Estimativa desatualizada: marcar quando o G-code mudar depois da estimativa (hoje só a data mostra).
+- [ ] Documentação do usuário: custos, tipo de tarefa e estimativa em
+      `docs/Manuals/MultiProject_Guia_Rapido.md` e `multiproject/README.md`; seção nova no `NEWS.md`.
+- [ ] Setup 017 com as novidades.
+
 ### Fase 8: linha de base, acompanhamento e relatórios (≈ 5 h)
 
 - [ ] 8.1 Linhas de base 0–10 e planos provisórios (PJ-B01, B02).
