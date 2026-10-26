@@ -738,6 +738,11 @@
       "calendar" : "",
       "priority" : 500,
       "level_start" : "",
+      "task_type" : "",
+      "effort_driven" : false,
+      "fixed_cost" : 0,
+      "fixed_cost_accrual" : "prorated",
+      "estimate" : {},
       "tech_spec" : {
         "items" : [
           {
@@ -814,6 +819,11 @@
       "calendar" : "",
       "priority" : 500,
       "level_start" : "",
+      "task_type" : "",
+      "effort_driven" : false,
+      "fixed_cost" : 0,
+      "fixed_cost_accrual" : "prorated",
+      "estimate" : {},
       "tech_spec" : {
         "items" : [
           {
@@ -889,6 +899,11 @@
       "calendar" : "",
       "priority" : 500,
       "level_start" : "",
+      "task_type" : "",
+      "effort_driven" : false,
+      "fixed_cost" : 0,
+      "fixed_cost_accrual" : "prorated",
+      "estimate" : {},
       "tech_spec" : {
         "items" : [
           {
@@ -949,6 +964,11 @@
       "calendar" : "",
       "priority" : 500,
       "level_start" : "",
+      "task_type" : "",
+      "effort_driven" : false,
+      "fixed_cost" : 0,
+      "fixed_cost_accrual" : "prorated",
+      "estimate" : {},
       "tech_spec" : {
         "items" : [
           {
@@ -1016,6 +1036,11 @@
       "calendar" : "",
       "priority" : 500,
       "level_start" : "",
+      "task_type" : "",
+      "effort_driven" : false,
+      "fixed_cost" : 0,
+      "fixed_cost_accrual" : "prorated",
+      "estimate" : {},
       "tech_spec" : {
         "items" : [
           {
@@ -1098,6 +1123,11 @@
       "calendar" : "",
       "priority" : 500,
       "level_start" : "",
+      "task_type" : "",
+      "effort_driven" : false,
+      "fixed_cost" : 0,
+      "fixed_cost_accrual" : "prorated",
+      "estimate" : {},
       "tech_spec" : {
         "items" : [
           {
@@ -1179,6 +1209,11 @@
       "calendar" : "",
       "priority" : 500,
       "level_start" : "",
+      "task_type" : "",
+      "effort_driven" : false,
+      "fixed_cost" : 0,
+      "fixed_cost_accrual" : "prorated",
+      "estimate" : {},
       "tech_spec" : {
         "items" : [
           {
@@ -1245,6 +1280,11 @@
       "calendar" : "",
       "priority" : 500,
       "level_start" : "",
+      "task_type" : "",
+      "effort_driven" : false,
+      "fixed_cost" : 0,
+      "fixed_cost_accrual" : "prorated",
+      "estimate" : {},
       "tech_spec" : {
         "items" : [
           {
@@ -1311,6 +1351,11 @@
       "calendar" : "",
       "priority" : 500,
       "level_start" : "",
+      "task_type" : "",
+      "effort_driven" : false,
+      "fixed_cost" : 0,
+      "fixed_cost_accrual" : "prorated",
+      "estimate" : {},
       "tech_spec" : {
         "items" : [
           {
@@ -1386,6 +1431,11 @@
       "calendar" : "",
       "priority" : 500,
       "level_start" : "",
+      "task_type" : "",
+      "effort_driven" : false,
+      "fixed_cost" : 0,
+      "fixed_cost_accrual" : "prorated",
+      "estimate" : {},
       "tech_spec" : {
         "items" : [
           {
@@ -1514,6 +1564,11 @@
       "calendar" : "",
       "priority" : 500,
       "level_start" : "",
+      "task_type" : "",
+      "effort_driven" : false,
+      "fixed_cost" : 0,
+      "fixed_cost_accrual" : "prorated",
+      "estimate" : {},
       "tech_spec" : {
         "items" : [
           {
@@ -1650,6 +1705,11 @@
       "calendar" : "",
       "priority" : 500,
       "level_start" : "",
+      "task_type" : "",
+      "effort_driven" : false,
+      "fixed_cost" : 0,
+      "fixed_cost_accrual" : "prorated",
+      "estimate" : {},
       "tech_spec" : {
         "items" : [
         ],
@@ -1701,6 +1761,11 @@
       "calendar" : "",
       "priority" : 500,
       "level_start" : "",
+      "task_type" : "",
+      "effort_driven" : false,
+      "fixed_cost" : 0,
+      "fixed_cost_accrual" : "prorated",
+      "estimate" : {},
       "tech_spec" : {
         "items" : [
         ],
@@ -1752,6 +1817,11 @@
       "calendar" : "",
       "priority" : 500,
       "level_start" : "",
+      "task_type" : "",
+      "effort_driven" : false,
+      "fixed_cost" : 0,
+      "fixed_cost_accrual" : "prorated",
+      "estimate" : {},
       "tech_spec" : {
         "items" : [
         ],
@@ -1809,6 +1879,11 @@
       "calendar" : "",
       "priority" : 500,
       "level_start" : "",
+      "task_type" : "",
+      "effort_driven" : false,
+      "fixed_cost" : 0,
+      "fixed_cost_accrual" : "prorated",
+      "estimate" : {},
       "tech_spec" : {
         "items" : [
         ],
@@ -2064,7 +2139,10 @@
       "email" : "",
       "machine_type" : "printer3d",
       "equipment" : "",
-      "unit" : ""
+      "unit" : "",
+      "rate" : 0,
+      "per_use" : 0,
+      "unit_cost" : 0
     },
     {
       "id" : "R-002",
@@ -2077,7 +2155,10 @@
       "email" : "",
       "machine_type" : "laser",
       "equipment" : "",
-      "unit" : ""
+      "unit" : "",
+      "rate" : 0,
+      "per_use" : 0,
+      "unit_cost" : 0
     },
     {
       "id" : "R-003",
@@ -2090,7 +2171,10 @@
       "email" : "",
       "machine_type" : "lathe",
       "equipment" : "",
-      "unit" : ""
+      "unit" : "",
+      "rate" : 0,
+      "per_use" : 0,
+      "unit_cost" : 0
     }
   ],
   "assignments" : [

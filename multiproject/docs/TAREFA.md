@@ -33,7 +33,7 @@
 | 4 Tela e registro na suíte | concluída (20/10); `bin/multiproject.exe` win64 e setup 015 (21/10) | vistas genéricas no CHATGPT (`TAIGanttView`, `TAINetworkView`, `TAIBoardView`, até `1448eb8`, 42 checks) + `multiproject_main`/`multiproject_views`, registro na suíte (grupo PLANEJAR), `test_multiproject_ui` com 51 checks sob Xvfb e `test_multiproject_states` com 20 |
 | 5 Vínculo com as ferramentas | implementada; Win64 validado (22/10), regressão Linux pendente | `--new`/`--task`, `.task.json`, detecção, verificadores, Abrir na ferramenta |
 | 6 Regras de geração e modelos | implementada; testes Win64 aprovados (22/10); setup 016 gerado; console Linux aprovado, interface Linux em validação | PJ-A01..A08, exemplo Motor DC, modelos |
-| 7 Recursos e custos | 7.1 a 7.4 e 7.8 concluídas (21/10), adiantadas a pedido; custos (7.5), estimativa pelo G-code (7.6) e tipos de tarefa (7.7) pendentes | `airesourceload` (`TAIResourceLoad`, `TAIResourceLeveler`, 83 checks) e `TAIResourceView` (68 checks nas vistas) no CHATGPT, até `78f3f2b` + `multiproject_resources`, recursos e atribuições no documento e no `.mproj`, etapa 4 Recursos, vista Equipe, coluna Recursos e nivelamento na etapa 5; `test_multiproject_resources.lpr` com 116 checks e `test_multiproject_ui` com 84 |
+| 7 Recursos e custos | 7.1 a 7.4 e 7.8 concluídas (21/10); 7.5 a 7.7 implementadas (26/10) e conferidas no Linux, Win64 pendente; falta o recurso genérico (PJ-R06) | `airesourceload` (`TAIResourceLoad`, `TAIResourceLeveler`, 83 checks) e `TAIResourceView` (68 checks nas vistas) no CHATGPT, até `78f3f2b` + `multiproject_resources`, recursos e atribuições no documento e no `.mproj`, etapa 4 Recursos, vista Equipe, coluna Recursos e nivelamento na etapa 5; `test_multiproject_resources.lpr` com 116 checks; 7.5 a 7.7: `aitasktype` e `aicostmodel` (cópia local, a publicar no CHATGPT) + `multiproject_estimates` e `multiproject_bom`, colunas Trabalho e Custo, tipo/trabalho/custos/estimativa na página da tarefa e taxas na etapa 4; `test_multiproject_costs.lpr` com 154 checks e `test_multiproject_ui` com 105 |
 | 8 Linha de base, acompanhamento e relatórios | pendente | linhas de base, progresso, valor agregado, HTML/PDF, Calendário, Linha do tempo |
 | 9 IA | pendente | contrato do plano, decomposição do objetivo pela suíte CHATGPT |
 | 10 Intercâmbio e multiprojeto | pendente | XML do Project (MSPDI), CSV, CLI, subprojetos, pool |
@@ -63,6 +63,7 @@ Por isso os componentes genéricos entram no pacote `openai_project_core` (pasta
 | 1 | `aiprojectduration` (`TAIDuration`), `aiundohistory` (`TAIUndoHistory`), `aijsonutils` (leitura tipada, mescla que preserva campos, ISO 8601, gravação atômica) | publicados em `35203a3`; `tests/test_aiprojectcore_utils.lpr` com 59 checks |
 | 2 | `aitaskgraph`: grafo de tarefas com os 4 tipos de vínculo e latência, ciclo com caminho, ordem topológica, cadeias, em cadeia × em paralelo, coluna Predecessoras | publicado em `ec5cccf`; `tests/test_aitaskgraph.lpr` com 61 checks |
 | 3 | `aiworkcalendar` (expediente, exceções, feriados BR, minuto útil) e `aicpmscheduler` (CPM, restrições, margens, crítico) | publicados em `c9ad854` e `3557a7b`; 57 + 47 checks |
+| 7 | `aitasktype` (tipo de tarefa e empenho, Trabalho = Duração × Unidades) e `aicostmodel` (taxa, uso, material, custo fixo com acumulação, texto de dinheiro sem depender da região) | criados em 26/10 na cópia `third_party/chatgpt/AIProjectCore`; **falta publicar no CHATGPT** (sem acesso de escrita nesta sessão); testados em `test_multiproject_costs.lpr` |
 | 9 | `aiplancontract`: contrato e parser determinístico de plano de tarefas gerado por IA | a fazer |
 
 Ficam no MultiProject só o modelo da tarefa, os tipos ligados às ferramentas da suíte, as regras
@@ -371,12 +372,24 @@ Resultado em 22/10/2026:
 - [x] 7.4 Nivelamento e limpeza do nivelamento (PJ-R05), com prioridade 0–1000 (PJ-T24),
       "só dentro da margem" e tarefa em andamento fixa; vista Equipe (PJ-V06) com arraste
       para reatribuir. Falta o recurso genérico (PJ-R06).
-- [ ] 7.5 Custos: taxas, custo por uso, custo fixo com acumulação e material automático do
-      MultiSlicer e da BOM (PJ-$01..$03).
-- [ ] 7.6 Estimativa de duração pelo G-code e pelo MultiSlicer (PJ-L08).
-- [ ] 7.7 Tipos de tarefa e controlada pelo empenho (PJ-T19).
+- [x] 7.5 Custos (26/10): taxa por hora, custo por uso, custo unitário do material, recurso
+      de custo com valor na atribuição ("Frete[R$ 150,00]"), custo fixo com acumulação no
+      início, rateada ou no fim, resumo = filhas + o próprio, custo do projeto no rodapé e na
+      etapa 5 (PJ-$01, $02). Material automático (PJ-$03): o filamento da estimativa do
+      MultiSlicer entra no material em kg ou g com origem `multislicer`; a lista de materiais
+      do MultiAssembly (`TAssemblyBOM`) entra na tarefa de compra com origem `bom`, sem peças e
+      placas da suíte. Editar a coluna sem mudar a quantidade mantém a origem.
+      Taxa de horas extras e tabelas de taxa (PJ-$04, P2) ficam para depois.
+- [x] 7.6 Estimativa (26/10, PJ-L08): cabeçalho `MS-PRINT` do MultiSlicer (tempo, filamento,
+      material) ou planejador do Grbl de `multicnc_gcode_preflight` com o volume da máquina
+      atribuída (somente leitura do `multicnc.json`). Fica como sugestão com origem e data;
+      "Aplicar" troca a duração e lança o filamento num único passo de desfazer.
+- [x] 7.7 Tipos de tarefa (26/10, PJ-T19): duração fixa, unidades fixas e trabalho fixo,
+      controlada pelo empenho; padrão automático pelo tipo (máquina = duração fixa, pessoa =
+      trabalho fixo). Trabalho não é gravado: sempre Duração × Unidades. Atribuição inicial em
+      lote não mexe na duração; incluir ou retirar recurso depois segue o empenho.
 - [x] 7.8 Testes: impressões na mesma máquina viram sequenciais; limpar o nivelamento
-      restaura as datas (falta a fórmula do trabalho nos três tipos, com a 7.7).
+      restaura as datas; a fórmula do trabalho nos três tipos está em `test_multiproject_costs`.
 
 ### Fase 8: linha de base, acompanhamento e relatórios (≈ 5 h)
 

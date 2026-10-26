@@ -69,14 +69,18 @@ Seções em ordem, cada uma com título `fsBold` e `clSuiteMuted` para o rótulo
    texto livre.
 4. **Especificação funcional:** lista de critérios com estado (`TSuiteBadge` pendente,
    aprovado, reprovado) e evidência.
-5. **Datas:** duração (`8h`, `2d`, `14eh`), início e término calculados (somente leitura no
-   modo auto), restrição, data, data limite e prioridade.
+5. **Datas:** duração (`8h`, `2d`, `14eh`), tipo de tarefa (automático, duração fixa,
+   unidades fixas, trabalho fixo), controlada pelo empenho, trabalho, início e término
+   calculados (somente leitura no modo auto), restrição, data, data limite e prioridade.
 6. **Vínculo com a ferramenta:** caminho do artefato, estado (badge), última verificação,
    mensagem do verificador e os botões **Abrir na ferramenta**, **Vincular arquivo...**,
-   **Verificar** e **Marcar pronta**.
+   **Verificar** e **Marcar pronta**. Na fabricação, a estimativa (origem, data, tempo e
+   filamento) com **Estimar pelo G-code** e **Aplicar**.
 7. **Predecessoras e sucessoras:** grade com ID, nome, tipo, latência e artefato.
 8. **Recursos:** grade com recurso, unidades e quantidade. Para fabricação, combo só com as
-   máquinas compatíveis.
+   máquinas compatíveis. **Custos:** total por origem (trabalho, uso, material, custo,
+   fixo), custo fixo e quando ele vence; na compra, **Lista de materiais do MultiAssembly**.
+   A tabela do Gantt ganha as colunas Trabalho (editável) e Custo (calculado).
 9. **Origem e anotações:** quem criou (usuário, regra Axx ou IA), tarefas de origem,
    anotações e anexos.
 

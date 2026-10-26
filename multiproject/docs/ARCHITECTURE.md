@@ -38,7 +38,7 @@ multiproject/
                       multiproject_calendar     adaptador -> aiworkcalendar (CHATGPT)
                       multiproject_schedule     adaptador -> aicpmscheduler (CHATGPT), avisos com a tarefa
                       multiproject_resources    recursos, atribuições, superalocação, nivelamento
-                      multiproject_cost         taxas, custo fixo, acumulação
+                      (custos e tipo de tarefa: no documento, com aicostmodel e aitasktype do CHATGPT)
                       multiproject_tracking     linhas de base, progresso, atualizar projeto
                       multiproject_evm          valor agregado
   src/io/             multiproject_json         .mproj (fpjson), migração de schema_version
@@ -50,6 +50,7 @@ multiproject/
                       multiproject_checks       verificadores por tipo (.mcad, .mpcb, .massembly, .mphys, G-code)
                       multiproject_rules        regras PJ-A01..A09
                       multiproject_estimates    duração por G-code/MultiSlicer
+                      multiproject_bom          lista de materiais do MultiAssembly -> material da compra
                       multiproject_equipment    máquinas de multicnc.json como recursos (somente leitura)
                       multiproject_taskctx      arquivo <artefato>.task.json para a ferramenta
   src/ai/             multiproject_ai_contract  esquema e parser determinístico do plano
@@ -98,7 +99,7 @@ models/multiproject/  modelos .mproj (Peça impressa, Placa, Motor DC, Máquina 
 | `state` | sim | `suggested`, `planned`, `in_progress`, `review`, `done`, `blocked`, `outdated`, `cancelled` |
 | `mode` | sim | `auto` ou `manual` |
 | `duration` | sim | minutos inteiros; `elapsed` (bool); `estimated` (bool) |
-| `task_type` | não | `fixed_duration` (padrão), `fixed_units`, `fixed_work`; `effort_driven` |
+| `task_type` | não | `""` = automático pelo tipo (máquina: `fixed_duration`; pessoa: `fixed_work`), `fixed_duration`, `fixed_units`, `fixed_work`; `effort_driven` (bool). O trabalho não é gravado: Duração × soma das unidades dos recursos de trabalho |
 | `constraint` | não | `{type: ASAP/ALAP/SNET/SNLT/FNET/FNLT/MSO/MFO, date}` |
 | `deadline` | não | data |
 | `priority` | não | 0–1000, padrão 500 |
@@ -107,7 +108,9 @@ models/multiproject/  modelos .mproj (Peça impressa, Placa, Motor DC, Máquina 
 | `progress` | não | `percent`, `actual_start`, `actual_finish`, `remaining` |
 | `artifact` | não | `{path, tool, hash, size, mtime, status: none/created/valid/ready, checked_at, check_msg}` |
 | `origin` | não | `{by: user/rule/ai, rule, sources:[IDs], ai_plan}` |
-| `inactive`, `notes`, `attachments`, `fixed_cost`, `custom` | não | |
+| `fixed_cost`, `fixed_cost_accrual` | não | valor em R$ (ponto decimal) e `start`/`prorated`/`end` |
+| `estimate` | não | `{minutes, mass_g, material, source: multislicer/gcode, file, machine, date, note}`: sugestão da fase 7.6, só vira duração quando aceita |
+| `inactive`, `notes`, `attachments`, `custom` | não | |
 
 O código EAP, as datas calculadas, as margens e o crítico **não são gravados**: são
 recalculados ao abrir. Isso evita arquivos inconsistentes. A linha de base é gravada, porque
@@ -127,13 +130,13 @@ recalculados ao abrir. Isso evita arquivos inconsistentes. A linha de base é gr
 
 | Recurso | Campos |
 |---|---|
-| comum | `id` (`R-001`), `name`, `type` (`person`, `ai`, `machine`, `material`, `cost`), `max_units` (em %: 100 = uma pessoa ou máquina), `calendar`, `group`, `rate` e `per_use` (fase 7.5) |
+| comum | `id` (`R-001`), `name`, `type` (`person`, `ai`, `machine`, `material`, `cost`), `max_units` (em %: 100 = uma pessoa ou máquina), `calendar`, `group`, `rate` (R$/h, recursos de trabalho) e `per_use` (R$ por tarefa) |
 | pessoa | `role` (função), `email` |
 | máquina | `equipment` (nome do equipamento no `multicnc.json`), `machine_type` (`router`, `laser`, `printer3d`, `lathe`, `other`), `work_volume` |
 | material | `unit` (kg, m², un), `unit_cost` |
 
-Atribuição: `{task, resource, units, quantity, source}`, com `units` em % (50 = meio período)
-e `quantity` na unidade do material. A tarefa guarda `priority` (0–1000) e `level_start`
+Atribuição: `{task, resource, units, quantity, cost, source}`, com `units` em % (50 = meio período),
+`quantity` na unidade do material e `cost` em R$ para recurso do tipo custo. A tarefa guarda `priority` (0–1000) e `level_start`
 (atraso do nivelamento, "não iniciar antes de"; vazio sem nivelamento). `source` diz se o valor veio do
 usuário, do MultiSlicer (massa) ou da BOM.
 

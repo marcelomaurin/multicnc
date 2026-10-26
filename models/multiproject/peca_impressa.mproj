@@ -732,6 +732,11 @@
       "calendar" : "",
       "priority" : 500,
       "level_start" : "",
+      "task_type" : "",
+      "effort_driven" : false,
+      "fixed_cost" : 0,
+      "fixed_cost_accrual" : "prorated",
+      "estimate" : {},
       "tech_spec" : {
         "items" : [
           {
@@ -794,6 +799,11 @@
       "calendar" : "",
       "priority" : 500,
       "level_start" : "",
+      "task_type" : "",
+      "effort_driven" : false,
+      "fixed_cost" : 0,
+      "fixed_cost_accrual" : "prorated",
+      "estimate" : {},
       "tech_spec" : {
         "items" : [
           {
@@ -856,6 +866,11 @@
       "calendar" : "",
       "priority" : 500,
       "level_start" : "",
+      "task_type" : "",
+      "effort_driven" : false,
+      "fixed_cost" : 0,
+      "fixed_cost_accrual" : "prorated",
+      "estimate" : {},
       "tech_spec" : {
         "items" : [
           {
@@ -918,6 +933,11 @@
       "calendar" : "",
       "priority" : 500,
       "level_start" : "",
+      "task_type" : "",
+      "effort_driven" : false,
+      "fixed_cost" : 0,
+      "fixed_cost_accrual" : "prorated",
+      "estimate" : {},
       "tech_spec" : {
         "items" : [
           {
@@ -985,6 +1005,11 @@
       "calendar" : "",
       "priority" : 500,
       "level_start" : "",
+      "task_type" : "",
+      "effort_driven" : false,
+      "fixed_cost" : 0,
+      "fixed_cost_accrual" : "prorated",
+      "estimate" : {},
       "tech_spec" : {
         "items" : [
         ],
@@ -1036,6 +1061,11 @@
       "calendar" : "",
       "priority" : 500,
       "level_start" : "",
+      "task_type" : "",
+      "effort_driven" : false,
+      "fixed_cost" : 0,
+      "fixed_cost_accrual" : "prorated",
+      "estimate" : {},
       "tech_spec" : {
         "items" : [
         ],
@@ -1087,6 +1117,11 @@
       "calendar" : "",
       "priority" : 500,
       "level_start" : "",
+      "task_type" : "",
+      "effort_driven" : false,
+      "fixed_cost" : 0,
+      "fixed_cost_accrual" : "prorated",
+      "estimate" : {},
       "tech_spec" : {
         "items" : [
         ],
@@ -1138,6 +1173,11 @@
       "calendar" : "",
       "priority" : 500,
       "level_start" : "",
+      "task_type" : "",
+      "effort_driven" : false,
+      "fixed_cost" : 0,
+      "fixed_cost_accrual" : "prorated",
+      "estimate" : {},
       "tech_spec" : {
         "items" : [
         ],

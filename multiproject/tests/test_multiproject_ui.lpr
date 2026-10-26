@@ -14,7 +14,7 @@ program test_multiproject_ui;
 uses
   {$IFDEF UNIX}cthreads,{$ENDIF}
   Interfaces, Classes, SysUtils, Forms, Controls, Process,
-  aiprojectduration, aiganttview, ainetworkview, aiboardview,
+  aiprojectduration, aitasktype, aicostmodel, aiganttview, ainetworkview, aiboardview,
   multiproject_types, multiproject_document, multiproject_views, multiproject_main;
 
 type
@@ -331,6 +331,86 @@ begin
   F.ShowStep(1);
 end;
 
+procedure TestCostsAndWork;
+var R, I: Integer; T: TPJTask;
+begin
+  F.LoadExample;
+  Pump;
+  F.ShowStep(1);
+  F.ShowView(VIEW_GANTT);
+  Pump;
+  { colunas Trabalho e Custo }
+  R := GanttRowOf('T-0002');
+  Check(F.Gantt.Row(R).Cells[GC_WORK] = '8h', 'coluna Trabalho: ' + F.Gantt.Row(R).Cells[GC_WORK]);
+  Check(F.Gantt.Row(R).Cells[GC_COST] = 'R$ 720,00', 'coluna Custo: ' + F.Gantt.Row(R).Cells[GC_COST]);
+  Check(F.Gantt.Row(GanttRowOf('T-0010')).Cells[GC_COST] = 'R$ 61,40', 'custo da impressao: ' +
+    F.Gantt.Row(GanttRowOf('T-0010')).Cells[GC_COST]);
+  Check(Pos('Custo R$', F.InfoLabel.Caption) > 0, 'rodape com o custo: ' + F.InfoLabel.Caption);
+  { trabalho editado na tabela: trabalho fixo muda a duracao }
+  F.Gantt.EditCell(R, GC_WORK);
+  F.Gantt.Editor.Text := '16h';
+  F.Gantt.FinishEdit(True);
+  Pump;
+  Check(F.Doc.FindTask('T-0002').Duration.Minutes = 960, 'trabalho 16h: carcaca passa a 2 dias');
+  Check(F.Gantt.Row(GanttRowOf('T-0002')).Cells[GC_COST] = 'R$ 1.440,00', 'custo acompanha o trabalho');
+  F.Doc.Undo;
+  F.RefreshAll;
+  Pump;
+  { custo nao se edita na tabela }
+  R := GanttRowOf('T-0002');
+  F.Gantt.EditCell(R, GC_COST);
+  Check((F.Gantt.Editor = nil) or not F.Gantt.Editor.Visible or (F.Doc.FindTask('T-0002').FixedCost = 0),
+    'custo e calculado');
+  F.Gantt.FinishEdit(False);
+  { pagina da tarefa: tipo, trabalho, custo fixo }
+  F.SelectTask('T-0014');
+  F.ShowStep(PAGE_TASK);
+  Pump;
+  Check(Pos('Total R$', F.TCostLabel.Caption) = 1, 'resumo de custo na pagina: ' + F.TCostLabel.Caption);
+  Check(F.TTaskType.ItemIndex = 0, 'tipo automatico');
+  Check(F.EstimateButton.Enabled, 'placa pode ser estimada pelo G-code');
+  Check(not F.BOMButton.Visible, 'lista de materiais so na compra');
+  F.TFixedCost.Text := '180,50';
+  F.TAccrual.ItemIndex := Ord(acaEnd);
+  F.TaskApplyForTest;
+  T := F.Doc.FindTask('T-0014');
+  Check((Abs(T.FixedCost - 180.5) < 0.001) and (T.FixedCostAccrual = acaEnd), 'custo fixo aplicado: ' + F.StatusText);
+  F.TFixedCost.Text := 'caro';
+  F.TaskApplyForTest;
+  Check(Pos('Custo fixo', F.StatusText) > 0, 'custo fixo invalido recusado');
+  F.Doc.Undo;
+  F.SelectTask('T-0002');
+  F.ShowStep(PAGE_TASK);
+  Pump;
+  Check(F.TWork.Text = '8h', 'trabalho na pagina: ' + F.TWork.Text);
+  F.TTaskType.ItemIndex := Ord(attFixedDuration) + 1;
+  F.TWork.Text := '4h';
+  F.TaskApplyForTest;
+  T := F.Doc.FindTask('T-0002');
+  Check(not T.TaskTypeAuto and (T.TaskType = attFixedDuration), 'tipo duracao fixa aplicado');
+  Check((T.Duration.Minutes = 480) and (Pos('Ana[50%]', F.Doc.ResourcesText('T-0002')) = 1),
+    'duracao fixa: Ana cai para 50%: ' + F.Doc.ResourcesText('T-0002'));
+  F.Doc.Undo;
+  F.RefreshAll;
+  { taxa do recurso }
+  F.ShowStep(3);
+  for I := 0 to F.ResList.Items.Count - 1 do
+    if Pos('Ana  -', F.ResList.Items[I]) > 0 then F.ResList.ItemIndex := I;
+  F.ResList.OnClick(F.ResList);
+  Check(F.RRate.Text = '90,00', 'taxa da Ana: ' + F.RRate.Text);
+  Check(not F.RUnitCost.Enabled, 'pessoa sem custo unitario');
+  F.RRate.Text := 'R$ 100';
+  F.ResApplyForTest;
+  Check(Abs(F.Doc.FindResource('Ana').Rate - 100) < 0.001, 'taxa editada');
+  Check(F.Gantt.Row(GanttRowOf('T-0002')).Cells[GC_COST] = 'R$ 800,00', 'custo com a taxa nova');
+  F.RRate.Text := 'cem';
+  F.ResApplyForTest;
+  Check(Pos('Taxa por hora', F.StatusText) > 0, 'taxa invalida recusada');
+  F.Doc.Undo;
+  F.RefreshAll;
+  Shot('09_custos');
+end;
+
 procedure TestFile;
 var FN: string;
 begin
@@ -375,6 +455,7 @@ begin
   TestNetworkAndBoard;
   TestFilters;
   TestResources;
+  TestCostsAndWork;
   TestFile;
   TestLayout;
   { fechar a janela principal encerra o aplicativo }
@@ -383,7 +464,7 @@ begin
   Pump;
   Check(Application.Terminated, 'fechar a janela encerra o aplicativo');
   if Failed = 0 then
-    Writeln(Format('PASS: %d checks (Gantt, rede, quadro, equipe, recursos, nivelamento, pagina da tarefa, edicao, filtros, arquivo, 1024x768)', [Passed]))
+    Writeln(Format('PASS: %d checks (Gantt, rede, quadro, equipe, recursos, nivelamento, custos e trabalho, pagina da tarefa, edicao, filtros, arquivo, 1024x768)', [Passed]))
   else
   begin
     Writeln(Format('FAIL: %d de %d checks', [Failed, Passed + Failed]));

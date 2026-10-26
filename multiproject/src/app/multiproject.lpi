@@ -40,7 +40,7 @@
    <Filename Value="multiproject" />
   </Target>
   <SearchPaths>
-   <OtherUnitFiles Value="../core;../io;../view;../integration;../../../makepcb/src/core;../../../makepcb/src/route;../../../multicad/src/core;../../../multicad/src/features;../../../multicad/src/kernel;../../../multicad/src/sketch;../../../multisuite/src/core;../../../src/shared;../../../src/core;../../../../CHATGPT/pacote/AI Project Core;../../../../CHATGPT/pacote/AI Project;../../../third_party/chatgpt/AIProjectCore;../../../third_party/chatgpt/AIProject" />
+   <OtherUnitFiles Value="../core;../io;../view;../integration;../../../makepcb/src/core;../../../makepcb/src/route;../../../multicad/src/core;../../../multiassembly/src/core;../../../multicad/src/features;../../../multicad/src/kernel;../../../multicad/src/sketch;../../../multisuite/src/core;../../../src/shared;../../../src/core;../../../../CHATGPT/pacote/AI Project Core;../../../../CHATGPT/pacote/AI Project;../../../third_party/chatgpt/AIProjectCore;../../../third_party/chatgpt/AIProject" />
    <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
   </SearchPaths>
   <Parsing>

@@ -14,7 +14,7 @@ interface
 
 uses
   Classes, SysUtils, StrUtils, Math, Graphics, DateUtils,
-  aiprojectduration, aitaskgraph, aicpmscheduler, airesourceload, aiganttview, ainetworkview,
+  aiprojectduration, aitaskgraph, aicpmscheduler, airesourceload, aicostmodel, aiganttview, ainetworkview,
   aiboardview, airesourceview,
   multisuite_controls, multisuite_icons,
   multiproject_types, multiproject_document, multiproject_graph, multiproject_schedule, multiproject_kinds;
@@ -34,7 +34,7 @@ type
 const
   { colunas do Gantt }
   GC_WBS = 0; GC_ID = 1; GC_NAME = 2; GC_TOOL = 3; GC_DUR = 4; GC_START = 5;
-  GC_FINISH = 6; GC_PRED = 7; GC_RES = 8;
+  GC_FINISH = 6; GC_PRED = 7; GC_RES = 8; GC_WORK = 9; GC_COST = 10;
   { marca de superalocacao na coluna Recursos (tirada antes de editar) }
   PJ_OVERLOAD_MARK = '  (!)';
   { linha "sem recurso" da vista Equipe }
@@ -160,6 +160,8 @@ begin
   G.AddColumn('Termino', 118);
   G.AddColumn('Predecessoras', 140, True);
   G.AddColumn('Recursos', 170, True);
+  G.AddColumn('Trabalho', 70, True, taRightJustify);
+  G.AddColumn('Custo', 96, False, taRightJustify);
   G.TreeColumn := GC_NAME;
   G.TableWidth := 44 + 62 + 230 + 96 + 66;
 end;
@@ -248,7 +250,7 @@ begin
 end;
 
 function TaskRow(P: TPJProject; Sc: TPJSchedule; I, Level: Integer; const O: TPJViewOptions): TAIGanttRow;
-var T: TPJTask; R: TAICPMResult;
+var T: TPJTask; R: TAICPMResult; Cost: Double;
 begin
   T := P[I];
   if Sc.Valid then R := Sc[I] else FillChar(R, SizeOf(R), 0);
@@ -263,7 +265,7 @@ begin
   if T.State = tsDone then Result.Progress := 100
   else if T.State in [tsInProgress, tsReview] then Result.Progress := 50;
   Result.Tag := I;
-  SetLength(Result.Cells, 9);
+  SetLength(Result.Cells, 11);
   Result.Cells[GC_WBS] := P.WBS(I);
   Result.Cells[GC_ID] := T.Id;
   Result.Cells[GC_NAME] := T.Name;
@@ -275,6 +277,11 @@ begin
   Result.Cells[GC_RES] := P.ResourcesText(T.Id);
   if Sc.Valid and Sc.TaskOverallocated(T.Id) then
     Result.Cells[GC_RES] := Result.Cells[GC_RES] + PJ_OVERLOAD_MARK;
+  if P.TaskWork(T.Id) > 0 then Result.Cells[GC_WORK] := P.FormatWork(P.TaskWork(T.Id))
+  else Result.Cells[GC_WORK] := '';
+  Cost := AICostTotal(P.TaskCost(T.Id));
+  if Cost > 0.004 then Result.Cells[GC_COST] := AIFormatMoney(Cost)
+  else Result.Cells[GC_COST] := '';
 end;
 
 procedure FillGantt(G: TAIGanttView; P: TPJProject; Sc: TPJSchedule; const O: TPJViewOptions);

@@ -24,12 +24,13 @@ uses
   Classes, SysUtils, StrUtils, Math, DateUtils, Forms, Controls, Graphics, StdCtrls,
   ExtCtrls, ComCtrls, Grids, Dialogs, LCLType,
   multisuite_controls, multisuite_icons,
-  aiprojectduration, aitaskgraph, aiworkcalendar, aicpmscheduler,
+  aiprojectduration, aitaskgraph, aiworkcalendar, aicpmscheduler, aitasktype, aicostmodel,
   airesourceload, aiganttview, ainetworkview, aiboardview, airesourceview,
   multiproject_types, multiproject_document, multiproject_json, multiproject_graph,
   multiproject_schedule, multiproject_states, multiproject_examples, multiproject_views,
   multiproject_resources, multiproject_kinds, multiproject_artifacts,
-  multiproject_taskctx, multiproject_rules, multiproject_templates, multiproject_lathe, multisuite_types, multisuite_registry, multisuite_launcher, multisuite_paths;
+  multiproject_taskctx, multiproject_rules, multiproject_templates, multiproject_lathe,
+  multiproject_estimates, multiproject_bom, multisuite_types, multisuite_registry, multisuite_launcher, multisuite_paths;
 
 const
   PJ_APP_VERSION = '0.2.0.0';
@@ -46,6 +47,7 @@ type
     ArtifactPathEdit: TEdit;
     OpenCNCButton: TSuiteButton;
     LatheButton: TSuiteButton;
+    FLoadedWork: string;           // trabalho mostrado ao abrir a tarefa
     SidebarBody: TPanel;
     ChainTitleLabel: TLabel;
     FCheckingArtifacts: Boolean;
@@ -165,6 +167,9 @@ type
     procedure TaskBack(Sender: TObject);
     procedure TaskResApply(Sender: TObject);
     procedure TaskResAdd(Sender: TObject);
+    procedure EstimateClick(Sender: TObject);
+    procedure AcceptEstimateClick(Sender: TObject);
+    procedure BOMClick(Sender: TObject);
     procedure AsyncRefresh(Data: PtrInt);
     procedure QueueRefresh;
     procedure SetStatus(const AText: string; AKind: Integer = 0);
@@ -210,6 +215,7 @@ type
     { recursos }
     ResList: TListBox;
     RName, RRole, REmail, RUnits, RGroup: TEdit;
+    RRate, RPerUse, RUnitCost: TEdit;
     RType, RMachine, RCalendar: TComboBox;
     ResInfo: TLabel;
     CalList, CalExcList: TListBox;
@@ -224,6 +230,11 @@ type
     { tarefa }
     TName, TShort, TDuration, TConstraintDate, TDeadline, TTechText: TEdit;
     TResEdit, TResUnits, TPriority: TEdit;
+    TWork, TFixedCost: TEdit;
+    TTaskType, TAccrual: TComboBox;
+    TEffort: TCheckBox;
+    TCostLabel, TEstimateLabel: TLabel;
+    EstimateButton, AcceptEstimateButton, BOMButton: TSuiteButton;
     TResCombo: TComboBox;
     TResInfo: TLabel;
     TLong, TNotes: TMemo;
@@ -703,24 +714,27 @@ begin
   RUnits := Edit(S, 'Unidades maximas (%): 100 = uma pessoa ou maquina', 662);
   RCalendar := Combo(S, 'Calendario', 714);
   RGroup := Edit(S, 'Grupo (equipe, oficina)', 768);
-  ResInfo := Lbl(S, '', 16, 822, 290, 40);
+  RRate := Edit(S, 'Taxa por hora (R$): pessoa, IA ou maquina', 822);
+  RPerUse := Edit(S, 'Custo por uso (R$): preparacao em cada tarefa', 874);
+  RUnitCost := Edit(S, 'Custo unitario (R$ por unidade do material)', 926);
+  ResInfo := Lbl(S, '', 16, 978, 290, 40);
   ResInfo.Font.Color := clSuiteText;
-  Btn(S, 'Aplicar', 16, 866, 142, sikSave, @ResApply).SetLook(sbsSolid, clSuitePrimary, sikSave);
-  Btn(S, 'Excluir', 164, 866, 142, sikTrash, @ResDelete).SetLook(sbsSoft, clSuiteDanger, sikTrash);
-  Section(S, 'CALENDARIOS', 918);
+  Btn(S, 'Aplicar', 16, 1022, 142, sikSave, @ResApply).SetLook(sbsSolid, clSuitePrimary, sikSave);
+  Btn(S, 'Excluir', 164, 1022, 142, sikTrash, @ResDelete).SetLook(sbsSoft, clSuiteDanger, sikTrash);
+  Section(S, 'CALENDARIOS', 1074);
   CalList := TListBox.Create(Self);
   CalList.Parent := S;
-  CalList.SetBounds(16, 942, 290, 70);
+  CalList.SetBounds(16, 1098, 290, 70);
   CalList.OnClick := @CalSelect;
-  Btn(S, 'Novo calendario (copia do padrao)', 16, 1020, 290, sikNew, @CalNewClick);
-  Section(S, 'EXCECOES (FERIADOS E FOLGAS)', 1066);
+  Btn(S, 'Novo calendario (copia do padrao)', 16, 1176, 290, sikNew, @CalNewClick);
+  Section(S, 'EXCECOES (FERIADOS E FOLGAS)', 1222);
   CalExcList := TListBox.Create(Self);
   CalExcList.Parent := S;
-  CalExcList.SetBounds(16, 1090, 290, 180);
-  CalDateEdit := Edit(S, 'Data (dd/mm/aaaa)', 1278);
-  CalNameEdit := Edit(S, 'Nome (folga sem expediente)', 1330);
-  Btn(S, 'Adicionar folga', 16, 1388, 142, sikNew, @CalAddExceptionClick);
-  Btn(S, 'Remover', 164, 1388, 142, sikTrash, @CalRemoveExceptionClick).SetLook(sbsSoft, clSuiteDanger, sikTrash);
+  CalExcList.SetBounds(16, 1246, 290, 180);
+  CalDateEdit := Edit(S, 'Data (dd/mm/aaaa)', 1434);
+  CalNameEdit := Edit(S, 'Nome (folga sem expediente)', 1486);
+  Btn(S, 'Adicionar folga', 16, 1544, 142, sikNew, @CalAddExceptionClick);
+  Btn(S, 'Remover', 164, 1544, 142, sikTrash, @CalRemoveExceptionClick).SetLook(sbsSoft, clSuiteDanger, sikTrash);
 end;
 
 procedure TMultiProjectForm.BuildSchedulePage(S: TScrollBox);
@@ -764,6 +778,7 @@ end;
 
 procedure TMultiProjectForm.BuildTaskPage(S: TScrollBox);
 var Y: Integer; K: TPJTaskKind; Pr: TPJProcess; St: TPJTaskState; C: TAIConstraintType;
+  TT: TAITaskType; AC: TAICostAccrual;
 begin
   Btn(S, 'Voltar', 16, 12, 90, sikArrowLeft, @TaskBack).Hint := 'Esc';
   Btn(S, 'Aplicar', 116, 12, 190, sikSave, @TaskApply).SetLook(sbsSolid, clSuitePrimary, sikSave);
@@ -804,6 +819,17 @@ begin
   Lbl(S, 'Estado: pendente, aprovado, reprovado ou dispensado.', 16, Y, 290, 20); Inc(Y, 28);
   Section(S, '5  DATAS', Y); Inc(Y, 26);
   TDuration := Edit(S, 'Duracao (4h, 2d, 14eh, 1sem, 4h?)', Y); Inc(Y, 52);
+  TTaskType := Combo(S, 'Tipo de tarefa (Trabalho = Duracao x Unidades)', Y); Inc(Y, 54);
+  TTaskType.Items.Add('Automatico: maquina com duracao fixa, pessoa com trabalho fixo');
+  for TT := Low(TT) to High(TT) do TTaskType.Items.Add(AITaskTypeCaption(TT));
+  TEffort := TCheckBox.Create(Self);
+  TEffort.Parent := S;
+  TEffort.SetBounds(16, Y, 290, 24);
+  TEffort.Caption := 'Controlada pelo empenho';
+  TEffort.Hint := 'Incluir ou retirar recursos mantem o trabalho total';
+  TEffort.ShowHint := True;
+  Inc(Y, 30);
+  TWork := Edit(S, 'Trabalho (ex.: 16h); vazio sem recurso de trabalho', Y); Inc(Y, 52);
   TDatesLabel := Lbl(S, '', 16, Y, 290, 40); Inc(Y, 44);
   TConstraint := Combo(S, 'Restricao', Y); Inc(Y, 54);
   for C := Low(C) to High(C) do TConstraint.Items.Add(AIConstraintCode(C));
@@ -818,16 +844,35 @@ begin
   Btn(S, 'Verificar arquivo', 16, Y, 290, sikTests, @CheckArtifacts); Inc(Y, 42);
   OpenCNCButton := Btn(S, 'Abrir no MultiCNC', 16, Y, 290, sikSend, @OpenCNCClick); Inc(Y, 42);
   LatheButton:=Btn(S,'Gerar folha de torno...',16,Y,290,sikExport,@LatheSheetClick); Inc(Y,42);
+  TEstimateLabel := Lbl(S, '', 16, Y, 290, 44); Inc(Y, 48);
+  TEstimateLabel.Font.Color := clSuiteMuted;
+  EstimateButton := Btn(S, 'Estimar pelo G-code', 16, Y, 142, sikPulse, @EstimateClick);
+  EstimateButton.Hint := 'Tempo e filamento do MultiSlicer ou tempo do planejador do Grbl';
+  EstimateButton.ShowHint := True;
+  AcceptEstimateButton := Btn(S, 'Aplicar', 164, Y, 142, sikSave, @AcceptEstimateClick);
+  AcceptEstimateButton.Hint := 'Usa a estimativa como duracao e lanca o filamento';
+  AcceptEstimateButton.ShowHint := True;
+  Inc(Y, 42);
   Section(S, '7  PREDECESSORAS E SUCESSORAS', Y); Inc(Y, 26);
   TPredLabel := Lbl(S, '', 16, Y, 290, 60); Inc(Y, 66);
   Section(S, '8  RECURSOS', Y); Inc(Y, 26);
   TResEdit := Edit(S, 'Recursos (ex.: Ana; Ender-3; Bruno[50%])', Y); Inc(Y, 54);
   Btn(S, 'Aplicar recursos', 16, Y, 290, sikSave, @TaskResApply); Inc(Y, 42);
   TResCombo := Combo(S, 'Adicionar recurso compativel', Y); Inc(Y, 54);
-  TResUnits := Edit(S, 'Unidades (%) ou quantidade do material', Y); Inc(Y, 54);
+  TResUnits := Edit(S, 'Unidades (%), quantidade do material ou valor (R$)', Y); Inc(Y, 54);
   Btn(S, 'Adicionar', 16, Y, 290, sikNew, @TaskResAdd); Inc(Y, 42);
   TResInfo := Lbl(S, '', 16, Y, 290, 52); Inc(Y, 56);
   TPriority := Edit(S, 'Prioridade no nivelamento (0 a 1000)', Y); Inc(Y, 60);
+  Section(S, 'CUSTOS', Y); Inc(Y, 26);
+  TCostLabel := Lbl(S, '', 16, Y, 290, 52); Inc(Y, 56);
+  TCostLabel.Font.Color := clSuiteText;
+  TFixedCost := Edit(S, 'Custo fixo (R$): frete, servico de terceiro', Y); Inc(Y, 52);
+  TAccrual := Combo(S, 'Quando o custo fixo vence', Y); Inc(Y, 54);
+  for AC := Low(AC) to High(AC) do TAccrual.Items.Add(AICostAccrualCaption(AC));
+  BOMButton := Btn(S, 'Lista de materiais do MultiAssembly', 16, Y, 290, sikLayers, @BOMClick); Inc(Y, 42);
+  BOMButton.Hint := 'Lanca os componentes comprados da montagem nesta tarefa de compra';
+  BOMButton.ShowHint := True;
+  Inc(Y, 8);
   Section(S, '9  ORIGEM E ANOTACOES', Y); Inc(Y, 26);
   TOriginLabel := Lbl(S, 'Criada pelo usuario', 16, Y, 290, 20); Inc(Y, 24);
   TNotes := Memo(S, 'Anotacoes', Y, 80); Inc(Y, 110);
@@ -1009,6 +1054,8 @@ begin
   begin
     InfoLabel.Caption := Format('%d avisos  •  Termino previsto %s  •  Criticas: %d', [N,
       FormatBRDateTime(Sched.ProjectFinish), Sched.CriticalCount]);
+    if AICostTotal(Doc.ProjectCost) > 0.004 then
+      InfoLabel.Caption := InfoLabel.Caption + '  •  Custo ' + AIFormatMoney(AICostTotal(Doc.ProjectCost));
     if Sched.OverloadCount > 0 then
       InfoLabel.Caption := InfoLabel.Caption + Format('  •  Superalocacao: %d', [Sched.OverloadCount]);
   end;
@@ -1179,6 +1226,10 @@ begin
       if Doc.SetDurationText(T.Id, AText, Err) then AText := Doc.FormatDur(T.Duration);
     GC_PRED:
       if Doc.SetPredecessorsText(T.Id, AText, Err) then AText := Doc.PredecessorsText(T.Id);
+    GC_WORK:
+      if Doc.SetWorkText(T.Id, AText, Err) then AText := Doc.FormatWork(Doc.TaskWork(T.Id));
+    GC_COST:
+      Err := 'o custo vem das taxas dos recursos e do custo fixo (pagina da tarefa)';
     GC_RES:
       begin
         AText := Trim(StringReplace(AText, Trim(PJ_OVERLOAD_MARK), '', [rfReplaceAll]));
@@ -1834,10 +1885,11 @@ begin
 end;
 
 procedure TMultiProjectForm.ResSelect(Sender: TObject);
-var Res: TPJResource; Peak: Double; W: Int64;
+var Res: TPJResource; Peak, Money: Double; W: Int64; A: Integer;
 begin
   Res := SelectedResource;
   RName.Text := ''; RRole.Text := ''; REmail.Text := ''; RUnits.Text := ''; RGroup.Text := '';
+  RRate.Text := ''; RPerUse.Text := ''; RUnitCost.Text := '';
   RType.ItemIndex := -1; RMachine.ItemIndex := -1; RCalendar.ItemIndex := 0;
   ResInfo.Caption := IfThen(Doc.ResourceCount = 0, 'Nenhum recurso. Crie pessoas e maquinas acima.', '');
   if Res = nil then Exit;
@@ -1852,12 +1904,22 @@ begin
   RCalendar.ItemIndex := Max(0, Doc.IndexOfCalendar(Res.CalendarName) + 1);
   if Res.CalendarName = '' then RCalendar.ItemIndex := 0;
   RGroup.Text := Res.Group;
+  RRate.Text := AIFormatMoney(Res.Rate, '');
+  RPerUse.Text := AIFormatMoney(Res.PerUse, '');
+  RUnitCost.Text := AIFormatMoney(Res.UnitCost, '');
+  RRate.Enabled := PJIsWorkResource(Res);
+  RPerUse.Enabled := Res.RType <> rtCost;
+  RUnitCost.Enabled := Res.RType = rtMaterial;
+  Money := 0;
+  for A in Doc.AssignmentsOfResource(Res.Id) do
+    Money := Money + AICostTotal(Doc.AssignmentCost(Doc.Assignments[A]));
   if Sched.Valid then
   begin
     W := Sched.ResourceWork(Res.Id);
     Peak := Sched.ResourcePeak(Res.Id);
-    ResInfo.Caption := Format('%s  •  %d tarefa(s)  •  trabalho %s  •  pico %d%%',
-      [Res.Id, Length(Doc.AssignmentsOfResource(Res.Id)), Doc.FormatDur(AIMakeDuration(W, aduHour)), Round(Peak * 100)]);
+    ResInfo.Caption := Format('%s  •  %d tarefa(s)  •  trabalho %s  •  pico %d%%  •  %s',
+      [Res.Id, Length(Doc.AssignmentsOfResource(Res.Id)), Doc.FormatDur(AIMakeDuration(W, aduHour)), Round(Peak * 100),
+       AIFormatMoney(Money)]);
     if Sched.ResourceOverallocated(Res.Id) then
     begin
       ResInfo.Caption := ResInfo.Caption + LineEnding + 'Superalocado: veja a vista Equipe ou nivele na etapa 5.';
@@ -1869,7 +1931,15 @@ begin
 end;
 
 procedure TMultiProjectForm.ResApply(Sender: TObject);
-var Res, Other: TPJResource; U: Integer; Id: string;
+var Res, Other: TPJResource; U: Integer; Id: string; Rate, PerUse, UnitCost: Double;
+
+  function Money(E: TEdit; const What: string; out V: Double): Boolean;
+  begin
+    V := 0;
+    Result := (Trim(E.Text) = '') or (AITryParseMoney(E.Text, V) and (V >= 0));
+    if not Result then SetStatus(What + ': um valor em R$, por exemplo 90 ou 1.250,00.', 3);
+  end;
+
 begin
   Res := SelectedResource;
   if Res = nil then Exit;
@@ -1887,6 +1957,8 @@ begin
       SetStatus('Unidades maximas: um numero em %, por exemplo 100 ou 200.', 3);
       Exit;
     end;
+  if not Money(RRate, 'Taxa por hora', Rate) or not Money(RPerUse, 'Custo por uso', PerUse) or
+     not Money(RUnitCost, 'Custo unitario', UnitCost) then Exit;
   Id := Res.Id;
   Doc.BeginChange('Editar recurso');
   try
@@ -1906,6 +1978,9 @@ begin
     if RCalendar.ItemIndex <= 0 then Res.CalendarName := ''
     else Res.CalendarName := RCalendar.Items[RCalendar.ItemIndex];
     Res.Group := Trim(RGroup.Text);
+    if PJIsWorkResource(Res) then Res.Rate := Rate else Res.Rate := 0;
+    if Res.RType <> rtCost then Res.PerUse := PerUse else Res.PerUse := 0;
+    if Res.RType = rtMaterial then Res.UnitCost := UnitCost else Res.UnitCost := 0;
   finally
     Doc.EndChange;
   end;
@@ -2099,8 +2174,10 @@ procedure TMultiProjectForm.LoadSchedulePage;
 var L: TPJIssues; I: Integer; S: string;
 begin
   if Sched.Valid then
-    SchedInfo.Caption := Format('Inicio %s' + LineEnding + 'Termino previsto %s' + LineEnding + 'Tarefas criticas: %d',
-      [FormatBRDateTime(Sched.ProjectStart), FormatBRDateTime(Sched.ProjectFinish), Sched.CriticalCount])
+    SchedInfo.Caption := Format('Inicio %s' + LineEnding + 'Termino previsto %s' + LineEnding +
+      'Tarefas criticas: %d' + LineEnding + 'Custo previsto %s',
+      [FormatBRDateTime(Sched.ProjectStart), FormatBRDateTime(Sched.ProjectFinish), Sched.CriticalCount,
+       AIFormatMoney(AICostTotal(Doc.ProjectCost))])
   else
     SchedInfo.Caption := 'Cronograma nao calculado: ' + Sched.Error;
   CritSlackEdit.Text := Doc.FormatDur(AIMakeDuration(Doc.CriticalSlack, aduHour));
@@ -2326,7 +2403,7 @@ end;
 { ---------------- pagina da tarefa ---------------- }
 
 procedure TMultiProjectForm.LoadTaskPage;
-var T: TPJTask; I, Idx: Integer; R: TAICPMResult; Tool, Succ: string;
+var T: TPJTask; I, Idx: Integer; R: TAICPMResult; Tool, Succ: string; Cost: TAICostBreakdown;
 begin
   T := SelectedTask;
   if T = nil then
@@ -2368,6 +2445,15 @@ begin
   end;
   TDuration.Text := Doc.FormatDur(T.Duration);
   TDuration.Enabled := not Doc.HasChildren(Idx);
+  if T.TaskTypeAuto then TTaskType.ItemIndex := 0 else TTaskType.ItemIndex := Ord(T.TaskType) + 1;
+  TTaskType.Hint := 'Agora: ' + AITaskTypeCaption(Doc.EffectiveTaskType(T));
+  TTaskType.ShowHint := True;
+  TEffort.Checked := Doc.IsEffortDriven(T);
+  TEffort.Enabled := Doc.EffectiveTaskType(T) <> attFixedWork;
+  if Doc.TaskWork(T.Id) > 0 then TWork.Text := Doc.FormatWork(Doc.TaskWork(T.Id)) else TWork.Text := '';
+  FLoadedWork := TWork.Text;
+  TWork.Enabled := not Doc.HasChildren(Idx);
+  TTaskType.Enabled := not Doc.HasChildren(Idx) and (T.Kind <> tkMilestone);
   if Sched.Valid then
   begin
     R := Sched[Idx];
@@ -2416,6 +2502,21 @@ begin
     TResInfo.Font.Color := clSuiteDanger;
   end;
   TPriority.Text := IntToStr(T.Priority);
+  { custos }
+  Cost := Doc.TaskCost(T.Id);
+  TCostLabel.Caption := Format('Total %s' + LineEnding + 'Trabalho %s  •  uso %s' + LineEnding +
+    'Material %s  •  custo %s  •  fixo %s',
+    [AIFormatMoney(AICostTotal(Cost)), AIFormatMoney(Cost.Work), AIFormatMoney(Cost.PerUse),
+     AIFormatMoney(Cost.Material), AIFormatMoney(Cost.Resource), AIFormatMoney(Cost.Fixed)]);
+  TFixedCost.Text := AIFormatMoney(T.FixedCost, '');
+  TAccrual.ItemIndex := Ord(T.FixedCostAccrual);
+  BOMButton.Visible := T.Kind = tkPurchase;
+  { estimativa da fabricacao }
+  EstimateButton.Enabled := PJKindInfo(T.Kind).Fabrication;
+  AcceptEstimateButton.Enabled := EstimateButton.Enabled and (T.Estimate.Minutes > 0);
+  if not EstimateButton.Enabled then TEstimateLabel.Caption := 'Estimativa: so para impressao, router, laser e placa.'
+  else TEstimateLabel.Caption := 'Estimativa: ' + PJEstimateCaption(T.Estimate);
+  TEstimateLabel.Hint := TEstimateLabel.Caption; TEstimateLabel.ShowHint := True;
   TOriginLabel.Caption := 'Criada pelo usuario';
   if T.Origin.By='rule' then
   begin
@@ -2448,12 +2549,20 @@ begin
   Res := Doc.Resources[PtrInt(TResCombo.Items.Objects[TResCombo.ItemIndex])];
   FS := DefaultFormatSettings;
   FS.DecimalSeparator := '.';
-  if not TryStrToFloat(StringReplace(Trim(StringReplace(TResUnits.Text, '%', '', [])), ',', '.', []), U, FS) then
+  if Res.RType = rtCost then
+  begin
+    if not AITryParseMoney(TResUnits.Text, U) or (U < 0) then
+    begin
+      SetStatus('Valor invalido: use o valor em R$, por exemplo 150 ou 1.250,00.', 3);
+      Exit;
+    end;
+  end
+  else if not TryStrToFloat(StringReplace(Trim(StringReplace(TResUnits.Text, '%', '', [])), ',', '.', []), U, FS) then
   begin
     SetStatus('Unidades invalidas: use 100 (%) ou a quantidade do material.', 3);
     Exit;
-  end;
-  if Res.RType <> rtMaterial then U := U / 100;
+  end
+  else if Res.RType <> rtMaterial then U := U / 100;
   if Doc.Assign(T.Id, Res.Id, U, Err) then
   begin
     AfterCommand(T.Id);
@@ -2476,8 +2585,10 @@ var
   T: TPJTask;
   D: TAIDuration;
   CD, DL: TDateTime;
-  Err: string;
+  Err, DurErr: string;
   I, N, Prio: Integer;
+  Fixed: Double;
+  NewWork: Boolean;
 begin
   T := SelectedTask;
   if T = nil then Exit;
@@ -2501,6 +2612,14 @@ begin
     SetStatus('Prioridade: um numero de 0 a 1000 (padrao 500).', 3);
     Exit;
   end;
+  Fixed := 0;
+  if (Trim(TFixedCost.Text) <> '') and (not AITryParseMoney(TFixedCost.Text, Fixed) or (Fixed < 0)) then
+  begin
+    SetStatus('Custo fixo: um valor em R$, por exemplo 150 ou 1.250,00.', 3);
+    Exit;
+  end;
+  NewWork := (Trim(TWork.Text) <> Trim(FLoadedWork)) and (Trim(TWork.Text) <> '');
+  DurErr := '';
   CheckArtifacts(nil);
   Doc.BeginChange('Editar tarefa');
   try
@@ -2528,7 +2647,21 @@ begin
         T.AddCriterion(Format('F-%d', [N]), Trim(TFuncGrid.Cells[0, I]));
         T.FuncSpec[High(T.FuncSpec)].State := CriterionFromName(TFuncGrid.Cells[1, I]);
       end;
-    if not Doc.HasChildren(Doc.IndexOfId(T.Id)) then T.Duration := D;
+    { tipo antes da duracao: a regra nova vale para esta edicao }
+    if TTaskType.ItemIndex <= 0 then T.TaskTypeAuto := True
+    else
+    begin
+      T.TaskTypeAuto := False;
+      T.TaskType := TAITaskType(TTaskType.ItemIndex - 1);
+    end;
+    T.EffortDriven := TEffort.Checked and (Doc.EffectiveTaskType(T) <> attFixedWork);
+    if not Doc.HasChildren(Doc.IndexOfId(T.Id)) then
+    begin
+      if not Doc.SetTaskDuration(T.Id, D, DurErr) then DurErr := 'Duracao: ' + DurErr
+      else if NewWork and not Doc.SetWorkText(T.Id, TWork.Text, DurErr) then DurErr := 'Trabalho: ' + DurErr;
+    end;
+    T.FixedCost := Fixed;
+    T.FixedCostAccrual := TAICostAccrual(Max(0, TAccrual.ItemIndex));
     T.Constraint := TAIConstraintType(Max(0, TConstraint.ItemIndex));
     T.ConstraintDate := CD;
     T.Deadline := DL;
@@ -2542,7 +2675,55 @@ begin
     Doc.EndChange;
   end;
   AfterCommand(T.Id);
+  if DurErr <> '' then Err := Trim(DurErr + ' ' + Err);
   if Err <> '' then SetStatus(Err, 3) else SetStatus(T.Id + ' atualizada.', 1);
+end;
+
+procedure TMultiProjectForm.EstimateClick(Sender: TObject);
+var T: TPJTask; R: TPJEstimateResult;
+begin
+  T := SelectedTask;
+  if T = nil then Exit;
+  if FileName = '' then
+  begin
+    SetStatus('Salve o projeto e vincule o arquivo da fabricacao para estimar.', 2);
+    Exit;
+  end;
+  R := PJEstimateTask(Doc, T.Id, FileName);
+  if not R.Ok then begin SetStatus(T.Id + ': ' + R.Message, 2); Exit; end;
+  Doc.SetEstimate(T.Id, R.Estimate);
+  AfterCommand(T.Id);
+  SetStatus(T.Id + ': ' + R.Message + '. Use Aplicar para trocar a duracao.', 1);
+end;
+
+procedure TMultiProjectForm.AcceptEstimateClick(Sender: TObject);
+var T: TPJTask; Msg: string;
+begin
+  T := SelectedTask;
+  if T = nil then Exit;
+  if Doc.AcceptEstimate(T.Id, Msg) then
+  begin
+    AfterCommand(T.Id);
+    SetStatus(T.Id + ': ' + Msg + '. Ctrl+Z desfaz.', 1);
+  end
+  else
+    SetStatus(T.Id + ': ' + Msg, 3);
+end;
+
+procedure TMultiProjectForm.BOMClick(Sender: TObject);
+var T: TPJTask; R: TPJBOMResult; FN: string;
+begin
+  T := SelectedTask;
+  if (T = nil) or (T.Kind <> tkPurchase) then Exit;
+  FN := PJFindAssemblyFile(Doc, FileName);
+  R := PJImportBOM(Doc, T.Id, FN);
+  if R.Ok then
+  begin
+    AfterCommand(T.Id);
+    SetStatus(R.Message + '. Informe o custo unitario na etapa 4 Recursos.', 1);
+  end
+  else
+    SetStatus(R.Message, 2);
 end;
 
 procedure TMultiProjectForm.TaskApplyForTest;
