@@ -510,22 +510,22 @@ begin
   MI.Caption := '&Arquivo local';
   Main.Items.Add(MI);
   Item := TMenuItem.Create(Main);
-  Item.Caption := 'Salvar &copia em arquivo...';
+  Item.Caption := 'Salvar &cópia em arquivo...';
   Item.OnClick := @SaveLocalClick;
   MI.Add(Item);
   MI := TMenuItem.Create(Main);
-  MI.Caption := '&Banco de dados (opcional)';
+  MI.Caption := '&Nuvem (opcional)';
   Main.Items.Add(MI);
   Item := TMenuItem.Create(Main);
-  Item.Caption := '&Abrir projeto do PostgreSQL...';
+  Item.Caption := '&Abrir na nuvem...';
   Item.OnClick := @OpenDBClick;
   MI.Add(Item);
   Item := TMenuItem.Create(Main);
-  Item.Caption := '&Salvar projeto no PostgreSQL...';
+  Item.Caption := '&Salvar na nuvem...';
   Item.OnClick := @SaveDBClick;
   MI.Add(Item);
   Item := TMenuItem.Create(Main);
-  Item.Caption := '&Excluir projeto do PostgreSQL...';
+  Item.Caption := '&Excluir da nuvem...';
   Item.OnClick := @DeleteDBClick;
   MI.Add(Item);
 end;
@@ -539,7 +539,7 @@ begin
     Nav[I].Tag := I;
   end;
   Btn(S, 'Novo', 12, 332, 92, sikNew, @NewClick).Hint := 'Novo projeto (Ctrl+N)';
-  Btn(S, 'Abrir', 110, 332, 92, sikFolder, @OpenClick).Hint := 'Abrir .mproj (Ctrl+O)';
+  Btn(S, 'Abrir arquivo', 110, 332, 92, sikFolder, @OpenClick).Hint := 'Abrir arquivo local .mproj (Ctrl+O)';
   Btn(S, 'Salvar', 12, 372, 92, sikSave, @SaveClick).Hint := 'Salvar (Ctrl+S)';
   Btn(S, 'Demo', 110, 372, 92, sikWand, @DemoClick).Hint := 'Abrir o exemplo do motor DC';
   Body := TPanel.Create(Self); SidebarBody:=Body; Body.Parent := S; Body.BevelOuter := bvNone; Body.Color := S.Color;
@@ -1084,7 +1084,9 @@ begin
   Header.Setup('MultiProject', S + '  /  MultiSuite', sikProject);
   Header.Invalidate;
   Caption := 'MultiProject • MultiSuite';
-  if FileName <> '' then Caption := Caption + ' - ' + ExtractFileName(FileName);
+  if FDBProjectId <> '' then Caption := Caption + ' - ' + Doc.Name + ' [nuvem]'
+  else if FileName <> '' then Caption := Caption + ' - ' + ExtractFileName(FileName) + ' [local]'
+  else Caption := Caption + ' [local]';
 end;
 
 procedure TMultiProjectForm.UpdateFooter;
