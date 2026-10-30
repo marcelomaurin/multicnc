@@ -159,7 +159,7 @@ A estrutura `sql/migrations/` contém **seis scripts numerados**: organizações
 
 A conexão usa `SQLDB` e `PQConnection` padrão do Free Pascal, que requer a biblioteca cliente `libpq` do PostgreSQL disponível no sistema. O MNote2 foi referência para configuração, interface PostgreSQL e bibliotecas Windows/Linux; seus binários legados não foram copiados sem checagem de versões, dependências e licenças. No servidor da nuvem, os clientes devem futuramente acessar uma **API HTTPS**, não a porta 5432 exposta publicamente.
 
-**Estado funcional exato:** scripts e inicialização opt-in publicados; ainda **não** há CRUD de projetos/tarefas persistidos pelo desktop na base, importação automática dos arquivos `.mproj`, API ou site web. Os arquivos JSON atuais continuam a fonte de dados do aplicativo até a implementação do repositório remoto. Os scripts criam a estrutura para 20 ou mais projetos distintos, sem afirmar que os fluxos multiprojeto já funcionem na interface. Compilação e teste com servidor PostgreSQL real ainda pendentes.
+**Estado funcional exato:** scripts, inicialização opt-in e CRUD de **documentos de projetos** no PostgreSQL publicados (armazenamento JSONB), sem migração automática dos arquivos `.mproj`. O modo arquivo segue independente e utilizável sem conexão. A interface do banco permite selecionar e abrir projetos separados, mas ainda não traz portfólio consolidado, CRUD relacional de tarefas/recursos, API nem site web. Compilação e teste com PostgreSQL real ainda pendentes.
 
 
 ## PostgreSQL opcional: operações de projeto no desktop (30/10/2026)
