@@ -84,3 +84,6 @@ bin/libmcad_occt.so
 # pre-visualizacao 3D do MultiAssembly
 multiassembly/tests/render_preview
 tools/components/__pycache__/
+
+# Configuracoes locais do banco (segredos fora do Git)
+**/config/postgres.ini
