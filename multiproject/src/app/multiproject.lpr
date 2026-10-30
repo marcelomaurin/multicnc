@@ -10,17 +10,27 @@ program multiproject;
 
 uses
   {$IFDEF UNIX}cthreads,{$ENDIF}
-  Interfaces, SysUtils, Forms, multiproject_main, multisuite_context;
+  Interfaces, SysUtils, Forms, Dialogs, multiproject_main, multisuite_context, multiproject_pg_bootstrap;
 
 {$R *.res}
 
 var
   C: TSuiteContext;
   FN: string;
+  DBStatus: string;
 begin
   RequireDerivedFormResource := False;
   Application.Title := 'MultiProject';
   Application.Initialize;
+  { PostgreSQL e opcional; falhas nao apagam arquivos locais nem o projeto aberto. }
+  try
+    PJBootstrapPostgres(DBStatus);
+  except
+    on E: Exception do
+      MessageDlg('PostgreSQL - inicializacao',
+        E.Message + LineEnding + 'O modo local continua disponivel.',
+        mtWarning, [mbOK], 0);
+  end;
   C := ReadSuiteContext;
   FN := C.FileName;
   if (FN = '') and (ParamCount >= 1) and (Copy(ParamStr(1), 1, 2) <> '--') then
