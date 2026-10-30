@@ -22,7 +22,7 @@ interface
 
 uses
   Classes, SysUtils, StrUtils, Math, DateUtils, Forms, Controls, Graphics, StdCtrls,
-  ExtCtrls, ComCtrls, Grids, Dialogs, LCLType,
+  ExtCtrls, ComCtrls, Grids, Dialogs, Menus, LCLType,
   multisuite_controls, multisuite_icons,
   aiprojectduration, aitaskgraph, aiworkcalendar, aicpmscheduler, aitasktype, aicostmodel,
   airesourceload, aiganttview, ainetworkview, aiboardview, airesourceview,
@@ -30,7 +30,8 @@ uses
   multiproject_schedule, multiproject_states, multiproject_examples, multiproject_views,
   multiproject_resources, multiproject_kinds, multiproject_artifacts,
   multiproject_taskctx, multiproject_rules, multiproject_templates, multiproject_lathe,
-  multiproject_estimates, multiproject_bom, multisuite_types, multisuite_registry, multisuite_launcher, multisuite_paths;
+  multiproject_estimates, multiproject_bom, multiproject_pg_store, multiproject_pg_picker,
+  multisuite_types, multisuite_registry, multisuite_launcher, multisuite_paths;
 
 const
   PJ_APP_VERSION = '0.2.0.0';
@@ -43,6 +44,8 @@ type
   TMultiProjectForm = class(TForm)
   private
     FUpdating: Boolean;
+    FDBProjectId: string;
+    FDBRevision: Int64;
     ArtifactTimer: TTimer;
     ArtifactPathEdit: TEdit;
     OpenCNCButton: TSuiteButton;
@@ -69,6 +72,12 @@ type
     procedure TemplateClick(Sender: TObject);
     procedure LatheSheetClick(Sender: TObject);
     procedure BuildSidebar(S: TPanel);
+    procedure BuildDatabaseMenu;
+    function SaveDatabase: Boolean;
+    procedure OpenDBClick(Sender: TObject);
+    procedure SaveDBClick(Sender: TObject);
+    procedure DeleteDBClick(Sender: TObject);
+    procedure SaveLocalClick(Sender: TObject);
     procedure BuildBar;
     procedure BuildFooter;
     procedure BuildPages;
@@ -404,6 +413,7 @@ begin
   Header.Setup('MultiProject', 'Gestao de projetos mecanicos e eletronicos  /  MultiSuite', sikProject);
 
   BuildFooter;
+  BuildDatabaseMenu;
 
   Sidebar := TPanel.Create(Self);
   Sidebar.Parent := Self; Sidebar.Align := alLeft; Sidebar.Width := 214;
@@ -487,6 +497,37 @@ begin
   OpenToolButton.Enabled := False;
   OpenToolButton.Hint := 'Abrir o artefato selecionado na ferramenta da suite';
   OpenToolButton.ShowHint := True;
+end;
+
+procedure TMultiProjectForm.BuildDatabaseMenu;
+var
+  Main: TMainMenu;
+  MI, Item: TMenuItem;
+begin
+  Main := TMainMenu.Create(Self);
+  Menu := Main;
+  MI := TMenuItem.Create(Main);
+  MI.Caption := '&Arquivo local';
+  Main.Items.Add(MI);
+  Item := TMenuItem.Create(Main);
+  Item.Caption := 'Salvar &copia em arquivo...';
+  Item.OnClick := @SaveLocalClick;
+  MI.Add(Item);
+  MI := TMenuItem.Create(Main);
+  MI.Caption := '&Banco de dados (opcional)';
+  Main.Items.Add(MI);
+  Item := TMenuItem.Create(Main);
+  Item.Caption := '&Abrir projeto do PostgreSQL...';
+  Item.OnClick := @OpenDBClick;
+  MI.Add(Item);
+  Item := TMenuItem.Create(Main);
+  Item.Caption := '&Salvar projeto no PostgreSQL...';
+  Item.OnClick := @SaveDBClick;
+  MI.Add(Item);
+  Item := TMenuItem.Create(Main);
+  Item.Caption := '&Excluir projeto do PostgreSQL...';
+  Item.OnClick := @DeleteDBClick;
+  MI.Add(Item);
 end;
 
 procedure TMultiProjectForm.BuildSidebar(S: TPanel);
@@ -954,6 +995,8 @@ begin
   Doc.ClearHistory;
   Doc.Modified := False;
   FileName := '';
+  FDBProjectId := '';
+  FDBRevision := 0;
   FSelectedId := '';
   RefreshAll;
   SetStatus('Defina o objetivo (etapa 1) e insira as tarefas (etapa 2), ou abra o exemplo (Demo).');
@@ -963,6 +1006,8 @@ procedure TMultiProjectForm.LoadExample;
 begin
   BuildMotorExample(Doc);
   FileName := '';
+  FDBProjectId := '';
+  FDBRevision := 0;
   FSelectedId := '';
   RefreshAll;
   Gantt.FitToRows;
@@ -984,6 +1029,8 @@ begin
     end;
   end;
   FileName := AFileName;
+  FDBProjectId := '';
+  FDBRevision := 0;
   FSelectedId := '';
   RefreshAll;
   Gantt.FitToRows;
@@ -1003,6 +1050,8 @@ begin
     end;
   end;
   FileName := AFileName;
+  FDBProjectId := '';
+  FDBRevision := 0;
   UpdateHeader;
   SetStatus('Salvo: ' + AFileName, 1);
 end;
@@ -1405,7 +1454,130 @@ begin
   end;
 end;
 
+{ ---------------- banco PostgreSQL opcional ---------------- }
+
+function TMultiProjectForm.SaveDatabase: Boolean;
+var
+  Id, JSONText: string;
+  Revision: Int64;
+begin
+  Result := False;
+  if not PJPGEnabled then
+  begin
+    SetStatus('PostgreSQL desabilitado; use o arquivo .mproj local.', 2);
+    Exit;
+  end;
+  try
+    JSONText := ProjectToJSONText(Doc);
+    if FDBProjectId = '' then
+    begin
+      PJPGCreate(Doc.Name, JSONText, Id, Revision);
+      FDBProjectId := Id;
+    end
+    else
+      PJPGUpdate(FDBProjectId, Doc.Name, JSONText, FDBRevision, Revision);
+    FDBRevision := Revision;
+    FileName := '';
+    Doc.MarkSaved;
+    UpdateHeader;
+    SetStatus('Projeto salvo no PostgreSQL (revisao ' + IntToStr(Revision) + ').', 1);
+    Result := True;
+  except
+    on E: Exception do SetStatus('PostgreSQL: ' + E.Message, 3);
+  end;
+end;
+
+procedure TMultiProjectForm.SaveDBClick(Sender: TObject);
+begin
+  SaveDatabase;
+end;
+
+procedure TMultiProjectForm.OpenDBClick(Sender: TObject);
+var
+  Projects: TPJStoredProjects;
+  Index: Integer;
+  ProjectName, JSONText: string;
+  Revision: Int64;
+  Temp: TPJProject;
+begin
+  if not PJPGEnabled then
+  begin
+    SetStatus('PostgreSQL desabilitado. Arquivos locais continuam disponiveis.', 2);
+    Exit;
+  end;
+  try
+    PJPGList(Projects);
+    if not PJPGChooseProject(Self, Projects, Index) then Exit;
+    if Doc.Modified and (MessageDlg('MultiProject',
+      'Descartar as alteracoes nao salvas do projeto atual?',
+      mtConfirmation, [mbYes, mbNo], 0) <> mrYes) then Exit;
+    PJPGRead(Projects[Index].Id, ProjectName, JSONText, Revision);
+    Temp := TPJProject.Create;
+    try
+      ProjectFromJSONText(Temp, JSONText);
+    finally
+      Temp.Free;
+    end;
+    ProjectFromJSONText(Doc, JSONText);
+    Doc.ClearHistory;
+    Doc.MarkSaved;
+    FDBProjectId := Projects[Index].Id;
+    FDBRevision := Revision;
+    FileName := '';
+    FSelectedId := '';
+    RefreshAll;
+    Gantt.FitToRows;
+    Network.FitAll;
+    Team.FitToBars;
+    SetStatus('Projeto PostgreSQL aberto: ' + ProjectName, 1);
+  except
+    on E: Exception do SetStatus('Falha ao abrir do PostgreSQL: ' + E.Message, 3);
+  end;
+end;
+
+procedure TMultiProjectForm.DeleteDBClick(Sender: TObject);
+var
+  Projects: TPJStoredProjects;
+  Index: Integer;
+  Revision: Int64;
+begin
+  if not PJPGEnabled then
+  begin
+    SetStatus('PostgreSQL desabilitado.', 2);
+    Exit;
+  end;
+  try
+    PJPGList(Projects);
+    if not PJPGChooseProject(Self, Projects, Index) then Exit;
+    if MessageDlg('Excluir no PostgreSQL',
+      'Excluir permanentemente "' + Projects[Index].Name +
+      '" do banco? Arquivos .mproj locais nao serao apagados.',
+      mtConfirmation, [mbYes, mbNo], 0) <> mrYes then Exit;
+    Revision := Projects[Index].Revision;
+    if Projects[Index].Id = FDBProjectId then Revision := FDBRevision;
+    PJPGDelete(Projects[Index].Id, Revision);
+    if Projects[Index].Id = FDBProjectId then
+    begin
+      FDBProjectId := '';
+      FDBRevision := 0;
+      Doc.Modified := True;
+      UpdateHeader;
+    end;
+    SetStatus('Projeto excluido apenas do PostgreSQL. Arquivos locais preservados.', 1);
+  except
+    on E: Exception do SetStatus('Falha ao excluir do PostgreSQL: ' + E.Message, 3);
+  end;
+end;
+
 procedure TMultiProjectForm.SaveClick(Sender: TObject);
+begin
+  if FDBProjectId <> '' then
+    SaveDatabase
+  else
+    SaveLocalClick(Sender);
+end;
+
+procedure TMultiProjectForm.SaveLocalClick(Sender: TObject);
 var D: TSaveDialog;
 begin
   if FileName <> '' then
