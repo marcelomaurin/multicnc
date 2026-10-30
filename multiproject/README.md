@@ -160,3 +160,14 @@ A estrutura `sql/migrations/` contém **seis scripts numerados**: organizações
 A conexão usa `SQLDB` e `PQConnection` padrão do Free Pascal, que requer a biblioteca cliente `libpq` do PostgreSQL disponível no sistema. O MNote2 foi referência para configuração, interface PostgreSQL e bibliotecas Windows/Linux; seus binários legados não foram copiados sem checagem de versões, dependências e licenças. No servidor da nuvem, os clientes devem futuramente acessar uma **API HTTPS**, não a porta 5432 exposta publicamente.
 
 **Estado funcional exato:** scripts e inicialização opt-in publicados; ainda **não** há CRUD de projetos/tarefas persistidos pelo desktop na base, importação automática dos arquivos `.mproj`, API ou site web. Os arquivos JSON atuais continuam a fonte de dados do aplicativo até a implementação do repositório remoto. Os scripts criam a estrutura para 20 ou mais projetos distintos, sem afirmar que os fluxos multiprojeto já funcionem na interface. Compilação e teste com servidor PostgreSQL real ainda pendentes.
+
+
+## PostgreSQL opcional: operações de projeto no desktop (30/10/2026)
+
+**O modo de arquivos permanece independente e é o padrão.** Nenhum banco é necessário para criar, abrir e salvar projetos locais. Só há conexão PostgreSQL se existir `config/postgres.ini` com `enabled=true`, ou se a variável de ambiente do arquivo de configuração apontar para um INI habilitado.
+
+O desktop passou a oferecer, em **menu Banco de dados (opcional)**, operações explícitas para **listar/abrir projetos do banco, gravar um novo projeto ou atualizar o projeto já aberto, e excluir com confirmação**. A unidade `src/io/multiproject_pg_store.pas` conserva cada documento completo em `projects.document` (JSONB); `organizations` isola o contexto inicial e o banco comporta vários projetos, cada um com UUID próprio. A atualização verifica `revision`; conflito com outra sessão recusa sobrescrita silenciosa. A exclusão no banco não remove arquivos de disco.
+
+No MultiProject, os comandos da barra lateral Novo/Abrir trabalham com .mproj locais; quando um registro do banco estiver aberto, Salvar atualiza o banco, e Arquivo local > Salvar cópia em arquivo permite exportar o projeto para disco.
+
+**Limites e segurança:** a integração publicada salva o **JSON completo** do projeto no campo JSONB; as tabelas relacionais de tarefas, dependências e recursos ainda não são alimentadas nem consultadas pelo desktop. Falta integrar buscas e indicadores nessas tabelas, implementar autenticação/autorizações por usuário, API HTTPS para uso em nuvem e interface web. A conexão direta PostgreSQL deve ficar restrita a ambiente local ou rede privada confiável; não exponha a porta PostgreSQL à internet. O instalador precisa disponibilizar o cliente `libpq` compatível com cada plataforma. Sem compilação ou teste com PostgreSQL real nesta revisão.
