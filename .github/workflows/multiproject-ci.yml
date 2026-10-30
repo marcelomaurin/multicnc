@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install compiler, Lazarus and virtual display
-        run: sudo apt-get update && sudo apt-get install -y lazarus xvfb xauth
+        run: sudo apt-get update && sudo apt-get install -y lazarus xvfb xauth libgtk2.0-dev pkg-config
       - name: Console regressions
         run: bash tests/run_all.sh multiproject
       - name: Build application and UI regressions
