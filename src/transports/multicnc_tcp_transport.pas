@@ -28,7 +28,6 @@ type
   end;
 implementation
 {$IFDEF UNIX}
-uses Sockets, BaseUnix, Unix;
 constructor TTCPTransport.Create(const Endpoint: string);
 var P: Integer;
 begin
@@ -117,7 +116,6 @@ begin FOnState := AEvent; end;
 function TTCPTransport.GetName: string;
 begin Result := 'TCP ' + FHost + ':' + IntToStr(FPort); end;
 {$ELSE}
-implementation
 constructor TTCPTransport.Create(const Endpoint: string);
 var P: Integer; W: TWSAData;
 begin
