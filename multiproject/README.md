@@ -138,3 +138,14 @@ de validação e de fabricação; o usuário confirma cada uma antes de entrar n
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Modelo de dados, grafo, cronograma, formato `.mproj`, integração e IA |
 | [docs/LAYOUT.md](docs/LAYOUT.md) | Tela no padrão da MultiSuite: etapas, vistas, painel e rodapé |
 | [docs/AI_GUIDE.md](docs/AI_GUIDE.md) | Regras para IA que alterar este módulo |
+
+
+## Evolução paralela com Planejador e acesso pela nuvem (30/10/2026)
+
+**Requisito futuro, ainda não implementado.** MultiProject (MultiCNC) e Planejador (EngenhariaArquitetura) evoluem em paralelo com capacidades de gerenciamento equivalentes e propósitos distintos. MultiProject continua ligado a projetos mecânicos, eletrônicos e de fabricação; Planejador continua voltado a arquitetura e engenharia civil. Não unir repositórios nem formatos `.mproj` e `.plan.json`.
+
+**Paridade:** o MultiProject já dispõe de Gantt, rede, Quadro/Kanban e visão Equipe, além de recursos, atribuições, nivelamento e custos no código. O Planejador dispõe atualmente de Gantt e rede e deve receber as demais visões e recursos. Calendário visual e Linha do tempo (Timeline) continuam pendentes no MultiProject (fase 8), assim como linhas de base e relatórios avançados; desenvolver essas capacidades também no Planejador.
+
+**Multi-projeto e nuvem:** novo requisito comum para os dois aplicativos. Projetar banco PostgreSQL capaz de guardar pelo menos 20 projetos independentes, com dados segregados por organização e projeto e painéis de portfólio. Desktop Lazarus e futuro site web deverão acessar os mesmos projetos por API HTTPS autenticada, sem conexão direta pública ao PostgreSQL. Manter importação/exportação local, controle de acesso, histórico, revisões e conflito de edição; prever sincronização e cache offline. Compartilhar contratos e componentes gerais quando fizer sentido, preservando os domínios de cada suíte.
+
+**Pendências:** definir modelo relacional multi-projeto, API, conectores de persistência, portal web, Gantt/Timeline consolidados e testes de isolamento, autorização, concorrência e recuperação. **Esta seção apenas documenta a direção e não afirma implantação ou teste realizado.**
