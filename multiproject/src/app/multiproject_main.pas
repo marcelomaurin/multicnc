@@ -101,6 +101,7 @@ type
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure NavClick(Sender: TObject);
     procedure ViewClick(Sender: TObject);
+    procedure ViewMenuClick(Sender: TObject);
     procedure FitClick(Sender: TObject);
     procedure ZoomInClick(Sender: TObject);
     procedure ZoomOutClick(Sender: TObject);
@@ -503,6 +504,10 @@ procedure TMultiProjectForm.BuildDatabaseMenu;
 var
   Main: TMainMenu;
   MI, Item: TMenuItem;
+  I: Integer;
+const
+  ViewNames: array[0..3] of string = (
+    'Gráfico de Gantt', 'Diagrama de rede', 'Quadro', 'Equipe');
 begin
   Main := TMainMenu.Create(Self);
   Menu := Main;
@@ -528,6 +533,18 @@ begin
   Item.Caption := '&Excluir da nuvem...';
   Item.OnClick := @DeleteDBClick;
   MI.Add(Item);
+  MI := TMenuItem.Create(Main);
+  MI.Caption := '&Exibir';
+  Main.Items.Add(MI);
+  for I := 0 to 3 do
+  begin
+    Item := TMenuItem.Create(Main);
+    Item.Caption := ViewNames[I];
+    Item.Tag := I;
+    Item.ShortCut := ShortCut(VK_1 + I, [ssCtrl]);
+    Item.OnClick := @ViewMenuClick;
+    MI.Add(Item);
+  end;
 end;
 
 procedure TMultiProjectForm.BuildSidebar(S: TPanel);
@@ -583,8 +600,11 @@ begin
     ViewButtons[I].Tag := I;
     if ViewButtons[I].Visible then Inc(X, ViewButtons[I].Width + 6);
   end;
-  ViewButtons[3].Hint := 'Equipe: pessoas e maquinas no tempo, com os conflitos';
-  ViewButtons[3].ShowHint := True;
+  ViewButtons[0].Hint := 'Gráfico de Gantt (Ctrl+1)';
+  ViewButtons[1].Hint := 'Diagrama de rede (Ctrl+2)';
+  ViewButtons[2].Hint := 'Quadro/Kanban (Ctrl+3)';
+  ViewButtons[3].Hint := 'Equipe: alocação e conflitos (Ctrl+4)';
+  for I := 0 to 3 do ViewButtons[I].ShowHint := True;
   ViewButtons[4].Hint := 'Calendario: fase 8';
   ViewButtons[5].Hint := 'Linha do tempo: fase 8';
   Inc(X, 4);
@@ -1387,6 +1407,11 @@ begin
   ShowView(TSuiteButton(Sender).Tag);
 end;
 
+procedure TMultiProjectForm.ViewMenuClick(Sender: TObject);
+begin
+  if Sender is TMenuItem then ShowView(TMenuItem(Sender).Tag);
+end;
+
 procedure TMultiProjectForm.FitClick(Sender: TObject);
 begin
   case CurrentView of
@@ -1641,6 +1666,10 @@ begin
       VK_Z: if not InText then begin UndoClick(nil); Key := 0; end;
       VK_Y: if not InText then begin RedoClick(nil); Key := 0; end;
       VK_F2: begin LinkNextClick(nil); Key := 0; end;
+      VK_1: begin ShowView(VIEW_GANTT); Key := 0; end;
+      VK_2: begin ShowView(VIEW_NETWORK); Key := 0; end;
+      VK_3: begin ShowView(VIEW_BOARD); Key := 0; end;
+      VK_4: begin ShowView(VIEW_TEAM); Key := 0; end;
     end
   else if (ssCtrl in Shift) and (ssShift in Shift) and (Key = VK_F2) then
   begin
