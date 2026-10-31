@@ -1,5 +1,25 @@
 # MultiSuite — Notas de Lançamento / News
 
+## [0.17] — Setup 017 (31/10/2026)
+
+### MultiCAD 0.0.9.0: rosca, engrenagens, revolução e variáveis
+
+- **Rosca real em hélice** (externa e interna, ISO 60°): medida automática pela face
+  (diâmetro do pino ou broca do furo), tabela M2 a M24 ou personalizada, rosca esquerda,
+  comprimento e início, **folga radial para impressão 3D**; termina antes de ombros e
+  fundos de furo.
+- **Engrenagens**: cilíndrica externa, interna (anel) e cremalheira, com dentes retos,
+  helicoidais ou espinha de peixe; perfil evolvente, correção do perfil, folga, furo com
+  chaveta e posição por plano/ponto. O painel mostra diâmetros e distância entre centros.
+- **Revolução**: eixo escolhido com o clique (linha do esboço, aresta reta, eixo ou face
+  cilíndrica) e ícone próprio.
+- **Medidas com conta e variáveis**: `35-10mm`, cotas com nome (`aresta=25`) e referências
+  `Esboço1.aresta`, `Cubo.aresta`, `[Ressalto-Extrusão1].aresta`; mudar a variável
+  recalcula esboços, profundidades e campos das operações.
+- Ponte OpenCascade versão 2 (`mcad_occt.dll` recompilada, booleana sem unificar faces).
+
+---
+
 ## [0.16] — Setup 016 (22/10/2026)
 
 ### MultiProject: integração, sugestões e modelos
