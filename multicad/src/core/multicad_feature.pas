@@ -31,7 +31,20 @@ type
     Suppressed: Boolean;
     State: TCadFeatureState;
     Message: string;
+    { Expressoes dos campos numericos ("angle=Cubo.aresta*2"): a reconstrucao
+      reavalia todas e grava o valor pelo SetNumParam, entao mudar uma
+      variavel recalcula todos os campos que a usam. }
+    Exprs: TStringList;
     constructor Create; virtual;
+    destructor Destroy; override;
+    { SaveParams/LoadParams + as expressoes ("exprs" no .mcad). }
+    procedure SaveAll(O: TJSONObject);
+    procedure LoadAll(O: TJSONObject);
+    { Grava o valor do campo AKey (mm/graus). False = campo desconhecido. }
+    function SetNumParam(const AKey: string; AValue: Double): Boolean; virtual;
+    function ExprOf(const AKey: string): string;
+    { Expressao do campo; vazio remove (valor fixo). }
+    procedure SetExpr(const AKey, AExpr: string);
     procedure SaveParams(O: TJSONObject); virtual;
     { Le os parametros; erro de conteudo -> excecao com mensagem clara. }
     procedure LoadParams(O: TJSONObject); virtual;
@@ -67,6 +80,68 @@ begin
   inherited Create;
   Id := 0;
   State := fsOk;
+  Exprs := TStringList.Create;
+end;
+
+destructor TCadFeature.Destroy;
+begin
+  Exprs.Free;
+  inherited Destroy;
+end;
+
+procedure TCadFeature.SaveAll(O: TJSONObject);
+var
+  E: TJSONObject;
+  I: Integer;
+begin
+  SaveParams(O);
+  if Exprs.Count = 0 then
+    Exit;
+  E := TJSONObject.Create;
+  for I := 0 to Exprs.Count - 1 do
+    E.Add(Exprs.Names[I], Exprs.ValueFromIndex[I]);
+  O.Add('exprs', E);
+end;
+
+procedure TCadFeature.LoadAll(O: TJSONObject);
+var
+  D: TJSONData;
+  I: Integer;
+begin
+  LoadParams(O);
+  Exprs.Clear;
+  D := O.Find('exprs');
+  if D = nil then
+    Exit;
+  if not (D is TJSONObject) then
+    raise Exception.Create('Campo "exprs" deve ser objeto');
+  for I := 0 to TJSONObject(D).Count - 1 do
+    if TJSONObject(D).Items[I].JSONType = jtString then
+      Exprs.Values[TJSONObject(D).Names[I]] := TJSONObject(D).Items[I].AsString;
+end;
+
+function TCadFeature.SetNumParam(const AKey: string; AValue: Double): Boolean;
+begin
+  Result := False;
+end;
+
+function TCadFeature.ExprOf(const AKey: string): string;
+begin
+  Result := Exprs.Values[AKey];
+end;
+
+procedure TCadFeature.SetExpr(const AKey, AExpr: string);
+var
+  I: Integer;
+begin
+  I := Exprs.IndexOfName(AKey);
+  if Trim(AExpr) = '' then
+  begin
+    if I >= 0 then
+      Exprs.Delete(I);
+  end
+  else
+    Exprs.Values[AKey] := Trim(AExpr);
 end;
 
 procedure TCadFeature.SetKind(AKind: TCadFeatureKind);

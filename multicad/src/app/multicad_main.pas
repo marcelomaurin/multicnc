@@ -30,7 +30,7 @@ uses
   multicad_sketchedit, multicad_propman, multicad_undo, multicad_hole, multicad_pattern, multicad_blend, multicad_occt, multicad_import, multicad_materialdlg, multicad_textures, multicad_export, multicad_measure,
   multisuite_types, multisuite_registry, multisuite_launcher, multisuite_context,
   multicad_sketchpattern, multicad_sketchpatterndlg, multicad_sketchtext,
-  multicad_sketchtextdlg;
+  multicad_sketchtextdlg, multicad_threadop, multicad_gear;
 
 type
   TCadTab = (ctFeatures, ctSketch, ctEvaluate, ctView, ctExport, ctAbout);
@@ -78,6 +78,8 @@ type
     procedure UndoClick(Sender: TObject);
     procedure RedoClick(Sender: TObject);
     procedure HoleClick(Sender: TObject);
+    procedure ThreadClick(Sender: TObject);
+    procedure GearClick(Sender: TObject);
     procedure LinearPatternClick(Sender: TObject);
     procedure CircularPatternClick(Sender: TObject);
     procedure SketchPatternClick(Sender: TObject);
@@ -572,14 +574,16 @@ begin
     ctFeatures:
       begin
         RibbonButton('Ressalto extrudado', sikMove, @ExtrudeClick);
-        RibbonButton('Ressalto revolucionado', sikRedo, @RevolveClick);
+        RibbonButton('Ressalto revolucionado', sikRevolve, @RevolveClick);
         RibbonSep;
         RibbonButton('Corte extrudado', sikTrash, @CutClick);
-        RibbonButton('Corte revolucionado', sikUndo, @RevolveCutClick);
+        RibbonButton('Corte revolucionado', sikRevolve, @RevolveCutClick);
         RibbonSep;
         RibbonButton('Plano', sikLayers, @PlaneClick);
         RibbonSep;
         RibbonButton('Furo', sikTarget, @HoleClick);
+        RibbonButton('Rosca', sikThread, @ThreadClick);
+        RibbonButton('Engrenagem', sikGear, @GearClick, 0, 92);
         RibbonButton('Padrão linear', sikCopy, @LinearPatternClick);
         RibbonButton('Padrão circular', sikRedo, @CircularPatternClick);
         RibbonButton('Espelhar', sikMirrorH, @MirrorClick);
@@ -717,6 +721,8 @@ begin
   Command('Esboço',@SketchClick);Command('Plano',@PlaneClick);
   Command('-',nil);Command('Ressalto extrudado',@ExtrudeClick);Command('Corte extrudado',@CutClick);
   Command('Ressalto revolucionado',@RevolveClick);Command('Corte revolucionado',@RevolveCutClick);
+  Command('-',nil);Command('Furo',@HoleClick);Command('Rosca',@ThreadClick);
+  Command('Engrenagem',@GearClick);
   Root:=Category('Ferramentas');
   Command('Reconstruir',@RebuildClick);Command('Propriedades de massa',@MassClick);
   Command('Medir',@MeasureClick);Command('Exportar STL...',@ExportSTLClick);
@@ -1076,7 +1082,7 @@ begin
   else if F is TCadSketch then
     EditSketch(TCadSketch(F))
   else if (F is TCadExtrude) or (F is TCadRevolve) or (F is TCadHole) or
-    (F is TCadPatternBase) then
+    (F is TCadPatternBase) or (F is TCadModelThread) or (F is TCadGear) then
     BeginEdit(F, False);
 end;
 
@@ -1172,6 +1178,7 @@ begin
     TreeMenu.Items[I].Enabled := Assigned(F) and not PM.Visible and not Assigned(FEditor);
   TreeMenu.Items[0].Enabled := TreeMenu.Items[0].Enabled and
     ((F is TCadExtrude) or (F is TCadRevolve) or (F is TCadHole) or (F is TCadPatternBase) or
+    (F is TCadModelThread) or (F is TCadGear) or
     ((F is TCadPlane) and (TCadPlane(F).PlaneType <> ptStandard)));
   TreeMenu.Items[1].Enabled := TreeMenu.Items[1].Enabled and (F is TCadSketch);
   if Assigned(F) and F.Suppressed then
@@ -2106,6 +2113,45 @@ begin
     Result := C;
 end;
 
+procedure TMainForm.ThreadClick(Sender: TObject);
+var
+  T: TCadModelThread;
+  R: string;
+begin
+  if PM.Visible then
+    Exit;
+  if Assigned(FEditor) then
+    ExitSketch(nil);
+  { face cilindrica selecionada (eixo ou furo); sem ela o campo fica ativo }
+  R := SelectedFaceRef;
+  T := TCadModelThread.Create;
+  T.FaceRef := R;
+  Doc.AddFeature(T);
+  BeginEdit(T, True);
+end;
+
+procedure TMainForm.GearClick(Sender: TObject);
+var
+  G: TCadGear;
+  F: TCadFeature;
+  R: string;
+begin
+  if PM.Visible then
+    Exit;
+  if Assigned(FEditor) then
+    ExitSketch(nil);
+  G := TCadGear.Create;
+  { plano marcado na arvore ou face plana selecionada: base da engrenagem }
+  F := SelectedFeature;
+  R := SelectedFaceRef;
+  if F is TCadPlane then
+    G.PlaneRef := 'plane:' + IntToStr(F.Id)
+  else if (R <> '') then
+    G.PlaneRef := R;
+  Doc.AddFeature(G);
+  BeginEdit(G, True);
+end;
+
 procedure TMainForm.HoleClick(Sender: TObject);
 var
   S: TCadSketch;
@@ -2402,7 +2448,7 @@ begin
   CadLogFeature('FEATURE.EDIT new='+BoolToStr(AIsNew,True),F);
   FreeAndNil(FSnapshot);
   FSnapshot := TJSONObject.Create;
-  F.SaveParams(FSnapshot);
+  F.SaveAll(FSnapshot);
   FSnapName := F.Name;
   View.Selected.Clear;
   View.HighlightPrefix := F.Name + '/';
@@ -2415,7 +2461,9 @@ begin
   Tree.Visible := False;
   PM.Visible := True;
   PM.Edit(Doc, F, AIsNew);
-  View.PickEdges := F is TCadBlendBase;
+  View.PickEdges := (F is TCadBlendBase) or (F is TCadRevolve);
+  { revolucao: eixo por linha do esboco; engrenagem: centro por ponto }
+  View.PickSketchEntities := (F is TCadRevolve) or (F is TCadGear);
   if F is TCadBlendBase then
   begin
     { como no SolidWorks: o modelo fica como antes da operacao (as arestas
@@ -2450,12 +2498,13 @@ begin
         Doc.DeleteFeature(FAutoSketchId, Err);
     end
     else if Assigned(FSnapshot) then
-      F.LoadParams(FSnapshot);
+      F.LoadAll(FSnapshot);
   end;
   FreeAndNil(FSnapshot);
   FAutoSketchId := 0;
   StopBlendEdit;
   View.PickEdges := True;
+  View.PickSketchEntities := False;
   View.Selected.Clear;
   PM.Visible := False;
   Tree.Visible := True;
@@ -2488,6 +2537,7 @@ begin
     RB.Rebuild;
     View.ModelChanged;
     UpdatePartStatus;
+    PM.RefreshInfo;
     if F.State = fsError then
       PM.ShowMessageText(F.Message, True)
     else if F.Message <> '' then

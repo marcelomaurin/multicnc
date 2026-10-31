@@ -36,6 +36,7 @@ type
     procedure LoadParams(O: TJSONObject); override;
     function Validate: string; override;
     function Dependencies: TCadIdArray; override;
+    function SetNumParam(const AKey: string; AValue: Double): Boolean; override;
   end;
 
   TCadRevolveCut = class(TCadRevolve)
@@ -147,6 +148,17 @@ constructor TCadRevolveCut.Create;
 begin
   inherited Create;
   SetKind(cfRevolveCut);
+end;
+
+function TCadRevolve.SetNumParam(const AKey: string; AValue: Double): Boolean;
+begin
+  Result := True;
+  if AKey = 'angle' then
+    Angle := AValue
+  else if AKey = 'angle2' then
+    Angle2 := AValue
+  else
+    Result := inherited SetNumParam(AKey, AValue);
 end;
 
 initialization

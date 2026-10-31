@@ -1,11 +1,13 @@
 # MultiCAD
 
-> **Estado (12/10/2026, versão 0.0.8.4):** já dá para abrir o `bin/multicad.exe`,
+> **Estado (31/10/2026, versão 0.0.9.0):** já dá para abrir o `bin/multicad.exe`,
 > criar esboços com cotas e relações (no plano ou numa face), fazer ressalto e corte
 > extrudados ou revolucionados, planos de referência, editar pela árvore e pelo
 > PropertyManager, ver em 5 estilos e em seção, salvar em `.mcad`, medir, exportar STL
-> (em pé para o MultiSlicer) e DXF. Inclui furo, padrões, espelho, Aparar (Trim)
-> e texto convertido em contornos vetoriais do esboço. Exemplo: `examples/suporte.mcad`.
+> (em pé para o MultiSlicer) e DXF. Inclui furo, **rosca real em hélice**, **engrenagens**
+> (externa, interna e cremalheira; retas, helicoidais e espinha de peixe), padrões,
+> espelho, Aparar (Trim), texto vetorial e **medidas com conta e variáveis**
+> (`35-10mm`, `aresta=25`, `Cubo.aresta*2`). Exemplo: `examples/suporte.mcad`.
 > Plano e pendências em [docs/TAREFA.md](docs/TAREFA.md).
 
 O **MultiCAD** é o CAD **paramétrico de peças mecânicas** da suíte. O fluxo de referência é o do
@@ -272,6 +274,89 @@ Regressao: `test_multicad` verifica projecao, eixo, volume e malha fechada; `tes
 - Os perfis e a exportacao DXF continuam ignorando a geometria de apoio.
 - test_sketch_visibility_ui cobre o seletor do componente, desenho no
   esboco ativo, saida/reentrada, previa e referencias entre esbocos.
+
+## Rosca, engrenagem, revolucao e variaveis (0.0.9.0)
+
+### Medidas com conta e variaveis
+- Toda cota e todo campo numerico do PropertyManager aceitam conta:
+  `35-10mm` (25), `80/2`, `(35-10)mm`, `1in`, `sqrt(2)*10`.
+- Cota com nome proprio: digite `aresta=25` (ou `aresta = 35-10mm`) ao
+  colocar ou editar a cota. Ela passa a se chamar `aresta` (no lugar de D1)
+  e aparece na tela como "aresta = 25 mm". Para editar de novo aparece
+  `aresta=25`. Ao desenhar a linha/circulo tambem vale digitar `aresta=80`.
+- Referencias a variavel, em qualquer cota ou campo:
+  - `Esboço1.aresta` (pelo esboco);
+  - `Cubo.aresta` (pela operacao que usa o esboco; renomeie a operacao com F2);
+  - `[Ressalto-Extrusão1].aresta` (colchetes para nomes com hifen/espaco);
+  - `aresta` sozinho, quando so uma cota da peca tem esse nome;
+  - `D1@Esboço1` continua valendo.
+- Mudou a variavel, a reconstrucao recalcula da modificacao para baixo
+  todos os esbocos, profundidades e campos que a usam (a operacao guarda a
+  expressao no `.mcad`, campo `exprs`). Expressao que deixa de valer vira
+  aviso na arvore e o campo fica com o ultimo valor.
+- Nomes: letra ou `_` no inicio, depois letras, numeros e `_` (sem espaco nem
+  ponto); unicos no esboco; `pi`, `sqrt`, `mm`, `in`... sao reservados.
+
+### Rosca (rosca real em helice)
+- Selecione a face cilindrica (pino = rosca externa; furo = rosca interna) e
+  clique em **Rosca** (aba Operacoes ou Inserir > Rosca). Sem face
+  selecionada, o campo fica rosa: clique na face na vista.
+- Medida automatica: externa pelo diametro do cilindro, interna pela broca do
+  furo (6,75/6,8 -> M8; 7,0 -> M8 fino). Ou escolha M2 a M24 (passo normal ou
+  fino) ou **Personalizada** (diametro e passo).
+- Perfil ISO 68-1 de 60 graus: externa com raiz em d3 (fundo plano p/6, no
+  lugar do arredondado); interna com crista em D1. A crista do parafuso fica
+  0,03 mm abaixo do cilindro modelado e a da porca 0,03 mm alem do furo.
+- Comprimento 0 = face inteira; deslocamento do inicio; comecar pela outra
+  ponta; rosca esquerda. **Folga radial** para impressao 3D (FDM: 0,1 a
+  0,2 mm): a externa encolhe e a interna cresce.
+- Nas pontas: com ar do lado de fora (ponta do pino, furo passante) a rosca
+  vai ate o fim; com material (ombro, fundo de furo cego) ela termina 0,15
+  passo antes, como a saida de rosca.
+- Nucleo OpenCascade (padrao com a `mcad_occt.dll`): ferramenta poliedrica e
+  booleana sem juntar faces (`mcad_bool_ex`, ponte versao 2) - alguns
+  segundos por rosca. Com a DLL antiga a rosca da erro em vez de travar.
+  Nucleo Pascal (sem a DLL): funciona, mas leva ~20 s e pode recusar
+  roscas longas com "Falha no corte" (o modelo anterior continua valido).
+
+### Engrenagem
+- **Engrenagem** (aba Operacoes ou Inserir > Engrenagem): cilindrica externa,
+  interna (anel) ou cremalheira; dentes retos, helicoidais ou espinha de
+  peixe. Perfil evolvente pela cremalheira basica ISO 53 (adendo 1 m,
+  dedendo 1,25 m).
+- Parametros: modulo e angulo de pressao normais, numero de dentes, angulo e
+  mao da helice, largura da face, correcao do perfil x, folga no primitivo,
+  furo com rasgo de chaveta (nao gira com a helice), diametro externo do
+  anel, altura da cremalheira.
+- Posicao: plano ou face plana da base (o plano marcado na arvore ou a face
+  selecionada), centro num ponto do esboco (clique no ponto), giro, afastar
+  do plano e inverter lado. A engrenagem nasce como corpo separado
+  (componente proprio); marque **Mesclar resultado** para uni-la ao eixo.
+- O painel mostra os diametros (primitivo, externo, pe, base), o giro dos
+  dentes e a distancia entre centros para o par: externa m(z1+z2)/2;
+  interna m(z2-z1)/2; cremalheira a d/2 da linha primitiva. Pares
+  helicoidais externos usam maos opostas; com interna, a mesma mao.
+- Abaixo de 17 dentes (20 graus, x = 0) aparece aviso de rebaixo; use
+  correcao positiva. O pe abaixo da circunferencia de base e radial.
+
+### Revolucao
+- Icone proprio. O eixo pode ser clicado na vista: linhas do esboco do perfil
+  (inclusive linhas de centro e de construcao, que aparecem tracejadas
+  durante a edicao), aresta reta, eixo de referencia ou face cilindrica (usa
+  o eixo dela). Sem linha de centro, o campo do eixo ja abre ativo.
+- Sem eixo escolhido, vale a linha de centro do esboco ou, se nao houver,
+  uma unica linha de construcao.
+
+### Testes
+- `test_multicad`: rosca externa/interna/esquerda/folga contra o volume
+  analitico (Pappus), erros de face e medida; engrenagens (volumes,
+  posicao, helicoidal, interna, cremalheira, chaveta, `.mcad`); eixo por
+  aresta, face e linha de construcao; contas, nomes, `Objeto.medida`,
+  colchetes, propagacao e campos com expressao. 678 checks com OpenCascade,
+  659 no nucleo Pascal.
+- `test_thread_gear_ui`: Inserir > Rosca com a face selecionada, Inserir >
+  Engrenagem, eixo da revolucao clicado numa linha de construcao na vista,
+  OK, gravar e reabrir.
 
 ## Texto vetorial no esboco (0.0.8.4)
 - Em um esboco aberto, clique em **Texto**, digite o conteudo e escolha uma

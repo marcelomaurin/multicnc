@@ -44,6 +44,7 @@ type
     procedure LoadParams(O: TJSONObject); override;
     function Validate: string; override;
     function Dependencies: TCadIdArray; override;
+    function SetNumParam(const AKey: string; AValue: Double): Boolean; override;
   end;
 
   TCadCircularPattern = class(TCadPatternBase)
@@ -60,6 +61,7 @@ type
     function Dependencies: TCadIdArray; override;
     { Passo em graus entre as copias. }
     function StepAngle: Double;
+    function SetNumParam(const AKey: string; AValue: Double): Boolean; override;
   end;
 
   TCadMirror = class(TCadPatternBase)
@@ -295,6 +297,32 @@ function TCadMirror.Dependencies: TCadIdArray;
 begin
   Result := inherited Dependencies;
   AddDep(Result, CadRefFeatureId(PlaneRef));
+end;
+
+function TCadLinearPattern.SetNumParam(const AKey: string; AValue: Double): Boolean;
+begin
+  Result := True;
+  if AKey = 'spacing1' then
+    Spacing1 := AValue
+  else if AKey = 'count1' then
+    Count1 := Round(AValue)
+  else if AKey = 'spacing2' then
+    Spacing2 := AValue
+  else if AKey = 'count2' then
+    Count2 := Round(AValue)
+  else
+    Result := inherited SetNumParam(AKey, AValue);
+end;
+
+function TCadCircularPattern.SetNumParam(const AKey: string; AValue: Double): Boolean;
+begin
+  Result := True;
+  if AKey = 'count' then
+    Count := Round(AValue)
+  else if AKey = 'angle' then
+    Angle := AValue
+  else
+    Result := inherited SetNumParam(AKey, AValue);
 end;
 
 initialization

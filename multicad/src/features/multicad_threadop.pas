@@ -43,6 +43,7 @@ type
     procedure SaveParams(O: TJSONObject); override;
     procedure LoadParams(O: TJSONObject); override;
     function Validate: string; override;
+    function SetNumParam(const AKey: string; AValue: Double): Boolean; override;
   end;
 
 { Medida da tabela mais proxima: externa pelo diametro nominal, interna pela
@@ -151,6 +152,23 @@ begin
     end;
   end;
   Result := Best <= Tol;
+end;
+
+function TCadModelThread.SetNumParam(const AKey: string; AValue: Double): Boolean;
+begin
+  Result := True;
+  if AKey = 'diameter' then
+    Diameter := AValue
+  else if AKey = 'pitch' then
+    Pitch := AValue
+  else if AKey = 'length' then
+    Length := AValue
+  else if AKey = 'offset' then
+    Offset := AValue
+  else if AKey = 'clearance' then
+    Clearance := AValue
+  else
+    Result := inherited SetNumParam(AKey, AValue);
 end;
 
 initialization

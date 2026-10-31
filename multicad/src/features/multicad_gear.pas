@@ -10,8 +10,8 @@ unit multicad_gear;
   - Reverse: cresce para o outro lado do plano; Offset: afasta do plano.
   Cremalheira: o ponto e o inicio da linha primitiva; comprimento ao longo
   do eixo X do plano (girado por Angle), dentes para +Y.
-  Mesclar resultado (padrao): une ao corpo que tocar; sem tocar, vira um
-  corpo novo, como o ressalto. }
+  Por padrao a engrenagem e um corpo separado (componente proprio); com
+  Mesclar resultado ela se une ao corpo que tocar. }
 
 {$mode objfpc}{$H+}
 
@@ -36,6 +36,7 @@ type
     procedure LoadParams(O: TJSONObject); override;
     function Validate: string; override;
     function Dependencies: TCadIdArray; override;
+    function SetNumParam(const AKey: string; AValue: Double): Boolean; override;
   end;
 
 implementation
@@ -47,7 +48,9 @@ begin
   Spec := CadGearDefaults;
   PlaneRef := 'plane:1';
   CenterRef := '';
-  Merge := True;
+  { componente proprio: corpo separado; "Mesclar resultado" une ao corpo
+    que tocar (engrenagem feita junto com o eixo) }
+  Merge := False;
 end;
 
 procedure TCadGear.SaveParams(O: TJSONObject);
@@ -122,7 +125,7 @@ begin
   Angle := JNum(O, 'angle', 0);
   Reverse := JBool(O, 'reverse', False);
   Offset := JNum(O, 'offset', 0);
-  Merge := JBool(O, 'merge', True);
+  Merge := JBool(O, 'merge', False);
 end;
 
 function TCadGear.Validate: string;
@@ -149,6 +152,41 @@ begin
   Result := nil;
   Add(PlaneRef);
   Add(CenterRef);
+end;
+
+function TCadGear.SetNumParam(const AKey: string; AValue: Double): Boolean;
+begin
+  Result := True;
+  if AKey = 'module' then
+    Spec.Module := AValue
+  else if AKey = 'count' then
+    Spec.Count := Round(AValue)
+  else if AKey = 'pressure' then
+    Spec.Pressure := AValue
+  else if AKey = 'helix' then
+    Spec.Helix := AValue
+  else if AKey = 'width' then
+    Spec.Width := AValue
+  else if AKey = 'shift' then
+    Spec.Shift := AValue
+  else if AKey = 'backlash' then
+    Spec.Backlash := AValue
+  else if AKey = 'bore' then
+    Spec.Bore := AValue
+  else if AKey = 'key_width' then
+    Spec.KeyWidth := AValue
+  else if AKey = 'key_depth' then
+    Spec.KeyDepth := AValue
+  else if AKey = 'outer_d' then
+    Spec.OuterD := AValue
+  else if AKey = 'rack_height' then
+    Spec.RackHeight := AValue
+  else if AKey = 'angle' then
+    Angle := AValue
+  else if AKey = 'offset' then
+    Offset := AValue
+  else
+    Result := inherited SetNumParam(AKey, AValue);
 end;
 
 initialization

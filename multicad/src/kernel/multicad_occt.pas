@@ -559,7 +559,18 @@ end;
 function OcctBoolean(A, B: TOcctShape; Op: Integer; out AError: string): TOcctShape;
 begin
   AError := '';
-  Result := f_bool(A, B, Op);
+  try
+    Result := f_bool(A, B, Op);
+  except
+    { falha interna do OpenCascade (no Windows chega como violacao de
+      acesso): a operacao fica com erro e o modelo anterior continua }
+    on E: Exception do
+    begin
+      Result := nil;
+      AError := 'falha interna do OpenCascade na booleana (' + E.ClassName + ')';
+      Exit;
+    end;
+  end;
   if Result = nil then
     AError := OcctLastError;
 end;
@@ -574,7 +585,16 @@ begin
   if not (OcctAvailable and Assigned(f_bool_ex)) then
     Exit(OcctBoolean(A, B, Op, AError));
   AError := '';
-  Result := f_bool_ex(A, B, Op, 0);
+  try
+    Result := f_bool_ex(A, B, Op, 0);
+  except
+    on E: Exception do
+    begin
+      Result := nil;
+      AError := 'falha interna do OpenCascade na booleana (' + E.ClassName + ')';
+      Exit;
+    end;
+  end;
   if Result = nil then
     AError := OcctLastError;
 end;

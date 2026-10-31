@@ -425,20 +425,58 @@ end;
 
 function TCadDocument.ResolveVar(const AName: string; out AValue: Double): Boolean;
 var
-  P: Integer;
+  P, I, Found: Integer;
   Dim, Owner: string;
-  F: TCadFeature;
+  F, G: TCadFeature;
+  Deps: TCadIdArray;
+  V: Double;
 begin
   Result := False;
   AValue := 0;
+  { "D1@Esboço1" (como no SolidWorks) }
   P := Pos('@', AName);
-  if P <= 1 then
+  if P > 1 then
+  begin
+    Dim := Copy(AName, 1, P - 1);
+    Owner := Copy(AName, P + 1, MaxInt);
+    F := FindByName(Owner);
+    if F is TCadSketch then
+      Result := TCadSketch(F).FindDimension(Dim, AValue);
     Exit;
-  Dim := Copy(AName, 1, P - 1);
-  Owner := Copy(AName, P + 1, MaxInt);
-  F := FindByName(Owner);
-  if F is TCadSketch then
-    Result := TCadSketch(F).FindDimension(Dim, AValue);
+  end;
+  { "Objeto.medida": o esboco pelo nome, ou a operacao que usa o esboco
+    (ex.: "Cubo.aresta" com Cubo = extrusao do esboco que tem "aresta") }
+  P := LastDelimiter('.', AName);
+  if P > 1 then
+  begin
+    Owner := Copy(AName, 1, P - 1);
+    Dim := Copy(AName, P + 1, MaxInt);
+    F := FindByName(Owner);
+    if F is TCadSketch then
+      Exit(TCadSketch(F).FindDimension(Dim, AValue));
+    if F <> nil then
+    begin
+      Deps := F.Dependencies;
+      for I := 0 to High(Deps) do
+      begin
+        G := FindById(Deps[I]);
+        if (G is TCadSketch) and TCadSketch(G).FindDimension(Dim, AValue) then
+          Exit(True);
+      end;
+    end;
+    Exit;
+  end;
+  { so o nome: vale quando uma unica cota da peca tem esse nome }
+  Found := 0;
+  for I := 0 to Count - 1 do
+    if (Feature(I) is TCadSketch) and TCadSketch(Feature(I)).FindDimension(AName, V) then
+    begin
+      Inc(Found);
+      AValue := V;
+    end;
+  Result := Found = 1;
+  if not Result then
+    AValue := 0;
 end;
 
 function TCadDocument.Eval(const AText: string; out AValue: Double;
@@ -555,7 +593,7 @@ begin
       FO.Add('name', F.Name);
       FO.Add('suppressed', F.Suppressed);
       P := TJSONObject.Create;
-      F.SaveParams(P);
+      F.SaveAll(P);
       FO.Add('params', P);
       Arr.Add(FO);
     end;
@@ -640,7 +678,7 @@ begin
             raise Exception.CreateFmt('Parâmetros inválidos em "%s"', [F.Name]);
           P := TJSONObject(FD);
           try
-            F.LoadParams(P);
+            F.LoadAll(P);
           except
             on E: Exception do
               raise Exception.CreateFmt('%s: %s', [F.Name, E.Message]);

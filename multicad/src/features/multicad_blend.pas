@@ -35,6 +35,7 @@ type
     procedure SaveParams(O: TJSONObject); override;
     procedure LoadParams(O: TJSONObject); override;
     function Validate: string; override;
+    function SetNumParam(const AKey: string; AValue: Double): Boolean; override;
   end;
 
   TCadChamfer3D = class(TCadBlendBase)
@@ -50,6 +51,7 @@ type
     function Validate: string; override;
     { Distancias sobre a primeira e a segunda face. }
     procedure Distances(out D1, D2: Double);
+    function SetNumParam(const AKey: string; AValue: Double): Boolean; override;
   end;
 
   TCadShell = class(TCadFeature)
@@ -61,6 +63,7 @@ type
     procedure SaveParams(O: TJSONObject); override;
     procedure LoadParams(O: TJSONObject); override;
     function Validate: string; override;
+    function SetNumParam(const AKey: string; AValue: Double): Boolean; override;
   end;
 
 const
@@ -255,6 +258,37 @@ begin
   Result := '';
   if Thickness <= 0 then
     Result := 'Espessura deve ser maior que zero';
+end;
+
+function TCadFillet3D.SetNumParam(const AKey: string; AValue: Double): Boolean;
+begin
+  Result := True;
+  if AKey = 'radius' then
+    Radius := AValue
+  else
+    Result := inherited SetNumParam(AKey, AValue);
+end;
+
+function TCadChamfer3D.SetNumParam(const AKey: string; AValue: Double): Boolean;
+begin
+  Result := True;
+  if AKey = 'distance' then
+    Distance := AValue
+  else if AKey = 'distance2' then
+    Distance2 := AValue
+  else if AKey = 'angle' then
+    Angle := AValue
+  else
+    Result := inherited SetNumParam(AKey, AValue);
+end;
+
+function TCadShell.SetNumParam(const AKey: string; AValue: Double): Boolean;
+begin
+  Result := True;
+  if AKey = 'thickness' then
+    Thickness := AValue
+  else
+    Result := inherited SetNumParam(AKey, AValue);
 end;
 
 initialization

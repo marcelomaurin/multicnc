@@ -52,6 +52,10 @@ Documento CAD, features, sketches, extrusoes, transformacoes geometricas, viewpo
 - src/features/multicad_hole.pas: assistente de furo (tipos, perfil de revolucao).
 - src/features/multicad_pattern.pas: padrao linear, circular e espelhar.
 - src/core/multicad_threads.pas: tabelas de rosca, passagem, rebaixo e escareado.
+- src/kernel/multicad_threadgeom.pas: ferramenta da rosca em helice (perfil ISO 60 graus, externa/interna, direita/esquerda, folga), volume analitico.
+- src/features/multicad_threadop.pas: operacao Rosca (face cilindrica, medida automatica/tabela/personalizada).
+- src/kernel/multicad_gears.pas: geometria de engrenagens (evolvente, interna, cremalheira, helicoidal, espinha de peixe, furo e chaveta).
+- src/features/multicad_gear.pas: operacao Engrenagem (parametros e posicao).
 - src/core/multicad_undo.pas: desfazer/refazer por estados do documento.
 - src/ui/multicad_textures.pas e data/textures: texturas dos materiais.
 - src/ui/multicad_materialdlg.pas: janela de material.
@@ -230,3 +234,42 @@ A alca usa TCadRebuilder.ExtrudeHandle, resolvendo as referencias nos corpos ant
   Selecionar. Nao alterar filete 3D, kernels ou formatos de persistencia.
 - tests/test_sketch_trim.lpi e test_sketch_trim_ui.lpi cobrem geometria,
   solver, perfis extrudaveis, cliques, previa, historico e arquivo .mcad.
+
+
+## Rosca, engrenagem, eixo da revolucao e variaveis (0.0.9.0)
+- Rosca: `BuildThread` acha extensao e lado da face (pino/furo) pela malha,
+  escolhe a medida, decide as pontas (ar = passa a ferramenta; material =
+  para 0,15 passo antes, por `PointInsideMesh`) e corta so o corpo da face.
+  A ferramenta entra 0,03 mm alem da parede: a parede inteira sai na regiao
+  roscada e a booleana so tem intersecoes transversais. Nao mude isso para
+  "crista coincidente com o cilindro": a BSP gera malha aberta.
+- No OpenCascade a ferramenta vai poliedrica e `FRawBool` usa
+  `OcctBooleanRaw` (`mcad_bool_ex` com simplify = 0): a unificacao de faces
+  do OCCT trava em faces helicoidais. A varredura helicoidal exata
+  (MakePipeShell com Frenet) foi testada e ficou instavel em roscas longas
+  (volume errado, solido invalido): nao reintroduzir sem testes de volume.
+- Ponte OCCT versao 2 (`mcad_version` = 2): `mcad_bool_ex`. Carregada como
+  opcional; sem ela a rosca no OCCT da erro claro. `bin/mcad_occt.dll`
+  recompilada (OCCT 7.6.3 estatico, MinGW posix) com `occt/build_win64.sh`.
+- Engrenagem: solido montado em camadas (giro proporcional a altura; espinha
+  de peixe sobe ate a metade e volta; cremalheira desloca em X). Furo e
+  chaveta nao giram. Faces `<nome>/dentes`, `/base`, `/topo`, `/furo`
+  (cilindro), `/chaveta1..3`, `/ext`, `/costas`, `/lado1`, `/lado2`.
+- Revolucao: `ResolveLine` aceita `edge:A|B` (reta, por `EdgeLine`) e
+  `face:` cilindrica; a vista com `PickSketchEntities` desenha e devolve
+  linhas/pontos de esboco (`CAD_TAG_SKENT`: indice da operacao * 1024 +
+  entidade) para o eixo da revolucao e o centro da engrenagem.
+- Variaveis: `TCadSketch.SetConstraintText` ("nome=expr"), `ConstraintEditText`,
+  `HasCustomDimName`; `TCadDocument.ResolveVar` aceita `D1@Esboço1`,
+  `Objeto.medida` (esboco ou operacao que usa o esboco), nome unico e
+  `[Nome-com-hifen].medida` (colchetes no `multicad_units`).
+  `TCadFeature.Exprs` + `SetNumParam`: campos do PropertyManager com conta ou
+  variavel guardam a expressao (`KeyEdit`/`HelpKeyword`) e `EvalExprs`
+  recalcula a cada reconstrucao; use `SaveAll`/`LoadAll` (nao so
+  SaveParams) onde o estado completo da operacao importa.
+- PropertyManager: `Clear` zera os ponteiros dos campos usados para comparar
+  com o campo ativo (`edAxis`, `edThFace`, `edGPlane`, `edGCenter`); um
+  controle novo pode nascer no endereco de um liberado.
+- Testes: `TestThreadsGears` e `TestNamedDims` em `test_multicad`;
+  `test_thread_gear_ui`.
+

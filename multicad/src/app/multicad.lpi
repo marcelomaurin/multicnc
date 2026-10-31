@@ -12,9 +12,9 @@
   <VersionInfo>
    <UseVersionInfo Value="True"/>
    <MinorVersionNr Value="0"/>
-   <RevisionNr Value="8"/>
-   <BuildNr Value="5"/>
-   <StringTable CompanyName="Maurinsoft" FileDescription="MultiCAD" ProductName="MultiCAD / MultiSuite" ProductVersion="0.0.8.5"/>
+   <RevisionNr Value="9"/>
+   <BuildNr Value="0"/>
+   <StringTable CompanyName="Maurinsoft" FileDescription="MultiCAD" ProductName="MultiCAD / MultiSuite" ProductVersion="0.0.9.0"/>
   </VersionInfo>
   <BuildModes Count="1">
    <Item1 Name="Default" Default="True" />

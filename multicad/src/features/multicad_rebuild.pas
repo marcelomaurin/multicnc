@@ -86,6 +86,7 @@ type
     FExactBroken: Boolean;         { a ferramenta tem algo que so existe em malha }
     FToolShape: TOcctShape;        { ferramenta exata em aplicacao }
     FRawBool: Boolean;             { booleana sem juntar faces (rosca helicoidal) }
+    FExprError: string;            { expressao de campo que nao avaliou }
     procedure ExactReset;
     procedure ExactAdd(S: TOcctShape);
     procedure ExactBreak;
@@ -370,7 +371,7 @@ var
 begin
   O := TJSONObject.Create;
   try
-    F.SaveParams(O);
+    F.SaveAll(O);
     Result := IntToStr(F.Id) + ':' + CAD_FEATURE_CODES[F.Kind] + ':' + F.Name + ':' +
       BoolToStr(F.Suppressed, True) + ':' + O.AsJSON;
   finally
@@ -2403,6 +2404,9 @@ begin
   Tool.Transform(FrameMatrix(Fr));
   ExactReset;
   ApplyTool(G, Tool, False, G.Merge, False, True, nil);
+  { engrenagem separada e o padrao (componente proprio): sem aviso }
+  if not G.Merge and (G.State = fsWarning) and (Pos('Mesclar resultado desligado', G.Message) = 1) then
+    G.SetState(fsOk, '');
   if G.State = fsOk then
   begin
     Info := CadGearInfo(S);
@@ -2830,14 +2834,24 @@ var
   X: TCadExtrude;
   V: Double;
   Err: string;
+  I: Integer;
 begin
-  if not (F is TCadExtrude) then
-    Exit;
-  X := TCadExtrude(F);
-  if (X.Dir1.DepthExpr <> '') and FDoc.Eval(X.Dir1.DepthExpr, V, Err) then
-    X.Dir1.Depth := V;
-  if (X.Dir2.DepthExpr <> '') and FDoc.Eval(X.Dir2.DepthExpr, V, Err) then
-    X.Dir2.Depth := V;
+  FExprError := '';
+  if F is TCadExtrude then
+  begin
+    X := TCadExtrude(F);
+    if (X.Dir1.DepthExpr <> '') and FDoc.Eval(X.Dir1.DepthExpr, V, Err) then
+      X.Dir1.Depth := V;
+    if (X.Dir2.DepthExpr <> '') and FDoc.Eval(X.Dir2.DepthExpr, V, Err) then
+      X.Dir2.Depth := V;
+  end;
+  { campos com expressao: valor recalculado a cada reconstrucao }
+  for I := 0 to F.Exprs.Count - 1 do
+    if FDoc.Eval(F.Exprs.ValueFromIndex[I], V, Err) then
+      F.SetNumParam(F.Exprs.Names[I], V)
+    else if FExprError = '' then
+      FExprError := 'Expressão "' + F.Exprs.ValueFromIndex[I] + '": ' + Err +
+        ' (ficou o valor anterior)';
 end;
 
 { ---------- filete, chanfro e casca (fase 6) ---------- }
@@ -3545,6 +3559,13 @@ begin
       F.SetState(fsOk, '')
     else
       F.SetState(fsError, 'Operação ainda não implementada: ' + CAD_FEATURE_NAMES[F.Kind]);
+    if (FExprError <> '') and (F.State <> fsError) then
+    begin
+      if F.Message <> '' then
+        F.SetState(fsWarning, FExprError + '; ' + F.Message)
+      else
+        F.SetState(fsWarning, FExprError);
+    end;
     if not (F is TCadSketch) then
       Inc(FRecomputed);
     if F.State = fsError then

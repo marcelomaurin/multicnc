@@ -8,8 +8,10 @@ unit multicad_units;
     sufixos de angulo: deg  rad  (graus e o padrao)
     operadores + - * / ^, parenteses, menos unario
     funcoes: sqrt sin cos tan (graus), abs, pi
-    variaveis: D1@Sketch1, Largura (resolvidas por callback)
-  Exemplos: "80/2" = 40; "1in" = 25,4; "D1@Sketch1 + 5". }
+    variaveis: D1@Sketch1, Esboço1.aresta, aresta, [Ressalto-Extrusão1].aresta
+      (resolvidas por callback; colchetes para nomes com hifen ou espaco)
+  Exemplos: "80/2" = 40; "1in" = 25,4; "35-10mm" = 25; "D1@Sketch1 + 5";
+  "Cubo.aresta * 2". }
 
 {$mode objfpc}{$H+}
 
@@ -313,6 +315,24 @@ begin
   begin
     Result := ParseNumber;
     Result := ApplyUnit(Result);
+    Exit;
+  end;
+  if C = '[' then
+  begin
+    { nome com espaco ou hifen entre colchetes: [Ressalto-Extrusão1].aresta }
+    Inc(FPos);
+    Id := '';
+    while (FPos <= Length(FText)) and (FText[FPos] <> ']') do
+    begin
+      Id := Id + FText[FPos];
+      Inc(FPos);
+    end;
+    if FPos > Length(FText) then
+      Fail('Falta "]"');
+    Inc(FPos);
+    Id := Trim(Id) + ParseIdent;
+    if not Assigned(FResolver) or not FResolver(Id, Result) then
+      Fail('Variável desconhecida "' + Id + '"');
     Exit;
   end;
   if C in ['A'..'Z', 'a'..'z', '_', #128..#255] then

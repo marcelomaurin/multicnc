@@ -2954,6 +2954,9 @@ begin
     G.Offset := 10;
     D.AddFeature(G);
     RB.Rebuild;
+    Check((G.State = fsOk) and (RB.BodyCount = 2), 'engrenagem nova: corpo separado ' + G.Message);
+    G.Merge := True;
+    RB.Rebuild;
     Check((G.State = fsOk) and (RB.BodyCount = 1), 'engrenagem mesclada ao eixo ' + G.Message);
   finally
     RB.Free;
@@ -3016,6 +3019,102 @@ begin
     RB.Rebuild;
     Check((RV.State = fsError) and (Pos('plano do esboço', RV.Message) > 0),
       'aresta fora do plano do esboco: erro ' + RV.Message);
+  finally
+    RB.Free;
+    D.Free;
+  end;
+end;
+
+{ ----- medidas com calculo e variaveis nomeadas ----- }
+
+procedure TestNamedDims;
+var
+  G: TCadGear;
+  O: TJSONObject;
+  D: TCadDocument;
+  RB: TCadRebuilder;
+  S, S2: TCadSketch;
+  X, X2: TCadExtrude;
+  I, I2, C: Integer;
+  Err: string;
+  V: Double;
+begin
+  Check(Near(CadEval('35-10mm'), 25) and Near(CadEval('35mm - 10'), 25) and Near(CadEval('(35-10)mm'), 25),
+    '35-10mm = 25');
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  try
+    S := RectSketch(D, 'plane:1', 0, 0, 30, 20);
+    X := D.AddExtrude(S.Id, 5);
+    I := S.DimensionIndex('D1');
+    Check(I >= 0, 'cota D1 da largura');
+    Check(S.SetConstraintText(I, 'aresta = 35-10mm', Err), 'nome proprio na cota: ' + Err);
+    Check((S.Constraint(I).DimName = 'aresta') and (S.Constraint(I).Expr = '35-10mm'),
+      'cota passa a se chamar aresta com a expressao');
+    Check(S.HasCustomDimName(I) and not S.HasCustomDimName(S.DimensionIndex('D2')), 'nome proprio x automatico');
+    Check(S.ConstraintEditText(I) = 'aresta=35-10mm', 'texto para editar: ' + S.ConstraintEditText(I));
+    Check(not S.SetConstraintText(S.DimensionIndex('D2'), 'aresta=5', Err) and (Pos('Já existe', Err) = 1),
+      'nome repetido no esboco: erro');
+    Check(not S.SetConstraintText(S.DimensionIndex('D2'), 'minha cota=5', Err), 'nome com espaco: erro');
+    Check(not S.SetConstraintText(S.DimensionIndex('D2'), '2a=5', Err), 'nome comecando com numero: erro');
+    Check(not S.SetConstraintText(S.DimensionIndex('D2'), 'mm=5', Err), 'nome reservado: erro');
+    Check(not S.SetConstraintText(S.DimensionIndex('D2'), 'altura=', Err), 'nome sem valor: erro');
+    Check(RB.Rebuild = 0, 'reconstrucao com a cota nomeada');
+    Check(Near(RB.TotalVolume, 25 * 20 * 5, 1E-6), Format('35-10mm vale 25 na peca (%.2f)', [RB.TotalVolume]));
+    { referencias: Esboço1.aresta, [Ressalto-Extrusão1].aresta, Cubo.aresta, aresta }
+    Check(D.Eval(S.Name + '.aresta', V, Err) and Near(V, 25), 'Esboço1.aresta = 25 ' + Err);
+    Check(D.Eval('[' + X.Name + '].aresta * 2', V, Err) and Near(V, 50), '[Ressalto-Extrusão1].aresta ' + Err);
+    X.Name := 'Cubo';
+    Check(D.Eval('Cubo.aresta + 1', V, Err) and Near(V, 26), 'Cubo.aresta pela operacao que usa o esboco ' + Err);
+    Check(D.Eval('aresta', V, Err) and Near(V, 25), 'nome unico na peca vale sozinho ' + Err);
+    Check(not D.Eval('Cubo.nada', V, Err), 'medida inexistente: erro');
+    { outro esboco e a profundidade usam a variavel }
+    S2 := D.AddSketch('plane:1');
+    C := S2.AddCircle(60, 0, 3);
+    S2.AddFixed(C, 1);
+    I2 := S2.ConstraintIndex(S2.AddDimension(ckDiameter, C, 0, 0, 0, 6));
+    S2.SetConstraintExpr(I2, 'Cubo.aresta / 5');
+    X2 := D.AddExtrude(S2.Id, 1);
+    X2.Dir1.DepthExpr := 'Cubo.aresta';
+    Check(RB.Rebuild = 0, 'esboco e profundidade com Cubo.aresta: ' + X2.Message + S2.Message);
+    Check(RelNear(RB.TotalVolume, 25 * 20 * 5 + Pi * 2.5 * 2.5 * 25, 0.005),
+      Format('Ø = aresta/5 e profundidade = aresta (%.1f)', [RB.TotalVolume]));
+    { mudar a medida recalcula todos que usam a variavel }
+    Check(S.SetConstraintText(I, 'aresta=40', Err), 'nova medida');
+    Check(RB.Rebuild = 0, 'reconstrucao depois da mudanca');
+    Check(RelNear(RB.TotalVolume, 40 * 20 * 5 + Pi * 4 * 4 * 40, 0.005),
+      Format('mudanca propaga para o outro esboco e a profundidade (%.1f)', [RB.TotalVolume]));
+    { ambiguo: dois esbocos com "aresta" }
+    S2.SetConstraintText(I2, 'aresta=Cubo.aresta / 5', Err);
+    Check(not D.Eval('aresta', V, Err), 'nome repetido em dois esbocos: precisa do objeto');
+    Check(D.Eval(S2.Name + '.aresta', V, Err) and Near(V, 8), 'o segundo pelo esboco ' + Err);
+    { campos das operacoes ligados a variavel: largura da engrenagem }
+    G := TCadGear.Create;
+    G.Spec.Bore := 0;
+    G.Offset := 50;
+    G.SetExpr('width', 'Cubo.aresta / 4');
+    G.SetExpr('module', '0,5*2');
+    D.AddFeature(G);
+    Check(RB.Rebuild = 0, 'engrenagem com campos por expressao ' + G.Message);
+    Check(Near(G.Spec.Width, 10) and Near(G.Spec.Module, 1), Format('largura = aresta/4 = 10 (%.3f)', [G.Spec.Width]));
+    S.SetConstraintText(I, 'aresta=60', Err);
+    Check(RB.Rebuild = 0, 'mudanca da variavel');
+    Check(Near(G.Spec.Width, 15), Format('largura acompanha a variavel: 15 (%.3f)', [G.Spec.Width]));
+    O := TJSONObject.Create;
+    try
+      G.SaveAll(O);
+      Check((O.Find('exprs') <> nil) and (TJSONObject(O.Find('exprs')).Get('width', '') = 'Cubo.aresta / 4'),
+        'expressoes gravadas no .mcad');
+      G.Exprs.Clear;
+      G.LoadAll(O);
+      Check(G.ExprOf('width') = 'Cubo.aresta / 4', 'expressoes lidas do .mcad');
+    finally
+      O.Free;
+    end;
+    G.SetExpr('width', 'Cubo.inexistente');
+    RB.Rebuild;
+    Check((G.State = fsWarning) and (Pos('Expressão', G.Message) = 1) and Near(G.Spec.Width, 15),
+      'expressao invalida: aviso e fica o valor anterior ' + G.Message);
   finally
     RB.Free;
     D.Free;
@@ -3167,6 +3266,7 @@ begin
   TestFilletSelection;
   TestBlend3D;
   TestThreadsGears;
+  TestNamedDims;
   TestOcct;
   TestExport;
   Writeln(Format('MultiCAD: %d checks, %d falhas', [Passed + Failed, Failed]));

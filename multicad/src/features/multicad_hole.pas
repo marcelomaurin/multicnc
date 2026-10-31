@@ -59,6 +59,7 @@ type
     { Perfil de revolucao do furo; ThroughDepth = profundidade quando passante. }
     function Profile(ThroughDepth: Double): TCadHoleProfile;
     function Description: string;
+    function SetNumParam(const AKey: string; AValue: Double): Boolean; override;
   end;
 
 const
@@ -263,6 +264,19 @@ begin
   end
   else
     Seg(R, -Dp, 0, -Dp, 'fundo');
+end;
+
+function TCadHole.SetNumParam(const AKey: string; AValue: Double): Boolean;
+begin
+  Result := True;
+  if AKey = 'diameter' then
+    Diameter := AValue
+  else if AKey = 'depth' then
+    Depth := AValue
+  else if AKey = 'thread_depth' then
+    ThreadDepth := AValue
+  else
+    Result := inherited SetNumParam(AKey, AValue);
 end;
 
 initialization
