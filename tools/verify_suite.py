@@ -20,6 +20,10 @@ MODULES = [".", "multisuite", "multiphysics", "multicam",
            "laserpcb", "multislicer", "multiassembly", "multicad", "laserart", "makepcb", "makerouter", "routerpcb", "multiproject"]
 
 
+# testes de console mais demorados (segundos)
+SLOW_TESTS = {"test_multicad": 600}
+
+
 def execute(command, cwd=ROOT, timeout=120):
     return subprocess.run(command, cwd=cwd, stdout=subprocess.PIPE,
                           stderr=subprocess.STDOUT, text=True,
@@ -93,7 +97,10 @@ def console(args):
                 if run_tests:
                     # MULTICNC_TEST_RUNNER roda binarios cruzados (ex.: "wine" para win64 no Linux)
                     runner = shlex.split(os.environ.get("MULTICNC_TEST_RUNNER", ""))
-                    result = execute([*runner, str(binary)], cwd=source.parent, timeout=int(os.environ.get("MULTICNC_TEST_TIMEOUT", "30")))
+                    limit = int(os.environ.get("MULTICNC_TEST_TIMEOUT", "30"))
+                    # nucleo do MultiCAD: corta roscas em helice (OpenCascade e Pascal), leva minutos no Wine
+                    limit = max(limit, SLOW_TESTS.get(source.stem, 0))
+                    result = execute([*runner, str(binary)], cwd=source.parent, timeout=limit)
                     record["status"] = "passed" if result.returncode == 0 else "failed"
                     record["exit_code"] = result.returncode
                     (output / "run.log").write_text(result.stdout, encoding="utf-8")
