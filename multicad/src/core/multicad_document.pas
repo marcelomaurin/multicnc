@@ -100,7 +100,7 @@ const
   CAD_AUTO_PREFIX: array[TCadFeatureKind] of string = ('Origem', 'Plano', 'Eixo',
     'Esboço', 'Ressalto-Extrusão', 'Corte-Extrusão', 'Revolução',
     'Corte-Revolução', 'Furo', 'Filete', 'Chanfro', 'Casca', 'PadrãoL',
-    'PadrãoC', 'Espelho', 'Importado');
+    'PadrãoC', 'Espelho', 'Importado', 'Rosca', 'Engrenagem');
 
 implementation
 

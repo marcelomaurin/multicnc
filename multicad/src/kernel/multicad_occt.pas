@@ -51,6 +51,11 @@ function OcctBlendTool(const Frame: TCadFrame; const Segs: TCadSectionSegs; Len:
 
 { 0 uniao, 1 diferenca, 2 intersecao. Os argumentos continuam do chamador. }
 function OcctBoolean(A, B: TOcctShape; Op: Integer; out AError: string): TOcctShape;
+{ Booleana sem juntar faces da mesma superficie (ponte versao 2; na antiga
+  cai na booleana normal). }
+{ A ponte tem a booleana sem juntar faces (versao 2). }
+function OcctHasRawBoolean: Boolean;
+function OcctBooleanRaw(A, B: TOcctShape; Op: Integer; out AError: string): TOcctShape;
 function OcctTransform(S: TOcctShape; const M: TCadMat4; const OldPrefix, NewPrefix: string): TOcctShape;
 function OcctFillet(S: TOcctShape; const FA, FB: array of string; R: Double;
   const Prefix: string; out AError: string): TOcctShape;
@@ -103,6 +108,7 @@ type
   Tf_pint = function: PInteger; cdecl;
   Tf_step_write = function(N: Integer; Shapes: PPointer; F: PChar): Integer; cdecl;
   Tf_step_read = function(F, Prefix: PChar): Pointer; cdecl;
+  Tf_bool_ex = function(A, B: Pointer; Op, Simplify: Integer): Pointer; cdecl;
 
 var
   GLib: TLibHandle = NilHandle;
@@ -136,6 +142,7 @@ var
   f_mesh_tris: Tf_pint;
   f_step_write: Tf_step_write;
   f_step_read: Tf_step_read;
+  f_bool_ex: Tf_bool_ex; { opcional (ponte versao 2) }
 
 const
 {$IFDEF WINDOWS}
@@ -211,6 +218,8 @@ begin
   Pointer(f_mesh_tris) := P('mcad_mesh_tris');
   Pointer(f_step_write) := P('mcad_step_write');
   Pointer(f_step_read) := P('mcad_step_read');
+  { opcionais: ponte antiga continua valendo sem elas }
+  Pointer(f_bool_ex) := GetProcedureAddress(GLib, 'mcad_bool_ex');
   if Missing <> '' then
   begin
     GLoadErr := LIB_NAME + ' incompleta:' + Missing;
@@ -551,6 +560,21 @@ function OcctBoolean(A, B: TOcctShape; Op: Integer; out AError: string): TOcctSh
 begin
   AError := '';
   Result := f_bool(A, B, Op);
+  if Result = nil then
+    AError := OcctLastError;
+end;
+
+function OcctHasRawBoolean: Boolean;
+begin
+  Result := OcctAvailable and Assigned(f_bool_ex);
+end;
+
+function OcctBooleanRaw(A, B: TOcctShape; Op: Integer; out AError: string): TOcctShape;
+begin
+  if not (OcctAvailable and Assigned(f_bool_ex)) then
+    Exit(OcctBoolean(A, B, Op, AError));
+  AError := '';
+  Result := f_bool_ex(A, B, Op, 0);
   if Result = nil then
     AError := OcctLastError;
 end;

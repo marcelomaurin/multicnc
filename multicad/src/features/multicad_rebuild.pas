@@ -27,7 +27,8 @@ uses
   multicad_document, multicad_refgeom, multicad_sketch, multicad_solver,
   multicad_profile, multicad_extrude, multicad_revolve, multicad_mesh,
   multicad_sweep, multicad_csg, multicad_bridge, multicad_triangulate,
-  multicad_hole, multicad_pattern, multicad_blend, multicad_blendgeom, multicad_occt, multicad_import;
+  multicad_hole, multicad_pattern, multicad_blend, multicad_blendgeom, multicad_occt, multicad_import,
+  multicad_threads, multicad_threadgeom, multicad_threadop, multicad_gears, multicad_gear;
 
 type
   TCadBody = class
@@ -84,6 +85,7 @@ type
     FExact: array of TOcctShape;   { solidos exatos da ferramenta em montagem }
     FExactBroken: Boolean;         { a ferramenta tem algo que so existe em malha }
     FToolShape: TOcctShape;        { ferramenta exata em aplicacao }
+    FRawBool: Boolean;             { booleana sem juntar faces (rosca helicoidal) }
     procedure ExactReset;
     procedure ExactAdd(S: TOcctShape);
     procedure ExactBreak;
@@ -109,6 +111,10 @@ type
       out FirstErr: string): Boolean;
     procedure BuildShell(S: TCadShell);
     procedure BuildImport(F: TCadImportStep);
+    procedure BuildThread(T: TCadModelThread);
+    procedure BuildGear(G: TCadGear);
+    { Reta de uma aresta reta do modelo ("edge:A|B"). }
+    function EdgeLine(const ARef: string; out A, B: TCadVec3; out AError: string): Boolean;
     procedure StoreTool(F: TCadFeature; Tool: TCadMesh; IsCut, Merge, FlipSide: Boolean);
     function ResolveDir(const ARef: string; out D: TCadVec3; out AError: string): Boolean;
     function ResolveAxis(const ARef: string; out A, U: TCadVec3; out AError: string): Boolean;
@@ -606,11 +612,12 @@ end;
 
 function TCadRebuilder.ResolveLine(const ARef: string; out A, B: TCadVec3; out AError: string): Boolean;
 var
-  SId, EId, Pt, I: Integer;
+  SId, EId, Pt, I, FI: Integer;
   F: TCadFeature;
   S: TCadSketch;
   Fr: TCadFrame;
   E: TSketchEntity;
+  Bd: TCadBody;
 begin
   Result := False;
   AError := '';
@@ -626,6 +633,21 @@ begin
     end;
     A := TCadAxis(F).Origin;
     B := VAdd(A, TCadAxis(F).Direction);
+    Exit(True);
+  end;
+  if Copy(ARef, 1, 5) = 'edge:' then
+    Exit(EdgeLine(ARef, A, B, AError));
+  if Copy(ARef, 1, 5) = 'face:' then
+  begin
+    { eixo de uma face cilindrica ou conica }
+    if not FindFace(Copy(ARef, 6, MaxInt), Bd, FI) or
+      not (Bd.Mesh.Faces[FI].Surf in [skCylinder, skCone]) then
+    begin
+      AError := 'Escolha uma face cilíndrica para o eixo: ' + ARef;
+      Exit;
+    end;
+    A := Bd.Mesh.Faces[FI].Origin;
+    B := VAdd(A, VNorm(Bd.Mesh.Faces[FI].Axis));
     Exit(True);
   end;
   if not ParseSketchRef(ARef, SId, EId, Pt) then
@@ -654,6 +676,64 @@ begin
   Result := VDist(A, B) > CAD_TOL;
   if not Result then
     AError := 'Linha de comprimento nulo: ' + ARef;
+end;
+
+function TCadRebuilder.EdgeLine(const ARef: string; out A, B: TCadVec3; out AError: string): Boolean;
+var
+  NA, NB: string;
+  I, FA, FB, K: Integer;
+  M: TCadMesh;
+  Ch: TCadEdgeChains;
+  D, Len: Double;
+begin
+  Result := False;
+  AError := '';
+  A := V3(0, 0, 0);
+  B := V3(0, 0, 1);
+  if not CadParseEdgeRef(ARef, NA, NB) then
+  begin
+    AError := 'Referência de aresta inválida: ' + ARef;
+    Exit;
+  end;
+  for I := 0 to FBodies.Count - 1 do
+  begin
+    M := Body(I).Mesh;
+    FA := M.FaceIndex(NA);
+    FB := M.FaceIndex(NB);
+    if (FA < 0) or (FB < 0) then
+      Continue;
+    Ch := CadEdgeChains(M, FA, FB);
+    if Length(Ch) = 0 then
+      Continue;
+    if Length(Ch) > 1 then
+    begin
+      AError := 'A aresta escolhida tem mais de um trecho: escolha uma aresta reta';
+      Exit;
+    end;
+    K := High(Ch[0].Pts);
+    if Ch[0].Closed or (K < 1) then
+    begin
+      AError := 'A aresta escolhida é curva: escolha uma aresta reta, um eixo ou uma face cilíndrica';
+      Exit;
+    end;
+    A := Ch[0].Pts[0];
+    B := Ch[0].Pts[K];
+    Len := VDist(A, B);
+    for K := 1 to High(Ch[0].Pts) - 1 do
+    begin
+      D := VLen(VCross(VSub(Ch[0].Pts[K], A), VSub(B, A))) / Max(Len, 1E-12);
+      if D > Max(CAD_TOL * 10, Len * 1E-6) then
+      begin
+        AError := 'A aresta escolhida é curva: escolha uma aresta reta, um eixo ou uma face cilíndrica';
+        Exit;
+      end;
+    end;
+    Result := Len > CAD_TOL;
+    if not Result then
+      AError := 'Aresta de comprimento nulo: ' + ARef;
+    Exit;
+  end;
+  AError := 'Referência perdida: a aresta "' + ARef + '" não existe mais';
 end;
 
 { ---------- planos e eixos ---------- }
@@ -1199,6 +1279,8 @@ begin
       V0 := OcctVolume(B.Shape);
       if FlipSide then
         R := OcctBoolean(B.Shape, TS, 2, E)
+      else if FRawBool then
+        R := OcctBooleanRaw(B.Shape, TS, 1, E)
       else
         R := OcctBoolean(B.Shape, TS, 1, E);
       if R = nil then
@@ -1921,7 +2003,29 @@ begin
       end;
     if not Found then
     begin
-      R.SetState(fsError, 'Desenhe uma linha de centro no esboço ou escolha o eixo');
+      { sem linha de centro: uma unica linha de construcao serve de eixo }
+      J := -1;
+      for I := 0 to S.EntityCount - 1 do
+        if S.Entity(I).Construction and (S.Entity(I).Kind = seLine) then
+        begin
+          if J >= 0 then
+          begin
+            J := -2;
+            Break;
+          end;
+          J := I;
+        end;
+      if J >= 0 then
+      begin
+        AxA := S.Entity(J).P1;
+        AxB := S.Entity(J).P2;
+        Found := True;
+      end;
+    end;
+    if not Found then
+    begin
+      R.SetState(fsError, 'Escolha o eixo: clique numa linha do esboço, aresta reta, eixo ou ' +
+        'face cilíndrica (ou desenhe uma linha de centro)');
       Exit;
     end;
   end
@@ -1940,7 +2044,9 @@ begin
   else
   begin
     if not ResolveLine(R.AxisRef, A3, B3, E) then begin R.SetState(fsError, E); Exit; end;
-    if (Abs(FrameDistance(Fr, A3)) > CAD_TOL) or (Abs(FrameDistance(Fr, B3)) > CAD_TOL) then
+    { eixo de face ou aresta: a reta pode passar do plano por erro numerico }
+    if (Abs(FrameDistance(Fr, A3)) > CAD_TOL * 10) or (Abs(FrameDistance(Fr, B3)) > CAD_TOL * 10) or
+      (Abs(VDot(VNorm(VSub(B3, A3)), Fr.Normal)) > 1E-6) then
     begin
       R.SetState(fsError, 'O eixo precisa estar no plano do esboço');
       Exit;
@@ -2005,6 +2111,305 @@ begin
     Exit;
   end;
   ApplyTool(R, Tool, R.IsCut, R.Merge, R.FlipSide, True, nil);
+end;
+
+{ ---------- rosca em helice ---------- }
+
+{ Ponto dentro do solido fechado: paridade dos cruzamentos de um raio em
+  direcao torta (evita passar exatamente por arestas). }
+function PointInsideMesh(M: TCadMesh; const P: TCadVec3): Boolean;
+var
+  I, N: Integer;
+  D, A, B, C, E1, E2, H, Sv, Q: TCadVec3;
+  Det, F, U, V, T: Double;
+  Tr: TCadTri;
+begin
+  D := VNorm(V3(0.5773, 0.6123, 0.5401));
+  N := 0;
+  for I := 0 to M.TriCount - 1 do
+  begin
+    Tr := M.Tris[I];
+    A := M.Verts[Tr.A];
+    B := M.Verts[Tr.B];
+    C := M.Verts[Tr.C];
+    E1 := VSub(B, A);
+    E2 := VSub(C, A);
+    H := VCross(D, E2);
+    Det := VDot(E1, H);
+    if Abs(Det) < 1E-14 then
+      Continue;
+    F := 1 / Det;
+    Sv := VSub(P, A);
+    U := F * VDot(Sv, H);
+    if (U < 0) or (U > 1) then
+      Continue;
+    Q := VCross(Sv, E1);
+    V := F * VDot(D, Q);
+    if (V < 0) or (U + V > 1) then
+      Continue;
+    T := F * VDot(E2, Q);
+    if T > 1E-9 then
+      Inc(N);
+  end;
+  Result := Odd(N);
+end;
+
+procedure TCadRebuilder.BuildThread(T: TCadModelThread);
+var
+  B: TCadBody;
+  M: TCadMesh;
+  Fi, I, K: Integer;
+  Info: TCadFaceInfo;
+  U, O, C, Rd, P: TCadVec3;
+  TMin, TMax, Dot, W, Z0, Z1, Avail, Len, Dia, Pitch, Margin, RA, RB2: Double;
+  Internal, Fine: Boolean;
+  Pr: TCadThreadProfile;
+  Th: TCadThread;
+  Spec: TCadThreadSpec;
+  Tool: TCadMesh;
+  E, Warn, Sz, Side: string;
+  Tr: TCadTri;
+  Fr: TCadFrame;
+  Scope: TCadStrArray;
+
+  function EndFree(Z: Double): Boolean;
+  var
+    J: Integer;
+    A: Double;
+    Dir: TCadVec3;
+  begin
+    Result := True;
+    for J := 0 to 2 do
+    begin
+      A := 2 * Pi * J / 3 + 0.3;
+      Dir := VAdd(VScale(Fr.XDir, Cos(A)), VScale(Fr.YDir, Sin(A)));
+      if PointInsideMesh(M, VAdd(VAdd(O, VScale(U, Z)), VScale(Dir, RA))) or
+        PointInsideMesh(M, VAdd(VAdd(O, VScale(U, Z)), VScale(Dir, RB2))) then
+        Exit(False);
+    end;
+  end;
+
+begin
+  T.Summary := '';
+  Warn := '';
+  E := T.Validate;
+  if E <> '' then begin T.SetState(fsError, E); Exit; end;
+  if not FindFace(Copy(T.FaceRef, 6, MaxInt), B, Fi) then
+  begin
+    T.SetState(fsError, 'Referência perdida: a face "' + Copy(T.FaceRef, 6, MaxInt) +
+      '" não existe mais');
+    Exit;
+  end;
+  M := B.Mesh;
+  Info := M.Faces[Fi];
+  if Info.Surf <> skCylinder then
+  begin
+    T.SetState(fsError, 'A rosca precisa de uma face cilíndrica (eixo ou furo)');
+    Exit;
+  end;
+  U := VNorm(Info.Axis);
+  O := Info.Origin;
+  { extensao ao longo do eixo e lado da face (pino = normal para fora) }
+  TMin := MaxDouble;
+  TMax := -MaxDouble;
+  Dot := 0;
+  for I := 0 to M.TriCount - 1 do
+  begin
+    Tr := M.Tris[I];
+    if Tr.Face <> Fi then
+      Continue;
+    C := V3(0, 0, 0);
+    for K := 0 to 2 do
+    begin
+      case K of
+        0: P := M.Verts[Tr.A];
+        1: P := M.Verts[Tr.B];
+      else
+        P := M.Verts[Tr.C];
+      end;
+      W := VDot(VSub(P, O), U);
+      TMin := Min(TMin, W);
+      TMax := Max(TMax, W);
+      C := VAdd(C, VScale(P, 1 / 3));
+    end;
+    Rd := VSub(C, O);
+    Rd := VSub(Rd, VScale(U, VDot(Rd, U)));
+    if VLen(Rd) > CAD_TOL then
+      Dot := Dot + VDot(M.TriNormal(I), VNorm(Rd)) * M.TriArea(I);
+  end;
+  Internal := Dot < 0;
+  { medida }
+  if T.Size = CAD_THREAD_CUSTOM then
+  begin
+    Dia := T.Diameter;
+    Pitch := T.Pitch;
+    Sz := 'Ø' + FormatFloat('0.###', Dia);
+  end
+  else if T.Size <> '' then
+  begin
+    CadFindThread(T.Size, Th);
+    Dia := Th.D;
+    if T.Fine then Pitch := Th.PitchFine else Pitch := Th.Pitch;
+    Sz := Th.Size;
+  end
+  else if CadThreadForDiameter(2 * Info.Radius, Internal, Th, Fine) then
+  begin
+    Dia := Th.D;
+    if not Internal then
+      Fine := T.Fine;
+    if Fine then Pitch := Th.PitchFine else Pitch := Th.Pitch;
+    Sz := Th.Size;
+  end
+  else if Internal then
+  begin
+    T.SetState(fsError, Format('O furo de Ø%s não é broca de nenhuma rosca M2 a M24: ' +
+      'escolha a medida ou use "Personalizada"', [FormatFloat('0.###', 2 * Info.Radius)]));
+    Exit;
+  end
+  else
+  begin
+    Dia := 2 * Info.Radius;
+    CadThreadForDiameter(Dia, False, Th, Fine, MaxDouble);
+    if T.Fine then Pitch := Th.PitchFine else Pitch := Th.Pitch;
+    Sz := 'Ø' + FormatFloat('0.###', Dia);
+    Warn := 'Diâmetro fora da tabela ISO: rosca ' + Sz + ' com o passo da ' + Th.Size;
+  end;
+  Avail := TMax - TMin;
+  if T.Offset > Avail - Pitch * 0.5 then
+  begin
+    T.SetState(fsError, 'O deslocamento do início passa do comprimento da face (' +
+      FormatFloat('0.###', Avail) + ' mm)');
+    Exit;
+  end;
+  Len := T.Length;
+  if Len <= 0 then
+    Len := Avail - T.Offset
+  else if Len > Avail - T.Offset + CAD_TOL then
+  begin
+    Len := Avail - T.Offset;
+    Warn := 'Comprimento maior que a face: a rosca vai até o fim dela';
+  end;
+  if T.FlipStart then
+    Z0 := TMin + T.Offset
+  else
+    Z0 := TMax - T.Offset - Len;
+  Z1 := Z0 + Len;
+  Spec.Internal := Internal;
+  Spec.MajorD := Dia;
+  Spec.Pitch := Pitch;
+  Spec.Length := Len;
+  Spec.Clearance := T.Clearance;
+  Spec.LeftHand := T.LeftHand;
+  Spec.FaceRadius := Info.Radius;
+  Spec.ChordTol := FChord;
+  E := CadThreadValidate(Spec);
+  if E <> '' then begin T.SetState(fsError, E); Exit; end;
+  { pontas na ponta da face: com ar do lado de fora a ferramenta passa
+    (sem tampa coplanar com a face da ponta); com material (ombro, fundo de
+    furo cego) ela para um pouco antes, como a saida de rosca }
+  Pr := CadThreadProfile(Spec);
+  Margin := Max(0.5, Pitch);
+  Fr := FrameFromNormal(O, U);
+  if Internal then
+  begin
+    RA := Info.Radius / 2;
+    RB2 := (Info.Radius + Pr.RMax) / 2;
+  end
+  else
+  begin
+    RA := (Pr.RMin + Info.Radius) / 2;
+    RB2 := Info.Radius + Max(0.25, 0.1 * Pitch);
+  end;
+  if Z0 <= TMin + CAD_TOL * 10 then
+  begin
+    if EndFree(TMin - Margin / 2) then Z0 := Z0 - Margin else Z0 := Z0 + 0.15 * Pitch;
+  end;
+  if Z1 >= TMax - CAD_TOL * 10 then
+  begin
+    if EndFree(TMax + Margin / 2) then Z1 := Z1 + Margin else Z1 := Z1 - 0.15 * Pitch;
+  end;
+  Spec.Length := Z1 - Z0;
+  Tool := CadMakeThreadTool(Spec, T.Name, E);
+  if Tool = nil then
+  begin
+    T.SetState(fsError, E);
+    Exit;
+  end;
+  Fr := FrameFromNormal(VAdd(O, VScale(U, Z0)), U);
+  Tool.Transform(FrameMatrix(Fr));
+  if Internal then Side := 'interna' else Side := 'externa';
+  T.Summary := Format('%s × %s %s%s, %s mm', [Sz, FormatFloat('0.###', Pitch), Side,
+    BoolToStr(T.LeftHand, ' esquerda', ''), FormatFloat('0.##', Len)]);
+  SetLength(Scope, 1);
+  Scope[0] := 'body:' + B.Name;
+  if FOcct and not OcctHasRawBoolean then
+  begin
+    Tool.Free;
+    T.SetState(fsError, 'A rosca no núcleo OpenCascade precisa da mcad_occt.dll nova ' +
+      '(versão 2). Atualize o MultiCAD ou troque para o núcleo Pascal em Ferramentas');
+    Exit;
+  end;
+  { ferramenta so em malha: no OpenCascade vira solido poliedrico, cortado
+    sem juntar faces (a unificacao das faces helicoidais so custa tempo) }
+  ExactReset;
+  FRawBool := True;
+  try
+    ApplyTool(T, Tool, True, False, False, False, Scope);
+  finally
+    FRawBool := False;
+  end;
+  if (T.State = fsOk) and (Warn <> '') then
+    T.SetState(fsWarning, Warn);
+end;
+
+{ ---------- engrenagem ---------- }
+
+procedure TCadRebuilder.BuildGear(G: TCadGear);
+var
+  Fr: TCadFrame;
+  E: string;
+  P, X: TCadVec3;
+  S: TCadGearSpec;
+  Info: TCadGearInfo;
+  Tool: TCadMesh;
+  A: Double;
+begin
+  E := G.Validate;
+  if E <> '' then begin G.SetState(fsError, E); Exit; end;
+  if not ResolvePlane(G.PlaneRef, Fr, E) then begin G.SetState(fsError, E); Exit; end;
+  if G.CenterRef <> '' then
+  begin
+    if not ResolvePoint(G.CenterRef, P, E) then begin G.SetState(fsError, E); Exit; end;
+    Fr.Origin := VSub(P, VScale(Fr.Normal, FrameDistance(Fr, P)));
+  end;
+  if G.Reverse then
+  begin
+    Fr.Normal := VNeg(Fr.Normal);
+    Fr.YDir := VNeg(Fr.YDir);
+  end;
+  if G.Offset <> 0 then
+    Fr.Origin := VAdd(Fr.Origin, VScale(Fr.Normal, G.Offset));
+  if G.Angle <> 0 then
+  begin
+    A := DegToRad(G.Angle);
+    X := VAdd(VScale(Fr.XDir, Cos(A)), VScale(Fr.YDir, Sin(A)));
+    Fr.XDir := VNorm(X);
+    Fr.YDir := VCross(Fr.Normal, Fr.XDir);
+  end;
+  S := G.Spec;
+  S.ChordTol := FChord;
+  Tool := CadMakeGear(S, G.Name, E);
+  if Tool = nil then begin G.SetState(fsError, E); Exit; end;
+  Tool.Transform(FrameMatrix(Fr));
+  ExactReset;
+  ApplyTool(G, Tool, False, G.Merge, False, True, nil);
+  if G.State = fsOk then
+  begin
+    Info := CadGearInfo(S);
+    if (S.Kind = gkExternal) and Info.Undercut then
+      G.SetState(fsWarning, Format('Poucos dentes: o pé real teria rebaixo (mínimo %d sem ' +
+        'correção). Use correção do perfil positiva ou mais dentes', [Info.MinTeeth]));
+  end;
 end;
 
 { ---------- furo ---------- }
@@ -3132,6 +3537,10 @@ begin
       BuildShell(TCadShell(F))
     else if F is TCadImportStep then
       BuildImport(TCadImportStep(F))
+    else if F is TCadModelThread then
+      BuildThread(TCadModelThread(F))
+    else if F is TCadGear then
+      BuildGear(TCadGear(F))
     else if F.Kind = cfOrigin then
       F.SetState(fsOk, '')
     else

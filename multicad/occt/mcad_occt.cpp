@@ -263,7 +263,7 @@ static struct QuietInit {
 
 extern "C" {
 
-int mcad_version(void) { return 1; }
+int mcad_version(void) { return 2; }
 const char *mcad_occt_version(void) { return OCC_VERSION_COMPLETE; }
 const char *mcad_last_error(void) { return g_err.c_str(); }
 
@@ -392,7 +392,17 @@ mcad_shape mcad_revol(mcad_prof p, const double *pt, const double *d, double sta
   }
 }
 
+static mcad_shape BoolImpl(mcad_shape a, mcad_shape b, int op, bool simplify);
+
 mcad_shape mcad_bool(mcad_shape a, mcad_shape b, int op) {
+  return BoolImpl(a, b, op, true);
+}
+
+mcad_shape mcad_bool_ex(mcad_shape a, mcad_shape b, int op, int simplify) {
+  return BoolImpl(a, b, op, simplify != 0);
+}
+
+static mcad_shape BoolImpl(mcad_shape a, mcad_shape b, int op, bool simplify) {
   try {
     MShape *ma = (MShape *)a, *mb = (MShape *)b;
     if (!ma || !mb) { SetErr("booleana sem sólido"); return nullptr; }
@@ -413,8 +423,9 @@ mcad_shape mcad_bool(mcad_shape a, mcad_shape b, int op) {
       delete bop;
       return nullptr;
     }
-    // junta faces coplanares/cocilindricas vizinhas (como no SolidWorks)
-    bop->SimplifyResult(Standard_True, Standard_True, 1e-6);
+    // junta faces coplanares/cocilindricas vizinhas (como no SolidWorks);
+    // desligavel para faces helicoidais (rosca), em que so custa tempo
+    if (simplify) bop->SimplifyResult(Standard_True, Standard_True, 1e-6);
     MShape *r = Wrap(bop->Shape());
     CopyHistoryAlgo(*bop, ma, r);
     CopyHistoryAlgo(*bop, mb, r);

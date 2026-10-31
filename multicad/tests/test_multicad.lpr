@@ -13,7 +13,8 @@ uses
   multicad_profile, multicad_triangulate, multicad_sweep, multicad_bridge, multicad_csg, multicad_revolve, multicad_rebuild,
   multicad_camera, multicad_depthdrag, multicad_softrender, multicad_sketchtools, multicad_export,
   multicad_measure, multicad_textures, multicad_undo, multicad_threads, multicad_hole,
-  multicad_pattern, multicad_blend, multicad_blendgeom, multicad_occt, multicad_import, multislicer_types, multislicer_mesh, multislicer_stl;
+  multicad_pattern, multicad_blend, multicad_blendgeom, multicad_occt, multicad_import, multislicer_types, multislicer_mesh, multislicer_stl,
+  multicad_threadgeom, multicad_threadop, multicad_gears, multicad_gear;
 
 var
   Passed, Failed: Integer;
@@ -2655,6 +2656,372 @@ begin
   end;
 end;
 
+{ ----- rosca em helice, engrenagens e eixo da revolucao ----- }
+
+function RodDoc(D: TCadDocument; R, H: Double; out FaceRef: string): TCadExtrude;
+var
+  S: TCadSketch;
+  C: Integer;
+begin
+  S := D.AddSketch('plane:1');
+  C := S.AddCircle(0, 0, R);
+  Result := D.AddExtrude(S.Id, H);
+  FaceRef := 'face:' + Result.Name + '/lat:' + IntToStr(C);
+end;
+
+procedure TestThreadsGears;
+var
+  D: TCadDocument;
+  RB: TCadRebuilder;
+  T: TCadModelThread;
+  T2: TCadModelThread;
+  G: TCadGear;
+  H: TCadHole;
+  S, S2: TCadSketch;
+  X: TCadExtrude;
+  RV: TCadRevolve;
+  Spec: TCadThreadSpec;
+  GS: TCadGearSpec;
+  Gm: TCadMesh;
+  Face, Top, E: string;
+  V0, V, Exp: Double;
+  B: TCadBody;
+  F, L: Integer;
+  Bx: TCadBox3;
+  O: TJSONObject;
+  Fr: TCadFrame;
+  P1, P2: TCadVec2;
+  T0: QWord;
+  Th: TCadThread;
+  Fine: Boolean;
+begin
+  { tabela: medida pelo diametro e pela broca }
+  Check(CadThreadForDiameter(8, False, Th, Fine) and (Th.Size = 'M8') and not Fine, 'rosca externa Ø8 -> M8');
+  Check(CadThreadForDiameter(6.75, True, Th, Fine) and (Th.Size = 'M8') and not Fine, 'broca 6,75 -> M8 normal');
+  Check(CadThreadForDiameter(7.0, True, Th, Fine) and (Th.Size = 'M8') and Fine, 'broca 7,0 -> M8 fino');
+  Check(Near(CadThreadMinorD(8, 1.25, False), 6.466, 1E-3) and Near(CadThreadMinorD(8, 1.25, True), 6.647, 1E-3),
+    'diametros menores ISO: d3 6,466 e D1 6,647');
+  { ferramenta isolada: fechada nas quatro combinacoes }
+  Spec.MajorD := 8; Spec.Pitch := 1.25; Spec.Length := 12; Spec.Clearance := 0.15;
+  Spec.ChordTol := 0.01;
+  for F := 0 to 3 do
+  begin
+    Spec.Internal := F >= 2;
+    Spec.LeftHand := Odd(F);
+    if Spec.Internal then Spec.FaceRadius := 3.375 else Spec.FaceRadius := 4;
+    Gm := CadMakeThreadTool(Spec, 'R', E);
+    Check((Gm <> nil) and Gm.IsClosed and (Gm.Volume > 0), 'ferramenta de rosca fechada ' + IntToStr(F) + ' ' + E);
+    Gm.Free;
+  end;
+
+  { rosca externa M8 x 12 num pino Ø8 x 20 }
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  try
+    X := RodDoc(D, 4, 20, Face);
+    Check(RB.Rebuild = 0, 'pino Ø8');
+    V0 := RB.TotalVolume;
+    T := TCadModelThread.Create;
+    T.FaceRef := Face;
+    T.Length := 12;
+    D.AddFeature(T);
+    T0 := GetTickCount64;
+    RB.Rebuild;
+    Check(T.State = fsOk, 'rosca externa sem erro: ' + T.Message);
+    Check(Pos('M8 × 1.25 externa', StringReplace(T.Summary, ',', '.', [rfReplaceAll])) = 1,
+      'rosca automatica pelo diametro: ' + T.Summary);
+    Check((RB.BodyCount = 1) and RB.Body(0).Mesh.IsClosed, 'pino roscado: um corpo fechado');
+    Check(RB.FindFace(T.Name + '/rosca', B, F), 'face helicoidal com nome estavel');
+    Spec.Internal := False; Spec.LeftHand := False; Spec.Clearance := 0;
+    Spec.FaceRadius := 4; Spec.Length := 12;
+    Exp := CadThreadRemovedVolume(Spec);
+    V := V0 - RB.TotalVolume;
+    Writeln(Format('  rosca externa M8 x 12: %d ms', [GetTickCount64 - T0]));
+    Check(Abs(V - Exp) / Exp < 0.03, Format('rosca externa tira %.2f mm3 (analitico %.2f) em %d ms',
+      [V, Exp, GetTickCount64 - T0]));
+    Bx := RB.Body(0).Mesh.Bounds;
+    Check(Near(Bx.Max.Z, 20, 1E-6) and Near(Bx.Min.Z, 0, 1E-6), 'rosca nao muda o comprimento do pino');
+    { esquerda: mesmo volume }
+    T.LeftHand := True;
+    RB.Rebuild;
+    Check((T.State = fsOk) and (Abs((V0 - RB.TotalVolume) - Exp) / Exp < 0.03), 'rosca esquerda: mesmo volume ' + T.Message);
+    { folga de impressao tira mais }
+    T.LeftHand := False;
+    T.Clearance := 0.2;
+    RB.Rebuild;
+    Check((T.State = fsOk) and (V0 - RB.TotalVolume > V + 1), 'folga 0,2 mm tira mais material ' + T.Message);
+    { pino roscado ate a ponta com inicio deslocado }
+    T.Clearance := 0;
+    T.Length := 0;
+    T.Offset := 2;
+    T.FlipStart := True;
+    RB.Rebuild;
+    Spec.Length := 18;
+    Exp := CadThreadRemovedVolume(Spec);
+    if RB.OcctActive then
+      Check((T.State = fsOk) and (Abs((V0 - RB.TotalVolume) - Exp) / Exp < 0.03),
+        Format('comprimento 0 = face inteira menos o deslocamento (%.1f x %.1f) %s', [V0 - RB.TotalVolume, Exp, T.Message]))
+    else
+      { nucleo Pascal: a booleana BSP pode recusar roscas longas; o erro tem
+        de ser claro e o modelo anterior continua valido }
+      Check(((T.State = fsOk) and (Abs((V0 - RB.TotalVolume) - Exp) / Exp < 0.03)) or
+        ((T.State = fsError) and (Pos('Falha no corte', T.Message) = 1) and Near(RB.TotalVolume, V0, 1E-6 * V0)),
+        'comprimento 0 (Pascal): certo ou erro claro sem estragar o modelo ' + T.Message);
+    { erros }
+    T.FaceRef := 'face:' + X.Name + '/fim';
+    RB.Rebuild;
+    Check((T.State = fsError) and (Pos('cilíndrica', T.Message) > 0), 'rosca em face plana: erro');
+    T.FaceRef := Face;
+    T.Offset := 30;
+    RB.Rebuild;
+    Check((T.State = fsError) and (Pos('deslocamento', LowerCase(T.Message)) > 0), 'deslocamento maior que a face: erro');
+    T.Offset := 0;
+    T.Size := 'M5';
+    RB.Rebuild;
+    Check((T.State = fsError) and (Pos('maior que a rosca', T.Message) > 0), 'M5 num pino de Ø8: erro ' + T.Message);
+    T.Size := CAD_THREAD_CUSTOM;
+    T.Diameter := 8;
+    T.Pitch := 2;
+    RB.Rebuild;
+    Check((T.State = fsOk) and (Pos('× 2 externa', T.Summary) > 0), 'rosca personalizada Ø8 x 2: ' + T.Summary + T.Message);
+    { ida e volta no JSON }
+    O := TJSONObject.Create;
+    try
+      T.SaveParams(O);
+      T2 := TCadModelThread.Create;
+      T2.LoadParams(O);
+      Check((T2.FaceRef = T.FaceRef) and (T2.Size = CAD_THREAD_CUSTOM) and Near(T2.Pitch, 2) and
+        (T2.FlipStart = T.FlipStart), 'rosca: parametros no .mcad');
+      T2.Free;
+    finally
+      O.Free;
+    end;
+  finally
+    RB.Free;
+    D.Free;
+  end;
+
+  { rosca interna automatica num furo de broca M8 (6,75) passante }
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  try
+    PlateDoc(D, Top);
+    S := D.AddSketch(Top);
+    S.AddPoint(0, 0);
+    H := TCadHole.Create;
+    H.SketchId := S.Id;
+    H.HoleType := htSimple;
+    H.Diameter := 6.75;
+    D.AddFeature(H);
+    Check(RB.Rebuild = 0, 'furo Ø6,75 ' + H.Message);
+    V0 := RB.TotalVolume;
+    T := TCadModelThread.Create;
+    T.FaceRef := 'face:' + H.Name + '/1/parede';
+    D.AddFeature(T);
+    T0 := GetTickCount64;
+    RB.Rebuild;
+    Check(T.State = fsOk, 'rosca interna sem erro: ' + T.Message);
+    Check(Pos('M8', T.Summary) = 1, 'rosca interna automatica pela broca: ' + T.Summary);
+    Check(Pos('interna', T.Summary) > 0, 'face de furo -> rosca interna');
+    Spec.Internal := True; Spec.LeftHand := False; Spec.Clearance := 0;
+    Spec.FaceRadius := 6.75 / 2; Spec.Length := 10;
+    Exp := CadThreadRemovedVolume(Spec);
+    V := V0 - RB.TotalVolume;
+    Writeln(Format('  rosca interna M8 x 10: %d ms', [GetTickCount64 - T0]));
+    Check(Abs(V - Exp) / Exp < 0.04, Format('rosca interna tira %.2f mm3 (analitico %.2f) em %d ms',
+      [V, Exp, GetTickCount64 - T0]));
+    Check((RB.BodyCount = 1) and RB.Body(0).Mesh.IsClosed, 'placa com rosca interna fechada');
+    { furo grande demais para a tabela }
+    H.Diameter := 30;
+    RB.Rebuild;
+    Check(T.State = fsError, 'furo Ø30 sem rosca na tabela: erro ' + T.Message);
+  finally
+    RB.Free;
+    D.Free;
+  end;
+
+  { ----- engrenagens ----- }
+  Check(Near(CadGearCenterDistance(1, 20, 30, False), 25) and Near(CadGearCenterDistance(1, 20, 60, True), 20),
+    'distancia entre centros: externa m(z1+z2)/2, interna m(z2-z1)/2');
+  GS := CadGearDefaults;
+  Check(Near(CadGearInfo(GS).PitchD, 20) and Near(CadGearInfo(GS).TipD, 22) and Near(CadGearInfo(GS).RootD, 17.5),
+    'engrenagem m1 z20: d 20, da 22, df 17,5');
+  GS.Count := 10;
+  Check(CadGearInfo(GS).Undercut, 'z10 sem correcao: rebaixo');
+  GS.Shift := 0.5;
+  Check(not CadGearInfo(GS).Undercut, 'z10 com x=0,5: sem rebaixo');
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  try
+    S := D.AddSketch('plane:1');
+    L := S.AddPoint(30, 5);
+    G := TCadGear.Create;
+    D.AddFeature(G);
+    Check(RB.Rebuild = 0, 'engrenagem reta sem erro: ' + G.Message);
+    Gm := CadMakeGear(G.Spec, 'x', E);
+    Check((RB.BodyCount = 1) and Near(RB.TotalVolume, Gm.Volume, 1E-6 * Gm.Volume),
+      Format('engrenagem: corpo com o volume da malha (%.2f)', [RB.TotalVolume]));
+    Gm.Free;
+    Check(RB.FindFace(G.Name + '/dentes', B, F) and RB.FindFace(G.Name + '/furo', B, F) and
+      ((B.Mesh.Faces[F].Surf = skCylinder) or RB.OcctActive), 'faces dentes e furo (cilindro no núcleo Pascal)');
+    Bx := RB.Body(0).Mesh.Bounds;
+    Check(Near(Bx.Min.Z, 0, 1E-6) and Near(Bx.Max.Z, 10, 1E-6) and Near(Bx.Max.X, 11, 0.01),
+      'engrenagem no Plano Frontal: largura em Z, raio externo 11');
+    V0 := RB.TotalVolume;
+    { espessura do dente no primitivo: area da coroa entre df e da ~ metade dentes }
+    G.Reverse := True;
+    G.Offset := 5;
+    RB.Rebuild;
+    Bx := RB.Body(0).Mesh.Bounds;
+    Check(Near(Bx.Min.Z, -15, 1E-6) and Near(Bx.Max.Z, -5, 1E-6), 'inverter e deslocar do plano');
+    { centro num ponto de esboco, outro plano }
+    G.Reverse := False;
+    G.Offset := 0;
+    G.CenterRef := Format('sketch:%d/%d.1', [S.Id, L]);
+    RB.Rebuild;
+    Bx := RB.Body(0).Mesh.Bounds;
+    Check((G.State = fsOk) and Near((Bx.Min.X + Bx.Max.X) / 2, 30, 0.05) and Near((Bx.Min.Y + Bx.Max.Y) / 2, 5, 0.05),
+      'centro no ponto do esboco ' + G.Message);
+    G.CenterRef := '';
+    G.PlaneRef := 'plane:2';
+    RB.Rebuild;
+    Bx := RB.Body(0).Mesh.Bounds;
+    Check(Near(BoxSize(Bx).Y, 10, 1E-6), 'engrenagem no Plano Superior: largura em Y');
+    G.PlaneRef := 'plane:1';
+    { helicoidal e espinha de peixe: mesmo volume da reta com o modulo transversal }
+    G.Spec.Teeth := gtHelical;
+    G.Spec.Helix := 20;
+    RB.Rebuild;
+    Check((G.State = fsOk) and RB.Body(0).Mesh.IsClosed, 'helicoidal 20° sem erro ' + G.Message);
+    Check(Near(CadGearInfo(G.Spec).TwistDeg, RadToDeg(10 * Tan(DegToRad(20)) / (20 / Cos(DegToRad(20)) / 2)), 1E-9),
+      'giro da helicoidal = L.tan(b)/rp');
+    V := RB.TotalVolume;
+    G.Spec.Teeth := gtHerringbone;
+    RB.Rebuild;
+    Check((G.State = fsOk) and Near(RB.TotalVolume, V, 0.002 * V), 'espinha de peixe: mesmo volume da helicoidal');
+    { interna e cremalheira }
+    G.Spec.Teeth := gtStraight;
+    G.Spec.Kind := gkInternal;
+    G.Spec.Count := 40;
+    RB.Rebuild;
+    Bx := RB.Body(0).Mesh.Bounds;
+    Exp := CadGearInfo(G.Spec).RootD + 2 * 2.5;   { externo automatico }
+    Check((G.State = fsOk) and Near(BoxSize(Bx).X, Exp, 0.01) and RB.FindFace(G.Name + '/ext', B, F),
+      Format('interna z40: anel Ø%.2f', [BoxSize(Bx).X]));
+    G.Spec.Kind := gkRack;
+    G.Spec.Count := 10;
+    G.Spec.Teeth := gtHelical;
+    RB.Rebuild;
+    Bx := RB.Body(0).Mesh.Bounds;
+    Check((G.State = fsOk) and RB.FindFace(G.Name + '/costas', B, F) and
+      Near(Bx.Max.Y, 1, 1E-6), 'cremalheira helicoidal: dentes ate +1 m acima da linha primitiva ' + G.Message);
+    G.Spec.Kind := gkExternal;
+    G.Spec.Count := 3;
+    RB.Rebuild;
+    Check((G.State = fsError) and (Pos('5 dentes', G.Message) > 0), 'externa com 3 dentes: erro');
+    G.Spec.Count := 20;
+    G.Spec.Bore := 19;
+    RB.Rebuild;
+    Check((G.State = fsError) and (Pos('pé dos dentes', G.Message) > 0), 'furo maior que a raiz: erro');
+    G.Spec.Bore := 6;
+    G.Spec.KeyWidth := 2;
+    G.Spec.KeyDepth := 1;
+    G.Spec.Teeth := gtHelical;
+    RB.Rebuild;
+    Check((G.State = fsOk) and RB.FindFace(G.Name + '/chaveta2', B, F) and (B.Mesh.Faces[F].Surf = skPlane),
+      'chaveta no furo (nao gira com a helice) ' + G.Message);
+    O := TJSONObject.Create;
+    try
+      G.SaveParams(O);
+      G.Spec := CadGearDefaults;
+      G.LoadParams(O);
+      Check((G.Spec.Teeth = gtHelical) and Near(G.Spec.KeyWidth, 2) and (G.Spec.Count = 20),
+        'engrenagem: parametros no .mcad');
+    finally
+      O.Free;
+    end;
+  finally
+    RB.Free;
+    D.Free;
+  end;
+  { engrenagem sem furo num eixo: une ao corpo }
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  try
+    RodDoc(D, 3, 30, Face);
+    G := TCadGear.Create;
+    G.Spec.Bore := 0;
+    G.Offset := 10;
+    D.AddFeature(G);
+    RB.Rebuild;
+    Check((G.State = fsOk) and (RB.BodyCount = 1), 'engrenagem mesclada ao eixo ' + G.Message);
+  finally
+    RB.Free;
+    D.Free;
+  end;
+
+  { ----- eixo da revolucao: linha de construcao, face cilindrica, aresta reta ----- }
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  try
+    S := D.AddSketch('plane:1');
+    S.AddRectangle(0, 0, 10, 40);
+    S.AddLine(0, -5, 0, 50, True);
+    RV := D.AddRevolve(S.Id, 360);
+    RB.Rebuild;
+    Check((RV.State = fsOk) and RelNear(RB.TotalVolume, Pi * 100 * 40, 0.005),
+      'revolucao: linha de construcao unica serve de eixo ' + RV.Message);
+  finally
+    RB.Free;
+    D.Free;
+  end;
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  try
+    X := RodDoc(D, 4, 20, Face);
+    Fr := StdFrame(spSuperior);
+    S := D.AddSketch('plane:2');
+    P1 := FrameToLocal(Fr, V3(6, 0, 2));
+    P2 := FrameToLocal(Fr, V3(9, 0, 6));
+    S.AddRectangle(Min(P1.X, P2.X), Min(P1.Y, P2.Y), Max(P1.X, P2.X), Max(P1.Y, P2.Y));
+    RV := D.AddRevolve(S.Id, 360);
+    RV.AxisRef := Face;
+    RB.Rebuild;
+    Check(RV.State <> fsError, 'eixo pela face cilindrica do pino: ' + RV.Message);
+    Check(RelNear(RB.TotalVolume, Pi * 16 * 20 + Pi * (81 - 36) * 4, 0.005),
+      Format('anel em torno do eixo da face (%.1f)', [RB.TotalVolume]));
+  finally
+    RB.Free;
+    D.Free;
+  end;
+  D := TCadDocument.Create;
+  RB := TCadRebuilder.Create(D);
+  try
+    S := D.AddSketch('plane:1');
+    L := S.AddRectangle(0, 0, 10, 10);
+    X := D.AddExtrude(S.Id, 10);
+    RB.Rebuild;
+    Fr := StdFrame(spSuperior);
+    S2 := D.AddSketch('plane:2');
+    P1 := FrameToLocal(Fr, V3(-20, 0, 0));
+    P2 := FrameToLocal(Fr, V3(-17, 0, 10));
+    S2.AddRectangle(Min(P1.X, P2.X), Min(P1.Y, P2.Y), Max(P1.X, P2.X), Max(P1.Y, P2.Y));
+    RV := D.AddRevolve(S2.Id, 360);
+    RV.AxisRef := CadEdgeRef(X.Name + '/lat:' + IntToStr(L), X.Name + '/lat:' + IntToStr(L + 3));
+    RB.Rebuild;
+    Check(RV.State <> fsError, 'eixo pela aresta reta do bloco: ' + RV.Message);
+    Check(RelNear(RB.TotalVolume, 1000 + Pi * (400 - 289) * 10, 0.005),
+      Format('anel em torno da aresta (%.1f)', [RB.TotalVolume]));
+    RV.AxisRef := CadEdgeRef(X.Name + '/lat:' + IntToStr(L + 1), X.Name + '/fim');
+    RB.Rebuild;
+    Check((RV.State = fsError) and (Pos('plano do esboço', RV.Message) > 0),
+      'aresta fora do plano do esboco: erro ' + RV.Message);
+  finally
+    RB.Free;
+    D.Free;
+  end;
+end;
+
 procedure TestOcct;
 var
   D, D2: TCadDocument;
@@ -2799,6 +3166,7 @@ begin
   TestHoles;
   TestFilletSelection;
   TestBlend3D;
+  TestThreadsGears;
   TestOcct;
   TestExport;
   Writeln(Format('MultiCAD: %d checks, %d falhas', [Passed + Failed, Failed]));

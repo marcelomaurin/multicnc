@@ -50,6 +50,8 @@ MCAD_API mcad_shape mcad_revol(mcad_prof p, const double *pt3, const double *dir
 
 /* booleana: 0 uniao, 1 diferenca (a - b), 2 intersecao */
 MCAD_API mcad_shape mcad_bool(mcad_shape a, mcad_shape b, int op);
+/* versao 2: simplify = 0 nao junta faces vizinhas da mesma superficie */
+MCAD_API mcad_shape mcad_bool_ex(mcad_shape a, mcad_shape b, int op, int simplify);
 /* transformacao (3x4 por linhas); renomeia "oldPrefix..." para "newPrefix..." */
 MCAD_API mcad_shape mcad_transform(mcad_shape s, const double *m12, const char *oldPrefix,
   const char *newPrefix);

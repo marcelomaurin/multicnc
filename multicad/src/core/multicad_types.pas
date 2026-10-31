@@ -50,7 +50,7 @@ type
 
   TCadFeatureKind = (cfOrigin, cfPlane, cfAxis, cfSketch, cfExtrude, cfCut,
     cfRevolve, cfRevolveCut, cfHole, cfFillet, cfChamfer, cfShell,
-    cfLinearPattern, cfCircularPattern, cfMirror, cfImport);
+    cfLinearPattern, cfCircularPattern, cfMirror, cfImport, cfThread, cfGear);
 
   TSketchEntityKind = (sePoint, seLine, seArc, seCircle, seEllipse, seSpline);
 
@@ -63,12 +63,13 @@ const
   CAD_FEATURE_CODES: array[TCadFeatureKind] of string = ('origin', 'plane',
     'axis', 'sketch', 'extrude', 'cut', 'revolve', 'revolve_cut', 'hole',
     'fillet', 'chamfer', 'shell', 'linear_pattern', 'circular_pattern',
-    'mirror', 'import');
+    'mirror', 'import', 'thread', 'gear');
   { Nomes como no SolidWorks em portugues (decisao D6). }
   CAD_FEATURE_NAMES: array[TCadFeatureKind] of string = ('Origem', 'Plano',
     'Eixo', 'Esboço', 'Ressalto/Base extrudado', 'Corte extrudado',
     'Ressalto revolucionado', 'Corte revolucionado', 'Furo', 'Filete',
-    'Chanfro', 'Casca', 'Padrão linear', 'Padrão circular', 'Espelhar', 'Importado (STEP)');
+    'Chanfro', 'Casca', 'Padrão linear', 'Padrão circular', 'Espelhar', 'Importado (STEP)',
+    'Rosca', 'Engrenagem');
   CAD_STD_PLANE_NAMES: array[TCadStdPlane] of string = ('Plano Frontal',
     'Plano Superior', 'Plano Lateral');
   CAD_ENTITY_CODES: array[TSketchEntityKind] of string = ('point', 'line',
