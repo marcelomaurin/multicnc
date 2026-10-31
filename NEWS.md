@@ -17,6 +17,9 @@
   `Esboço1.aresta`, `Cubo.aresta`, `[Ressalto-Extrusão1].aresta`; mudar a variável
   recalcula esboços, profundidades e campos das operações.
 - Ponte OpenCascade versão 2 (`mcad_occt.dll` recompilada, booleana sem unificar faces).
+- Instalador Win64 com os 14 aplicativos; 120 testes de console aprovados.
+
+[Instalador e rastreabilidade](docs/SETUP_017.md).
 
 ---
 
