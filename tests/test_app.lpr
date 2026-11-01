@@ -18,6 +18,15 @@ begin
   Lines := TStringList.Create;
   FN := GetTempFileName(GetTempDir, 'cnc');
   try
+    Check(TTabSheet(F.FindComponent('CalibrationTab')).Caption='Calibração', 'Calibration tab caption');
+    Check(TFloatSpinEdit(F.FindComponent('CalibrationDistance')).Value=2, 'Calibration default distance');
+    Check(TFloatSpinEdit(F.FindComponent('CalibrationMarginX')).Value=5, 'Calibration default X');
+    Check(TFloatSpinEdit(F.FindComponent('CalibrationMarginY')).Value=5, 'Calibration default Y');
+    Check(TFloatSpinEdit(F.FindComponent('CalibrationTravelZ')).Value=10, 'Calibration travel height');
+    Check(not TSuiteButton(F.FindComponent('CalibrationStart')).Enabled, 'Calibration disconnected');
+    for I:=0 to F.ComponentCount-1 do
+      if F.Components[I] is TLabel then
+        Check(Pos('Ã',TLabel(F.Components[I]).Caption)=0,'Label encoding');
     ConnectButton := nil; StartButton := nil; JogZ := nil;
     PauseButton := nil; StopButton := nil;
     for I := 0 to F.ComponentCount - 1 do

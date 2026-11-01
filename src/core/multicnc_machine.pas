@@ -68,7 +68,8 @@ type
     function GetCapabilities: TMachineCapabilities;
     function GetTemperatures: TPrinterTemperatures;
     function QueryTemperatures: Boolean;
-    function MoveTo(AX, AY, AZ, AFeed: Double): Boolean;
+    function LiftTo(AZ, AFeed: Double): Boolean;
+    function MoveTo(AX, AY, AZ, AFeed: Double; ControlledFeed: Boolean = False): Boolean;
     function SetHotendTemperature(ATemp: Double): Boolean;
     function SetBedTemperature(ATemp: Double): Boolean;
     function Connect: Boolean;
@@ -566,13 +567,36 @@ begin
   if Result then Result:=EnqueueLines('G4 P0',True);
 end;
 
-function TMultiCNCMachine.MoveTo(AX, AY, AZ, AFeed: Double): Boolean;
-var Reason: string;
+{ Lift only Z after homing, which may leave X/Y outside the work area.
+  Omit X/Y from the command rather than weakening their travel validation. }
+function TMultiCNCMachine.LiftTo(AZ, AFeed: Double): Boolean;
+var Reason, FeedMode, WaitMotion: string;
 begin
   if not Assigned(FProtocol) then Exit(Reject('Sem protocolo'));
+  if GetState<>msIdle then Exit(Reject('Aguarde a máquina ficar ociosa'));
+  if AZ<GetPosition.Z then Exit(Reject('A elevação não pode reduzir Z'));
+  if not TSafetyValidator.CheckMoveTo(GetState,0,0,AZ,AFeed,FCapabilities,
+    FEnvelope,Reason) then Exit(Reject(Reason));
+  FeedMode:=''; WaitMotion:='M400';
+  if (Pos('grbl',LowerCase(FProtocol.GetName))>0) or SameText(FProtocol.GetName,'FluidNC') then
+  begin FeedMode:='G94'+LineEnding; WaitMotion:='G4 P0'; end;
+  Result:=SendProtocolCommand(Format('M5%sG21%sG90%s%sG1 Z%.3f F%.0f%s%s%s',
+    [LineEnding,LineEnding,LineEnding,FeedMode,AZ,AFeed,LineEnding,WaitMotion,LineEnding],InvariantFS),True);
+end;
+
+function TMultiCNCMachine.MoveTo(AX, AY, AZ, AFeed: Double; ControlledFeed: Boolean): Boolean;
+var Reason, FeedMode, WaitMotion: string;
+begin
+  if not Assigned(FProtocol) then Exit(Reject('Sem protocolo'));
+  FeedMode:=''; WaitMotion:='M400';
+  if (Pos('grbl',LowerCase(FProtocol.GetName))>0) or SameText(FProtocol.GetName,'FluidNC') then
+  begin FeedMode:='G94'+LineEnding; WaitMotion:='G4 P0'; end;
   if not TSafetyValidator.CheckMoveTo(GetState, AX, AY, AZ, AFeed, FCapabilities,
     FEnvelope, Reason) then Exit(Reject(Reason));
-  Result := SendProtocolCommand(FProtocol.BuildMoveToCommand(AX, AY, AZ, AFeed), True);
+  if ControlledFeed then
+    Result := SendProtocolCommand(Format('M5%sG21%sG90%s%sG1 X%.3f Y%.3f Z%.3f F%.0f%s%s%s',
+      [LineEnding,LineEnding,LineEnding,FeedMode,AX,AY,AZ,AFeed,LineEnding,WaitMotion,LineEnding],InvariantFS),True)
+  else Result := SendProtocolCommand(FProtocol.BuildMoveToCommand(AX, AY, AZ, AFeed), True);
 end;
 
 function TMultiCNCMachine.SendGCode(const ALine: string): Boolean;

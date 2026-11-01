@@ -9,12 +9,21 @@ uses Classes, SysUtils, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls,
   multicnc_types, multicnc_session, multicnc_simulator, multicnc_gcode_analyzer, multicnc_laser_config,
   multicnc_printer_profiles, multicnc_router_profiles, multicnc_laser_profiles, multicnc_equipment, ailistserialdevices, multisuite_icons,
   multisuite_controls, multisuite_gcode_writer, multicnc_preview, multicnc_accessories,
-  multicnc_zeroassist_form, multicnc_zero_assist;
+  multicnc_zeroassist_form, multicnc_zero_assist, multicnc_bed_calibration;
 
 type
   TMainForm = class(TForm)
   private
     Session: TSimulationSession;
+    Calibration: TBedCalibration;
+    CalibrationTab: TTabSheet;
+    CalZ, CalX, CalY, CalTravelZ: TFloatSpinEdit;
+    CalStart, CalPrevious, CalNext, CalFinish: TSuiteButton;
+    CalStatus: TLabel;
+    procedure CreateCalibrationTab;
+    procedure CalibrationClick(Sender: TObject);
+    procedure UpdateCalibration;
+  private
     Trace: TGCodeTrace;
     Envelope: TMachineEnvelope;
     Report: TGCodeReport;
@@ -193,6 +202,72 @@ type
   end;
 
 implementation
+
+
+procedure TMainForm.CreateCalibrationTab;
+var Scroll: TScrollBox; L: TLabel;
+  function SpinAt(const AName, CaptionText: string; Y: Integer; DefaultValue: Double): TFloatSpinEdit;
+  begin
+    LabelAt(Scroll,CaptionText,24,Y);
+    Result:=TFloatSpinEdit.Create(Self); Result.Name:=AName; Result.Parent:=Scroll;
+    Result.SetBounds(280,Y-3,130,30); Result.DecimalPlaces:=2;
+    Result.MinValue:=0.01; Result.MaxValue:=10000; Result.Increment:=0.1; Result.Value:=DefaultValue;
+  end;
+begin
+  Calibration:=TBedCalibration.Create(Session);
+  CalibrationTab:=TTabSheet.Create(Self); CalibrationTab.Name:='CalibrationTab';
+  CalibrationTab.PageControl:=Pages; CalibrationTab.Caption:='Calibração';
+  Scroll:=TScrollBox.Create(Self); Scroll.Parent:=CalibrationTab; Scroll.Align:=alClient;
+  L:=LabelAt(Scroll,'Calibração manual da mesa pelos quatro cantos',24,24);
+  L.Font.Style:=[fsBold];
+  CalZ:=SpinAt('CalibrationDistance','Distância da base / Z (mm)',80,2);
+  CalX:=SpinAt('CalibrationMarginX','Margem X (mm)',128,5);
+  CalY:=SpinAt('CalibrationMarginY','Margem Y (mm)',176,5);
+  CalTravelZ:=SpinAt('CalibrationTravelZ','Altura de movimentação Z (mm)',224,10);
+  CalTravelZ.MinValue:=10;
+  L:=LabelAt(Scroll,'Antes de iniciar: defina Z zero na base e X/Y zero no canto da área útil. '+
+    'Confira o curso X/Y/Z em Configurações. '+
+    'O spindle/laser será desligado. Os deslocamentos usam a altura Z de movimentação e avanço de 300 mm/min.',24,278);
+  L.AutoSize:=False; L.WordWrap:=True; L.SetBounds(24,278,560,85);
+  CalStart:=ButtonAt(Scroll,'Iniciar calibração',24,378,190,@CalibrationClick);
+  CalStart.Name:='CalibrationStart';
+  CalPrevious:=ButtonAt(Scroll,'Canto anterior',24,433,180,@CalibrationClick);
+  CalPrevious.Name:='CalibrationPrevious';
+  CalNext:=ButtonAt(Scroll,'Próximo canto',220,433,180,@CalibrationClick);
+  CalNext.Name:='CalibrationNext';
+  CalFinish:=ButtonAt(Scroll,'Finalizar',416,433,150,@CalibrationClick);
+  CalFinish.Name:='CalibrationFinish';
+  CalStatus:=LabelAt(Scroll,'',24,498); CalStatus.AutoSize:=False;
+  CalStatus.WordWrap:=True; CalStatus.SetBounds(24,498,550,90);
+end;
+
+procedure TMainForm.CalibrationClick(Sender: TObject);
+begin
+  if Assigned(Accessories) then Accessories.Suspend;
+  if Sender=CalStart then Calibration.Start(CalX.Value,CalY.Value,CalZ.Value,300,CalTravelZ.Value)
+  else if Sender=CalPrevious then Calibration.Navigate(-1)
+  else if Sender=CalNext then Calibration.Navigate(1)
+  else if Sender=CalFinish then Calibration.Finish;
+  Log(Calibration.MessageText);
+  UpdateControls;
+end;
+
+procedure TMainForm.UpdateCalibration;
+var Ready: Boolean;
+begin
+  if not Assigned(Calibration) then Exit;
+  Ready:=Session.Connected and Session.ControllerReady and
+    (Session.MachineState=msIdle) and not Session.WaitingForReply and
+    not (Session.State in [ssRunning,ssPaused,ssError]) and Session.SupportsAxis(axZ);
+  CalStart.Enabled:=Ready and not Calibration.Active;
+  CalPrevious.Enabled:=Ready and Calibration.Active and (Calibration.Stage=0) and (Calibration.Corner>0);
+  CalNext.Enabled:=Ready and Calibration.Active and (Calibration.Stage=0) and (Calibration.Corner<3);
+  CalFinish.Enabled:=Calibration.Active;
+  CalZ.Enabled:=not Calibration.Active; CalX.Enabled:=CalZ.Enabled; CalY.Enabled:=CalZ.Enabled; CalTravelZ.Enabled:=CalZ.Enabled;
+  CalStatus.Caption:=Calibration.MessageText;
+  Accessories.Enabled:=not Calibration.Active;
+  if Calibration.Active then Accessories.Suspend;
+end;
 
 function TMainForm.Panel(ParentControl: TWinControl; Alignment: TAlign; Size: Integer): TPanel;
 begin
@@ -1308,6 +1383,7 @@ begin
   Accessories:=TAccessoriesFrame.CreateForSession(Self,Session,
     IncludeTrailingPathDelimiter(GetAppConfigDir(False))+'joystick.ini');
   Accessories.Name:='Accessories'; Accessories.Parent:=AccessoriesTab; Accessories.Align:=alClient;
+  CreateCalibrationTab;
   Timer := TTimer.Create(Self);
   Timer.Enabled := False;
   Timer.Interval := 100;
@@ -1331,6 +1407,7 @@ begin
   if Assigned(Timer) then Timer.Enabled := False;
   FreeAndNil(Accessories);
   EquipmentStore.Free;
+  Calibration.Free;
   Session.Free;
   Trace.Free;
   SerialDeviceList.Free;
@@ -1349,7 +1426,7 @@ begin
   EquipmentGroup.SetBounds(15, 10, 715, 140);
   EquipmentGroup.Hint := 'Arquivo do cadastro: ' + EquipmentStore.FileName;
   EquipmentGroup.ShowHint := True;
-  LabelAt(EquipmentGroup, 'DÃƒÆ’Ã‚Âª um nome ÃƒÆ’Ã‚Â  configuraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o atual', 15, 5);
+  LabelAt(EquipmentGroup, 'Dê um nome à configuração atual', 15, 5);
   EquipmentCombo := TComboBox.Create(Self);
   EquipmentCombo.Name := 'SavedEquipment';
   EquipmentCombo.Parent := HeaderBar;
@@ -1474,7 +1551,7 @@ begin
   end
   else if Profile.MachineType = mtLaser then
   begin
-    { Cadastros anteriores nÃƒÆ’Ã‚Â£o tinham marca/modelo para laser. }
+    { Cadastros anteriores não tinham marca/modelo para laser. }
     if (Profile.Brand = '') and (Profile.Model = '') then
       LaserBrandCombo.ItemIndex := LaserBrandCombo.Items.IndexOf('Generic')
     else LaserBrandCombo.ItemIndex := LaserBrandCombo.Items.IndexOf(Profile.Brand);
@@ -1735,7 +1812,7 @@ begin
   P.HasHoming := LaserHasHoming.Checked;
   P.Notes := 'Dados personalizados informados pelo operador: ' +
     Trim(LaserCustomManufacturer.Text + ' ' + LaserCustomModel.Text) +
-    '. Salve o equipamento pelo nome para restaurar estes parÃƒÆ’Ã‚Â¢metros.';
+    '. Salve o equipamento pelo nome para restaurar estes parâmetros.';
   LaserSpecsLabel.Caption := LaserProfileSummary(P);
   Session.PhysicalHomingAllowed := P.HasHoming;
   UpdateControls;
@@ -1890,13 +1967,13 @@ begin
   if SpConfigHotendTemp.Value > MaxHotend then
   begin
     SpConfigHotendTemp.Value := MaxHotend;
-    Log(Format('AVISO DE SEGURANÃƒÆ’Ã¢â‚¬Â¡A: Temperatura do bico limitada a %d C conforme especificaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes do fabricante.', [MaxHotend]));
+    Log(Format('AVISO DE SEGURANÇA: Temperatura do bico limitada a %d C conforme especificações do fabricante.', [MaxHotend]));
   end;
 
   if SpConfigBedTemp.Value > MaxBed then
   begin
     SpConfigBedTemp.Value := MaxBed;
-    Log(Format('AVISO DE SEGURANÃƒÆ’Ã¢â‚¬Â¡A: Temperatura da cama limitada a %d C conforme especificaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes do fabricante.', [MaxBed]));
+    Log(Format('AVISO DE SEGURANÇA: Temperatura da cama limitada a %d C conforme especificações do fabricante.', [MaxBed]));
   end;
 
   UpdateControls;
@@ -1923,7 +2000,7 @@ begin
 
   if SpConfigHotendTemp.Value > MaxHotend then
   begin
-    MessageDlg('Bloqueio de SeguranÃƒÆ’Ã‚Â§a TÃƒÆ’Ã‚Â©rmica',
+    MessageDlg('Bloqueio de Segurança Térmica',
       Format('A temperatura solicitada para o bico (%d C) ultrapassa o limite seguro do fabricante (%d C).' + LineEnding +
              'O valor foi corrigido para evitar superaquecimento e queima do bico/extrusor.',
              [SpConfigHotendTemp.Value, MaxHotend]), mtWarning, [mbOK], 0);
@@ -1932,9 +2009,9 @@ begin
 
   if SpConfigBedTemp.Enabled and (SpConfigBedTemp.Value > MaxBed) then
   begin
-    MessageDlg('Bloqueio de SeguranÃƒÆ’Ã‚Â§a TÃƒÆ’Ã‚Â©rmica',
+    MessageDlg('Bloqueio de Segurança Térmica',
       Format('A temperatura solicitada para a cama (%d C) ultrapassa o limite seguro do fabricante (%d C).' + LineEnding +
-             'O valor foi corrigido para evitar danos ÃƒÆ’Ã‚Â  cama aquecida.',
+             'O valor foi corrigido para evitar danos à cama aquecida.',
              [SpConfigBedTemp.Value, MaxBed]), mtWarning, [mbOK], 0);
     SpConfigBedTemp.Value := MaxBed;
   end;
@@ -2125,7 +2202,8 @@ begin
       else Session.PhysicalHomingAllowed := LaserProfile.HasHoming;
     end;
   end;
-  Busy := Session.State in [ssRunning, ssPaused];
+  UpdateCalibration;
+  Busy := (Session.State in [ssRunning, ssPaused]) or Calibration.Active;
   Manual := Session.Connected and Session.ControllerReady and not Busy;
   Alarm := Session.MachineState = msAlarm;
   StateLabel.Caption := StateNames[Session.State];
@@ -3023,6 +3101,11 @@ end;
 procedure TMainForm.CommandClick(Sender: TObject);
 var OK: Boolean; PosHome, Target: TMachinePosition; CompatibilityError, DepthMsg: string;
 begin
+  if Calibration.Active then
+  begin
+    if Sender = BtnStop then Calibration.Finish
+    else if Sender <> BtnStatus then Exit;
+  end;
   if Assigned(Accessories) then Accessories.Suspend;
   OK := False;
   if Sender = BtnStart then
@@ -3161,8 +3244,9 @@ begin
   try
     Session.Poll;
     Session.Tick;
+    Calibration.Tick;
   except
-    on E: Exception do begin Session.Stop; Log('Execution failure: ' + E.Message); end;
+    on E: Exception do begin Calibration.Finish; Session.Stop; Log('Execution failure: ' + E.Message); end;
   end;
   if Session.State <> LastState then
   begin

@@ -1,5 +1,21 @@
 # MultiSuite — Notas de Lançamento / News
 
+## [0.18] — Setup 018 (01/11/2026)
+
+- **MultiCNC 0.1.0.7**: aba Calibração para ajuste manual da mesa pelos quatro
+  cantos, com distância da base de 2 mm, margens X/Y de 5 mm e altura de
+  movimentação configurável (padrão e mínimo de 10 mm).
+- Navegação por próximo canto, canto anterior e finalizar; elevação de Z antes
+  de mover X/Y, espera pela controladora e bloqueio dos demais movimentos.
+- Corrigido o início após homing Marlin em posições X/Y negativas, como
+  X −3 e Y −10: a primeira elevação movimenta somente Z.
+- Corrigidos textos com acentos corrompidos nas configurações e mensagens.
+- Inclui **MultiCAD 0.0.9.0**, com roscas, engrenagens e variáveis.
+
+[Instalador e rastreabilidade](docs/SETUP_018.md).
+
+---
+
 ## [0.17] — Setup 017 (31/10/2026)
 
 ### MultiCAD 0.0.9.0: rosca, engrenagens, revolução e variáveis

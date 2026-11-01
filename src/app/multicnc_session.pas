@@ -126,7 +126,8 @@ type
     function RouterSpindleOff: Boolean;
     property RouterSpindleMaxRPM: Integer read FRouterSpindleMaxRPM write FRouterSpindleMaxRPM;
     { Movimento absoluto ate X/Y/Z (mm), validado contra o curso da maquina. }
-    function MoveTo(X, Y, Z, Feed: Double): Boolean;
+    function LiftTo(Z, Feed: Double): Boolean;
+    function MoveTo(X, Y, Z, Feed: Double; ControlledFeed: Boolean = False): Boolean;
     function Send(const Line: string): Boolean;
     function SupportsAxis(Axis: TAxis): Boolean;
     function ProgramText: string;
@@ -1171,7 +1172,18 @@ begin
   if not Result then FLastError:=FMachine.LastError;
 end;
 
-function TSimulationSession.MoveTo(X, Y, Z, Feed: Double): Boolean;
+function TSimulationSession.LiftTo(Z, Feed: Double): Boolean;
+begin
+  if FJoystickMotion then Exit(Fail('Solte o joystick e aguarde o movimento terminar'));
+  if not Connected then Exit(Fail('Máquina desconectada'));
+  if not ControllerReady then Exit(Fail('Aguarde a inicialização da controladora'));
+  if FState in [ssRunning,ssPaused] then Exit(Fail('Aguarde o programa terminar'));
+  if not ((Feed>=1) and (Feed<=10000)) then Exit(Fail('Avanço fora dos limites'));
+  Result:=FMachine.LiftTo(Z,Feed);
+  if Result then RequestPositionAfterMotion else FLastError:=FMachine.LastError;
+end;
+
+function TSimulationSession.MoveTo(X, Y, Z, Feed: Double; ControlledFeed: Boolean): Boolean;
 begin
   if FJoystickMotion then Exit(Fail('Solte o joystick e aguarde o movimento terminar'));
   if not Connected then Exit(Fail('Maquina desconectada'));
@@ -1179,7 +1191,7 @@ begin
   if FState in [ssRunning, ssPaused] then Exit(Fail('Unavailable while program is running'));
   if not ((Feed >= 1) and (Feed <= 10000)) then
     Exit(Fail('Avanco fora dos limites (1-10000 mm/min)'));
-  Result := FMachine.MoveTo(X, Y, Z, Feed);
+  Result := FMachine.MoveTo(X, Y, Z, Feed, ControlledFeed);
   if Result then RequestPositionAfterMotion
   else FLastError := FMachine.LastError;
 end;
