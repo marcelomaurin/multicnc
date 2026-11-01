@@ -39,3 +39,18 @@ offline e os modelos distribuídos na versão anterior.
 - Testes específicos de calibração incluem quatro cantos, retorno, espera,
   altura mínima e posição negativa após homing Marlin.
 - Não inclui ensaio com máquina real.
+
+
+## Resultado da geração
+
+- Os 14 aplicativos foram recompilados para Windows x64 com Lazarus/FPC nativos.
+- **121 testes de console aprovados, nenhuma falha**; 1 teste de integração
+  TCP depende de servidor SimuCNC e não foi executado nesta geração.
+- Fontes registradas no commit `04a663d16c05d38c620e60175fb9a611c2014913`, com árvore limpa no manifesto.
+- Instalador gerado com Inno Setup 7; não inclui ensaio de instalação em outra máquina.
+
+SHA-256 do instalador:
+
+```text
+9caa8f5eb98799cdf30dd2d873304ae2bb48dd2c39a87b6b533b52a70bafb921  setup_multcnc_0.18.exe
+```
