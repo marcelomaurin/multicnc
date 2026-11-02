@@ -69,6 +69,7 @@ Name: "extra\docs"; Description: "Documentacao e Manuais do Sistema (atalhos na 
 Name: "{userdocs}\MultiSuite Projects"
 
 [Files]
+Source: "..\..\installer\windows\multisuite_updater.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\dist\app\qa-tests.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\dist\app\multicnc.exe"; DestDir: "{app}"; Components: tools\multicnc; Flags: ignoreversion
 Source: "..\..\dist\app\multisuite_tray.exe"; DestDir: "{app}"; Components: tools\tray; Flags: ignoreversion
@@ -94,6 +95,7 @@ Source: "..\..\dist\app\build-manifest.json"; DestDir: "{app}"; Flags: ignorever
 Source: "..\..\dist\installer-images\slide*.bmp"; Flags: dontcopy
 
 [Tasks]
+Name: "autoupdate"; Description: "Verificar atualizacoes automaticamente ao iniciar o Windows"; GroupDescription: "Atualizacoes:"; Flags: checkedonce
 Name: "desktopicon_tray"; Description: "Criar atalho da bandeja na area de trabalho"; GroupDescription: "Atalhos da Area de Trabalho:"; Components: tools\tray; Flags: unchecked
 Name: "desktopicon_cnc"; Description: "Criar atalho do MultiCNC na area de trabalho"; GroupDescription: "Atalhos da Area de Trabalho:"; Components: tools\multicnc; Flags: unchecked
 Name: "trayautostart"; Description: "Iniciar a MultiSuite Bandeja com o Windows"; GroupDescription: "Bandeja:"; Components: tools\tray; Flags: checkedonce
@@ -133,6 +135,7 @@ Name: "{autodesktop}\Documentacao MultiSuite\Manual MultiCNC 0.1.0.3"; Filename:
 Name: "{autodesktop}\Documentacao MultiSuite\Manual LaserArt 0.02.1"; Filename: "{app}\documentation\docs\Manuals\Manual_do_Usuario_LaserArt_0.02.1_PT-BR.pdf"; Components: extra\docs
 
 [Registry]
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "MultiSuiteUpdater"; ValueData: """{sys}\WindowsPowerShell\v1.0\powershell.exe"" -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy RemoteSigned -File ""{app}\multisuite_updater.ps1"" -InstalledVersion ""{#MyAppVersion}"""; Flags: uninsdeletevalue; Tasks: autoupdate
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "MultiSuiteTray"; ValueData: """{app}\multisuite_tray.exe"" --tray"; Flags: uninsdeletevalue; Tasks: trayautostart; Components: tools\tray
 
 [Run]
