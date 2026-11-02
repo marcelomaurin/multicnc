@@ -60,9 +60,45 @@ jobs:
         shell: powershell
         run: |
           'C:\Program Files (x86)\Inno Setup 6' | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Determine release version
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            $version = $env:GITHUB_REF_NAME -replace '^v',''
+            if ($version -notmatch '^\d+\.\d+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: MultiSuite-Windows-Installer
+          path: |
+            multicnc/dist/setup_*.exe
+            multicnc/dist/SHA256SUMS
+            multicnc/dist/app/build-manifest.json
+            multicnc/dist/app/qa-tests.json
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $setup = Get-ChildItem dist/setup_multcnc_*.exe | Where-Object { $_.Name -match '^setup_multcnc_\\d{3}\\.exe$' } | Select-Object -First 1
+          if (-not $setup) { throw 'Installer missing from build' }
+          $manifest = Join-Path 'dist' 'SHA256SUMS'
+          if (-not (Test-Path $manifest)) { throw 'Missing SHA256SUMS' }
+          gh release create $env:GITHUB_REF_NAME $setup.FullName $manifest --repo $env:GITHUB_REPOSITORY --title "MultiSuite $env:VERSION" --generate-notes --verify-tag
+) { throw 'Tag must be vMAJOR.MINOR' }
+            $minor = [int]($version.Split('.')[1])
+            if ($minor -gt 999) { throw 'Version out of range' }
+            "VERSION=$version" >> $env:GITHUB_ENV
+            "SETUP_SEQ=$('{0:D3}' -f $minor)" >> $env:GITHUB_ENV
+          } else {
+            "SETUP_SEQ=018" >> $env:GITHUB_ENV
+          }
       - name: Build suite and installer
         shell: cmd
-        run: installer\windows\build_release.bat
+        run: installer\windows\build_release.bat -Version %VERSION% -SetupSeq %SETUP_SEQ%
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
