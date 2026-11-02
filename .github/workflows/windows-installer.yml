@@ -4,18 +4,13 @@ on:
     inputs:
       version:
         description: Versao de desenvolvimento/release
-        default: 0.06
+        default: '0.18'
         required: true
   push:
     tags:
       - 'v*'
-    paths:
-      - 'installer/windows/**'
-      - '**/*.pas'
-      - '**/*.lpr'
-      - '**/*.lpi'
-      - 'tools/**'
-      - '.github/workflows/windows-installer.yml'
+    branches:
+      - fila
   pull_request:
     paths: ['installer/windows/**', '**/*.pas', '**/*.lpr', '**/*.lpi', 'tools/**', '.github/workflows/windows-installer.yml']
 permissions:
@@ -25,7 +20,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     env:
-      VERSION: ${{ inputs.version || '0.06' }}
+      VERSION: ${{ inputs.version || '0.18' }}
     defaults:
       run:
         working-directory: multicnc
@@ -91,7 +86,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           $setup = Get-ChildItem dist/setup_multcnc_*.exe | Where-Object { $_.Name -match '^setup_multcnc_\d{3}\.exe$' } | Select-Object -First 1
           if (-not $setup) { throw 'Installer missing from build' }
