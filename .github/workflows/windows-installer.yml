@@ -7,6 +7,8 @@ on:
         default: 0.06
         required: true
   push:
+    tags:
+      - 'v*'
     paths:
       - 'installer/windows/**'
       - '**/*.pas'
@@ -16,6 +18,8 @@ on:
       - '.github/workflows/windows-installer.yml'
   pull_request:
     paths: ['installer/windows/**', '**/*.pas', '**/*.lpr', '**/*.lpi', 'tools/**', '.github/workflows/windows-installer.yml']
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: windows-latest
@@ -69,3 +73,15 @@ jobs:
             multicnc/dist/app/build-manifest.json
             multicnc/dist/app/qa-tests.json
           if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $setup = Get-ChildItem dist/setup_multcnc_*.exe | Where-Object { $_.Name -match '^setup_multcnc_\\d{3}\\.exe$' } | Select-Object -First 1
+          if (-not $setup) { throw 'Installer missing from build' }
+          $manifest = Join-Path 'dist' 'SHA256SUMS'
+          if (-not (Test-Path $manifest)) { throw 'Missing SHA256SUMS' }
+          gh release create $env:GITHUB_REF_NAME $setup.FullName $manifest --repo $env:GITHUB_REPOSITORY --title "MultiSuite $env:VERSION" --generate-notes --verify-tag
