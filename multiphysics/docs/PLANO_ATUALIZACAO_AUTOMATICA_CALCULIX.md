@@ -52,3 +52,9 @@ Exemplo, a partir da raiz do repositório:
 powershell -NoProfile -File multiphysics/tools/validate_ccx_windows.ps1 -ZipPath "C:\\Pacotes\\calculix.zip" -ExpectedSha256 "<SHA256_VERIFICADO_DE_FONTE_CONFIAVEL>"
 ```
 O comando **não instala nem executa** binários do ZIP. O pacote só poderá ser homologado após confirmação independente de origem/hash, licença, DLLs e benchmark com o executável real. Não preencher o hash com valor inventado. A integração com o instalador e os testes em Windows permanecem pendentes.
+
+## Execução de testes isolados — 2026-11-09
+- Executados 10 testes unitários do verificador ZIP em ambiente Linux com Python; **10/10 passaram**.
+- Cobertura: integridade SHA-256, ZIP corrompido, ZIP com caminho perigoso, symlink, ccx.exe ausente/duplicado e estrutura nominal.
+- **Não foi testado o atualizador automático**: não existe evidência de fluxo completo download → instalação → ativação → rollback. Também não foi executado teste Windows/PowerShell nem benchmark com CalculiX real.
+- Não promover o recurso a funcional ou homologado até testes de ponta a ponta com pacote confiável e ambiente Windows.
