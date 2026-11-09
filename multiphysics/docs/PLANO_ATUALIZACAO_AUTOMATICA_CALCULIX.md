@@ -44,3 +44,11 @@ Este arquivo é o **pacote de especificação e pendências**, não um atualizad
 - Executar testes: `cd multiphysics/tools && python -m unittest -v test_verify_ccx_package.py`.
 - O resultado `VERIFICADO_PARA_INSPECAO` **não** significa pacote homologado ou seguro para ativação; testes reais em Windows, assinatura/proveniência, DLLs e licença continuam necessários.
 - **Status**: alterações em branch de desenvolvimento, sem aprovação de instalação automática em produção.
+
+## Entrada de validação Windows — 2026-11-09
+Foi adicionado `multiphysics/tools/validate_ccx_windows.ps1` para executar a inspeção SHA-256/ZIP no Windows e registrar `ccx_windows_validation.log`.
+Exemplo, a partir da raiz do repositório:
+```powershell
+powershell -NoProfile -File multiphysics/tools/validate_ccx_windows.ps1 -ZipPath "C:\\Pacotes\\calculix.zip" -ExpectedSha256 "<SHA256_VERIFICADO_DE_FONTE_CONFIAVEL>"
+```
+O comando **não instala nem executa** binários do ZIP. O pacote só poderá ser homologado após confirmação independente de origem/hash, licença, DLLs e benchmark com o executável real. Não preencher o hash com valor inventado. A integração com o instalador e os testes em Windows permanecem pendentes.
