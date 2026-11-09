@@ -37,3 +37,10 @@ Adicionar ao MultiPhysics e ao instalador MultiSuite um gerenciador opcional que
 
 ## Entrega e limites
 Este arquivo é o **pacote de especificação e pendências**, não um atualizador executável. Implementação, build, testes e distribuição permanecem pendentes. Vincular à issue #16 e não declarar a atualização automática como concluída até passar nos critérios acima.
+
+## Avanço de implementação — PR #18 (2026-11-09)
+- Verificador offline em `multiphysics/tools/verify_ccx_package.py`: SHA-256 obrigatório, inspeção de ZIP e bloqueio de caminhos perigosos, links simbólicos e múltiplos executáveis.
+- Testes unitários adicionados em `multiphysics/tools/test_verify_ccx_package.py`: cenários de hash incorreto, ZIP corrompido, path traversal, executável ausente/duplicado e pacote estruturalmente válido.
+- Executar testes: `cd multiphysics/tools && python -m unittest -v test_verify_ccx_package.py`.
+- O resultado `VERIFICADO_PARA_INSPECAO` **não** significa pacote homologado ou seguro para ativação; testes reais em Windows, assinatura/proveniência, DLLs e licença continuam necessários.
+- **Status**: alterações em branch de desenvolvimento, sem aprovação de instalação automática em produção.
