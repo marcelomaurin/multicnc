@@ -70,6 +70,7 @@ Name: "{userdocs}\MultiSuite Projects"
 
 [Files]
 Source: "..\..\installer\windows\multisuite_updater.ps1"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\installer\windows\calculix_manager.ps1"; DestDir: "{app}\solvers"; Components: tools\multiphysics; Flags: ignoreversion
 Source: "..\..\dist\app\qa-tests.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\dist\app\multicnc.exe"; DestDir: "{app}"; Components: tools\multicnc; Flags: ignoreversion
 Source: "..\..\dist\app\multisuite_tray.exe"; DestDir: "{app}"; Components: tools\tray; Flags: ignoreversion
@@ -95,6 +96,8 @@ Source: "..\..\dist\app\build-manifest.json"; DestDir: "{app}"; Flags: ignorever
 Source: "..\..\dist\installer-images\slide*.bmp"; Flags: dontcopy
 
 [Tasks]
+Name: "calculix_install"; Description: "Baixar e instalar CalculiX usando manifesto confiavel selecionado pelo usuario"; GroupDescription: "Motores de simulacao:"; Components: tools\multiphysics; Flags: unchecked
+Name: "calculix_status"; Description: "Verificar o estado do CalculiX apos instalar o MultiPhysics (nao baixa sem manifesto confiavel)"; GroupDescription: "Motores de simulacao:"; Components: tools\multiphysics; Flags: unchecked
 Name: "autoupdate"; Description: "Verificar atualizacoes automaticamente ao iniciar o Windows"; GroupDescription: "Atualizacoes:"; Flags: checkedonce
 Name: "desktopicon_tray"; Description: "Criar atalho da bandeja na area de trabalho"; GroupDescription: "Atalhos da Area de Trabalho:"; Components: tools\tray; Flags: unchecked
 Name: "desktopicon_cnc"; Description: "Criar atalho do MultiCNC na area de trabalho"; GroupDescription: "Atalhos da Area de Trabalho:"; Components: tools\multicnc; Flags: unchecked
@@ -139,6 +142,8 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "MultiSuiteTray"; ValueData: """{app}\multisuite_tray.exe"" --tray"; Flags: uninsdeletevalue; Tasks: trayautostart; Components: tools\tray
 
 [Run]
+Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File ""{app}\solvers\calculix_manager.ps1"" -Action Install -ManifestPath ""{code:GetCalculixManifest}"""; Description: "Baixar e instalar CalculiX (SHA-256 obrigatorio)"; Flags: runhidden waituntilterminated; Tasks: calculix_install; Components: tools\multiphysics; Check: HasCalculixManifest
+Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File ""{app}\solvers\calculix_manager.ps1"" -Action Status"; Description: "Verificar instalacao gerenciada do CalculiX"; Flags: postinstall skipifsilent; Tasks: calculix_status; Components: tools\multiphysics
 Filename: "{app}\multisuite_tray.exe"; Parameters: "--tray"; Description: "Iniciar a MultiSuite Bandeja"; Flags: nowait postinstall skipifsilent; Components: tools\tray
 
 [UninstallRun]
@@ -149,6 +154,30 @@ var
   ProjectImage: TBitmapImage;
   ProjectCaption: TNewStaticText;
   CurrentSlide: Integer;
+  CalculixManifestPage: TInputFileWizardPage;
+
+function GetCalculixManifest(Param: String): String;
+begin
+  Result := CalculixManifestPage.Values[0];
+end;
+
+function HasCalculixManifest: Boolean;
+begin
+  Result := FileExists(GetCalculixManifest(''));
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+begin
+  Result := True;
+  if (CurPageID = CalculixManifestPage.ID) and WizardIsTaskSelected('calculix_install') then
+  begin
+    if not HasCalculixManifest then
+    begin
+      MsgBox('Selecione um manifesto JSON confiavel para baixar o CalculiX. Sem ele, desmarque a tarefa de instalacao do CalculiX.', mbError, MB_OK);
+      Result := False;
+    end;
+  end;
+end;
 
 procedure ShowProjectSlide(Index: Integer);
 var
@@ -173,6 +202,10 @@ procedure InitializeWizard;
 var
   I, ImageTop: Integer;
 begin
+  CalculixManifestPage := CreateInputFilePage(wpSelectTasks, 'Pacote CalculiX',
+    'Manifesto de versao confiavel',
+    'Para instalar CalculiX, escolha um manifesto JSON que contenha versao, URL HTTPS, SHA-256 e caminho do executavel. O download nao ocorre sem sua escolha explicita.');
+  CalculixManifestPage.Add('Manifesto JSON:', 'JSON files|*.json|All files|*.*', '.json');
   for I := 0 to 6 do
     ExtractTemporaryFile('slide' + IntToStr(I) + '.bmp');
   CurrentSlide := -1;
