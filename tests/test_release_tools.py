@@ -1,6 +1,7 @@
 """Release validation rejects missing apps and mixed architectures."""
 import hashlib
 import importlib.util
+import json
 from pathlib import Path
 import struct
 import tempfile
@@ -119,6 +120,25 @@ class ReleaseChecks(unittest.TestCase):
         self.assertEqual(digest, hashlib.sha256(data).hexdigest())
         p.write_bytes(data + b"tampered")
         self.assertNotEqual(digest, release.sha256(p))
+
+    def test_four_part_release_version_survives_packaging(self):
+        self.fill('.exe', pe())
+        (self.app / 'qa-tests.json').write_text(json.dumps({'tests_executed': True, 'tests': []}))
+        include = self.app / 'version.iss'
+        argv = ['release_manifest', '--app-dir', str(self.app), '--version', '0.19.1.2',
+                '--os', 'windows', '--arch', 'amd64', '--version-include', str(include)]
+        def command(*args):
+            return '' if args[:2] == ('git', 'status') else 'test-metadata'
+        with patch('sys.argv', argv), patch.object(release, 'command', side_effect=command), patch.object(release.os, 'chdir'):
+            release.main()
+        self.assertIn('#define MyBinaryVersion "0.19.1.2"', include.read_text())
+        self.assertEqual(json.loads((self.app / 'build-manifest.json').read_text())['version'], '0.19.1.2')
+
+    def test_five_part_release_version_is_rejected(self):
+        argv = ['release_manifest', '--app-dir', str(self.app), '--version', '0.19.1.2.3',
+                '--os', 'windows', '--arch', 'amd64']
+        with patch('sys.argv', argv), self.assertRaises(SystemExit):
+            release.main()
 
 
 if __name__ == "__main__":

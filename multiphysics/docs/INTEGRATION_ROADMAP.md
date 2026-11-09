@@ -54,17 +54,21 @@ O exportador de componentes e redes do MakePCB para o contrato unificado ainda p
 ## MultiAssembly
 As relacoes mecanicas sao exportadas como links rotacionais ou lineares. O proximo refinamento e mapear ratio/pitch e propriedades de inercia para os links.
 
-## Modelos ainda necessarios
-- co-simulacao SPICE (diodo/MOSFET ja estao na iteracao global: multiphysics_circuit_newton);
-- spindle parametrizado, correia/polia e juntas multi-corpo;
-- fim de curso discreto por posicao;
-- curto e circuito aberto por net;
-- sobrecorrente/sobretemperatura com protecoes;
-- co-simulacao SPICE;
-- CFD real (a malha FEM ja existe).
-
-Nenhum desses itens deve ser marcado como fisicamente validado sem benchmark ou ensaio.
-
+## Evolucoes ainda necessarias (conciliadas em 09/11/2026)
+
+- co-simulacao com um motor SPICE externo; o MNA/Newton interno ja existe;
+- spindle parametrizado, correia/polia e juntas multi-corpo;
+- falhas por net do circuito importado, preservando o contrato unificado;
+- CFD real, com malha e benchmarks proprios (a malha estrutural FEM nao e CFD).
+
+Fim de curso por posicao, falhas basicas de curto/aberto e protecoes por
+sobrecorrente/sobretemperatura ja constam no runtime e nos testes; nao sao
+pendencias novas. Sua existencia nao significa validacao experimental.
+
+Entrega atual de contexto, historico, STL e gerenciador de solver:
+[ENTREGA_0.2.1.md](ENTREGA_0.2.1.md). MakePCB e refinamentos de transmissao
+continuam nas secoes acima; nao foram declarados concluidos.
+
 ## Biblioteca fisica
 - atuadores: solenoide, atuador linear, eletroima, ventilador, bomba e aquecedor;
 - motores: DC, stepper, servo, BLDC e AC;

@@ -1,7 +1,7 @@
 # TAREFA: MultiPhysics 0.2: simulação física da montagem, utilizável de ponta a ponta
 
 - **Aberta em:** 18/10/2026.
-- **Estado:** versão 0.2 implementada (ver **Progresso**); pendente só a comparação com o CalculiX instalado e itens P1/P2.
+- **Estado:** base 0.2 implementada; melhorias 0.2.1 em [ENTREGA_0.2.1.md](ENTREGA_0.2.1.md). Comparacao com CalculiX real e demais evolucoes explicitamente pendentes.
 - **Solicitação do usuário:** "com base nos documentos apresentados, crie uma versão deste projeto para atender tudo o que foi apresentado". Escopo confirmado pelo usuário: **interface completa**, **solver FEM próprio**, **integração CalculiX**, **completar os modelos que hoje são esqueleto** e "o que achar necessário para as simulações pretendidas".
 - **Documentos-base (especificação):** [README.md](../README.md), [AI_GUIDE.md](AI_GUIDE.md), [RUNTIME.md](RUNTIME.md), [INTEGRATION_ROADMAP.md](INTEGRATION_ROADMAP.md).
 - **Base conferida:** branch `fila`, commit `f836f89` (release 0.13 preparada).
@@ -374,10 +374,10 @@ Atualize esta tabela a cada tarefa concluída (data, commit, teste que comprova)
 | Fase 1 (MP-1.1 a 1.6) | feito (ver Decisoes: casos de carga e material completo) | 18/10/2026 | (este commit) | `test_project_analysis` |
 | Fase 2 (MP-2.1 a 2.4) | feito (MP-2.4: massa, centro e tensor de inercia exatos pela malha) | 18/10/2026 | (este commit) | `test_geometry_mesh`, `test_assembly_contact` |
 | Fase 3 (MP-3.1 a 3.7) | feito (MP-3.7: VTK legado para o ParaView; `.inp` pelo deck do CalculiX) | 18/10/2026 | (este commit) | `test_geometry_mesh`, `test_assembly_contact` |
-| MP-3.8 (P1) | pendente | | | |
+| MP-3.8 (P1) | feito no escopo 0.2: inspecao STL ASCII/binario, visualizacao, volume fechado e massa uniforme; FEM volumetrico continua para 0.3 | 09/11/2026 | entrega 0.2.1 | `test_document_workflow` |
 | Fase 4 (MP-4.1 a 4.11) | feito: MP-4.10 medido em 19/10/2026: bloco 120 x 120 x 60 mm TET10, 60.025 nos (180 mil graus), estatico em 54 s pelo PCG | 19/10/2026 | (este commit) | `test_fem_benchmarks` |
 | Fase 5 (MP-5.1 a 5.5) | feito, **com ressalva**: MP-5.3 testado com `.frd` montado no formato do ccx e MP-5.4 so roda com ccx instalado (aqui saiu IGNORADO) | 18/10/2026 | (este commit) | `test_ccx` |
-| Fase 6 (MP-6.1 a 6.7) | parcial: MP-6.1 a 6.6 feitos (10 etapas, ver Decisoes), MP-6.7 so abre `.mphys`; desfazer/refazer pendente | 18/10/2026 | (este commit) | `multiphysics.exe --capture=static|thermal|modal|system|circuit|loads arquivo.png` |
+| Fase 6 (MP-6.1 a 6.7) | feito: contexto --file (.mphys/.massembly/.massembly), --new (.mphys), contexto de projeto/tarefa no log; desfazer/refazer de pecas, materiais, cargas, contatos e configuracoes | 09/11/2026 | entrega 0.2.1 | `test_document_workflow`, `test_document_ui` |
 | Fase 7 (MP-7.1 a 7.15) | feito | 19/10/2026 | (este commit) | `test_system_models`, `test_circuit_netlist`, `test_mcu_graph` |
 | Fase 8 (MP-8.1 a 8.6, P1) | feito (GM pela inclinacao pequena, geral para qualquer malha) | 18/10/2026 | (este commit) | `test_hydro` |
 | Fase 9 (MP-9.1 a 9.4) | feito (MANUAL, exemplos, README/AI_GUIDE/roadmap/NEWS, versao 0.2.0.0) | 19/10/2026 | 302c39c | — |
