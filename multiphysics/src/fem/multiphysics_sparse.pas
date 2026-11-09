@@ -846,7 +846,7 @@ procedure TSparseCholesky.Solve(const B: TDoubleArray; var X: TDoubleArray);
 var
   Y: TDoubleArray;
   J: Integer;
-  Q: Int64;
+  Q: SizeInt;
   S: Double;
 begin
   SetLength(Y, FN);

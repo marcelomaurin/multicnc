@@ -1,5 +1,13 @@
 # Pendências da suíte (atualizado 12/10/2026)
 
+## MultiPhysics e atualizacao Windows (09/11/2026)
+
+O estado atual dessas melhorias esta em
+[multiphysics/docs/ENTREGA_0.2.1.md](../multiphysics/docs/ENTREGA_0.2.1.md).
+Os registros datados abaixo sao historicos e nao devem ser usados como lista
+atual de funcionalidades ausentes sem conferir os planos de cada modulo.
+
+
 ## MultiProject (20/10/2026) - especificacao, fase 0
 
 - Novo modulo `multiproject/`: gerenciador de projeto a partir de um objetivo (ex.: construir

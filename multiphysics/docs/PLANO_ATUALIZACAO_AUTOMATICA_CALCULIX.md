@@ -1,6 +1,6 @@
 # Pacote de atualização automática do CalculiX — MultiPhysics
 
-Data: 2026-11-09 | Estado: PENDENTE | Prioridade: P1 | Referência: issue #16
+Data: 2026-11-09 | Estado: PARCIAL (ver entrega 0.2.1) | Prioridade: P1 | Referência: issue #16
 
 ## Objetivo
 Adicionar ao MultiPhysics e ao instalador MultiSuite um gerenciador opcional que detecta, baixa, verifica, instala e atualiza o CalculiX CrunchiX (ccx) sem exigir instalação manual. O solver interno continua independente e funcional offline.
@@ -58,3 +58,33 @@ O comando **não instala nem executa** binários do ZIP. O pacote só poderá se
 - Cobertura: integridade SHA-256, ZIP corrompido, ZIP com caminho perigoso, symlink, ccx.exe ausente/duplicado e estrutura nominal.
 - **Não foi testado o atualizador automático**: não existe evidência de fluxo completo download → instalação → ativação → rollback. Também não foi executado teste Windows/PowerShell nem benchmark com CalculiX real.
 - Não promover o recurso a funcional ou homologado até testes de ponta a ponta com pacote confiável e ambiente Windows.
+
+## Estado atual apos a implementacao 0.2.1 - 09/11/2026
+
+Esta secao atualiza o estado descrito nos registros historicos acima.
+
+| Item | Estado atual |
+|---|---|
+| AUD-CCX-01 | Feito: descoberta por CALCULIX_EXE, caminho manual e active.txt gerenciado. |
+| AUD-CCX-02 | Parcial: catalogo exige schemaVersion=1, deny-unverified e entradas approved; nenhum pacote real homologado. |
+| AUD-CCX-03 | Parcial: HTTPS, timeout, SHA256, validacao completa do ZIP antes de extrair; sem retomada/cancelamento de download. |
+| AUD-CCX-04 | Implementado: pasta por versao, lock exclusivo, ponteiros atomicos, preservacao da ativa em falha e rollback testado. |
+| AUD-CCX-05 | Parcial: interface para detectar, instalar/atualizar e restaurar, processo em segundo plano, bloqueio durante simulacao; verificacao periodica ainda pendente. |
+| AUD-CCX-06 | Parcial: instalador opcional distribui catalogo e gerenciador; fluxo de manifesto existente preservado. Selecao de versao aprovada sem manifesto disponivel no aplicativo e CLI. |
+| AUD-CCX-07 | Pendente de homologacao: pacote deve trazer licenseFile e dependencias; verificacao juridica/proveniencia de pacotes reais nao foi concluida. |
+| AUD-CCX-08 | Parcial: testes Windows com executavel sintetico cobrem instalacao, troca, rollback e falhas; nao homologam o solver. |
+| AUD-CCX-09 | Pendente: benchmark com CalculiX real. O gerenciador agora exige resultado numerico antes de ativar. |
+| AUD-CCX-10 | Documentos e limites atualizados nesta entrega. |
+
+Teste numerico usado na ativacao: tetraedro C3D4 unitario, E=1000 Pa,
+nu=0.3, Fx=1 N no no 2, todos os demais graus presos. Deslocamento esperado
+6*(1+nu)*(1-2nu)/(E*(1-nu)) = 0.004457142857 m, tolerancia 1%.
+Saida, versoes, origem, SHA256 e falhas ficam em update.log / last-smoke.log.
+
+Manifesto manual: version, url, sha256, executable, licenseFile e opcional
+requiredFiles. Catalogo automatico: os mesmos campos mais platform=windows,
+arch=x64 e status=approved. Catalogos sem homologacao nao liberam downloads.
+
+Nao declarar a homologacao real concluida: a tentativa de obter o ZIP oficial
+nesta sessao falhou por erro de conexao SSL. Nenhum hash ficticio foi adicionado.
+Resultados e comandos: [ENTREGA_0.2.1.md](ENTREGA_0.2.1.md).

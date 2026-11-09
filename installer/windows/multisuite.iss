@@ -3,7 +3,7 @@
 #endif
 #include "..\..\dist\version.iss"
 #ifndef SetupSeq
-  #define SetupSeq "018"
+  #define SetupSeq "019"
 #endif
 #ifndef MyAppPublisher
   #define MyAppPublisher "Maurinsoft"
@@ -71,6 +71,7 @@ Name: "{userdocs}\MultiSuite Projects"
 [Files]
 Source: "..\..\installer\windows\multisuite_updater.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\installer\windows\calculix_manager.ps1"; DestDir: "{app}\solvers"; Components: tools\multiphysics; Flags: ignoreversion
+Source: "..\..\installer\windows\calculix_catalog.json"; DestDir: "{app}\solvers"; Components: tools\multiphysics; Flags: ignoreversion
 Source: "..\..\dist\app\qa-tests.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\dist\app\multicnc.exe"; DestDir: "{app}"; Components: tools\multicnc; Flags: ignoreversion
 Source: "..\..\dist\app\multisuite_tray.exe"; DestDir: "{app}"; Components: tools\tray; Flags: ignoreversion
