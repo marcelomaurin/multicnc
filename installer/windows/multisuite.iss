@@ -70,6 +70,7 @@ Name: "{userdocs}\MultiSuite Projects"
 
 [Files]
 Source: "..\..\installer\windows\multisuite_updater.ps1"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\installer\windows\calculix_manager.ps1"; DestDir: "{app}\solvers"; Components: tools\multiphysics; Flags: ignoreversion
 Source: "..\..\dist\app\qa-tests.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\dist\app\multicnc.exe"; DestDir: "{app}"; Components: tools\multicnc; Flags: ignoreversion
 Source: "..\..\dist\app\multisuite_tray.exe"; DestDir: "{app}"; Components: tools\tray; Flags: ignoreversion
@@ -95,6 +96,7 @@ Source: "..\..\dist\app\build-manifest.json"; DestDir: "{app}"; Flags: ignorever
 Source: "..\..\dist\installer-images\slide*.bmp"; Flags: dontcopy
 
 [Tasks]
+Name: "calculix_status"; Description: "Verificar o estado do CalculiX apos instalar o MultiPhysics (nao baixa sem manifesto confiavel)"; GroupDescription: "Motores de simulacao:"; Components: tools\multiphysics; Flags: unchecked
 Name: "autoupdate"; Description: "Verificar atualizacoes automaticamente ao iniciar o Windows"; GroupDescription: "Atualizacoes:"; Flags: checkedonce
 Name: "desktopicon_tray"; Description: "Criar atalho da bandeja na area de trabalho"; GroupDescription: "Atalhos da Area de Trabalho:"; Components: tools\tray; Flags: unchecked
 Name: "desktopicon_cnc"; Description: "Criar atalho do MultiCNC na area de trabalho"; GroupDescription: "Atalhos da Area de Trabalho:"; Components: tools\multicnc; Flags: unchecked
@@ -139,6 +141,7 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "MultiSuiteTray"; ValueData: """{app}\multisuite_tray.exe"" --tray"; Flags: uninsdeletevalue; Tasks: trayautostart; Components: tools\tray
 
 [Run]
+Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File ""{app}\solvers\calculix_manager.ps1"" -Action Status"; Description: "Verificar instalacao gerenciada do CalculiX"; Flags: postinstall skipifsilent; Tasks: calculix_status; Components: tools\multiphysics
 Filename: "{app}\multisuite_tray.exe"; Parameters: "--tray"; Description: "Iniciar a MultiSuite Bandeja"; Flags: nowait postinstall skipifsilent; Components: tools\tray
 
 [UninstallRun]
