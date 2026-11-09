@@ -37,3 +37,24 @@ Adicionar ao MultiPhysics e ao instalador MultiSuite um gerenciador opcional que
 
 ## Entrega e limites
 Este arquivo é o **pacote de especificação e pendências**, não um atualizador executável. Implementação, build, testes e distribuição permanecem pendentes. Vincular à issue #16 e não declarar a atualização automática como concluída até passar nos critérios acima.
+
+## Avanço de implementação — PR #18 (2026-11-09)
+- Verificador offline em `multiphysics/tools/verify_ccx_package.py`: SHA-256 obrigatório, inspeção de ZIP e bloqueio de caminhos perigosos, links simbólicos e múltiplos executáveis.
+- Testes unitários adicionados em `multiphysics/tools/test_verify_ccx_package.py`: cenários de hash incorreto, ZIP corrompido, path traversal, executável ausente/duplicado e pacote estruturalmente válido.
+- Executar testes: `cd multiphysics/tools && python -m unittest -v test_verify_ccx_package.py`.
+- O resultado `VERIFICADO_PARA_INSPECAO` **não** significa pacote homologado ou seguro para ativação; testes reais em Windows, assinatura/proveniência, DLLs e licença continuam necessários.
+- **Status**: alterações em branch de desenvolvimento, sem aprovação de instalação automática em produção.
+
+## Entrada de validação Windows — 2026-11-09
+Foi adicionado `multiphysics/tools/validate_ccx_windows.ps1` para executar a inspeção SHA-256/ZIP no Windows e registrar `ccx_windows_validation.log`.
+Exemplo, a partir da raiz do repositório:
+```powershell
+powershell -NoProfile -File multiphysics/tools/validate_ccx_windows.ps1 -ZipPath "C:\\Pacotes\\calculix.zip" -ExpectedSha256 "<SHA256_VERIFICADO_DE_FONTE_CONFIAVEL>"
+```
+O comando **não instala nem executa** binários do ZIP. O pacote só poderá ser homologado após confirmação independente de origem/hash, licença, DLLs e benchmark com o executável real. Não preencher o hash com valor inventado. A integração com o instalador e os testes em Windows permanecem pendentes.
+
+## Execução de testes isolados — 2026-11-09
+- Executados 10 testes unitários do verificador ZIP em ambiente Linux com Python; **10/10 passaram**.
+- Cobertura: integridade SHA-256, ZIP corrompido, ZIP com caminho perigoso, symlink, ccx.exe ausente/duplicado e estrutura nominal.
+- **Não foi testado o atualizador automático**: não existe evidência de fluxo completo download → instalação → ativação → rollback. Também não foi executado teste Windows/PowerShell nem benchmark com CalculiX real.
+- Não promover o recurso a funcional ou homologado até testes de ponta a ponta com pacote confiável e ambiente Windows.
