@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "generated": "2026-11-09",
+  "policy": "deny-unverified",
+  "entries": [
+    {
+      "version": "2.23",
+      "platform": "windows",
+      "arch": "x64",
+      "source": "https://github.com/calculix/CalculiX-Windows/tree/master/releases",
+      "artifact": "CalculiX-2.23.0-win-x64.zip",
+      "status": "candidate-unverified",
+      "sha256": null,
+      "executable": "bin/ccx.exe",
+      "note": "Build comunitario localizado; SHA-256 e smoke test pendentes. Nao habilitar download automatico."
+    },
+    {
+      "version": "2.22",
+      "platform": "windows",
+      "arch": "x64",
+      "source": "https://github.com/calculix/CalculiX-Windows/tree/master/releases",
+      "artifact": "CalculiX-2.22.0-win-x64.zip",
+      "status": "candidate-unverified",
+      "sha256": null,
+      "executable": "bin/ccx.exe",
+      "note": "Versao anterior para compatibilidade; nao homologada."
+    },
+    {
+      "version": "2.23",
+      "platform": "linux",
+      "arch": "x86_64",
+      "source": "https://www.calculix.de/",
+      "status": "candidate-unverified",
+      "sha256": null,
+      "note": "Compilacao/distribuicao Linux pendente; nao usar instalador Windows."
+    }
+  ]
+}
