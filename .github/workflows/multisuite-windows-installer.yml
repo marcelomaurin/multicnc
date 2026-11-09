@@ -1,0 +1,100 @@
+name: Windows MultiSuite installer
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (e.g. 0.19)'
+        required: true
+        default: '0.19'
+      sequence:
+        description: 'Three-digit setup sequence'
+        required: true
+        default: '019'
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate release inputs
+        id: release
+        shell: pwsh
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_SEQUENCE: ${{ inputs.sequence }}
+        run: |
+          $version = $env:INPUT_VERSION
+          if ('${{ github.ref_type }}' -eq 'tag') { $version = '${{ github.ref_name }}'.TrimStart('v') }
+          if ($version -notmatch '^\d+\.\d+(\.\d+){0,2}$') { throw 'Invalid version' }
+          $sequence = $env:INPUT_SEQUENCE
+          if ('${{ github.ref_type }}' -eq 'tag') { $sequence = '{0:000}' -f [int](($version -split '\.')[1]) }
+          if ($sequence -notmatch '^\d{3}$') { throw 'Invalid setup sequence' }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "sequence=$sequence" >> $env:GITHUB_OUTPUT
+      - name: Install build prerequisites
+        shell: pwsh
+        run: |
+          choco install lazarus innosetup python --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { throw 'Failed installing Lazarus/Inno Setup/Python' }
+      - name: Resolve tools
+        shell: pwsh
+        run: |
+          $laz = Get-ChildItem 'C:\' -Filter lazbuild.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+          $fpc = Get-ChildItem 'C:\' -Filter fpc.exe -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match 'x86_64-win64' } | Select-Object -First 1 -ExpandProperty FullName
+          $iscc = Get-ChildItem 'C:\Program Files (x86)','C:\Program Files' -Filter ISCC.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+          if (-not $laz -or -not $fpc -or -not $iscc) { throw 'Required native compiler or installer tool missing' }
+          "LAZBUILD=$laz" >> $env:GITHUB_ENV
+          "FPC=$fpc" >> $env:GITHUB_ENV
+          "ISCC=$iscc" >> $env:GITHUB_ENV
+      - name: Validate required native dependency
+        shell: pwsh
+        run: |
+          if (-not (Test-Path bin/mcad_occt.dll)) { throw 'Missing required bin/mcad_occt.dll: cannot ship incomplete installer' }
+          if (-not (Test-Path models/components/mec)) { throw 'Missing MultiAssembly models' }
+      - name: Compile, test and package existing release script
+        shell: pwsh
+        run: |
+          & ./installer/windows/build_release.ps1 -Version '${{ steps.release.outputs.version }}' -SetupSeq '${{ steps.release.outputs.sequence }}' -SkipBinUpdate
+          if ($LASTEXITCODE -ne 0) { throw 'Release build failed' }
+      - name: Verify installer and produce checksum
+        id: package
+        shell: pwsh
+        run: |
+          $file = 'dist/setup_multcnc_${{ steps.release.outputs.sequence }}.exe'
+          if (-not (Test-Path $file)) { throw 'Installer missing' }
+          $item = Get-Item $file
+          if ($item.Length -lt 1000000) { throw 'Installer unexpectedly small' }
+          $hash = (Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant()
+          $name = 'setup_multcnc_${{ steps.release.outputs.version }}.exe'
+          Copy-Item $file (Join-Path dist $name)
+          "$hash  $name" | Set-Content dist/SHA256SUMS -Encoding ascii
+          "installer=$name" >> $env:GITHUB_OUTPUT
+      - uses: actions/upload-artifact@v4
+        with:
+          name: multisuite-windows-x64-${{ steps.release.outputs.version }}
+          path: |
+            dist/${{ steps.package.outputs.installer }}
+            dist/SHA256SUMS
+            dist/app/build-manifest.json
+            dist/app/qa-tests.json
+            dist/build-logs/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish release assets
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          gh release create '${{ github.ref_name }}' --title '${{ github.ref_name }}' --generate-notes --draft 2>$null
+          gh release upload '${{ github.ref_name }}' 'dist/${{ steps.package.outputs.installer }}' dist/SHA256SUMS --clobber
