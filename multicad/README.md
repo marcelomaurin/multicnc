@@ -40,6 +40,26 @@ O serviço pode consumir créditos. A escala é uniforme e ajusta a maior
 dimensão da malha. Para cotas individuais, esboços e sólidos STEP, use as
 operações paramétricas do MultiCAD.
 
+## Intercâmbio com outros CADs
+
+Use **Ferramentas → Importar CAD**. Os comandos de saída ficam na aba
+**Exportar** e no menu **Ferramentas**.
+
+| Formato | Ao importar | Ao exportar |
+| --- | --- | --- |
+| STEP (`.step`, `.stp`) | Sólidos B-Rep vinculados ao arquivo de origem | Sólidos em milímetros |
+| IGES (`.igs`, `.iges`) | Sólidos B-Rep ou, em arquivos só com superfícies, malha de visualização | Sólidos em milímetros |
+| STL ASCII ou binário | Malha incorporada ao `.mcad`, em milímetros, com Z do arquivo convertido para Y do MultiCAD | Malha ASCII ou binária, com opções de orientação |
+| DXF ASCII 2D | Esboço editável a partir de linhas, arcos, círculos, pontos e polilinhas 2D | Esboços e contornos de faces planas |
+
+DXF usa a unidade declarada em `$INSUNITS` quando reconhecida e assume
+milímetros quando o arquivo não declara unidade. Blocos, anotações e outras
+entidades fora do subconjunto são ignorados com aviso. STEP e IGES precisam
+do núcleo OpenCascade. Para IGES, recompile também a ponte com
+`multicad/occt/build_linux.sh` ou `multicad/occt/build_win64.sh` e instale-a
+junto ao executável. As referências STEP e IGES precisam continuar acessíveis
+para reconstruir a peça. STL e DXF ficam no documento após a importação.
+
 ## Manual do usuário
 
 [Manual ilustrado em português - MultiCAD 0.0.8.4 (PDF)](../docs/Manuals/Manual_do_Usuario_MultiCAD_0.0.8.4_PT-BR.pdf)

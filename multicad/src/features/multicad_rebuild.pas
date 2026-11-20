@@ -3295,7 +3295,7 @@ begin
   if M.CheckClosed(Err) then
     F.SetState(fsOk, '')
   else
-    F.SetState(fsWarning, 'A malha gerada é aberta ou possui arestas inconsistentes.');
+    F.SetState(fsWarning, 'A malha é aberta ou possui arestas inconsistentes.');
 end;
 
 procedure TCadRebuilder.BuildImport(F: TCadImportStep);
@@ -3303,11 +3303,11 @@ var
   Fn, E: string;
   S, Part: TOcctShape;
   M: TCadMesh;
-  I, N: Integer;
+  I, N, Imported: Integer;
 begin
   if not FOcct then
   begin
-    F.SetState(fsError, 'Importar STEP precisa do núcleo OpenCascade (' + OcctLoadError + ')');
+    F.SetState(fsError, 'Importar STEP ou IGES precisa do núcleo OpenCascade (' + OcctLoadError + ')');
     Exit;
   end;
   Fn := F.ResolvedPath(FDoc.FileName);
@@ -3316,33 +3316,52 @@ begin
     F.SetState(fsError, 'Arquivo não encontrado: ' + Fn);
     Exit;
   end;
-  S := OcctStepRead(Fn, F.Name, E);
+  if F.IsIGES then S := OcctIGESRead(Fn, F.Name, E)
+  else S := OcctStepRead(Fn, F.Name, E);
   if S = nil then
   begin
     F.SetState(fsError, E);
     Exit;
   end;
-  N := OcctComponents(S);
-  if N = 0 then
-  begin
-    OcctFree(S);
-    F.SetState(fsError, 'O arquivo STEP não tem sólidos');
-    Exit;
-  end;
-  for I := 0 to N - 1 do
-  begin
-    Part := OcctComponent(S, I);
-    M := ShapeMesh(Part, E);
-    if M = nil then
+  try
+    N := OcctComponents(S);
+    if (N = 0) and F.IsIGES then
     begin
-      OcctFree(Part);
-      Continue;
+      M := ShapeMesh(S, E);
+      if (M <> nil) and (M.TriCount > 0) then
+      begin
+        FBodies.Add(TCadBody.Create(NewBodyName, M));
+        F.SetState(fsWarning, 'O IGES contém superfícies. Foram importadas como malha para visualização.');
+      end
+      else
+      begin
+        M.Free;
+        F.SetState(fsError, 'O IGES não tem sólidos nem superfícies trianguláveis. ' + E);
+      end;
+      Exit;
     end;
-    FBodies.Add(TCadBody.Create(NewBodyName, M));
-    Body(FBodies.Count - 1).Shape := Part;
+    Imported := 0;
+    for I := 0 to N - 1 do
+    begin
+      Part := OcctComponent(S, I);
+      M := ShapeMesh(Part, E);
+      if M = nil then
+      begin
+        OcctFree(Part);
+        Continue;
+      end;
+      FBodies.Add(TCadBody.Create(NewBodyName, M));
+      Body(FBodies.Count - 1).Shape := Part;
+      Inc(Imported);
+    end;
+    if Imported = 0 then
+      F.SetState(fsError, 'O arquivo não tem sólidos que o MultiCAD possa abrir. ' + E)
+    else if Imported <> N then
+      F.SetState(fsWarning, Format('%d de %d sólidos importados.', [Imported, N]))
+    else F.SetState(fsOk, '');
+  finally
+    OcctFree(S);
   end;
-  OcctFree(S);
-  F.SetState(fsOk, '');
 end;
 
 procedure TCadRebuilder.BuildShell(S: TCadShell);

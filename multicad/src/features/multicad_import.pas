@@ -1,6 +1,6 @@
 unit multicad_import;
 
-{ MultiCAD - solido importado de arquivo STEP (fase 8, precisa do OpenCascade).
+{ MultiCAD - solido importado de arquivo STEP ou IGES (precisa do OpenCascade).
 
   Guarda o caminho do arquivo (relativo a pasta do .mcad quando possivel). O
   solido entra como corpo novo; as faces recebem "<nome>/f1", "<nome>/f2"...
@@ -22,6 +22,7 @@ type
     procedure LoadParams(O: TJSONObject); override;
     function Validate: string; override;
     { Caminho completo (relativo a ADocFile). }
+    function IsIGES: Boolean;
     function ResolvedPath(const ADocFile: string): string;
   end;
 
@@ -46,9 +47,16 @@ end;
 function TCadImportStep.Validate: string;
 begin
   if Trim(FileName) = '' then
-    Result := 'Escolha o arquivo STEP'
+    Result := 'Escolha o arquivo STEP ou IGES'
   else
     Result := '';
+end;
+
+function TCadImportStep.IsIGES: Boolean;
+var Ext: string;
+begin
+  Ext := ExtractFileExt(FileName);
+  Result := SameText(Ext, '.igs') or SameText(Ext, '.iges');
 end;
 
 function TCadImportStep.ResolvedPath(const ADocFile: string): string;

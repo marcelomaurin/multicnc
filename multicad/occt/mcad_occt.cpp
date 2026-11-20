@@ -62,6 +62,9 @@
 #include <gp_Torus.hxx>
 #include <STEPControl_Writer.hxx>
 #include <STEPControl_Reader.hxx>
+#include <IGESControl_Controller.hxx>
+#include <IGESControl_Reader.hxx>
+#include <IGESControl_Writer.hxx>
 #include <IFSelect_ReturnStatus.hxx>
 #include <Interface_Static.hxx>
 #include <Message.hxx>
@@ -821,6 +824,15 @@ int mcad_step_write(int n, mcad_shape *shapes, const char *file) {
   }
 }
 
+static MShape *WrapExchangeShape(const TopoDS_Shape &s, const char *prefix) {
+    MShape *m = Wrap(s);
+    int k = 0;
+    std::string px = prefix ? prefix : "CAD";
+    for (TopExp_Explorer ex(s, TopAbs_FACE); ex.More(); ex.Next())
+      if (!m->names.IsBound(ex.Current())) m->names.Bind(ex.Current(), px + "/f" + std::to_string(++k));
+    return m;
+}
+
 mcad_shape mcad_step_read(const char *file, const char *prefix) {
   try {
     STEPControl_Reader r;
@@ -828,14 +840,50 @@ mcad_shape mcad_step_read(const char *file, const char *prefix) {
     r.TransferRoots();
     TopoDS_Shape s = r.OneShape();
     if (s.IsNull()) { SetErr("STEP: nenhum sólido no arquivo"); return nullptr; }
-    MShape *m = Wrap(s);
-    int k = 0;
-    std::string px = prefix ? prefix : "STEP";
-    for (TopExp_Explorer ex(s, TopAbs_FACE); ex.More(); ex.Next())
-      if (!m->names.IsBound(ex.Current())) m->names.Bind(ex.Current(), px + "/f" + std::to_string(++k));
-    return m;
+    return WrapExchangeShape(s, prefix ? prefix : "STEP");
   } catch (Standard_Failure &f) {
     SetErrFailure("STEP", f);
+    return nullptr;
+  }
+}
+
+int mcad_iges_write(int n, mcad_shape *shapes, const char *file) {
+  try {
+    IGESControl_Controller::Init();
+    IGESControl_Writer writer("MM", 1);
+    for (int i = 0; i < n; ++i) {
+      if (!writer.AddShape(((MShape *)shapes[i])->s)) {
+        SetErr("IGES: falha ao converter o corpo");
+        return 0;
+      }
+    }
+    writer.ComputeModel();
+    if (!writer.Write(file)) {
+      SetErr("IGES: falha ao gravar o arquivo");
+      return 0;
+    }
+    return 1;
+  } catch (Standard_Failure &f) {
+    SetErrFailure("IGES", f);
+    return 0;
+  }
+}
+
+mcad_shape mcad_iges_read(const char *file, const char *prefix) {
+  try {
+    IGESControl_Reader reader;
+    if (reader.ReadFile(file) != IFSelect_RetDone || reader.TransferRoots() == 0) {
+      SetErr("IGES: arquivo inválido ou sem geometria transferível");
+      return nullptr;
+    }
+    TopoDS_Shape shape = reader.OneShape();
+    if (shape.IsNull()) {
+      SetErr("IGES: arquivo sem geometria");
+      return nullptr;
+    }
+    return WrapExchangeShape(shape, prefix ? prefix : "IGES");
+  } catch (Standard_Failure &f) {
+    SetErrFailure("IGES", f);
     return nullptr;
   }
 }

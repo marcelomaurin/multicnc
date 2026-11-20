@@ -14,7 +14,7 @@ uses
   multicad_camera, multicad_depthdrag, multicad_softrender, multicad_sketchtools, multicad_export,
   multicad_measure, multicad_textures, multicad_undo, multicad_threads, multicad_hole,
   multicad_pattern, multicad_blend, multicad_blendgeom, multicad_occt, multicad_import, multislicer_types, multislicer_mesh, multislicer_stl,
-  multicad_threadgeom, multicad_threadop, multicad_gears, multicad_gear, multicad_generatedmesh;
+  multicad_threadgeom, multicad_threadop, multicad_gears, multicad_gear, multicad_generatedmesh, multicad_dxfimport;
 
 var
   Passed, Failed: Integer;
@@ -3239,6 +3239,103 @@ begin
   end;
 end;
 
+procedure TestCadExchange;
+var
+  Original, Imported: TCadMesh;
+  Doc, Reloaded: TCadDocument;
+  F: TCadImportedSTL;
+  S, DXF: TCadSketch;
+  B: TCadBox3;
+  Err, Temp: string;
+  Skipped: Integer;
+  Binary: Boolean;
+  Solid, Back: TOcctShape;
+begin
+  Temp := GetTempFileName(GetTempDir(False), 'mxc');
+  Original := CadMakeBox(V3(0,0,0), V3(20,10,30), 'Exchange');
+  Doc := TCadDocument.Create;
+  Reloaded := TCadDocument.Create;
+  try
+    for Binary := False to True do
+    begin
+      if not CadExportSTL([Original], Temp, Binary, soYToZ, V3(0,0,0), 'exchange', Err) then
+      begin
+        Check(False, 'exportar STL para reimportar: ' + Err);
+        Continue;
+      end;
+      F := TCadImportedSTL.Create;
+      try
+        F.ReadFile(Temp);
+        Imported := F.BuildMesh;
+        try
+          B := Imported.Bounds;
+          Check(NearV(VSub(B.Max,B.Min),V3(20,10,30)) and
+            Imported.IsClosed and (Imported.TriCount = 12), 'STL preserva medidas e topologia');
+        finally
+          Imported.Free;
+        end;
+        Doc.AddFeature(F);
+        F := nil;
+      finally
+        F.Free;
+      end;
+    end;
+    DeleteFile(Temp);
+    Check(Reloaded.LoadFromJSON(Doc.ToJSON, Err), 'STL incorporado reabre sem arquivo externo: ' + Err);
+
+    S := TCadSketch.Create;
+    try
+      S.AddLine(10,20,40,60);
+      S.AddCircle(4,5,2);
+      S.AddArc(2,3,5,3,2,6);
+      if CadExportSketchDXF(S, Temp, Err) then
+      begin
+        DXF := CadReadSketchDXF(Temp, Skipped);
+        try
+          Check((Skipped = 0) and (DXF.EntityCount = 3), 'DXF reimporta linha, círculo e arco');
+          if DXF.EntityCount = 3 then
+            Check((DXF.Entity(0).Kind = seLine) and (DXF.Entity(1).Kind = seCircle) and
+              Near(DXF.Entity(1).Radius,2) and (DXF.Entity(2).Kind = seArc),
+              'DXF mantém entidades nativas editáveis');
+        finally
+          DXF.Free;
+        end;
+      end
+      else Check(False, 'exportar DXF para reimportar: ' + Err);
+    finally
+      S.Free;
+    end;
+
+    if OcctHasIGES then
+    begin
+      Solid := OcctFromMesh(Original, Err);
+      try
+        if Solid = nil then Check(False, 'criar fixture sólida IGES: ' + Err)
+        else if OcctIGESWrite([Solid], Temp, Err) then
+        begin
+          Back := OcctIGESRead(Temp, 'IGES', Err);
+          try
+            Check(Back <> nil, 'reimportar IGES: ' + Err);
+            if Back <> nil then
+              Check((OcctComponents(Back) = 1) and Near(OcctVolume(Back),6000,0.1),
+                'IGES mantém corpo sólido e volume');
+          finally
+            OcctFree(Back);
+          end;
+        end
+        else Check(False, 'exportar IGES: ' + Err);
+      finally
+        OcctFree(Solid);
+      end;
+    end;
+  finally
+    DeleteFile(Temp);
+    Reloaded.Free;
+    Doc.Free;
+    Original.Free;
+  end;
+end;
+
 procedure TestGeneratedMesh;
 var
   Source: TCadMesh;
@@ -3339,6 +3436,7 @@ begin
   TestOcct;
   TestExport;
   TestGeneratedMesh;
+  TestCadExchange;
   Writeln(Format('MultiCAD: %d checks, %d falhas', [Passed + Failed, Failed]));
   if Failed > 0 then
     Halt(1);

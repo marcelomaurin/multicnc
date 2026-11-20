@@ -90,6 +90,10 @@ MCAD_API const int *mcad_mesh_tris(void);   /* a, b, c, face */
 /* STEP (AP214) */
 MCAD_API int mcad_step_write(int n, mcad_shape *shapes, const char *file);
 MCAD_API mcad_shape mcad_step_read(const char *file, const char *prefix);
+/* IGES (B-Rep, millimeters) */
+MCAD_API int mcad_iges_write(int n, mcad_shape *shapes, const char *file);
+MCAD_API mcad_shape mcad_iges_read(const char *file, const char *prefix);
+
 
 #ifdef __cplusplus
 }

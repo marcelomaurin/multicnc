@@ -74,6 +74,10 @@ function OcctToMesh(S: TOcctShape; Deflection: Double; out AError: string): TCad
 
 function OcctStepWrite(const Shapes: array of TOcctShape; const AFile: string; out AError: string): Boolean;
 function OcctStepRead(const AFile, Prefix: string; out AError: string): TOcctShape;
+function OcctHasIGES: Boolean;
+function OcctIGESWrite(const Shapes: array of TOcctShape; const AFile: string; out AError: string): Boolean;
+function OcctIGESRead(const AFile, Prefix: string; out AError: string): TOcctShape;
+
 
 implementation
 
@@ -141,7 +145,8 @@ var
   f_mesh_verts: Tf_pdbl;
   f_mesh_tris: Tf_pint;
   f_step_write: Tf_step_write;
-  f_step_read: Tf_step_read;
+  f_step_read, f_iges_read: Tf_step_read;
+  f_iges_write: Tf_step_write;
   f_bool_ex: Tf_bool_ex; { opcional (ponte versao 2) }
 
 const
@@ -220,6 +225,8 @@ begin
   Pointer(f_step_read) := P('mcad_step_read');
   { opcionais: ponte antiga continua valendo sem elas }
   Pointer(f_bool_ex) := GetProcedureAddress(GLib, 'mcad_bool_ex');
+  Pointer(f_iges_read) := GetProcedureAddress(GLib, 'mcad_iges_read');
+  Pointer(f_iges_write) := GetProcedureAddress(GLib, 'mcad_iges_write');
   if Missing <> '' then
   begin
     GLoadErr := LIB_NAME + ' incompleta:' + Missing;
@@ -768,7 +775,8 @@ begin
   Result.RefreshPlaneNormals;
 end;
 
-function OcctStepWrite(const Shapes: array of TOcctShape; const AFile: string; out AError: string): Boolean;
+function ExchangeWrite(const Shapes: array of TOcctShape; const AFile: string;
+  WriteFile: Tf_step_write; out AError: string): Boolean;
 var
   A: array of Pointer;
   I: Integer;
@@ -787,7 +795,7 @@ begin
     AError := 'nenhum sólido';
     Exit(False);
   end;
-  Result := f_step_write(Length(A), @A[0], PChar(AFile)) <> 0;
+  Result := WriteFile(Length(A), @A[0], PChar(AFile)) <> 0;
   if not Result then
     AError := OcctLastError;
 end;
@@ -804,6 +812,38 @@ begin
   Result := f_step_read(PChar(AFile), PChar(Prefix));
   if Result = nil then
     AError := OcctLastError;
+end;
+
+function OcctStepWrite(const Shapes: array of TOcctShape; const AFile: string; out AError: string): Boolean;
+begin
+  OcctAvailable;
+  Result := ExchangeWrite(Shapes, AFile, f_step_write, AError);
+end;
+
+function OcctHasIGES: Boolean;
+begin
+  Result := OcctAvailable and Assigned(f_iges_read) and Assigned(f_iges_write);
+end;
+
+function OcctIGESWrite(const Shapes: array of TOcctShape; const AFile: string; out AError: string): Boolean;
+begin
+  if not OcctHasIGES then
+  begin
+    AError := 'Atualize a ponte OpenCascade para usar IGES.';
+    Exit(False);
+  end;
+  Result := ExchangeWrite(Shapes, AFile, f_iges_write, AError);
+end;
+
+function OcctIGESRead(const AFile, Prefix: string; out AError: string): TOcctShape;
+begin
+  if not OcctHasIGES then
+  begin
+    AError := 'Atualize a ponte OpenCascade para usar IGES.';
+    Exit(nil);
+  end;
+  Result := f_iges_read(PChar(AFile), PChar(Prefix));
+  if Result = nil then AError := OcctLastError else AError := '';
 end;
 
 finalization
