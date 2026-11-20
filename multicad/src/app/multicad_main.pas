@@ -30,7 +30,7 @@ uses
   multicad_sketchedit, multicad_propman, multicad_undo, multicad_hole, multicad_pattern, multicad_blend, multicad_occt, multicad_import, multicad_materialdlg, multicad_textures, multicad_export, multicad_measure,
   multisuite_types, multisuite_registry, multisuite_launcher, multisuite_context,
   multicad_sketchpattern, multicad_sketchpatterndlg, multicad_sketchtext,
-  multicad_sketchtextdlg, multicad_threadop, multicad_gear;
+  multicad_sketchtextdlg, multicad_threadop, multicad_gear, multicad_generatedmesh, multicad_aiconfig, multicad_text3ddlg;
 
 type
   TCadTab = (ctFeatures, ctSketch, ctEvaluate, ctView, ctExport, ctAbout);
@@ -52,6 +52,8 @@ type
     Status: TStatusBar;
     Splitter: TSplitter;
     FTab: TCadTab;
+    FAIConfig: TCadAIConfig;
+    FAIConfigLoaded: Boolean;
     FEditor: TCadSketchEditor;
     FExtrudeEditor: TCadExtrudeEditor;
     FSnapshot: TJSONObject;     { parametros antes de editar (Cancelar) }
@@ -181,6 +183,9 @@ type
     procedure ExportDXFClick(Sender: TObject);
     procedure ExportSTEPClick(Sender: TObject);
     procedure ImportSTEPClick(Sender: TObject);
+    procedure GenerateText3DClick(Sender: TObject);
+    procedure ConfigureAIClick(Sender: TObject);
+    procedure EnsureAIConfig;
     function KernelText: string;
     procedure KernelClick(Sender: TObject);
     procedure OpenSlicerClick(Sender: TObject);
@@ -675,6 +680,7 @@ begin
         RibbonButton('DXF do esboço ou face...', sikExport, @ExportDXFClick);
         RibbonButton('STEP (outros CADs)...', sikExport, @ExportSTEPClick);
         RibbonButton('Importar STEP...', sikImport, @ImportSTEPClick);
+        RibbonButton('Gerar 3D por texto...', sikImport, @GenerateText3DClick);
         RibbonSep;
         RibbonButton('Abrir no MultiSlicer', sikSlicer, @OpenSlicerClick).SetLook(sbsSolid,
           clSuitePrimary, sikSlicer);
@@ -723,11 +729,13 @@ begin
   Command('Ressalto revolucionado',@RevolveClick);Command('Corte revolucionado',@RevolveCutClick);
   Command('-',nil);Command('Furo',@HoleClick);Command('Rosca',@ThreadClick);
   Command('Engrenagem',@GearClick);
+  Command('Gerar 3D por texto...',@GenerateText3DClick);
   Root:=Category('Ferramentas');
   Command('Reconstruir',@RebuildClick);Command('Propriedades de massa',@MassClick);
   Command('Medir',@MeasureClick);Command('Exportar STL...',@ExportSTLClick);
   Command('Exportar DXF...',@ExportDXFClick);
   Command('Exportar STEP...',@ExportSTEPClick);Command('Importar STEP...',@ImportSTEPClick);
+  Command('Configuração da IA...',@ConfigureAIClick);
   Command('Núcleo OpenCascade / Pascal',@KernelClick);
   Root:=Category('Sobre');
   Command('Sobre o MultiCAD',@AboutClick);Command('Abrir log',@LogClick);
@@ -2845,6 +2853,41 @@ begin
   finally
     D.Free;
   end;
+end;
+
+procedure TMainForm.EnsureAIConfig;
+begin
+  if FAIConfigLoaded then Exit;
+  FAIConfig := LoadCadAIConfig;
+  FAIConfigLoaded := True;
+end;
+
+procedure TMainForm.ConfigureAIClick(Sender: TObject);
+begin
+  EnsureAIConfig;
+  EditCadAIConfig(Self, FAIConfig);
+end;
+
+procedure TMainForm.GenerateText3DClick(Sender: TObject);
+var F: TCadGeneratedMesh;
+begin
+  if PM.Visible or Assigned(FEditor) then Exit;
+  EnsureAIConfig;
+  F := GenerateCadMeshFromText(Self, FAIConfig);
+  if F = nil then Exit;
+  try
+    Doc.AddFeature(F);
+  except
+    F.Free;
+    raise;
+  end;
+  RebuildModel;
+  Modified;
+  View.FitAll;
+  if F.State = fsOk then
+    SetStatus(0, 'Malha gerada adicionada. Salve a peça para guardar o modelo.')
+  else
+    SetStatus(0, F.Message);
 end;
 
 procedure TMainForm.ImportSTEPClick(Sender: TObject);

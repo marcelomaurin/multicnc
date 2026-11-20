@@ -24,6 +24,22 @@ O **MultiCAD** é o CAD **paramétrico de peças mecânicas** da suíte. O fluxo
 O resultado é a geometria da peça, que as outras ferramentas usam para fabricar, montar e
 simular. O MultiCAD **nunca** gera G-code nem fala com a máquina.
 
+## Gerar modelo 3D por texto
+
+1. Abra **Ferramentas → Configuração da IA**, escolha o modelo Meshy e
+   informe a chave API. O programa também aceita `MESHY_API_KEY`.
+2. Abra **Inserir → Gerar 3D por texto**, descreva a peça, informe a maior
+   dimensão em milímetros e clique em **Gerar**. O modelo aparece na vista
+   3D e na árvore de operações da peça atual.
+3. Salve o `.mcad` para guardar a malha e sua descrição. A mesma geometria
+   pode ser exportada pelo comando STL para impressão 3D.
+
+O Windows guarda a chave com DPAPI no perfil do usuário. No Linux a chave
+digitada fica na sessão do MultiCAD, e as requisições HTTPS usam libcurl.
+O serviço pode consumir créditos. A escala é uniforme e ajusta a maior
+dimensão da malha. Para cotas individuais, esboços e sólidos STEP, use as
+operações paramétricas do MultiCAD.
+
 ## Manual do usuário
 
 [Manual ilustrado em português - MultiCAD 0.0.8.4 (PDF)](../docs/Manuals/Manual_do_Usuario_MultiCAD_0.0.8.4_PT-BR.pdf)

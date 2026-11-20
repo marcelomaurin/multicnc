@@ -14,7 +14,7 @@ uses
   multicad_camera, multicad_depthdrag, multicad_softrender, multicad_sketchtools, multicad_export,
   multicad_measure, multicad_textures, multicad_undo, multicad_threads, multicad_hole,
   multicad_pattern, multicad_blend, multicad_blendgeom, multicad_occt, multicad_import, multislicer_types, multislicer_mesh, multislicer_stl,
-  multicad_threadgeom, multicad_threadop, multicad_gears, multicad_gear;
+  multicad_threadgeom, multicad_threadop, multicad_gears, multicad_gear, multicad_generatedmesh;
 
 var
   Passed, Failed: Integer;
@@ -3239,6 +3239,75 @@ begin
   end;
 end;
 
+procedure TestGeneratedMesh;
+var
+  Source: TCadMesh;
+  Doc, Reloaded: TCadDocument;
+  Rebuild: TCadRebuilder;
+  Feature: TCadGeneratedMesh;
+  Stream: TFileStream;
+  Data: RawByteString;
+  Temp, ErrorMessage: string;
+  Bounds: TCadBox3;
+  Rejected: Boolean;
+begin
+  Temp := GetTempFileName(GetTempDir(False), 'm3d');
+  Source := CadMakeBox(V3(0,0,0), V3(2,1,3), 'Fixture');
+  Doc := TCadDocument.Create;
+  Reloaded := TCadDocument.Create;
+  Rebuild := TCadRebuilder.Create(Reloaded);
+  try
+    if not CadExportSTL([Source], Temp, True, soYToZ, V3(0,0,0), 'fixture', ErrorMessage) then
+    begin
+      Check(False, 'malha IA: criar STL de teste ' + ErrorMessage);
+      Exit;
+    end;
+    Stream := TFileStream.Create(Temp, fmOpenRead);
+    try
+      SetLength(Data, Stream.Size);
+      Stream.ReadBuffer(Data[1], Length(Data));
+    finally
+      Stream.Free;
+    end;
+
+    Feature := TCadGeneratedMesh.Create;
+    Doc.AddFeature(Feature);
+    Rejected := False;
+    try
+      Feature.SetSTL(Copy(Data, 1, Length(Data)-1));
+    except
+      on E: Exception do Rejected := True;
+    end;
+    Check(Rejected, 'malha IA: arquivo truncado rejeitado');
+    Feature.SetSTL(Data);
+    Feature.Prompt := 'Suporte de teste';
+    Feature.Model := 'meshy-7.1';
+    Feature.SizeMM := 60;
+    if not Reloaded.LoadFromJSON(Doc.ToJSON, ErrorMessage) then
+    begin
+      Check(False, 'malha IA: arquivo .mcad reaberto ' + ErrorMessage);
+      Exit;
+    end;
+    DeleteFile(Temp);
+    Feature := TCadGeneratedMesh(Reloaded.FindByName(Feature.Name));
+    Check((Feature <> nil) and (Feature.Prompt = 'Suporte de teste') and
+      (Feature.Model = 'meshy-7.1'), 'malha IA: receita preservada');
+    Check((Rebuild.Rebuild = 0) and (Rebuild.BodyCount = 1), 'malha IA: reconstrução sem arquivo externo');
+    if Rebuild.BodyCount <> 1 then Exit;
+    Bounds := Rebuild.Body(0).Mesh.Bounds;
+    Check(NearV(Bounds.Min, V3(-20,0,-30)) and NearV(Bounds.Max, V3(20,20,30)),
+      'malha IA: escala em mm, centralização e orientação');
+    Check(Rebuild.Body(0).Mesh.IsClosed and (Rebuild.Body(0).Mesh.TriCount = 12),
+      'malha IA: malha reconstruída fechada');
+  finally
+    Rebuild.Free;
+    Reloaded.Free;
+    Doc.Free;
+    Source.Free;
+    DeleteFile(Temp);
+  end;
+end;
+
 begin
   Passed := 0;
   Failed := 0;
@@ -3269,6 +3338,7 @@ begin
   TestNamedDims;
   TestOcct;
   TestExport;
+  TestGeneratedMesh;
   Writeln(Format('MultiCAD: %d checks, %d falhas', [Passed + Failed, Failed]));
   if Failed > 0 then
     Halt(1);

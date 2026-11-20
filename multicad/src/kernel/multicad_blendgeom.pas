@@ -960,12 +960,12 @@ begin
     for J := 0 to High(Ns[V]) do
     begin
       N := Ns[V][J];
-      A[0] += N.X * N.X; A[1] += N.X * N.Y; A[2] += N.X * N.Z;
-      A[3] += N.Y * N.X; A[4] += N.Y * N.Y; A[5] += N.Y * N.Z;
-      A[6] += N.Z * N.X; A[7] += N.Z * N.Y; A[8] += N.Z * N.Z;
+      A[0] := A[0] + N.X * N.X; A[1] := A[1] + N.X * N.Y; A[2] := A[2] + N.X * N.Z;
+      A[3] := A[3] + N.Y * N.X; A[4] := A[4] + N.Y * N.Y; A[5] := A[5] + N.Y * N.Z;
+      A[6] := A[6] + N.Z * N.X; A[7] := A[7] + N.Z * N.Y; A[8] := A[8] + N.Z * N.Z;
       B := VAdd(B, VScale(N, Ts[V][J]));
     end;
-    A[0] += EPS; A[4] += EPS; A[8] += EPS;
+    A[0] := A[0] + EPS; A[4] := A[4] + EPS; A[8] := A[8] + EPS;
     if not Solve3(A, B, D) then
       D := V3(0, 0, 0);
     Result.SetVert(V, VAdd(M.Verts[V], D));
