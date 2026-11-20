@@ -28,7 +28,7 @@ uses
   multicad_profile, multicad_extrude, multicad_revolve, multicad_mesh,
   multicad_sweep, multicad_csg, multicad_bridge, multicad_triangulate,
   multicad_hole, multicad_pattern, multicad_blend, multicad_blendgeom, multicad_occt, multicad_import,
-  multicad_threads, multicad_threadgeom, multicad_threadop, multicad_gears, multicad_gear;
+  multicad_threads, multicad_threadgeom, multicad_threadop, multicad_gears, multicad_gear, multicad_generatedmesh;
 
 type
   TCadBody = class
@@ -112,6 +112,7 @@ type
       out FirstErr: string): Boolean;
     procedure BuildShell(S: TCadShell);
     procedure BuildImport(F: TCadImportStep);
+    procedure BuildGeneratedMesh(F: TCadGeneratedMesh);
     procedure BuildThread(T: TCadModelThread);
     procedure BuildGear(G: TCadGear);
     { Reta de uma aresta reta do modelo ("edge:A|B"). }
@@ -3276,6 +3277,27 @@ begin
     F.SetState(fsOk, '');
 end;
 
+procedure TCadRebuilder.BuildGeneratedMesh(F: TCadGeneratedMesh);
+var
+  M: TCadMesh;
+  Err: string;
+begin
+  try
+    M := F.BuildMesh;
+  except
+    on E: Exception do
+    begin
+      F.SetState(fsError, E.Message);
+      Exit;
+    end;
+  end;
+  FBodies.Add(TCadBody.Create(NewBodyName, M));
+  if M.CheckClosed(Err) then
+    F.SetState(fsOk, '')
+  else
+    F.SetState(fsWarning, 'A malha gerada é aberta ou possui arestas inconsistentes.');
+end;
+
 procedure TCadRebuilder.BuildImport(F: TCadImportStep);
 var
   Fn, E: string;
@@ -3551,6 +3573,8 @@ begin
       BuildShell(TCadShell(F))
     else if F is TCadImportStep then
       BuildImport(TCadImportStep(F))
+    else if F is TCadGeneratedMesh then
+      BuildGeneratedMesh(TCadGeneratedMesh(F))
     else if F is TCadModelThread then
       BuildThread(TCadModelThread(F))
     else if F is TCadGear then
