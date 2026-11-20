@@ -226,7 +226,7 @@ var
   URI: TURI;
   Limit: Integer;
   {$IFDEF WINDOWS}
-  Session, Connection, Handle: HINTERNET;
+  Session, Connection, RequestHandle: HINTERNET;
   Method, Path, Header: UnicodeString;
   Status, HeaderSize, Policy, BytesRead: DWORD;
   Chunk: array[0..32767] of Byte;
@@ -266,24 +266,24 @@ begin
     Connection := WinHttpConnect(Session, PWideChar(UTF8Decode(URI.Host)), 443, 0);
     if Connection = nil then RaiseLastOSError;
     try
-      Handle := WinHttpOpenRequest(Connection, PWideChar(Method), PWideChar(Path),
+      RequestHandle := WinHttpOpenRequest(Connection, PWideChar(Method), PWideChar(Path),
         nil, nil, nil, WINHTTP_FLAG_SECURE or WINHTTP_FLAG_ESCAPE_DISABLE_QUERY);
-      if Handle = nil then RaiseLastOSError;
+      if RequestHandle = nil then RaiseLastOSError;
       try
         Policy := WINHTTP_OPTION_REDIRECT_POLICY_NEVER;
-        if not WinHttpSetOption(Handle, WINHTTP_OPTION_REDIRECT_POLICY, @Policy, SizeOf(Policy)) or
-           not WinHttpSendRequest(Handle, PWideChar(Header), Length(Header),
+        if not WinHttpSetOption(RequestHandle, WINHTTP_OPTION_REDIRECT_POLICY, @Policy, SizeOf(Policy)) or
+           not WinHttpSendRequest(RequestHandle, PWideChar(Header), Length(Header),
              Pointer(Payload), Length(Payload), Length(Payload), 0) or
-           not WinHttpReceiveResponse(Handle, nil) then
+           not WinHttpReceiveResponse(RequestHandle, nil) then
           RaiseLastOSError;
         HeaderSize := SizeOf(Status);
-        if not WinHttpQueryHeaders(Handle, WINHTTP_QUERY_STATUS_CODE or WINHTTP_QUERY_FLAG_NUMBER,
+        if not WinHttpQueryHeaders(RequestHandle, WINHTTP_QUERY_STATUS_CODE or WINHTTP_QUERY_FLAG_NUMBER,
           nil, @Status, @HeaderSize, nil) then RaiseLastOSError;
         CheckHTTP(Status);
         Result := '';
         repeat
           if Terminated then Exit;
-          if not WinHttpReadData(Handle, @Chunk, SizeOf(Chunk), @BytesRead) then RaiseLastOSError;
+          if not WinHttpReadData(RequestHandle, @Chunk, SizeOf(Chunk), @BytesRead) then RaiseLastOSError;
           Total := Length(Result);
           if Total + BytesRead > Limit then
             raise Exception.Create('A resposta excede o tamanho suportado.');
@@ -294,7 +294,7 @@ begin
           end;
         until BytesRead = 0;
       finally
-        WinHttpCloseHandle(Handle);
+        WinHttpCloseHandle(RequestHandle);
       end;
     finally
       WinHttpCloseHandle(Connection);
