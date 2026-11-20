@@ -4,7 +4,7 @@ on:
     inputs:
       version:
         description: Versao de desenvolvimento/release
-        default: '0.18'
+        default: '0.19'
         required: true
   push:
     tags:
@@ -20,7 +20,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     env:
-      VERSION: ${{ inputs.version || '0.18' }}
+      VERSION: ${{ inputs.version || '0.19' }}
     defaults:
       run:
         working-directory: multicnc
@@ -60,17 +60,38 @@ jobs:
         run: |
           if ($env:GITHUB_REF_TYPE -eq 'tag') {
             $version = $env:GITHUB_REF_NAME -replace '^v',''
-            if ($version -notmatch '^\d+\.\d+$') { throw 'Tag must be vMAJOR.MINOR' }
+            if ($version -notmatch '^\d+\.\d+(\.\d+){0,2}$') { throw 'Tag must be vMAJOR.MINOR[.PATCH[.BUILD]]' }
             $minor = [int]($version.Split('.')[1])
             if ($minor -gt 999) { throw 'Version out of range' }
             "VERSION=$version" >> $env:GITHUB_ENV
             "SETUP_SEQ=$('{0:D3}' -f $minor)" >> $env:GITHUB_ENV
           } else {
-            "SETUP_SEQ=018" >> $env:GITHUB_ENV
+            if ($env:VERSION -notmatch '^\d+\.\d+(\.\d+){0,2}$') { throw 'Invalid input version' }
+            $minor = [int]($env:VERSION.Split('.')[1])
+            if ($minor -gt 999) { throw 'Version out of range' }
+            "SETUP_SEQ=$('{0:D3}' -f $minor)" >> $env:GITHUB_ENV
           }
+      - name: Validate Windows updater transactions
+        shell: pwsh
+        run: |
+          python -m unittest discover -s multiphysics/tools -v
+          if ($LASTEXITCODE -ne 0) { throw 'CalculiX manager tests failed' }
+          python -m unittest discover -s tools -p 'test_windows_updater.py' -v
+          if ($LASTEXITCODE -ne 0) { throw 'Windows updater tests failed' }
+          python -m unittest discover -s tools -p 'test_check_multicnc_release.py' -v
+          if ($LASTEXITCODE -ne 0) { throw 'Release detection tests failed' }
+          python -m unittest discover -s tests -p 'test_release_tools.py' -v
+          if ($LASTEXITCODE -ne 0) { throw 'Release tools tests failed' }
       - name: Build suite and installer
         shell: cmd
         run: installer\windows\build_release.bat -Version %VERSION% -SetupSeq %SETUP_SEQ%
+      - name: Exercise MultiPhysics document UI
+        shell: pwsh
+        run: |
+          lazbuild --cpu=x86_64 --os=win64 --ws=win32 multiphysics/tests/test_document_ui.lpi
+          if ($LASTEXITCODE -ne 0) { throw 'Document UI test build failed' }
+          & ./multiphysics/tests/test_document_ui.exe
+          if ($LASTEXITCODE -ne 0) { throw 'Document UI test failed' }
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
@@ -88,8 +109,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $setup = Get-ChildItem dist/setup_multcnc_*.exe | Where-Object { $_.Name -match '^setup_multcnc_\d{3}\.exe$' } | Select-Object -First 1
-          if (-not $setup) { throw 'Installer missing from build' }
-          $manifest = Join-Path 'dist' 'SHA256SUMS'
-          if (-not (Test-Path $manifest)) { throw 'Missing SHA256SUMS' }
-          gh release create $env:GITHUB_REF_NAME $setup.FullName $manifest --repo $env:GITHUB_REPOSITORY --title "MultiSuite $env:VERSION" --generate-notes --verify-tag
+          $setup = Join-Path 'dist' "setup_multcnc_$env:VERSION.exe"
+          if (-not (Test-Path $setup)) { throw 'Versioned installer missing from build' }
+          $hash = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $([IO.Path]::GetFileName($setup))" | Set-Content dist/SHA256SUMS -Encoding ascii
+          gh release view $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY --title "MultiSuite $env:VERSION" --generate-notes --verify-tag --draft
+            if ($LASTEXITCODE -ne 0) { throw 'Could not create draft release' }
+          }
+          gh release upload $env:GITHUB_REF_NAME $setup dist/SHA256SUMS --repo $env:GITHUB_REPOSITORY --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Could not upload verified installer and checksum' }
+          gh release edit $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY --draft=false --prerelease=false --latest
+          if ($LASTEXITCODE -ne 0) { throw 'Could not publish release' }

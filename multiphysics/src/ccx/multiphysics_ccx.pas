@@ -18,7 +18,7 @@ unit multiphysics_ccx;
 interface
 
 uses
-  Classes, SysUtils, Math, Process, multisuite_numfmt, multiphysics_vector,
+  Classes, SysUtils, Math, Process, fpjson, jsonparser, multisuite_numfmt, multiphysics_vector,
   multiphysics_mesh, multiphysics_sparse, multiphysics_contact, multiphysics_fem;
 
 type
@@ -37,11 +37,78 @@ type
 function WriteDeck(F: TFEMModel; Step: TCCXStep; Modes: Integer; const FN: string; Log: TStrings): Boolean;
 function ReadFRD(const FN: string; NodeCount: Integer): TFRDResult;
 function FindCCX: string;
+{ separado para permitir teste sem alterar o perfil do usuario }
+function ManagedCCX(const LocalAppData: string): string;
+function ApprovedCCXVersion(const CatalogFile: string): string;
 { executa ccx -i job na pasta do arquivo .inp; espera ate TimeoutSec }
 function RunCCX(const Exe, InpFile: string; TimeoutSec: Integer; Log: TStrings): Boolean;
 function SanitizeName(const S: string): string;
 
 implementation
+
+function ApprovedCCXVersion(const CatalogFile: string): string;
+type
+  TVersion = array[0..3] of Integer;
+var
+  Lines, Parts: TStringList;
+  Data: TJSONData;
+  Entries: TJSONArray;
+  Item: TJSONObject;
+  I, J, N: Integer;
+  V, Best: TVersion;
+  S, Hash: string;
+  Valid, Newer: Boolean;
+begin
+  Result := '';
+  if not FileExists(CatalogFile) then Exit;
+  Lines := TStringList.Create;
+  Parts := TStringList.Create;
+  Data := nil;
+  Best := Default(TVersion);
+  try
+    try
+      Lines.LoadFromFile(CatalogFile);
+      Data := GetJSON(Lines.Text);
+      if not (Data is TJSONObject) then Exit;
+      if TJSONObject(Data).Get('policy', '') <> 'deny-unverified' then Exit;
+      Entries := TJSONObject(Data).Get('entries', TJSONArray(nil));
+      if Entries = nil then Exit;
+      Parts.Delimiter := '.'; Parts.StrictDelimiter := True;
+      for I := 0 to Entries.Count - 1 do
+      begin
+        if not (Entries.Items[I] is TJSONObject) then Continue;
+        Item := Entries.Objects[I];
+        if (Item.Get('status', '') <> 'approved') or (Item.Get('platform', '') <> 'windows') or
+          (Item.Get('arch', '') <> 'x64') or (Item.Get('licenseFile', '') = '') then Continue;
+        Hash := Item.Get('sha256', '');
+        Valid := Length(Hash) = 64;
+        for J := 1 to Length(Hash) do if not (Hash[J] in ['0'..'9','a'..'f','A'..'F']) then Valid := False;
+        S := Item.Get('version', '');
+        Parts.DelimitedText := S;
+        if (Parts.Count < 2) or (Parts.Count > 4) then Continue;
+        V := Default(TVersion);
+        for J := 0 to Parts.Count - 1 do
+        begin
+          if not TryStrToInt(Parts[J], N) or (N < 0) then Valid := False
+          else V[J] := N;
+        end;
+        if not Valid then Continue;
+        Newer := Result = '';
+        for J := 0 to 3 do
+          if V[J] <> Best[J] then
+          begin
+            Newer := V[J] > Best[J];
+            Break;
+          end;
+        if Newer then begin Best := V; Result := S; end;
+      end;
+    except
+      Result := ''; { catalogo invalido nunca permite download }
+    end;
+  finally
+    Data.Free; Parts.Free; Lines.Free;
+  end;
+end;
 
 function SanitizeName(const S: string): string;
 var
@@ -59,6 +126,33 @@ begin
   Result := FormatFloat('0.000000000E+00', V, InvariantFS);
 end;
 
+function ManagedCCX(const LocalAppData: string): string;
+var
+  L: TStringList;
+  FN, Root, Candidate: string;
+begin
+  Result := '';
+  if LocalAppData = '' then Exit;
+  Root := IncludeTrailingPathDelimiter(ExpandFileName(LocalAppData)) +
+    'MultiSuite' + PathDelim + 'solvers' + PathDelim + 'calculix' + PathDelim;
+  FN := Root + 'active.txt';
+  if not FileExists(FN) then Exit;
+  L := TStringList.Create;
+  try
+    L.LoadFromFile(FN);
+    Candidate := Trim(L.Text);
+    { tolera arquivos UTF-8 com BOM de gerenciadores anteriores }
+    if Copy(Candidate, 1, 3) = #$EF#$BB#$BF then Delete(Candidate, 1, 3);
+    if (Candidate = '') or (Pos(#10, Candidate) > 0) or (Pos(#13, Candidate) > 0) then Exit;
+    Candidate := ExpandFileName(Candidate);
+    Root := Root + 'versions' + PathDelim;
+    if not SameText(Copy(Candidate, 1, Length(Root)), Root) then Exit;
+    if FileExists(Candidate) then Result := Candidate;
+  finally
+    L.Free;
+  end;
+end;
+
 function FindCCX: string;
 var
   Candidates: array[0..5] of string;
@@ -66,6 +160,8 @@ var
 begin
   Result := GetEnvironmentVariable('CALCULIX_EXE');
   if (Result <> '') and FileExists(Result) then Exit;
+  Result := ManagedCCX(GetEnvironmentVariable('LOCALAPPDATA'));
+  if Result <> '' then Exit;
   Candidates[0] := ExtractFilePath(ParamStr(0)) + 'ccx.exe';
   Candidates[1] := 'C:\Program Files\CalculiX\ccx.exe';
   Candidates[2] := 'C:\CalculiX\ccx.exe';

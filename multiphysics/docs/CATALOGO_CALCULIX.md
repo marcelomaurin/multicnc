@@ -22,3 +22,15 @@ Arquivo legivel por maquina: `installer/windows/calculix_catalog.json`. O estado
 - [ ] Integrar selecao de versao aprovada no instalador sem solicitar arquivo manual.
 - [ ] Proteger contra ZIP path traversal, versoes concorrentes e executar smoke test antes de ativar.
 - [ ] Validar instalador Inno Setup e resolver caminho no `FindCCX`.
+
+## Atualizacao 0.2.1
+
+O aplicativo seleciona automaticamente a maior versao numerica aprovada.
+O gerenciador aceita `-Action Install -Version 2.23` quando existir uma entrada
+aprovada no catalogo; sem entrada aprovada, nao baixa nada. O instalador Inno
+continua oferecendo o manifesto manual opcional.
+
+FindCCX consulta a instalacao gerenciada; ZIPs sao inspecionados antes de extrair;
+ha lock exclusivo e benchmark numerico antes da ativacao e do rollback.
+Os pacotes reais 2.23/2.22 continuam sem homologacao e sem hashes preenchidos.
+Ver [ENTREGA_0.2.1.md](ENTREGA_0.2.1.md).

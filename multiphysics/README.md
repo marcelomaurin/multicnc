@@ -1,4 +1,4 @@
-# MultiPhysics 0.2
+# MultiPhysics 0.2.1
 Ferramenta da suite MultiSuite para simular fisicamente uma montagem proveniente do MultiAssembly.
 Manual do usuario: [manual ilustrado (PDF)](../docs/Manuals/Manual_do_Usuario_MultiPhysics_0.2.0.0_PT-BR.pdf) · [resumo tecnico](docs/MANUAL.md). Plano, tarefas e progresso: [docs/TAREFA.md](docs/TAREFA.md).
 Exemplos: [models/multiphysics](../models/multiphysics/README.md).
@@ -40,3 +40,17 @@ O preset Ar permite cargas preliminares de escoamento. Para foguetes, resultados
 ESTIMATIVA = formulas reduzidas/pre-dimensionamento.
 ENGENHARIA = solver numerico com malha, convergencia e condicoes documentadas.
 VALIDADO = modelo comparado com referencia analitica, experimental ou benchmark aceito.
+
+## Melhorias 0.2.1
+
+- Desfazer/refazer do documento (botoes, Ctrl+Z/Ctrl+Y fora dos editores de texto).
+- Contexto `--new destino.mphys`, `--file projeto.mphys` ou montagem `.massembly`/`.massembly`.
+- Inspecao STL ASCII/binario em mm: preview separado do FEM, volume somente para
+  superficies fechadas e orientadas; massa estimada por densidade uniforme.
+- CalculiX gerenciado: descoberta automatica, instalacao/atualizacao em segundo
+  plano, selecao automatica da ultima versao **aprovada** no catalogo, manifesto
+  manual como alternativa e restauracao com benchmark antes da ativacao.
+- O catalogo distribuido ainda nao tem pacotes homologados. Os testes com executavel
+  sintetico verificam o gerenciador, nao validam o solver CalculiX real.
+
+Detalhes, verificacoes e pendencias: [entrega 0.2.1](docs/ENTREGA_0.2.1.md).

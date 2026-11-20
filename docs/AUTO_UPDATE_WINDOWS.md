@@ -20,3 +20,23 @@ O instalador Windows inclui o verificador `multisuite_updater.ps1`. A opcao **Ve
 - Linux e ARM ainda requerem outro instalador e estrategia de atualizacao; este mecanismo e exclusivo do pacote Windows.
 
 O resultado so entra nas instalacoes apos integrar a branch e gerar/publicar um novo instalador.
+## Pipeline unificado (09/11/2026)
+
+`windows-installer.yml` e o unico workflow que publica instaladores por tag.
+O workflow duplicado `multisuite-windows-installer.yml` foi removido. Tags
+aceitam de dois a quatro numeros (`v0.19`, `v0.19.1`, `v0.19.1.0`). O build
+publica o nome por versao e seu SHA-256; a Release so sai de draft depois
+que ambos os uploads terminam. Reexecucoes substituem esses assets.
+
+Versoes equivalentes (`0.19`, `0.19.0`, `0.19.0.0`) nao causam reinstalacao.
+Quando ha aliases, o atualizador prefere o nome que coincide com a versao.
+`-CheckOnly` consulta sem baixar ou abrir instalador, por exemplo:
+
+```powershell
+powershell -NoProfile -File multisuite_updater.ps1 -InstalledVersion 0.18 -CheckOnly
+```
+
+`tools/test_windows_updater.py` executa o script PowerShell com rede e processo
+substituidos por fixtures: versao equivalente, checksum incorreto, origem
+incorreta, consulta sem download e download/verificacao/abertura. Isso nao
+substitui o ensaio entre duas Releases reais nem a instalacao com UAC.

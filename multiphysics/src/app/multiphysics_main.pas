@@ -22,7 +22,8 @@ uses
   multiphysics_graph, multiphysics_graph_runtime, multiphysics_machine_runtime,
   multiphysics_machine_faults, multiphysics_netlist, multiphysics_units,
   multiphysics_view3d, multiphysics_chart, multiphysics_assembly_import, multiphysics_coupling,
-  multiphysics_sparse, DateUtils, multiphysics_hydro;
+  multiphysics_sparse, DateUtils, multiphysics_hydro, multiphysics_history,
+  multiphysics_stl, multiphysics_ccx, Process;
 
 const
   STEP_COUNT = 10;
@@ -47,6 +48,26 @@ type
     SolveStart: TDateTime;
     FooterSolveBtn, PageSolveBtn: TSuiteButton;
     P: TPhysicsProject;
+    History: TPhysicsHistory;
+    HistoryLoading: Boolean;
+    SavedState: string;
+    UndoButton, RedoButton: TSuiteButton;
+    STLPreview: TFEMMesh;
+    ManagerProcess: TProcess;
+    ManagerTimer: TTimer;
+    ManagerOutput: string;
+    procedure RecordHistory;
+    procedure ResetHistory;
+    procedure UndoClick(Sender: TObject);
+    procedure RedoClick(Sender: TObject);
+    procedure RestoreHistory(const State: string);
+    procedure SettingsChange(Sender: TObject);
+    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure InspectSTLClick(Sender: TObject);
+    procedure InspectSTLFile(const FN: string);
+    procedure ManageCCXClick(Sender: TObject);
+    procedure ManagerTick(Sender: TObject);
+  private
     Run: TAnalysisRun;
     HasResult: Boolean;
     FUpdating: Boolean;
@@ -216,6 +237,7 @@ type
     procedure HeaderResize(Sender: TObject);
     procedure SetBadge(const ACaption: string; AColor: TColor);
   public
+    procedure ApplySuiteContext(const Ctx: TSuiteContext);
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
   end;
@@ -313,7 +335,6 @@ var
   I: Integer;
   B: TSuiteButton;
   Split: TSplitter;
-  Ctx: TSuiteContext;
 begin
   inherited CreateNew(AOwner, 1);
   Caption := 'MultiPhysics • MultiSuite';
@@ -328,6 +349,14 @@ begin
     Icon.LoadFromFile(ExtractFilePath(ParamStr(0)) + 'multiphysics.ico');
 
   P := TPhysicsProject.Create;
+  History := TPhysicsHistory.Create;
+  HistoryLoading := True;
+  STLPreview := TFEMMesh.Create;
+  ManagerTimer := TTimer.Create(Self);
+  ManagerTimer.Enabled := False;
+  ManagerTimer.Interval := 200;
+  ManagerTimer.OnTimer := @ManagerTick;
+  OnKeyDown := @FormKeyDown;
   Run := TAnalysisRun.Create(P);
   Runtime := TSimulationRuntime.Create;
   Machine := TMachineRuntime.Create;
@@ -384,10 +413,12 @@ begin
   Btn(Sidebar, 'Abrir', 110, 390, 92, 30, sikFolder, @OpenClick);
   Btn(Sidebar, 'Salvar', 12, 424, 92, 30, sikSave, @SaveClick);
   Btn(Sidebar, 'Demo', 110, 424, 92, 30, sikWand, @DemoClick);
-  Lbl(Sidebar, 'PROJETO', 16, 464, 180, 18).Font.Style := [fsBold];
+  UndoButton := Btn(Sidebar, 'Desfazer', 12, 458, 92, 30, sikUndo, @UndoClick);
+  RedoButton := Btn(Sidebar, 'Refazer', 110, 458, 92, 30, sikRedo, @RedoClick);
+  Lbl(Sidebar, 'PROJETO', 16, 496, 180, 18).Font.Style := [fsBold];
   Tree := TTreeView.Create(Self);
   Tree.Parent := Sidebar;
-  Tree.SetBounds(12, 484, 190, 200);
+  Tree.SetBounds(12, 516, 190, 168);
   Tree.Anchors := [akLeft, akTop, akRight, akBottom];
   Tree.ReadOnly := True;
   Tree.BorderStyle := bsNone;
@@ -441,7 +472,7 @@ begin
   Chart.Align := alClient;
   Chart.Visible := False;
 
-  Log.Lines.Add('MultiPhysics 0.2: FEM proprio (TET4/TET10) estatico, termico, termomecanico e modal;');
+  Log.Lines.Add('MultiPhysics 0.2.1: FEM proprio (TET4/TET10) estatico, termico, termomecanico e modal;');
   Log.Lines.Add('sistema eletromecanico, CNC virtual e circuitos com modelos reduzidos (ESTIMATIVA).');
   FUpdating := False;
   LoadConfig;
@@ -458,12 +489,41 @@ begin
       Enabled := True;
     end;
 
-  Ctx := ReadSuiteContext;
+  HistoryLoading := False;
+  ResetHistory;
+  ApplySuiteContext(ReadSuiteContext);
+end;
+
+procedure TMultiPhysicsForm.ApplySuiteContext(const Ctx: TSuiteContext);
+begin
   if (Ctx.FileName <> '') and FileExists(Ctx.FileName) then
   begin
     if SameText(ExtractFileExt(Ctx.FileName), MPHYS_EXT) then LoadProjectFile(Ctx.FileName)
-    else if SameText(ExtractFileExt(Ctx.FileName), '.massembly') then ImportAssemblyFile(Ctx.FileName);
-  end;
+    else if SameText(ExtractFileExt(Ctx.FileName), '.massembly') then ImportAssemblyFile(Ctx.FileName)
+    else if SameText(ExtractFileExt(Ctx.FileName), '.massembly') then ImportAssemblyFile(Ctx.FileName)
+    else if SameText(ExtractFileExt(Ctx.FileName), '.stl') then InspectSTLFile(Ctx.FileName)
+    else SetStatus('Formato de arquivo nao suportado: ' + ExtractFileExt(Ctx.FileName));
+  end
+  else if Ctx.NewFileName <> '' then
+  begin
+    if FileExists(Ctx.NewFileName) then
+      SetStatus('O destino ja existe. Abra o arquivo para evitar sobrescrever.')
+    else if SameText(ExtractFileExt(Ctx.NewFileName), MPHYS_EXT) then
+    begin
+      P.FileName := Ctx.NewFileName;
+      P.Name := ChangeFileExt(ExtractFileName(Ctx.NewFileName), '');
+      P.Modified := True;
+      RefreshAll;
+      ResetHistory;
+      P.Modified := True; SavedState := '';
+      RefreshTree;
+      SetStatus('Projeto novo: ' + Ctx.NewFileName + '. Salve para criar o arquivo.');
+    end
+    else SetStatus('Projeto novo exige extensao .mphys');
+  end
+  else if Ctx.FileName <> '' then SetStatus('Arquivo nao encontrado: ' + Ctx.FileName);
+  if Ctx.ProjectRoot <> '' then Log.Lines.Add('Projeto da suite: ' + Ctx.ProjectRoot);
+  if Ctx.TaskFile <> '' then Log.Lines.Add('Tarefa da suite: ' + Ctx.TaskFile);
 end;
 
 destructor TMultiPhysicsForm.Destroy;
@@ -475,6 +535,12 @@ begin
     FreeAndNil(SolveThread);
   end;
   RuntimeTimer.Enabled := False;
+  ManagerTimer.Enabled := False;
+  // FormCloseQuery impede fechar enquanto o gerenciador instala.
+  ManagerProcess.Free;
+  View.SetMesh(nil);
+  STLPreview.Free;
+  History.Free;
   GraphRuntime.Free;
   Graph.Free;
   Machine.Free;
@@ -520,6 +586,262 @@ begin
   end;
 end;
 
+procedure TMultiPhysicsForm.ResetHistory;
+begin
+  History.Reset(P.ToJSON);
+  SavedState := P.ToJSON;
+  P.Modified := False;
+  UndoButton.Enabled := False;
+  RedoButton.Enabled := False;
+  RefreshTree;
+end;
+
+procedure TMultiPhysicsForm.RecordHistory;
+begin
+  if HistoryLoading or FUpdating or (History = nil) then Exit;
+  if History.Push(P.ToJSON) then
+  begin
+    HasResult := False;
+    if View <> nil then
+    begin
+      View.ClearScalar;
+      View.ClearDisplacement;
+      SetBadge('Sem resultado', clSuiteFaint);
+    end;
+  end;
+  UndoButton.Enabled := History.CanUndo;
+  RedoButton.Enabled := History.CanRedo;
+  if SavedState <> '' then P.Modified := P.ToJSON <> SavedState;
+end;
+
+procedure TMultiPhysicsForm.SettingsChange(Sender: TObject);
+begin
+  if FUpdating or HistoryLoading then Exit;
+  ApplySettingsFromUI;
+  P.Modified := True;
+  RecordHistory;
+end;
+
+procedure TMultiPhysicsForm.RestoreHistory(const State: string);
+var
+  FN: string;
+begin
+  if State = '' then Exit;
+  FN := P.FileName;
+  HistoryLoading := True;
+  try
+    View.SetMesh(nil);
+    P.FromJSON(State);
+    P.FileName := FN;
+    Run.Mesh.Clear;
+    HasResult := False;
+    SetBadge('Sem resultado', clSuiteFaint);
+    RefreshAll;
+    P.Modified := (SavedState = '') or (P.ToJSON <> SavedState);
+  finally
+    HistoryLoading := False;
+  end;
+  UndoButton.Enabled := History.CanUndo;
+  RedoButton.Enabled := History.CanRedo;
+  RefreshTree;
+  SetStatus('Estado restaurado. Gere a malha novamente antes de resolver.');
+end;
+
+procedure TMultiPhysicsForm.UndoClick(Sender: TObject);
+begin
+  if (SolveThread <> nil) or (ManagerProcess <> nil) or RuntimeTimer.Enabled then Exit;
+  RestoreHistory(History.Undo);
+end;
+
+procedure TMultiPhysicsForm.RedoClick(Sender: TObject);
+begin
+  if (SolveThread <> nil) or (ManagerProcess <> nil) or RuntimeTimer.Enabled then Exit;
+  RestoreHistory(History.Redo);
+end;
+
+procedure TMultiPhysicsForm.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+begin
+  if not (ssCtrl in Shift) then Exit;
+  { Editores de texto preservam o proprio Ctrl+Z. Os botoes sempre editam o projeto. }
+  if (ActiveControl is TCustomEdit) or (ActiveControl is TCustomMemo) then Exit;
+  if Key = VK_Z then
+  begin
+    if ssShift in Shift then RedoClick(nil) else UndoClick(nil);
+    Key := 0;
+  end
+  else if Key = VK_Y then begin RedoClick(nil); Key := 0; end;
+end;
+
+procedure TMultiPhysicsForm.InspectSTLClick(Sender: TObject);
+var
+  D: TOpenDialog;
+begin
+  if (SolveThread <> nil) or (ManagerProcess <> nil) then Exit;
+  D := TOpenDialog.Create(Self);
+  try
+    D.Filter := 'Superficie STL (*.stl)|*.stl';
+    if D.Execute then InspectSTLFile(D.FileName);
+  finally
+    D.Free;
+  end;
+end;
+
+procedure TMultiPhysicsForm.InspectSTLFile(const FN: string);
+var
+  R: TSTLInspection;
+  DensityText, Summary: string;
+  Density: Double;
+begin
+  HasResult := False;
+  View.SetMesh(nil);
+  try
+    R := InspectSTL(FN, STLPreview);
+    View.SetMesh(STLPreview);
+    View.FitView;
+    View.Message := 'STL em mm: inspecao geometrica, sem elementos FEM';
+    Chart.Visible := False;
+    View.Visible := True;
+    Summary := Format('%d triangulos. ', [R.Triangles]) + R.Message;
+    if R.Closed then
+    begin
+      Summary := Summary + Format(' Volume: %.6g m3.', [R.Volume]);
+      DensityText := '7850';
+      if InputQuery('Massa do STL', 'Densidade uniforme (kg/m3), entrada STL em mm:', DensityText) then
+        if TryStrToFloat(DensityText, Density) and (Density > 0) and not IsNan(Density) and not IsInfinite(Density) then
+          Summary := Summary + Format(' Massa estimada: %.6g kg.', [R.Volume * Density]);
+    end;
+    Log.Lines.Add(FN + ': ' + Summary);
+    SetStatus(Summary);
+    SetBadge('ESTIMATIVA - inspecao STL', clSuiteFaint);
+  except
+    on E: Exception do
+    begin
+      View.SetMesh(nil);
+      MessageDlg('STL invalido', E.Message, mtError, [mbOK], 0);
+    end;
+  end;
+end;
+
+procedure TMultiPhysicsForm.ManageCCXClick(Sender: TObject);
+var
+  D: TOpenDialog;
+  Script, Base, Manifest, ManagerAction, ApprovedVersion: string;
+  I: Integer;
+begin
+  if (SolveThread <> nil) or (ManagerProcess <> nil) or RuntimeTimer.Enabled then
+  begin
+    SetStatus('Pare a simulacao antes de gerenciar o CalculiX.');
+    Exit;
+  end;
+  if TComponent(Sender).Tag = 0 then
+  begin
+    EdCCX.Text := FindCCX;
+    Run.CCXExe := EdCCX.Text;
+    if EdCCX.Text = '' then SetStatus('CalculiX nao encontrado. Instale um pacote homologado ou selecione o executavel.')
+    else begin SaveConfig; SetStatus('CalculiX detectado: ' + EdCCX.Text); end;
+    Exit;
+  end;
+  {$IFNDEF WINDOWS}
+  MessageDlg('CalculiX', 'O gerenciador de pacotes atual e exclusivo do Windows.', mtInformation, [mbOK], 0);
+  Exit;
+  {$ENDIF}
+  Base := ExtractFilePath(ParamStr(0));
+  Script := Base + 'solvers' + PathDelim + 'calculix_manager.ps1';
+  for I := 0 to 5 do
+  begin
+    if FileExists(Script) then Break;
+    Script := IncludeTrailingPathDelimiter(Base) + 'installer' + PathDelim + 'windows' + PathDelim + 'calculix_manager.ps1';
+    if FileExists(Script) then Break;
+    Base := ExtractFileDir(ExcludeTrailingPathDelimiter(Base));
+  end;
+  if not FileExists(Script) then
+  begin
+    SetStatus('Gerenciador CalculiX nao encontrado nesta instalacao.');
+    Exit;
+  end;
+  Manifest := ''; ApprovedVersion := '';
+  if TComponent(Sender).Tag = 1 then
+  begin
+    ApprovedVersion := ApprovedCCXVersion(ExtractFilePath(Script) + 'calculix_catalog.json');
+    if ApprovedVersion = '' then
+    begin
+      D := TOpenDialog.Create(Self);
+      try
+        D.Title := 'Manifesto CalculiX homologado (versao, URL, SHA256, executable, licenseFile)';
+        D.Filter := 'Manifesto JSON (*.json)|*.json';
+        if not D.Execute then Exit;
+        Manifest := D.FileName;
+      finally
+        D.Free;
+      end;
+    end;
+    ManagerAction := 'Install';
+  end
+  else ManagerAction := 'Rollback';
+  if MessageDlg('CalculiX', 'Executar ' + ManagerAction + ' ' + ApprovedVersion + '? O pacote sera testado antes de ativar. ' +
+    'A versao atual sera preservada em caso de falha.', mtConfirmation, [mbYes, mbNo], 0) <> mrYes then Exit;
+  ManagerProcess := TProcess.Create(nil);
+  try
+    ManagerProcess.Executable := GetEnvironmentVariable('WINDIR') + '\System32\WindowsPowerShell\v1.0\powershell.exe';
+    ManagerProcess.Parameters.Add('-NoProfile');
+    ManagerProcess.Parameters.Add('-NonInteractive');
+    ManagerProcess.Parameters.Add('-ExecutionPolicy'); ManagerProcess.Parameters.Add('Bypass');
+    ManagerProcess.Parameters.Add('-File'); ManagerProcess.Parameters.Add(Script);
+    ManagerProcess.Parameters.Add('-Action'); ManagerProcess.Parameters.Add(ManagerAction);
+    if Manifest <> '' then
+    begin
+      ManagerProcess.Parameters.Add('-ManifestPath'); ManagerProcess.Parameters.Add(Manifest);
+    end;
+    if ApprovedVersion <> '' then
+    begin
+      ManagerProcess.Parameters.Add('-Version'); ManagerProcess.Parameters.Add(ApprovedVersion);
+    end;
+    ManagerProcess.Options := [poUsePipes, poStderrToOutPut, poNoConsole];
+    ManagerProcess.Execute;
+    ManagerOutput := '';
+    ManagerTimer.Enabled := True;
+    Sidebar.Enabled := False;
+    Pages.Enabled := False;
+    FooterSolveBtn.Enabled := False;
+    SetStatus('Gerenciando CalculiX. Download e benchmark em segundo plano...');
+  except
+    on E: Exception do
+    begin
+      FreeAndNil(ManagerProcess);
+      MessageDlg('CalculiX', E.Message, mtError, [mbOK], 0);
+    end;
+  end;
+end;
+
+procedure TMultiPhysicsForm.ManagerTick(Sender: TObject);
+var
+  Buf: array[0..4095] of Char;
+  N, Code: Integer;
+  Chunk: string;
+begin
+  if ManagerProcess = nil then Exit;
+  while ManagerProcess.Output.NumBytesAvailable > 0 do
+  begin
+    N := ManagerProcess.Output.Read(Buf, SizeOf(Buf));
+    SetString(Chunk, PChar(@Buf[0]), N);
+    if Length(ManagerOutput) < 1024 * 1024 then ManagerOutput := ManagerOutput + Chunk;
+  end;
+  if ManagerProcess.Running then Exit;
+  Code := ManagerProcess.ExitStatus;
+  ManagerTimer.Enabled := False;
+  FreeAndNil(ManagerProcess);
+  Sidebar.Enabled := True; Pages.Enabled := True; FooterSolveBtn.Enabled := True;
+  Log.Lines.Add(ManagerOutput);
+  if Code = 0 then
+  begin
+    EdCCX.Text := FindCCX;
+    Run.CCXExe := EdCCX.Text;
+    SaveConfig;
+    SetStatus('CalculiX verificado. Caminho: ' + EdCCX.Text);
+  end
+  else SetStatus('Falha ao gerenciar CalculiX. Veja o log; a versao ativa foi preservada.');
+end;
+
 procedure TMultiPhysicsForm.BuildAssemblyPage(S: TScrollBox);
 var
   I: Integer;
@@ -544,6 +866,7 @@ begin
   end;
   Lbl(S, 'ID da peca', 16, 270, 140, 18);
   EdPartID := TEdit.Create(Self);
+  EdPartID.Name := 'PartIDEdit';
   EdPartID.Parent := S;
   EdPartID.SetBounds(16, 289, 140, 26);
   Btn(S, 'Adicionar peca', 166, 286, 140, 32, sikNew, @AddPartClick);
@@ -572,6 +895,7 @@ begin
   Btn(S, 'Excluir contato', 166, 806, 140, 32, sikTrash, @DeleteContactClick);
   Lbl(S, 'Contato colado: as faces encostadas (ou volumes sobrepostos) das duas pecas se movem juntas, ' +
     'sem atrito nem separacao. Primitivas da mesma peca sao sempre coladas.', 16, 846, 290, 60);
+  Btn(S, 'Inspecionar STL (sem FEM)', 16, 916, 290, 32, sikImport, @InspectSTLClick);
   UpdatePrimLabels;
 end;
 
@@ -649,6 +973,7 @@ end;
 procedure TMultiPhysicsForm.BuildMeshPage(S: TScrollBox);
 begin
   EdMeshSize := Num(S, 'Tamanho dos elementos (mm)', 16, 44, 140, 0.05, 1000, 5, 2);
+  EdMeshSize.Name := 'MeshSizeEdit';
   CkQuadratic := TCheckBox.Create(Self);
   CkQuadratic.Parent := S;
   CkQuadratic.SetBounds(16, 100, 290, 22);
@@ -692,8 +1017,15 @@ begin
   PageSolveBtn := B;
   Lbl(S, 'FEM proprio: Cholesky esparso ou em perfil (o de menor custo), ou gradiente conjugado em modelos ' +
     'grandes. CalculiX: o mesmo modelo vai para o ccx (.inp) e o resultado volta do .frd; o ccx nao vem no ' +
-    'instalador (baixe em calculix.de). Resultado sem convergencia verificada sai como ESTIMATIVA.',
+    'instalador. Use as opcoes abaixo para gerenciar o pacote opcional. Resultado sem convergencia sai como ESTIMATIVA.',
     16, 252, 290, 120);
+  B := Btn(S, 'Detectar CalculiX', 16, 380, 290, 32, sikSearch, @ManageCCXClick); B.Tag := 0;
+  B := Btn(S, 'Instalar / atualizar CalculiX', 16, 420, 290, 32, sikImport, @ManageCCXClick); B.Tag := 1;
+  B := Btn(S, 'Restaurar CalculiX anterior', 16, 460, 290, 32, sikUndo, @ManageCCXClick); B.Tag := 2;
+  CbAnalysis.OnChange := @SettingsChange; CbSolver.OnChange := @SettingsChange;
+  EdModes.OnChange := @SettingsChange;
+  EdMeshSize.OnChange := @SettingsChange;
+  CkQuadratic.OnChange := @SettingsChange; CkConvergence.OnChange := @SettingsChange;
 end;
 
 procedure TMultiPhysicsForm.BuildResultsPage(S: TScrollBox);
@@ -836,6 +1168,10 @@ begin
     CkQuadratic.Checked := P.Settings.Quadratic;
     CkConvergence.Checked := P.Settings.CheckConvergence;
     EdModes.Value := Max(1.0, P.Settings.Modes);
+    if pkModal in P.Settings.Physics then CbAnalysis.ItemIndex := 3
+    else if (pkStructural in P.Settings.Physics) and (pkThermal in P.Settings.Physics) then CbAnalysis.ItemIndex := 2
+    else if pkThermal in P.Settings.Physics then CbAnalysis.ItemIndex := 1
+    else CbAnalysis.ItemIndex := 0;
     CbSolver.ItemIndex := EnsureRange(P.Settings.Solver, 0, 1);
   finally
     FUpdating := False;
@@ -863,30 +1199,41 @@ end;
 procedure TMultiPhysicsForm.ImportAssemblyFile(const FN: string);
 var
   L: TStringList;
+  Draft: TPhysicsProject;
   I: Integer;
 begin
   L := TStringList.Create;
+  Draft := TPhysicsProject.Create;
   try
-    Screen.Cursor := crHourGlass;
     try
-      if not multiphysics_assembly_import.ImportAssemblyFile(FN, P, L) then
-      begin
-        MessageDlg('Importar montagem', 'Nenhuma peca com geometria na montagem.'#13#10 + L.Text, mtWarning, [mbOK], 0);
-        Exit;
+      Screen.Cursor := crHourGlass;
+      try
+        if not multiphysics_assembly_import.ImportAssemblyFile(FN, Draft, L) then
+        begin
+          MessageDlg('Importar montagem', 'Nenhuma peca com geometria na montagem.'#13#10 + L.Text, mtWarning, [mbOK], 0);
+          Exit;
+        end;
+      finally
+        Screen.Cursor := crDefault;
       end;
-    finally
-      Screen.Cursor := crDefault;
+      P.FromJSON(Draft.ToJSON);
+      Log.Lines.Add('--- Importacao ---');
+      for I := 0 to L.Count - 1 do Log.Lines.Add(L[I]);
+      HasResult := False;
+      View.SetMesh(nil);
+      RefreshAll;
+      MeshClick(nil);
+      ResetHistory;
+      P.Modified := True; SavedState := '';
+      RefreshTree;
+      SetStatus(Format('Montagem importada: %d pecas, %d contatos. Confira materiais e fixacoes.', [P.PartCount, P.ContactCount]));
+    except
+      on E: Exception do MessageDlg('Nao foi possivel importar', E.Message, mtError, [mbOK], 0);
     end;
-    Log.Lines.Add('--- Importacao ---');
-    for I := 0 to L.Count - 1 do Log.Lines.Add(L[I]);
-    HasResult := False;
-    RefreshAll;
-    MeshClick(nil);
-    SetStatus(Format('Montagem importada: %d pecas, %d contatos. Confira materiais e fixacoes.', [P.PartCount, P.ContactCount]));
-  except
-    on E: Exception do MessageDlg('Nao foi possivel importar', E.Message, mtError, [mbOK], 0);
+  finally
+    Draft.Free;
+    L.Free;
   end;
-  L.Free;
 end;
 
 procedure TMultiPhysicsForm.RefreshTree;
@@ -895,6 +1242,7 @@ var
   I: Integer;
   B: TBoundaryCondition;
 begin
+  RecordHistory;
   Tree.Items.BeginUpdate;
   try
     Tree.Items.Clear;
@@ -1146,7 +1494,12 @@ end;
 
 procedure TMultiPhysicsForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
-  CanClose := True;
+  CanClose := ManagerProcess = nil;
+  if not CanClose then
+  begin
+    SetStatus('Aguarde a conclusao da instalacao do CalculiX antes de sair.');
+    Exit;
+  end;
   if P.Modified then
     CanClose := MessageDlg('MultiPhysics', 'O projeto foi alterado e nao foi salvo. Sair mesmo assim?',
       mtConfirmation, [mbYes, mbNo], 0) = mrYes;
@@ -1330,6 +1683,7 @@ end;
 
 procedure TMultiPhysicsForm.NewClick(Sender: TObject);
 begin
+  if (SolveThread <> nil) or (ManagerProcess <> nil) then Exit;
   if P.Modified and (MessageDlg('Novo projeto', 'Descartar as alteracoes do projeto atual?',
     mtConfirmation, [mbYes, mbNo], 0) <> mrYes) then Exit;
   P.Clear;
@@ -1339,24 +1693,36 @@ begin
   SetBadge('Sem resultado', clSuiteFaint);
   EdPartID.Text := '';
   RefreshAll;
+  ResetHistory;
   SetStatus('Projeto novo.');
   ShowStep(0);
 end;
 
 procedure TMultiPhysicsForm.LoadProjectFile(const FN: string);
+var
+  Draft: TPhysicsProject;
 begin
+  Draft := TPhysicsProject.Create;
   try
-    P.LoadFromFile(FN);
-    HasResult := False;
-    Run.Mesh.Clear;
-    View.SetMesh(nil);
-    SetBadge('Sem resultado', clSuiteFaint);
-    RefreshAll;
-    SetStatus('Projeto aberto: ' + ExtractFileName(FN));
-    Log.Lines.Add('Aberto ' + FN);
-    MeshClick(nil);
-  except
-    on E: Exception do MessageDlg('Nao foi possivel abrir', E.Message, mtError, [mbOK], 0);
+    try
+      { Valida em outro documento: arquivo invalido nao apaga o projeto aberto. }
+      Draft.LoadFromFile(FN);
+      P.FromJSON(Draft.ToJSON);
+      P.FileName := Draft.FileName;
+      HasResult := False;
+      Run.Mesh.Clear;
+      View.SetMesh(nil);
+      SetBadge('Sem resultado', clSuiteFaint);
+      RefreshAll;
+      ResetHistory;
+      SetStatus('Projeto aberto: ' + ExtractFileName(FN));
+      Log.Lines.Add('Aberto ' + FN);
+      MeshClick(nil);
+    except
+      on E: Exception do MessageDlg('Nao foi possivel abrir', E.Message, mtError, [mbOK], 0);
+    end;
+  finally
+    Draft.Free;
   end;
 end;
 
@@ -1364,10 +1730,16 @@ procedure TMultiPhysicsForm.OpenClick(Sender: TObject);
 var
   D: TOpenDialog;
 begin
+  if (SolveThread <> nil) or (ManagerProcess <> nil) then Exit;
   D := TOpenDialog.Create(Self);
   try
     D.Filter := 'Projeto MultiPhysics (*.mphys)|*.mphys|Todos os arquivos|*.*';
-    if D.Execute then LoadProjectFile(D.FileName);
+    if D.Execute then
+    begin
+      if P.Modified and (MessageDlg('Abrir projeto', 'Descartar as alteracoes do projeto atual?',
+        mtConfirmation, [mbYes, mbNo], 0) <> mrYes) then Exit;
+      LoadProjectFile(D.FileName);
+    end;
   finally
     D.Free;
   end;
@@ -1378,6 +1750,7 @@ var
   D: TSaveDialog;
   FN: string;
 begin
+  if (SolveThread <> nil) or (ManagerProcess <> nil) then Exit;
   ApplySettingsFromUI;
   FN := P.FileName;
   if FN = '' then
@@ -1396,6 +1769,8 @@ begin
   end;
   try
     P.SaveToFile(FN);
+    SavedState := P.ToJSON;
+    RecordHistory;
     RefreshTree;
     SetStatus('Salvo em ' + FN);
   except
@@ -1409,6 +1784,7 @@ var
   Part: TPhysicsPart;
   B: TBoundaryCondition;
 begin
+  if (SolveThread <> nil) or (ManagerProcess <> nil) then Exit;
   if P.Modified and (MessageDlg('Demonstracao', 'Descartar as alteracoes do projeto atual?',
     mtConfirmation, [mbYes, mbNo], 0) <> mrYes) then Exit;
   P.Clear;
@@ -1434,6 +1810,7 @@ begin
   RefreshAll;
   MeshClick(nil);
   ShowStep(2);
+  ResetHistory;
   SetStatus('Demonstracao: viga engastada, 100 N na ponta. Va em Resolver.');
 end;
 
@@ -1529,11 +1906,12 @@ procedure TMultiPhysicsForm.ImportAssemblyClick(Sender: TObject);
 var
   D: TOpenDialog;
 begin
+  if (SolveThread <> nil) or (ManagerProcess <> nil) then Exit;
   if P.Modified and (MessageDlg('Importar montagem', 'Substituir o projeto atual pela montagem?',
     mtConfirmation, [mbYes, mbNo], 0) <> mrYes) then Exit;
   D := TOpenDialog.Create(Self);
   try
-    D.Filter := 'Montagem MultiAssembly (*.massembly)|*.massembly|Todos os arquivos|*.*';
+    D.Filter := 'Montagem MultiAssembly (*.massembly;*.massembly)|*.massembly;*.massembly|Todos os arquivos|*.*';
     if D.Execute then ImportAssemblyFile(D.FileName);
   finally
     D.Free;
@@ -1632,11 +2010,17 @@ procedure TMultiPhysicsForm.ApplyMaterialAllClick(Sender: TObject);
 var
   I: Integer;
 begin
-  for I := 0 to P.PartCount - 1 do
-  begin
-    LbMatParts.ItemIndex := I;
-    ApplyMaterialClick(nil);
+  HistoryLoading := True;
+  try
+    for I := 0 to P.PartCount - 1 do
+    begin
+      LbMatParts.ItemIndex := I;
+      ApplyMaterialClick(nil);
+    end;
+  finally
+    HistoryLoading := False;
   end;
+  RecordHistory;
 end;
 
 { ---------------- 3 cargas ---------------- }
@@ -1779,6 +2163,7 @@ end;
 function TMultiPhysicsForm.PrepareSolve(out K: TAnalysisKind): Boolean;
 begin
   Result := False;
+  if ManagerProcess <> nil then Exit;
   ApplySettingsFromUI;
   case CbAnalysis.ItemIndex of
     1: K := akThermal;
