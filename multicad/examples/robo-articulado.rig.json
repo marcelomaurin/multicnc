@@ -1,0 +1,67 @@
+{
+  "format": "multicad-rig",
+  "version": 1,
+  "segments": [
+    {
+      "id": "base",
+      "name": "Base",
+      "parent": "",
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "tip": [
+        0,
+        30,
+        0
+      ],
+      "axis": "y",
+      "min_angle": -180,
+      "max_angle": 180,
+      "angle": 0,
+      "face_prefixes": "Base/"
+    },
+    {
+      "id": "braco",
+      "name": "Braço",
+      "parent": "base",
+      "pivot": [
+        0,
+        30,
+        0
+      ],
+      "tip": [
+        0,
+        70,
+        0
+      ],
+      "axis": "z",
+      "min_angle": -90,
+      "max_angle": 90,
+      "angle": 0,
+      "face_prefixes": "Braco/"
+    },
+    {
+      "id": "antebraco",
+      "name": "Antebraço",
+      "parent": "braco",
+      "pivot": [
+        0,
+        70,
+        0
+      ],
+      "tip": [
+        35,
+        70,
+        0
+      ],
+      "axis": "z",
+      "min_angle": -120,
+      "max_angle": 120,
+      "angle": 0,
+      "face_prefixes": "Antebraco/"
+    }
+  ],
+  "script": "var I: Integer;\nbegin\n  for I := 1 to 2 do\n  begin\n    MoverSegmento('braco', 45, 600);\n    MoverSegmento('antebraco', 60, 400);\n    Esperar(300);\n    MoverSegmento('antebraco', 0, 400);\n    MoverSegmento('braco', 0, 600);\n  end;\n  MoverSegmento('base', 90, 1000);\n  MoverSegmento('base', 0, 1000);\nend.\n"
+}
