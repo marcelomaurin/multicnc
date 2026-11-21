@@ -30,7 +30,7 @@ uses
   multicad_sketchedit, multicad_propman, multicad_undo, multicad_hole, multicad_pattern, multicad_blend, multicad_occt, multicad_import, multicad_materialdlg, multicad_textures, multicad_export, multicad_measure,
   multisuite_types, multisuite_registry, multisuite_launcher, multisuite_context,
   multicad_sketchpattern, multicad_sketchpatterndlg, multicad_sketchtext,
-  multicad_sketchtextdlg;
+  multicad_sketchtextdlg, multicad_threadop, multicad_gear, multicad_generatedmesh, multicad_aiconfig, multicad_text3ddlg, multicad_dxfimport;
 
 type
   TCadTab = (ctFeatures, ctSketch, ctEvaluate, ctView, ctExport, ctAbout);
@@ -52,6 +52,8 @@ type
     Status: TStatusBar;
     Splitter: TSplitter;
     FTab: TCadTab;
+    FAIConfig: TCadAIConfig;
+    FAIConfigLoaded: Boolean;
     FEditor: TCadSketchEditor;
     FExtrudeEditor: TCadExtrudeEditor;
     FSnapshot: TJSONObject;     { parametros antes de editar (Cancelar) }
@@ -78,6 +80,8 @@ type
     procedure UndoClick(Sender: TObject);
     procedure RedoClick(Sender: TObject);
     procedure HoleClick(Sender: TObject);
+    procedure ThreadClick(Sender: TObject);
+    procedure GearClick(Sender: TObject);
     procedure LinearPatternClick(Sender: TObject);
     procedure CircularPatternClick(Sender: TObject);
     procedure SketchPatternClick(Sender: TObject);
@@ -178,7 +182,12 @@ type
     procedure ExportSTLClick(Sender: TObject);
     procedure ExportDXFClick(Sender: TObject);
     procedure ExportSTEPClick(Sender: TObject);
-    procedure ImportSTEPClick(Sender: TObject);
+    procedure ExportIGESClick(Sender: TObject);
+    procedure ExportExact(AsIGES: Boolean);
+    procedure ImportCADClick(Sender: TObject);
+    procedure GenerateText3DClick(Sender: TObject);
+    procedure ConfigureAIClick(Sender: TObject);
+    procedure EnsureAIConfig;
     function KernelText: string;
     procedure KernelClick(Sender: TObject);
     procedure OpenSlicerClick(Sender: TObject);
@@ -205,6 +214,7 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     function OpenFile(const AFile: string): Boolean;
+    procedure SetNewTarget(const AFile: string);
     { acesso para o teste de interface }
     property Document: TCadDocument read Doc;
     property Rebuilder: TCadRebuilder read RB;
@@ -571,14 +581,16 @@ begin
     ctFeatures:
       begin
         RibbonButton('Ressalto extrudado', sikMove, @ExtrudeClick);
-        RibbonButton('Ressalto revolucionado', sikRedo, @RevolveClick);
+        RibbonButton('Ressalto revolucionado', sikRevolve, @RevolveClick);
         RibbonSep;
         RibbonButton('Corte extrudado', sikTrash, @CutClick);
-        RibbonButton('Corte revolucionado', sikUndo, @RevolveCutClick);
+        RibbonButton('Corte revolucionado', sikRevolve, @RevolveCutClick);
         RibbonSep;
         RibbonButton('Plano', sikLayers, @PlaneClick);
         RibbonSep;
         RibbonButton('Furo', sikTarget, @HoleClick);
+        RibbonButton('Rosca', sikThread, @ThreadClick);
+        RibbonButton('Engrenagem', sikGear, @GearClick, 0, 92);
         RibbonButton('Padrão linear', sikCopy, @LinearPatternClick);
         RibbonButton('Padrão circular', sikRedo, @CircularPatternClick);
         RibbonButton('Espelhar', sikMirrorH, @MirrorClick);
@@ -669,7 +681,9 @@ begin
         RibbonButton('STL para impressão 3D...', sikExport, @ExportSTLClick);
         RibbonButton('DXF do esboço ou face...', sikExport, @ExportDXFClick);
         RibbonButton('STEP (outros CADs)...', sikExport, @ExportSTEPClick);
-        RibbonButton('Importar STEP...', sikImport, @ImportSTEPClick);
+        RibbonButton('IGES (outros CADs)...', sikExport, @ExportIGESClick);
+        RibbonButton('Importar CAD...', sikImport, @ImportCADClick);
+        RibbonButton('Gerar 3D por texto...', sikImport, @GenerateText3DClick);
         RibbonSep;
         RibbonButton('Abrir no MultiSlicer', sikSlicer, @OpenSlicerClick).SetLook(sbsSolid,
           clSuitePrimary, sikSlicer);
@@ -716,11 +730,16 @@ begin
   Command('Esboço',@SketchClick);Command('Plano',@PlaneClick);
   Command('-',nil);Command('Ressalto extrudado',@ExtrudeClick);Command('Corte extrudado',@CutClick);
   Command('Ressalto revolucionado',@RevolveClick);Command('Corte revolucionado',@RevolveCutClick);
+  Command('-',nil);Command('Furo',@HoleClick);Command('Rosca',@ThreadClick);
+  Command('Engrenagem',@GearClick);
+  Command('Gerar 3D por texto...',@GenerateText3DClick);
   Root:=Category('Ferramentas');
   Command('Reconstruir',@RebuildClick);Command('Propriedades de massa',@MassClick);
   Command('Medir',@MeasureClick);Command('Exportar STL...',@ExportSTLClick);
   Command('Exportar DXF...',@ExportDXFClick);
-  Command('Exportar STEP...',@ExportSTEPClick);Command('Importar STEP...',@ImportSTEPClick);
+  Command('Exportar STEP...',@ExportSTEPClick);Command('Exportar IGES...',@ExportIGESClick);
+  Command('Importar CAD...',@ImportCADClick);
+  Command('Configuração da IA...',@ConfigureAIClick);
   Command('Núcleo OpenCascade / Pascal',@KernelClick);
   Root:=Category('Sobre');
   Command('Sobre o MultiCAD',@AboutClick);Command('Abrir log',@LogClick);
@@ -1075,7 +1094,7 @@ begin
   else if F is TCadSketch then
     EditSketch(TCadSketch(F))
   else if (F is TCadExtrude) or (F is TCadRevolve) or (F is TCadHole) or
-    (F is TCadPatternBase) then
+    (F is TCadPatternBase) or (F is TCadModelThread) or (F is TCadGear) then
     BeginEdit(F, False);
 end;
 
@@ -1171,6 +1190,7 @@ begin
     TreeMenu.Items[I].Enabled := Assigned(F) and not PM.Visible and not Assigned(FEditor);
   TreeMenu.Items[0].Enabled := TreeMenu.Items[0].Enabled and
     ((F is TCadExtrude) or (F is TCadRevolve) or (F is TCadHole) or (F is TCadPatternBase) or
+    (F is TCadModelThread) or (F is TCadGear) or
     ((F is TCadPlane) and (TCadPlane(F).PlaneType <> ptStandard)));
   TreeMenu.Items[1].Enabled := TreeMenu.Items[1].Enabled and (F is TCadSketch);
   if Assigned(F) and F.Suppressed then
@@ -1491,6 +1511,14 @@ begin
   finally
     D.Free;
   end;
+end;
+
+procedure TMainForm.SetNewTarget(const AFile: string);
+begin
+  if FileExists(AFile) then raise Exception.Create('Arquivo ja existe: ' + AFile);
+  if not SameText(ExtractFileExt(AFile), '.mcad') then raise Exception.Create('Esperado arquivo .mcad');
+  Doc.FileName := ExpandFileName(AFile);
+  UpdateCaption;
 end;
 
 function TMainForm.SaveTo(const AFile: string): Boolean;
@@ -2097,6 +2125,45 @@ begin
     Result := C;
 end;
 
+procedure TMainForm.ThreadClick(Sender: TObject);
+var
+  T: TCadModelThread;
+  R: string;
+begin
+  if PM.Visible then
+    Exit;
+  if Assigned(FEditor) then
+    ExitSketch(nil);
+  { face cilindrica selecionada (eixo ou furo); sem ela o campo fica ativo }
+  R := SelectedFaceRef;
+  T := TCadModelThread.Create;
+  T.FaceRef := R;
+  Doc.AddFeature(T);
+  BeginEdit(T, True);
+end;
+
+procedure TMainForm.GearClick(Sender: TObject);
+var
+  G: TCadGear;
+  F: TCadFeature;
+  R: string;
+begin
+  if PM.Visible then
+    Exit;
+  if Assigned(FEditor) then
+    ExitSketch(nil);
+  G := TCadGear.Create;
+  { plano marcado na arvore ou face plana selecionada: base da engrenagem }
+  F := SelectedFeature;
+  R := SelectedFaceRef;
+  if F is TCadPlane then
+    G.PlaneRef := 'plane:' + IntToStr(F.Id)
+  else if (R <> '') then
+    G.PlaneRef := R;
+  Doc.AddFeature(G);
+  BeginEdit(G, True);
+end;
+
 procedure TMainForm.HoleClick(Sender: TObject);
 var
   S: TCadSketch;
@@ -2393,7 +2460,7 @@ begin
   CadLogFeature('FEATURE.EDIT new='+BoolToStr(AIsNew,True),F);
   FreeAndNil(FSnapshot);
   FSnapshot := TJSONObject.Create;
-  F.SaveParams(FSnapshot);
+  F.SaveAll(FSnapshot);
   FSnapName := F.Name;
   View.Selected.Clear;
   View.HighlightPrefix := F.Name + '/';
@@ -2406,7 +2473,9 @@ begin
   Tree.Visible := False;
   PM.Visible := True;
   PM.Edit(Doc, F, AIsNew);
-  View.PickEdges := F is TCadBlendBase;
+  View.PickEdges := (F is TCadBlendBase) or (F is TCadRevolve);
+  { revolucao: eixo por linha do esboco; engrenagem: centro por ponto }
+  View.PickSketchEntities := (F is TCadRevolve) or (F is TCadGear);
   if F is TCadBlendBase then
   begin
     { como no SolidWorks: o modelo fica como antes da operacao (as arestas
@@ -2441,12 +2510,13 @@ begin
         Doc.DeleteFeature(FAutoSketchId, Err);
     end
     else if Assigned(FSnapshot) then
-      F.LoadParams(FSnapshot);
+      F.LoadAll(FSnapshot);
   end;
   FreeAndNil(FSnapshot);
   FAutoSketchId := 0;
   StopBlendEdit;
   View.PickEdges := True;
+  View.PickSketchEntities := False;
   View.Selected.Clear;
   PM.Visible := False;
   Tree.Visible := True;
@@ -2479,6 +2549,7 @@ begin
     RB.Rebuild;
     View.ModelChanged;
     UpdatePartStatus;
+    PM.RefreshInfo;
     if F.State = fsError then
       PM.ShowMessageText(F.Message, True)
     else if F.Message <> '' then
@@ -2746,15 +2817,32 @@ begin
 end;
 
 procedure TMainForm.ExportSTEPClick(Sender: TObject);
+begin
+  ExportExact(False);
+end;
+
+procedure TMainForm.ExportIGESClick(Sender: TObject);
+begin
+  ExportExact(True);
+end;
+
+procedure TMainForm.ExportExact(AsIGES: Boolean);
 var
   D: TSaveDialog;
   Shapes: array of TOcctShape;
   I: Integer;
-  Err: string;
+  Err, FormatName: string;
+  Written: Boolean;
 begin
+  if AsIGES then FormatName := 'IGES' else FormatName := 'STEP';
   if not RB.OcctActive then
   begin
-    CadMessageDlg('STEP precisa do núcleo OpenCascade.' + LineEnding + KernelText, mtWarning, [mbOK], 0);
+    CadMessageDlg(FormatName + ' precisa do núcleo OpenCascade.' + LineEnding + KernelText, mtWarning, [mbOK], 0);
+    Exit;
+  end;
+  if AsIGES and not OcctHasIGES then
+  begin
+    CadMessageDlg('Atualize a ponte OpenCascade para exportar IGES.', mtWarning, [mbOK], 0);
     Exit;
   end;
   Shapes := nil;
@@ -2766,65 +2854,157 @@ begin
     end;
   if Length(Shapes) = 0 then
   begin
-    CadMessageDlg('A peça não tem sólido para exportar.', mtInformation, [mbOK], 0);
+    CadMessageDlg('A peça não tem sólido para exportar. Para malhas, use STL.', mtInformation, [mbOK], 0);
     Exit;
   end;
+  if (Length(Shapes) <> RB.BodyCount) and
+    (CadMessageDlg('Apenas os sólidos serão exportados. Deseja continuar?', mtConfirmation, [mbYes, mbNo], 0) <> mrYes) then
+    Exit;
   D := TSaveDialog.Create(Self);
   try
-    D.Filter := 'STEP AP214 (*.step;*.stp)|*.step;*.stp';
-    D.DefaultExt := 'step';
-    D.FileName := Doc.Name + '.step';
+    if AsIGES then
+    begin
+      D.Filter := 'IGES (*.igs;*.iges)|*.igs;*.iges';
+      D.DefaultExt := 'igs';
+    end
+    else
+    begin
+      D.Filter := 'STEP (*.step;*.stp)|*.step;*.stp';
+      D.DefaultExt := 'step';
+    end;
+    D.FileName := Doc.Name + '.' + D.DefaultExt;
     if Doc.FileName <> '' then
       D.InitialDir := ExtractFilePath(Doc.FileName);
     D.Options := D.Options + [ofOverwritePrompt];
-    if not D.Execute then
-      Exit;
-    if OcctStepWrite(Shapes, D.FileName, Err) then
-      SetStatus(0, 'STEP gravado: ' + D.FileName)
-    else
-      CadMessageDlg('Não foi possível gravar o STEP: ' + Err, mtError, [mbOK], 0);
+    if not D.Execute then Exit;
+    if AsIGES then Written := OcctIGESWrite(Shapes, D.FileName, Err)
+    else Written := OcctStepWrite(Shapes, D.FileName, Err);
+    if Written then SetStatus(0, FormatName + ' gravado: ' + D.FileName)
+    else CadMessageDlg('Não foi possível gravar ' + FormatName + ': ' + Err, mtError, [mbOK], 0);
   finally
     D.Free;
   end;
 end;
 
-procedure TMainForm.ImportSTEPClick(Sender: TObject);
+procedure TMainForm.EnsureAIConfig;
+begin
+  if FAIConfigLoaded then Exit;
+  FAIConfig := LoadCadAIConfig;
+  FAIConfigLoaded := True;
+end;
+
+procedure TMainForm.ConfigureAIClick(Sender: TObject);
+begin
+  EnsureAIConfig;
+  EditCadAIConfig(Self, FAIConfig);
+end;
+
+procedure TMainForm.GenerateText3DClick(Sender: TObject);
+var F: TCadGeneratedMesh;
+begin
+  if PM.Visible or Assigned(FEditor) then Exit;
+  EnsureAIConfig;
+  F := GenerateCadMeshFromText(Self, FAIConfig);
+  if F = nil then Exit;
+  try
+    Doc.AddFeature(F);
+  except
+    F.Free;
+    raise;
+  end;
+  RebuildModel;
+  Modified;
+  View.FitAll;
+  if F.State = fsOk then
+    SetStatus(0, 'Malha gerada adicionada. Salve a peça para guardar o modelo.')
+  else
+    SetStatus(0, F.Message);
+end;
+
+procedure TMainForm.ImportCADClick(Sender: TObject);
 var
   D: TOpenDialog;
-  F: TCadImportStep;
-  Fn: string;
+  F: TCadFeature;
+  Solid: TCadImportStep;
+  STL: TCadImportedSTL;
+  Mesh: TCadMesh;
+  Fn, Ext, Err: string;
+  Skipped: Integer;
+  WasModified: Boolean;
 begin
-  if PM.Visible or Assigned(FEditor) then
-    Exit;
-  if not RB.OcctActive then
-  begin
-    CadMessageDlg('Importar STEP precisa do núcleo OpenCascade.' + LineEnding + KernelText,
-      mtWarning, [mbOK], 0);
-    Exit;
-  end;
+  if PM.Visible or Assigned(FEditor) then Exit;
   D := TOpenDialog.Create(Self);
   try
-    D.Filter := 'STEP (*.step;*.stp)|*.step;*.stp;*.STEP;*.STP';
-    if Doc.FileName <> '' then
-      D.InitialDir := ExtractFilePath(Doc.FileName);
-    if not D.Execute then
-      Exit;
+    D.Filter := 'Arquivos CAD|*.step;*.stp;*.igs;*.iges;*.stl;*.dxf|' +
+      'STEP|*.step;*.stp|IGES|*.igs;*.iges|STL|*.stl|DXF 2D|*.dxf';
+    D.Options := D.Options + [ofFileMustExist];
+    if Doc.FileName <> '' then D.InitialDir := ExtractFilePath(Doc.FileName);
+    if not D.Execute then Exit;
     Fn := D.FileName;
   finally
     D.Free;
   end;
-  F := TCadImportStep.Create;
-  if Doc.FileName <> '' then
-    F.FileName := ExtractRelativePath(ExtractFilePath(Doc.FileName), Fn)
-  else
-    F.FileName := Fn;
-  Doc.AddFeature(F);
-  RebuildModel;
-  Modified;
-  if F.State = fsError then
-    CadMessageDlg(F.Message, mtWarning, [mbOK], 0)
-  else
-    SetStatus(0, 'Importado: ' + Fn);
+  Ext := LowerCase(ExtractFileExt(Fn));
+  F := nil;
+  Skipped := 0;
+  WasModified := Doc.Modified;
+  try
+    try
+      if Ext = '.dxf' then
+      begin
+        F := CadReadSketchDXF(Fn, Skipped);
+        F.Name := Doc.AutoName(cfSketch);
+      end
+      else if Ext = '.stl' then
+      begin
+        STL := TCadImportedSTL.Create;
+        F := STL;
+        STL.ReadFile(Fn);
+        Mesh := STL.BuildMesh;
+        Mesh.Free;
+      end
+      else if (Ext = '.step') or (Ext = '.stp') or (Ext = '.iges') or (Ext = '.igs') then
+      begin
+        if not RB.OcctActive then
+          raise Exception.Create('STEP e IGES precisam do núcleo OpenCascade.' + LineEnding + KernelText);
+        Solid := TCadImportStep.Create;
+        F := Solid;
+        // Store an absolute path so Save As does not invalidate the external reference.
+        Solid.FileName := ExpandFileName(Fn);
+        if Solid.IsIGES and not OcctHasIGES then
+          raise Exception.Create('Atualize a ponte OpenCascade para importar IGES.');
+      end
+      else raise Exception.Create('Escolha um arquivo STEP, IGES, STL ou DXF.');
+      Doc.AddFeature(F);
+    except
+      on E: Exception do
+      begin
+        F.Free;
+        CadMessageDlg(E.Message, mtError, [mbOK], 0);
+        Exit;
+      end;
+    end;
+    RebuildModel;
+    if F.State = fsError then
+    begin
+      Err := F.Message;
+      if Doc.DeleteFeature(F.Id, Fn) then
+      begin
+        Doc.Modified := WasModified;
+        RebuildModel;
+      end;
+      CadMessageDlg(Err, mtWarning, [mbOK], 0);
+      Exit;
+    end;
+    Modified;
+    View.FitAll;
+    if F.State = fsWarning then SetStatus(0, F.Message)
+    else if Skipped > 0 then
+      SetStatus(0, Format('DXF importado. %d entidades fora do subconjunto 2D foram ignoradas.', [Skipped]))
+    else SetStatus(0, 'Importado: ' + Fn);
+  except
+    on E: Exception do CadMessageDlg(E.Message, mtError, [mbOK], 0);
+  end;
 end;
 
 procedure TMainForm.ExportDXFClick(Sender: TObject);

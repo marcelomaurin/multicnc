@@ -1,0 +1,4 @@
+  T: 878 trajetorias de suporte (104 de interface), X 100,0..140,0, topo Z 19,85
+  esfera r=40: suporte em Z=1 1037 mm2, Z=4 322 mm2, Z=7 0 mm2, Z=12 0 mm2
+  suporte do T: 32 ms (fatiamento 187 ms)
+MultiSlicer suportes: OK (saliencia, coluna, folga XY/Z, interface, bloqueador, haste manual, tocando a mesa x toda parte, superficie curva, saia envolve suporte, aba, jangada)

@@ -149,7 +149,8 @@ begin
           IfThen(S.MirrorY, M.H - 1 - Y, Y) * M.W + IfThen(S.MirrorX, M.W - 1 - X, X)];
     M := G;
   end;
-  Result := DitherBurn(M, S.Dither);
+  { celula do efeito em pixels da grade gravada }
+  Result := DitherBurnEx(M, S.Dither, S.EffectSize / (S.W / M.W), S.EffectAngle);
 end;
 
 { ---------------------------------------------------------------------------- }
@@ -484,6 +485,11 @@ begin
         Hatch := HatchPaths(Paths, L.Interval)
       else
         SetLength(Hatch, 0);
+      if HasVector and (L.Mode = lmLine) and (L.TabWidth > 0) then
+      begin
+        Paths := AddTabs(Paths, L.TabWidth, L.TabSpacing);
+        Result.LayerInfo.Add(Format('%s: pontes de %.1f mm a cada ~%.0f mm', [L.Caption, L.TabWidth, L.TabSpacing], InvariantFS));
+      end;
 
       for Pass := 1 to Max(1, L.Passes) do
       begin

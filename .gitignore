@@ -32,6 +32,7 @@ __pycache__/
 # instaladores publicados
 !/releases/**
 !/bin/**
+!/setup/**
 
 # logs de compilacao locais
 /build-*.log
@@ -79,3 +80,10 @@ bin/libmcad_occt.so
 /multislicer/tests/test_modern_slicer
 /multislicer/tests/test_scene
 /multislicer/tests/test_support
+
+# pre-visualizacao 3D do MultiAssembly
+multiassembly/tests/render_preview
+tools/components/__pycache__/
+
+# Configuracoes locais do banco (segredos fora do Git)
+**/config/postgres.ini

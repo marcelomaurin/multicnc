@@ -1,7 +1,6 @@
 program test_multislicer_print;
-{ Etapa 8.10 do MultiSlicer: G-code gerado pelo fatiador moderno (G-code inicial
-  da Ender-3 S1, saia, paredes, preenchimento, arcos G2/G3, M486) roda ate o fim
-  na sessao do MultiCNC com o simulador em modo Impressora 3D / Marlin. }
+{ Contract test using an immediate-ack transport stub. It does not simulate
+  motion, thermal waits, mesh or arcs. See test_multicnc_tcp for actual simulation. }
 {$mode objfpc}{$H+}
 uses Classes, SysUtils, Math, multicnc_types, multicnc_simulator, multicnc_session,
   multisuite_gcode_writer, multislicer_types, multislicer_mesh, multislicer_pipeline,
@@ -33,6 +32,7 @@ begin
       R := Slicer.Slice(M, St, G);
       Check(R.Layers = 15, 'camadas');
       G.SaveToFile(FN);
+      if ParamCount > 0 then G.SaveToFile(ParamStr(1));
       Check(SuiteParseHeader(G, H, HB) and SameText(H.Machine, 'printer3d') and HB.Valid, 'contrato printer3d');
       Check(Pos('M420 S1', G.Text) > 0, 'G-code inicial da S1 com a malha de nivelamento');
       Check((Pos('G2 ', G.Text) > 0) or (Pos('G3 ', G.Text) > 0) or (Pos('M486', G.Text) > 0), 'arcos ou rotulos no G-code');
@@ -55,7 +55,7 @@ begin
       Check(S.State = ssDone, Format('termina (estado %d, %d de %d linhas, erro "%s")',
         [Ord(S.State), S.Completed, S.Count, S.LastError]));
       Check(S.Completed = S.Count, 'todas as linhas confirmadas');
-      Writeln(Format('MultiSlicer -> MultiCNC: OK (%d linhas do fatiador moderno executadas no simulador Marlin em %d ms)',
+      Writeln(Format('MultiSlicer -> MultiCNC: OK (%d linhas confirmadas pelo transporte falso Marlin em %d ms)',
         [S.Count, GetTickCount64 - T0]));
     finally
       S.Free; Slicer.Free; M.Free; G.Free;

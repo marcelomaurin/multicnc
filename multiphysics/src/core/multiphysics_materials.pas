@@ -1,7 +1,7 @@
 unit multiphysics_materials;
 {$mode objfpc}{$H+}
 interface
-uses multiphysics_types;
+uses SysUtils,multiphysics_types;
 procedure CompleteMaterial(var M:TMaterial);
 function Steel:TMaterial;function Aluminum:TMaterial;function ABSPlastic:TMaterial;
 function Iron:TMaterial;function PLAPlastic:TMaterial;function Acrylic:TMaterial;function Glass:TMaterial;
@@ -10,6 +10,12 @@ function StainlessSteel304:TMaterial;function Brass:TMaterial;function Bronze:TM
 function PETGPlastic:TMaterial;function Nylon:TMaterial;function PVC:TMaterial;function PTFE:TMaterial;
 function SiliconeRubber:TMaterial;function NaturalRubber:TMaterial;
 function FR4:TMaterial;function Silicon:TMaterial;function AluminaCeramic:TMaterial;function WoodGeneric:TMaterial;
+{ biblioteca indexavel: material completo (CompleteMaterial ja aplicado) }
+function MaterialCount:Integer;
+function MaterialByIndex(I:Integer):TMaterial;
+{ busca pelo nome exato (sem diferenciar maiusculas); -1 se nao achar }
+function FindMaterial(const Name:string):Integer;
+
 implementation
 function Steel:TMaterial;begin Result.Name:='Aco carbono';Result.Density:=7850;Result.YoungModulus:=200e9;Result.Poisson:=0.30;Result.ThermalConductivity:=50;Result.SpecificHeat:=470;Result.ThermalExpansion:=12e-6;Result.YieldStrength:=250e6;Result.ElectricalResistivity:=1.43e-7;end;
 function Aluminum:TMaterial;begin Result.Name:='Aluminio';Result.Density:=2700;Result.YoungModulus:=69e9;Result.Poisson:=0.33;Result.ThermalConductivity:=205;Result.SpecificHeat:=900;Result.ThermalExpansion:=23e-6;Result.YieldStrength:=150e6;Result.ElectricalResistivity:=2.82e-8;end;
@@ -49,4 +55,51 @@ begin
  else if(Pos('Madeira',M.Name)>0)then begin M.MaterialClass:=mcWood;M.Emissivity:=0.9;M.MaxServiceTemperature:=100;end
  else begin M.MaterialClass:=mcMetal;M.Emissivity:=0.3;end;
 end;
+function MaterialCount:Integer;
+begin
+  Result:=25;
+end;
+
+function MaterialByIndex(I:Integer):TMaterial;
+begin
+  case I of
+    0: Result:=Steel;
+    1: Result:=Aluminum;
+    2: Result:=StainlessSteel304;
+    3: Result:=Iron;
+    4: Result:=Copper;
+    5: Result:=Brass;
+    6: Result:=Bronze;
+    7: Result:=Titanium;
+    8: Result:=Gold;
+    9: Result:=Silver;
+    10: Result:=Lead;
+    11: Result:=ABSPlastic;
+    12: Result:=PLAPlastic;
+    13: Result:=PETGPlastic;
+    14: Result:=Nylon;
+    15: Result:=PVC;
+    16: Result:=PTFE;
+    17: Result:=Acrylic;
+    18: Result:=SiliconeRubber;
+    19: Result:=NaturalRubber;
+    20: Result:=Glass;
+    21: Result:=FR4;
+    22: Result:=Silicon;
+    23: Result:=AluminaCeramic;
+    24: Result:=WoodGeneric;
+    else Result:=Steel;
+  end;
+  CompleteMaterial(Result);
+end;
+
+function FindMaterial(const Name:string):Integer;
+var
+  I:Integer;
+begin
+  for I:=0 to MaterialCount-1 do
+    if SameText(MaterialByIndex(I).Name,Name) then Exit(I);
+  Result:=-1;
+end;
+
 end.

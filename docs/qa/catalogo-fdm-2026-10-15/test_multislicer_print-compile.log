@@ -1,0 +1,40 @@
+Free Pascal Compiler version 3.2.2 [2025/11/08] for x86_64
+Copyright (c) 1993-2021 by Florian Klaempfl and others
+Target OS: Win64 for x64
+Compiling D:\projetos\maurinsoft\multicnc\tests\test_multislicer_print.lpr
+Compiling .\src\app\multicnc_session.pas
+Compiling .\src\core\multicnc_machine.pas
+Compiling .\src\core\multicnc_printer_profiles.pas
+Compiling .\src\shared\multisuite_fdm_catalog.pas
+multicnc_printer_profiles.pas(60,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(70,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(80,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(90,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(100,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(112,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(122,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(132,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(144,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(154,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(164,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(176,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(186,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(196,5) Warning: Some fields coming after "Notes" were not initialized
+multicnc_printer_profiles.pas(208,5) Warning: Some fields coming after "Notes" were not initialized
+Compiling .\src\core\multicnc_safety.pas
+Compiling .\multislicer\src\core\multislicer_printers.pas
+multislicer_printers.pas(10,5) Warning: Comment level 2 found
+multislicer_printers.pas(10,16) Warning: Comment level 2 found
+multislicer_printers.pas(10,30) Warning: Comment level 2 found
+multislicer_printers.pas(10,53) Warning: Comment level 2 found
+multislicer_printers.pas(11,5) Warning: Comment level 2 found
+multislicer_printers.pas(11,13) Warning: Comment level 2 found
+multislicer_printers.pas(11,21) Warning: Comment level 2 found
+multislicer_printers.pas(11,29) Warning: Comment level 2 found
+multislicer_printers.pas(99,19) Warning: function result variable of a managed type does not seem to be initialized
+Compiling .\multislicer\src\core\multislicer_machines.pas
+test_multislicer_print.lpr(11,63) Note: Local variable "I" not used
+Linking C:\Users\mmaurin\Documents\Codex\2026-10-14\si\work\qa_selected\test_multislicer_print\test_multislicer_print.exe
+3152 lines compiled, 1.3 sec, 640048 bytes code, 39668 bytes data
+24 warning(s) issued
+1 note(s) issued

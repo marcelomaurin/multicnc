@@ -1,0 +1,57 @@
+{
+  "name": "Módulo Laser 10W 450nm",
+  "model": "Diodo 450nm 10W óptico (TTL/PWM)",
+  "category": "motores",
+  "kind": "ackSpindle",
+  "material": "Alumínio anodizado",
+  "color": 3222827,
+  "size": {
+    "x": 45.0,
+    "y": 40.05,
+    "z": 80.5
+  },
+  "ports": [
+    {
+      "name": "VCC",
+      "kind": "apkPower",
+      "voltage": 12.0
+    },
+    {
+      "name": "GND",
+      "kind": "apkGround",
+      "voltage": 0.0
+    },
+    {
+      "name": "PWM",
+      "kind": "apkPWM",
+      "voltage": 5.0
+    }
+  ],
+  "description": "Módulo de laser de diodo 10 W ópticos (450 nm) com dissipador e ventoinha, controle TTL/PWM 5 V.",
+  "mass_g": 420,
+  "specs": {
+    "potencia_optica_W": 10,
+    "comprimento_onda_nm": 450,
+    "tensao_V": 12,
+    "controle": "PWM 5 V",
+    "aviso": "use óculos de proteção para 450 nm"
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [20.0, 20.05, 0.0], "r": 4.5, "h": 8.0, "color": "#2B2D31", "seg": 20},
+    {"type": "cyl", "axis": "z", "at": [20.0, 20.05, 8.0], "r": 7.0, "h": 10.0, "color": "#2B2D31", "seg": 24},
+    {"type": "box", "at": [0.0, 0.05, 18.0], "size": [40.0, 40.0, 52.0], "color": "#2B2D31"},
+    {"type": "box", "at": [0.6, 0.0, 22.0], "size": [2.2, 0.1, 44.0], "color": "#111214"},
+    {"type": "box", "at": [5.6, 0.0, 22.0], "size": [2.2, 0.1, 44.0], "color": "#111214"},
+    {"type": "box", "at": [10.6, 0.0, 22.0], "size": [2.2, 0.1, 44.0], "color": "#111214"},
+    {"type": "box", "at": [15.6, 0.0, 22.0], "size": [2.2, 0.1, 44.0], "color": "#111214"},
+    {"type": "box", "at": [20.6, 0.0, 22.0], "size": [2.2, 0.1, 44.0], "color": "#111214"},
+    {"type": "box", "at": [25.6, 0.0, 22.0], "size": [2.2, 0.1, 44.0], "color": "#111214"},
+    {"type": "box", "at": [30.6, 0.0, 22.0], "size": [2.2, 0.1, 44.0], "color": "#111214"},
+    {"type": "box", "at": [35.6, 0.0, 22.0], "size": [2.2, 0.1, 44.0], "color": "#111214"},
+    {"type": "box", "at": [0.0, 0.05, 70.0], "size": [40.0, 40.0, 10.0], "color": "#26282C"},
+    {"type": "disk", "axis": "z", "at": [20.0, 20.05, 80.0], "r": 18.0, "color": "#15161A", "seg": 24},
+    {"type": "cyl", "axis": "z", "at": [20.0, 20.05, 80.0], "r": 5.0, "h": 0.5, "color": "#26282C", "seg": 16},
+    {"type": "box", "at": [40.0, 12.05, 50.0], "size": [5.0, 16.0, 8.0], "color": "#EEEEEA"},
+    {"type": "disk", "axis": "z", "at": [20.0, 20.05, 0.0], "r": 3.0, "color": "#3070FF", "seg": 12}
+  ]
+}

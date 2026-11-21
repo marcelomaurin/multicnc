@@ -8,6 +8,12 @@
    <ResourceType Value="res" />
    <Icon Value="0"/>
   </General>
+  <VersionInfo>
+   <UseVersionInfo Value="True" />
+   <MinorVersionNr Value="2" />
+   <RevisionNr Value="1" />
+   <StringTable CompanyName="Maurinsoft" FileDescription="MultiPhysics - simulacao fisica da montagem" ProductName="MultiSuite" ProductVersion="0.2.1.0" />
+  </VersionInfo>
   <BuildModes Count="1">
    <Item1 Name="Default" Default="True" />
   </BuildModes>
@@ -29,7 +35,7 @@
    <Filename Value="multiphysics" />
   </Target>
   <SearchPaths>
-   <OtherUnitFiles Value="../core;../solver;../dynamics;../runtime;../instruments;../examples;../../../src/shared" />
+   <OtherUnitFiles Value="../core;../solver;../dynamics;../runtime;../instruments;../examples;../geometry;../mesh;../fem;../ccx;../ui;../../../src/shared;../../../multisuite/src/core;../../../multiassembly/src/core" />
    <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
   </SearchPaths>
   <Parsing>

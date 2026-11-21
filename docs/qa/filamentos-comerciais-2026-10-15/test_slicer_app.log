@@ -1,0 +1,440 @@
+Hint: (11030) Start of reading config file C:\lazarus\fpc\3.2.2\bin\i386-win32\fpc.cfg
+Hint: (11031) End of reading config file C:\lazarus\fpc\3.2.2\bin\i386-win32\fpc.cfg
+Hint: (11030) Start of reading config file C:\Users\mmaurin\Documents\Codex\2026-10-14\si\work\filaments_gui\deps.cfg
+Hint: (11031) End of reading config file C:\Users\mmaurin\Documents\Codex\2026-10-14\si\work\filaments_gui\deps.cfg
+Free Pascal Compiler version 3.2.2 [2025/11/08] for x86_64
+Copyright (c) 1993-2021 by Florian Klaempfl and others
+(1002) Target OS: Win64 for x64
+(3104) Compiling test_slicer_app.lpr
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_types.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_mesh.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multislicer\src\import\multislicer_stl.pas
+D:\projetos\maurinsoft\multicnc\multislicer\src\import\multislicer_stl.pas(36,20) Hint: (5057) Local variable "Head" does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\import\multislicer_stl.pas(38,21) Hint: (5057) Local variable "Count" does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\import\multislicer_stl.pas(63,21) Hint: (5057) Local variable "Count" does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\import\multislicer_stl.pas(66,20) Hint: (5057) Local variable "Rec" does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\import\multislicer_stl.pas(86,16) Hint: (5057) Local variable "Head" does not seem to be initialized
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multislicer\src\import\multislicer_3mf.pas
+D:\projetos\maurinsoft\multicnc\multislicer\src\import\multislicer_3mf.pas(67,20) Hint: (5091) Local variable "V" of a managed type does not seem to be initialized
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_profile.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_pipeline.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_infill.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\shared\multisuite_geometry.pas
+D:\projetos\maurinsoft\multicnc\src\shared\multisuite_geometry.pas(141,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\multisuite_geometry.pas(148,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\multisuite_geometry.pas(196,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\multisuite_geometry.pas(204,15) Hint: (5091) Local variable "NX" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\multisuite_geometry.pas(205,15) Hint: (5091) Local variable "NY" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\multisuite_geometry.pas(304,19) Hint: (5091) Local variable "Keep" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\multisuite_geometry.pas(364,16) Hint: (5091) Local variable "T" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\multisuite_geometry.pas(455,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\multisuite_geometry.pas(459,17) Hint: (5091) Local variable "Used" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\multisuite_geometry.pas(460,18) Hint: (5091) Local variable "NextE" of a managed type does not seem to be initialized
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(1186,20) Note: (6058) Call to subroutine "function TEnumerable<System.Int64>.GetEnumerator:TEnumerator$1<SYSTEM.Int64>;" marked as inline is not inlined
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(1186,20) Note: (6058) Call to subroutine "function TEnumerable<System.LongInt>.GetEnumerator:TEnumerator$1<SYSTEM.LongInt>;" marked as inline is not inlined
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(1186,20) Note: (6058) Call to subroutine "function TEnumerable<multisuite_geometry.TPair<System.Int64,System.LongInt>>.GetEnumerator:TEnumerator$1<MULTISUITE_GEOMETRY.TPair$2<SYSTEM.Int64,SYSTEM.LongInt>>;" marked as inline is not inlined
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crcB59DFE23" with abstract method "DoMoveNext"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(121,14) Hint: (5062) Found abstract method: DoMoveNext(<TEnumerator$1$crc9F312717>):Boolean;
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crcB59DFE23" with abstract method "GetCurrent"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionariesh.inc(119,14) Hint: (5062) Found abstract method: GetCurrent(<TCustomDictionaryEnumerator$4$crcB59DFE23>):LongInt;
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crc4E07645D" with abstract method "DoMoveNext"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(121,14) Hint: (5062) Found abstract method: DoMoveNext(<TEnumerator$1$crc713F463B>):Boolean;
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crc4E07645D" with abstract method "GetCurrent"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionariesh.inc(119,14) Hint: (5062) Found abstract method: GetCurrent(<TCustomDictionaryEnumerator$4$crc4E07645D>):Int64;
+Hint: (5024) Parameter "AFrom" not used
+Hint: (5024) Parameter "ATo" not used
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(144,52) Note: (5071) Private type "TCustomPointersEnumerator$2<SYSTEM.Int64,MULTISUITE_GEOMETRY.TCustomList$1$crc713F463B.PT>.T" never used
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(144,52) Note: (5071) Private type "TCustomPointersEnumerator$2<SYSTEM.LongInt,MULTISUITE_GEOMETRY.TCustomList$1$crc9F312717.PT>.T" never used
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(144,52) Note: (5071) Private type "TCustomPointersEnumerator$2<MULTISUITE_GEOMETRY.TPair$2<SYSTEM.Int64,SYSTEM.LongInt>,MULTISUITE_GEOMETRY.TCustomList$1$crc59EC2C1A.PT>.T" never used
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_clip.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(431,13) Note: (6058) Call to subroutine "function Point64(const X:Int64;const Y:Int64):<record type>;" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(472,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(473,16) Note: (6058) Call to subroutine "function Point64(const X:Int64;const Y:Int64):<record type>;" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(474,16) Note: (6058) Call to subroutine "function Point64(const X:Int64;const Y:Int64):<record type>;" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(475,16) Note: (6058) Call to subroutine "function Point64(const X:Int64;const Y:Int64):<record type>;" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(476,16) Note: (6058) Call to subroutine "function Point64(const X:Int64;const Y:Int64):<record type>;" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(509,13) Note: (6058) Call to subroutine "function PointD(const X:Double;const Y:Double):<record type>;" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(536,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(537,16) Note: (6058) Call to subroutine "function PointD(const X:Double;const Y:Double):<record type>;" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(538,16) Note: (6058) Call to subroutine "function PointD(const X:Double;const Y:Double):<record type>;" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(539,16) Note: (6058) Call to subroutine "function PointD(const X:Double;const Y:Double):<record type>;" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(540,16) Note: (6058) Call to subroutine "function PointD(const X:Double;const Y:Double):<record type>;" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(821,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(842,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(920,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(939,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(966,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(993,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(1012,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(1025,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(1035,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(1051,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(1067,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(1083,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(1101,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(1123,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(1143,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(1163,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(1183,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(1203,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(1224,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(1241,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(1255,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(1265,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(1276,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(1284,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(1295,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(1306,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(1317,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(1333,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(1395,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(1468,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(1800,16) Hint: (5091) Local variable "pts" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(2592,22) Hint: (5091) Local variable "boolArray" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(2613,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(2630,22) Hint: (5091) Local variable "boolArray" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Core.pas(2651,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+(1010) Writing Resource String Table file: Clipper.Core.rsj
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Engine.pas
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Engine.pas(848,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Engine.pas(1135,17) Hint: (5092) Variable "path" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Engine.pas(1584,15) Hint: (5091) Local variable "pp" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Engine.pas(1983,11) Note: (6058) Call to subroutine "procedure TClipperBase.CheckJoinLeft(e:PActive;const pt:TPoint64;checkCurrX:Boolean=`FALSE`);" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Engine.pas(1995,9) Note: (6058) Call to subroutine "procedure TClipperBase.PushHorz(e:PActive);" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Engine.pas(1999,11) Note: (6058) Call to subroutine "procedure TClipperBase.CheckJoinRight(e:PActive;const pt:TPoint64;checkCurrX:Boolean=`FALSE`);" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Engine.pas(2007,7) Note: (6058) Call to subroutine "procedure TClipperBase.PushHorz(e:PActive);" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Engine.pas(2097,10) Note: (6058) Call to subroutine "function PtsReallyClose(const pt1:TPoint64;const pt2:TPoint64):Boolean;" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Engine.pas(2097,10) Note: (6058) Call to subroutine "function PtsReallyClose(const pt1:TPoint64;const pt2:TPoint64):Boolean;" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Engine.pas(2097,10) Note: (6058) Call to subroutine "function PtsReallyClose(const pt1:TPoint64;const pt2:TPoint64):Boolean;" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Engine.pas(2119,14) Note: (6058) Call to subroutine "function PtsReallyClose(const pt1:TPoint64;const pt2:TPoint64):Boolean;" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Engine.pas(2119,14) Note: (6058) Call to subroutine "function PtsReallyClose(const pt1:TPoint64;const pt2:TPoint64):Boolean;" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Engine.pas(2119,14) Note: (6058) Call to subroutine "function PtsReallyClose(const pt1:TPoint64;const pt2:TPoint64):Boolean;" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Engine.pas(2569,3) Note: (5027) Local variable "op" is assigned but never used
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Engine.pas(2569,7) Note: (5025) Local variable "op2" not used
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Engine.pas(284,28) Hint: (5024) Parameter "usingPolytree" not used
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Engine.pas(3815,26) Hint: (5092) Variable "openPaths" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Engine.pas(3928,40) Hint: (5091) Local variable "dummy" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Engine.pas(4192,44) Hint: (5091) Local variable "solOpen" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Engine.pas(4192,35) Hint: (5091) Local variable "solClosed" of a managed type does not seem to be initialized
+(1010) Writing Resource String Table file: Clipper.Engine.rsj
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Offset.pas
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Offset.pas(326,18) Hint: (5091) Local variable "paths" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Offset.pas(443,7) Note: (6058) Call to subroutine "procedure TClipperOffset.UpdateSolution;" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Offset.pas(549,5) Note: (6058) Call to subroutine "procedure TClipperOffset.AddPoint(const pt:TPoint64);" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Offset.pas(576,5) Note: (6058) Call to subroutine "procedure TClipperOffset.AddPoint(const pt:TPoint64);" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Offset.pas(138,3) Hint: (5028) Local const "rsClipper_CoordRangeError" is not used
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Offset.pas(143,3) Note: (5025) Local variable "InvTwoPi" not used
+(1010) Writing Resource String Table file: Clipper.Offset.rsj
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.RectClip.pas
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.RectClip.pas(740,11) Note: (6058) Call to subroutine "function TRectClip64.Add(const pt:TPoint64;startNewPath:Boolean=`FALSE`):^TOutPt2;" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.RectClip.pas(740,11) Note: (6058) Call to subroutine "function TRectClip64.Add(const pt:TPoint64;startNewPath:Boolean=`FALSE`):^TOutPt2;" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.RectClip.pas(762,11) Note: (6058) Call to subroutine "function TRectClip64.Add(const pt:TPoint64;startNewPath:Boolean=`FALSE`):^TOutPt2;" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.RectClip.pas(762,11) Note: (6058) Call to subroutine "function TRectClip64.Add(const pt:TPoint64;startNewPath:Boolean=`FALSE`):^TOutPt2;" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.RectClip.pas(773,9) Note: (6058) Call to subroutine "function TRectClip64.Add(const pt:TPoint64;startNewPath:Boolean=`FALSE`):^TOutPt2;" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.RectClip.pas(790,9) Note: (6058) Call to subroutine "function TRectClip64.Add(const pt:TPoint64;startNewPath:Boolean=`FALSE`):^TOutPt2;" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.RectClip.pas(841,9) Note: (6058) Call to subroutine "function TRectClip64.Add(const pt:TPoint64;startNewPath:Boolean=`FALSE`):^TOutPt2;" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.RectClip.pas(841,9) Note: (6058) Call to subroutine "function TRectClip64.Add(const pt:TPoint64;startNewPath:Boolean=`FALSE`):^TOutPt2;" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.RectClip.pas(847,7) Note: (6058) Call to subroutine "function TRectClip64.Add(const pt:TPoint64;startNewPath:Boolean=`FALSE`):^TOutPt2;" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.RectClip.pas(847,7) Note: (6058) Call to subroutine "function TRectClip64.Add(const pt:TPoint64;startNewPath:Boolean=`FALSE`):^TOutPt2;" marked as inline is not inlined
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.RectClip.pas(74,13) Hint: (5028) Local type "PPath64" is not used
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.RectClip.pas(17,12) Hint: (5023) Unit "Math" not used in Clipper.RectClip
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Minkowski.pas
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Minkowski.pas(57,16) Hint: (5091) Local variable "tmp" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Minkowski.pas(70,17) Hint: (5091) Local variable "quad" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.Minkowski.pas(71,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.pas(205,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.pas(219,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.pas(428,18) Hint: (5091) Local variable "paths" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.pas(493,16) Hint: (5091) Local variable "tmp" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.pas(564,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.pas(578,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.pas(592,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.pas(605,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.pas(651,3) Note: (5027) Local variable "spaces" is assigned but never used
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.pas(129,30) Hint: (5024) Parameter "pointsPerRow" not used
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.pas(132,42) Hint: (5024) Parameter "decimals" not used
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.pas(880,20) Hint: (5091) Local variable "srArray" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\clipper2\Clipper.pas(946,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_clip.pas(125,23) Hint: (5091) Local variable "Open" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_infill.pas(51,80) Hint: (5024) Parameter "Region" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_infill.pas(139,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_infill.pas(147,17) Hint: (5091) Local variable "Line" of a managed type does not seem to be initialized
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_support.pas
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_support.pas(108,14) Hint: (5091) Local variable "L" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_support.pas(108,31) Hint: (5091) Local variable "O" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_support.pas(108,48) Hint: (5091) Local variable "S" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_support.pas(122,17) Hint: (5091) Local variable "Bl" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_support.pas(148,24) Hint: (5091) Local variable "Cut" of a managed type does not seem to be initialized
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\shared\multisuite_arcfit.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\shared\multisuite_print_audit.pas
+D:\projetos\maurinsoft\multicnc\src\shared\multisuite_print_audit.pas(27,17) Hint: (5057) Local variable "Has" does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\shared\multisuite_print_audit.pas(27,43) Hint: (5057) Local variable "V" does not seem to be initialized
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_template_limits.pas
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_template_limits.pas(20,15) Hint: (5057) Local variable "XYZ" does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_template_limits.pas(34,17) Hint: (5057) Local variable "Has" does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_template_limits.pas(34,43) Hint: (5057) Local variable "V" does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_pipeline.pas(330,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_pipeline.pas(341,19) Hint: (5091) Local variable "TMin" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_pipeline.pas(341,48) Hint: (5091) Local variable "TMax" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_pipeline.pas(341,76) Hint: (5091) Local variable "TNz" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_pipeline.pas(428,17) Hint: (5091) Local variable "Keys" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_pipeline.pas(428,36) Hint: (5091) Local variable "Idx" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_pipeline.pas(481,17) Hint: (5091) Local variable "Segs" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_pipeline.pas(131,42) Hint: (5024) Parameter "Mesh" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_pipeline.pas(657,18) Hint: (5091) Local variable "Loops" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_pipeline.pas(657,36) Hint: (5091) Local variable "Zs" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_pipeline.pas(657,54) Hint: (5091) Local variable "Hs" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_pipeline.pas(723,17) Hint: (5091) Local variable "Raft" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_pipeline.pas(780,17) Hint: (5091) Local variable "Done" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_pipeline.pas(781,16) Hint: (5091) Local variable "Res" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_pipeline.pas(879,16) Hint: (5091) Local variable "Seg" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_pipeline.pas(1089,18) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_pipeline.pas(1161,23) Hint: (5091) Local variable "ObjNames" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_pipeline.pas(1183,25) Hint: (5091) Local variable "LayerTimes" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_pipeline.pas(1208,25) Hint: (5091) Local variable "Groups" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_pipeline.pas(1223,25) Hint: (5091) Local variable "Joined" of a managed type does not seem to be initialized
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multislicer\src\ui\multislicer_view.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_controls.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_icons.pas
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_icons.pas(114,14) Hint: (5091) Local variable "A" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_icons.pas(159,16) Hint: (5091) Local variable "Pts" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_icons.pas(185,16) Hint: (5091) Local variable "Pts" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_icons.pas(201,16) Hint: (5091) Local variable "Pts" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_icons.pas(233,16) Hint: (5091) Local variable "Pts" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_icons.pas(260,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_icons.pas(377,22) Hint: (5091) Local variable "Pts" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_icons.pas(868,22) Hint: (5091) Local variable "CovFill" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_controls.pas(354,5) Warning: (6018) unreachable code
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_controls.pas(502,7) Warning: (6018) unreachable code
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_controls.pas(550,5) Warning: (6018) unreachable code
+D:\projetos\maurinsoft\multicnc\multislicer\src\ui\multislicer_view.pas(55,27) Hint: (5024) Parameter "Shift" not used
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_printers.pas
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_printers.pas(10,5) Warning: (2005) Comment level 2 found
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_printers.pas(10,16) Warning: (2005) Comment level 2 found
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_printers.pas(10,30) Warning: (2005) Comment level 2 found
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_printers.pas(10,53) Warning: (2005) Comment level 2 found
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_printers.pas(11,5) Warning: (2005) Comment level 2 found
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_printers.pas(11,13) Warning: (2005) Comment level 2 found
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_printers.pas(11,21) Warning: (2005) Comment level 2 found
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_printers.pas(11,29) Warning: (2005) Comment level 2 found
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_userdata.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\shared\multisuite_fdm_catalog.pas
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_printers.pas(99,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_materials.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_scene.pas
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_scene.pas(262,14) Hint: (5057) Local variable "RX" does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_scene.pas(262,43) Hint: (5057) Local variable "RY" does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_scene.pas(262,72) Hint: (5057) Local variable "RZ" does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_scene.pas(308,20) Hint: (5060) Function result variable does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_scene.pas(482,16) Hint: (5091) Local variable "Tmp" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_scene.pas(655,9) Warning: (5089) Local variable "Groups" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_scene.pas(672,18) Hint: (5091) Local variable "Order" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_scene.pas(680,15) Hint: (5091) Local variable "Zs" of a managed type does not seem to be initialized
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(1186,20) Note: (6058) Call to subroutine "function TEnumerable<System.Int64>.GetEnumerator:TEnumerator$1<SYSTEM.Int64>;" marked as inline is not inlined
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(1186,20) Note: (6058) Call to subroutine "function TEnumerable<System.LongInt>.GetEnumerator:TEnumerator$1<SYSTEM.LongInt>;" marked as inline is not inlined
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(1186,20) Note: (6058) Call to subroutine "function TEnumerable<multislicer_scene.TPair<System.Int64,System.LongInt>>.GetEnumerator:TEnumerator$1<MULTISLICER_SCENE.TPair$2<SYSTEM.Int64,SYSTEM.LongInt>>;" marked as inline is not inlined
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crcB59DFE23" with abstract method "DoMoveNext"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(121,14) Hint: (5062) Found abstract method: DoMoveNext(<TEnumerator$1$crc9F312717>):Boolean;
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crcB59DFE23" with abstract method "GetCurrent"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionariesh.inc(119,14) Hint: (5062) Found abstract method: GetCurrent(<TCustomDictionaryEnumerator$4$crcB59DFE23>):LongInt;
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crc4E07645D" with abstract method "DoMoveNext"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(121,14) Hint: (5062) Found abstract method: DoMoveNext(<TEnumerator$1$crc713F463B>):Boolean;
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crc4E07645D" with abstract method "GetCurrent"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionariesh.inc(119,14) Hint: (5062) Found abstract method: GetCurrent(<TCustomDictionaryEnumerator$4$crc4E07645D>):Int64;
+Hint: (5024) Parameter "AFrom" not used
+Hint: (5024) Parameter "ATo" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_scene.pas(806,16) Hint: (5091) Local variable "Obs" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_scene.pas(833,16) Hint: (5091) Local variable "Obs" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_scene.pas(840,18) Hint: (5091) Local variable "Order" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_scene.pas(886,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(144,52) Note: (5071) Private type "TCustomPointersEnumerator$2<SYSTEM.Int64,MULTISLICER_SCENE.TCustomList$1$crc713F463B.PT>.T" never used
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(144,52) Note: (5071) Private type "TCustomPointersEnumerator$2<SYSTEM.LongInt,MULTISLICER_SCENE.TCustomList$1$crc9F312717.PT>.T" never used
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(144,52) Note: (5071) Private type "TCustomPointersEnumerator$2<MULTISLICER_SCENE.TPair$2<SYSTEM.Int64,SYSTEM.LongInt>,MULTISLICER_SCENE.TCustomList$1$crcA7F37C66.PT>.T" never used
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multislicer\src\ui\multislicer_view3d.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multicad\src\core\multicad_types.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multicad\src\kernel\multicad_mesh.pas
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(1186,20) Note: (6058) Call to subroutine "function TEnumerable<System.Int64>.GetEnumerator:TEnumerator$1<SYSTEM.Int64>;" marked as inline is not inlined
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(1186,20) Note: (6058) Call to subroutine "function TEnumerable<System.LongInt>.GetEnumerator:TEnumerator$1<SYSTEM.LongInt>;" marked as inline is not inlined
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(1186,20) Note: (6058) Call to subroutine "function TEnumerable<multicad_mesh.TPair<System.Int64,System.LongInt>>.GetEnumerator:TEnumerator$1<MULTICAD_MESH.TPair$2<SYSTEM.Int64,SYSTEM.LongInt>>;" marked as inline is not inlined
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crcB59DFE23" with abstract method "DoMoveNext"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(121,14) Hint: (5062) Found abstract method: DoMoveNext(<TEnumerator$1$crc9F312717>):Boolean;
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crcB59DFE23" with abstract method "GetCurrent"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionariesh.inc(119,14) Hint: (5062) Found abstract method: GetCurrent(<TCustomDictionaryEnumerator$4$crcB59DFE23>):LongInt;
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crc4E07645D" with abstract method "DoMoveNext"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(121,14) Hint: (5062) Found abstract method: DoMoveNext(<TEnumerator$1$crc713F463B>):Boolean;
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crc4E07645D" with abstract method "GetCurrent"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionariesh.inc(119,14) Hint: (5062) Found abstract method: GetCurrent(<TCustomDictionaryEnumerator$4$crc4E07645D>):Int64;
+Hint: (5024) Parameter "AFrom" not used
+Hint: (5024) Parameter "ATo" not used
+D:\projetos\maurinsoft\multicnc\multicad\src\kernel\multicad_mesh.pas(303,16) Hint: (5091) Local variable "Map" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multicad\src\kernel\multicad_mesh.pas(306,17) Hint: (5091) Local variable "FMap" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multicad\src\kernel\multicad_mesh.pas(360,16) Hint: (5091) Local variable "Sum" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multicad\src\kernel\multicad_mesh.pas(361,18) Hint: (5091) Local variable "First" of a managed type does not seem to be initialized
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(144,52) Note: (5071) Private type "TCustomPointersEnumerator$2<SYSTEM.Int64,MULTICAD_MESH.TCustomList$1$crc713F463B.PT>.T" never used
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(144,52) Note: (5071) Private type "TCustomPointersEnumerator$2<SYSTEM.LongInt,MULTICAD_MESH.TCustomList$1$crc9F312717.PT>.T" never used
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(144,52) Note: (5071) Private type "TCustomPointersEnumerator$2<MULTICAD_MESH.TPair$2<SYSTEM.Int64,SYSTEM.LongInt>,MULTICAD_MESH.TCustomList$1$crcBB718A1E.PT>.T" never used
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multicad\src\ui\multicad_camera.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multicad\src\ui\multicad_softrender.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multicad\src\ui\multicad_textures.pas
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(1186,20) Note: (6058) Call to subroutine "function TEnumerable<System.Int64>.GetEnumerator:TEnumerator$1<SYSTEM.Int64>;" marked as inline is not inlined
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(1186,20) Note: (6058) Call to subroutine "function TEnumerable<System.LongInt>.GetEnumerator:TEnumerator$1<SYSTEM.LongInt>;" marked as inline is not inlined
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(1186,20) Note: (6058) Call to subroutine "function TEnumerable<multicad_softrender.TPair<System.Int64,System.LongInt>>.GetEnumerator:TEnumerator$1<MULTICAD_SOFTRENDER.TPair$2<SYSTEM.Int64,SYSTEM.LongInt>>;" marked as inline is not inlined
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crcB59DFE23" with abstract method "DoMoveNext"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(121,14) Hint: (5062) Found abstract method: DoMoveNext(<TEnumerator$1$crc9F312717>):Boolean;
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crcB59DFE23" with abstract method "GetCurrent"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionariesh.inc(119,14) Hint: (5062) Found abstract method: GetCurrent(<TCustomDictionaryEnumerator$4$crcB59DFE23>):LongInt;
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crc4E07645D" with abstract method "DoMoveNext"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(121,14) Hint: (5062) Found abstract method: DoMoveNext(<TEnumerator$1$crc713F463B>):Boolean;
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crc4E07645D" with abstract method "GetCurrent"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionariesh.inc(119,14) Hint: (5062) Found abstract method: GetCurrent(<TCustomDictionaryEnumerator$4$crc4E07645D>):Int64;
+Hint: (5024) Parameter "AFrom" not used
+Hint: (5024) Parameter "ATo" not used
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(1186,20) Note: (6058) Call to subroutine "function TEnumerable<multicad_types.TCadVec3>.GetEnumerator:TEnumerator$1<MULTICAD_TYPES.TCadVec3>;" marked as inline is not inlined
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(1186,20) Note: (6058) Call to subroutine "function TEnumerable<multicad_softrender.TPair<System.Int64,multicad_types.TCadVec3>>.GetEnumerator:TEnumerator$1<MULTICAD_SOFTRENDER.TPair$2<SYSTEM.Int64,MULTICAD_TYPES.TCadVec3>>;" marked as inline is not inlined
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crc0DC9649A" with abstract method "DoMoveNext"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(121,14) Hint: (5062) Found abstract method: DoMoveNext(<TEnumerator$1$crcDFFFBC1B>):Boolean;
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crc0DC9649A" with abstract method "GetCurrent"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionariesh.inc(119,14) Hint: (5062) Found abstract method: GetCurrent(<TCustomDictionaryEnumerator$4$crc0DC9649A>;<var TCadVec3>):<record type>;
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crcEE18C05C" with abstract method "DoMoveNext"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(121,14) Hint: (5062) Found abstract method: DoMoveNext(<TEnumerator$1$crc713F463B>):Boolean;
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crcEE18C05C" with abstract method "GetCurrent"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionariesh.inc(119,14) Hint: (5062) Found abstract method: GetCurrent(<TCustomDictionaryEnumerator$4$crcEE18C05C>):Int64;
+Hint: (5024) Parameter "AFrom" not used
+Hint: (5024) Parameter "ATo" not used
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(1186,20) Note: (6058) Call to subroutine "function TEnumerable<System.Boolean>.GetEnumerator:TEnumerator$1<SYSTEM.Boolean>;" marked as inline is not inlined
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(1186,20) Note: (6058) Call to subroutine "function TEnumerable<multicad_softrender.TPair<System.LongInt,System.Boolean>>.GetEnumerator:TEnumerator$1<MULTICAD_SOFTRENDER.TPair$2<SYSTEM.LongInt,SYSTEM.Boolean>>;" marked as inline is not inlined
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crc7D37BA84" with abstract method "DoMoveNext"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(121,14) Hint: (5062) Found abstract method: DoMoveNext(<TEnumerator$1$crc0155B2B4>):Boolean;
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crc7D37BA84" with abstract method "GetCurrent"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionariesh.inc(119,14) Hint: (5062) Found abstract method: GetCurrent(<TCustomDictionaryEnumerator$4$crc7D37BA84>):Boolean;
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crcD7245F78" with abstract method "DoMoveNext"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(121,14) Hint: (5062) Found abstract method: DoMoveNext(<TEnumerator$1$crc9F312717>):Boolean;
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crcD7245F78" with abstract method "GetCurrent"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionariesh.inc(119,14) Hint: (5062) Found abstract method: GetCurrent(<TCustomDictionaryEnumerator$4$crcD7245F78>):LongInt;
+Hint: (5024) Parameter "AFrom" not used
+Hint: (5024) Parameter "ATo" not used
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(144,52) Note: (5071) Private type "TCustomPointersEnumerator$2<SYSTEM.Int64,MULTICAD_SOFTRENDER.TCustomList$1$crc713F463B.PT>.T" never used
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(144,52) Note: (5071) Private type "TCustomPointersEnumerator$2<SYSTEM.LongInt,MULTICAD_SOFTRENDER.TCustomList$1$crc9F312717.PT>.T" never used
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(144,52) Note: (5071) Private type "TCustomPointersEnumerator$2<MULTICAD_SOFTRENDER.TPair$2<SYSTEM.Int64,SYSTEM.LongInt>,MULTICAD_SOFTRENDER.TCustomList$1$crcAF9C8C2E.PT>.T" never used
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(144,52) Note: (5071) Private type "TCustomPointersEnumerator$2<MULTICAD_TYPES.TCadVec3,MULTICAD_SOFTRENDER.TCustomList$1$crcDFFFBC1B.PT>.T" never used
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(144,52) Note: (5071) Private type "TCustomPointersEnumerator$2<MULTICAD_SOFTRENDER.TPair$2<SYSTEM.Int64,MULTICAD_TYPES.TCadVec3>,MULTICAD_SOFTRENDER.TCustomList$1$crc0657254D.PT>.T" never used
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(144,52) Note: (5071) Private type "TCustomPointersEnumerator$2<SYSTEM.Boolean,MULTICAD_SOFTRENDER.TCustomList$1$crc0155B2B4.PT>.T" never used
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(144,52) Note: (5071) Private type "TCustomPointersEnumerator$2<MULTICAD_SOFTRENDER.TPair$2<SYSTEM.LongInt,SYSTEM.Boolean>,MULTICAD_SOFTRENDER.TCustomList$1$crcED3B2061.PT>.T" never used
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multislicer\src\ui\multislicer_toolpath3d.pas
+D:\projetos\maurinsoft\multicnc\multislicer\src\ui\multislicer_toolpath3d.pas(21,59) Hint: (5023) Unit "multislicer_types" not used in multislicer_toolpath3d
+D:\projetos\maurinsoft\multicnc\multislicer\src\ui\multislicer_view3d.pas(105,27) Hint: (5024) Parameter "Shift" not used
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_quality.pas
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_quality.pas(65,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_machines.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\core\multicnc_types.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\shared\multisuite_numfmt.pas
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_types.pas(54,18) Hint: (5060) Function result variable does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_types.pas(59,18) Hint: (5060) Function result variable does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_types.pas(113,18) Hint: (5060) Function result variable does not seem to be initialized
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\core\multicnc_equipment.pas
+D:\projetos\maurinsoft\multicnc\src\core\multicnc_equipment.pas(154,23) Hint: (5091) Local variable "Loaded" of a managed type does not seem to be initialized
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_project.pas
+D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_project.pas(23,51) Hint: (5023) Unit "multislicer_types" not used in multislicer_project
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multislicer\src\core\multislicer_meshcheck.pas
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(1186,20) Note: (6058) Call to subroutine "function TEnumerable<multislicer_meshcheck.TVKey>.GetEnumerator:TEnumerator$1<MULTISLICER_MESHCHECK.TVKey>;" marked as inline is not inlined
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(1186,20) Note: (6058) Call to subroutine "function TEnumerable<System.LongInt>.GetEnumerator:TEnumerator$1<SYSTEM.LongInt>;" marked as inline is not inlined
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(1186,20) Note: (6058) Call to subroutine "function TEnumerable<multislicer_meshcheck.TPair<multislicer_meshcheck.TVKey,System.LongInt>>.GetEnumerator:TEnumerator$1<MULTISLICER_MESHCHECK.TPair$2<MULTISLICER_MESHCHECK.TVKey,SYSTEM.LongInt>>;" marked as inline is not inlined
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crc3F215252" with abstract method "DoMoveNext"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(121,14) Hint: (5062) Found abstract method: DoMoveNext(<TEnumerator$1$crc9F312717>):Boolean;
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crc3F215252" with abstract method "GetCurrent"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionariesh.inc(119,14) Hint: (5062) Found abstract method: GetCurrent(<TCustomDictionaryEnumerator$4$crc3F215252>):LongInt;
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crc7B957963" with abstract method "DoMoveNext"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(121,14) Hint: (5062) Found abstract method: DoMoveNext(<TEnumerator$1$crcFA54E590>):Boolean;
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crc7B957963" with abstract method "GetCurrent"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionariesh.inc(119,14) Hint: (5062) Found abstract method: GetCurrent(<TCustomDictionaryEnumerator$4$crc7B957963>;<var TVKey>):<record type>;
+Hint: (5024) Parameter "AFrom" not used
+Hint: (5024) Parameter "ATo" not used
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(1186,20) Note: (6058) Call to subroutine "function TEnumerable<System.Int64>.GetEnumerator:TEnumerator$1<SYSTEM.Int64>;" marked as inline is not inlined
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(1186,20) Note: (6058) Call to subroutine "function TEnumerable<multislicer_meshcheck.TPair<System.Int64,System.LongInt>>.GetEnumerator:TEnumerator$1<MULTISLICER_MESHCHECK.TPair$2<SYSTEM.Int64,SYSTEM.LongInt>>;" marked as inline is not inlined
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crcB59DFE23" with abstract method "DoMoveNext"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(121,14) Hint: (5062) Found abstract method: DoMoveNext(<TEnumerator$1$crc9F312717>):Boolean;
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crcB59DFE23" with abstract method "GetCurrent"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionariesh.inc(119,14) Hint: (5062) Found abstract method: GetCurrent(<TCustomDictionaryEnumerator$4$crcB59DFE23>):LongInt;
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crc4E07645D" with abstract method "DoMoveNext"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(121,14) Hint: (5062) Found abstract method: DoMoveNext(<TEnumerator$1$crc713F463B>):Boolean;
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionaries.inc(191,92) Warning: (4046) Constructing a class "TCustomDictionaryEnumerator$4$crc4E07645D" with abstract method "GetCurrent"
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionariesh.inc(119,14) Hint: (5062) Found abstract method: GetCurrent(<TCustomDictionaryEnumerator$4$crc4E07645D>):Int64;
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionariesh.inc(286,33) Hint: (5024) Parameter "AFrom" not used
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.dictionariesh.inc(286,40) Hint: (5024) Parameter "ATo" not used
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(144,52) Note: (5071) Private type "TCustomPointersEnumerator$2<MULTISLICER_MESHCHECK.TVKey,MULTISLICER_MESHCHECK.TCustomList$1$crcFA54E590.PT>.T" never used
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(144,52) Note: (5071) Private type "TCustomPointersEnumerator$2<SYSTEM.LongInt,MULTISLICER_MESHCHECK.TCustomList$1$crc9F312717.PT>.T" never used
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(144,52) Note: (5071) Private type "TCustomPointersEnumerator$2<MULTISLICER_MESHCHECK.TPair$2<MULTISLICER_MESHCHECK.TVKey,SYSTEM.LongInt>,MULTISLICER_MESHCHECK.TCustomList$1$crc4A847DB2.PT>.T" never used
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(144,52) Note: (5071) Private type "TCustomPointersEnumerator$2<SYSTEM.Int64,MULTISLICER_MESHCHECK.TCustomList$1$crc713F463B.PT>.T" never used
+C:\lazarus\fpc\3.2.2\units\x86_64-win64\rtl-generics\generics.collections.ppu:generics.collections.pas(144,52) Note: (5071) Private type "TCustomPointersEnumerator$2<MULTISLICER_MESHCHECK.TPair$2<SYSTEM.Int64,SYSTEM.LongInt>,MULTISLICER_MESHCHECK.TCustomList$1$crc73F0C940.PT>.T" never used
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_registry.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_types.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_launcher.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_paths.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\shared\multisuite_context.pas
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(186,25) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(187,29) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(185,31) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(188,32) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(190,34) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(198,28) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(216,24) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(183,35) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(208,28) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(209,31) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(210,24) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(211,27) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(212,28) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(226,31) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(227,28) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(228,27) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(229,28) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(1736,16) Hint: (5091) Local variable "Sel" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(223,30) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(224,27) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(225,26) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(246,28) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(247,29) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(248,26) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(250,30) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(251,33) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(252,31) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(253,34) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(254,29) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(255,34) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(256,31) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(258,28) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(259,25) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(260,25) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(261,25) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(262,26) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(263,23) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(237,33) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(238,29) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(235,32) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(236,34) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(175,34) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(176,35) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(177,32) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(178,34) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(179,33) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(180,35) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(170,25) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(171,27) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(184,32) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(196,30) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(214,28) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(215,28) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(204,26) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(205,29) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(206,27) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\multislicer\src\app\multislicer_main.pas(207,25) Hint: (5024) Parameter "Sender" not used
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\shared\multisuite_gcode_writer.pas
+(9022) Compiling resource D:\projetos\maurinsoft\multicnc\multislicer\tests\lib\x86_64-win64\test_slicer_app.obj
+(9015) Linking D:\projetos\maurinsoft\multicnc\multislicer\tests\test_slicer_app.exe
+(1008) 28265 lines compiled, 5.7 sec, 2392176 bytes code, 193748 bytes data
+(1021) 98 warning(s) issued
+(1022) 202 hint(s) issued
+(1023) 79 note(s) issued

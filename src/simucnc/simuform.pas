@@ -20,7 +20,7 @@ type
     SpSimHotendTarget, SpSimBedTarget: TSpinEdit;
     BtnSetSimHotend, BtnSetSimBed, BtnSimCooldown, BtnSimInstantHeat: TSuiteButton;
     CodeList:TListBox;
-    CommandBuffer:string;
+    CommandBuffer, TCPInputBuffer:string;
     LaserPower:Double;
     function GetActiveSimulator: TAIMarlinSimulator;
     procedure SetSimHotendClick(Sender: TObject);
@@ -63,6 +63,7 @@ type
     LastTick: QWord;
     procedure TCPClick(Sender: TObject);
     procedure TCPData(Sender: TObject; const Data: string);
+    function TCPPrintCommand(const Line:string):string;
     procedure TCPResponse(Sender: TObject; const Data: string);
     procedure TCPConnected(Sender: TObject);
     procedure TCPDisconnected(Sender: TObject);
@@ -713,8 +714,33 @@ begin
   HostEdit.Enabled:=not TCP.Active; PortEdit.Enabled:=not TCP.Active;
   ConnectButton.Enabled:=not TCP.Active; PairButton.Enabled:=not TCP.Active;
 end;
+function TMainForm.TCPPrintCommand(const Line:string):string;
+var U,Token,Allowed:string; J,K,Code:Integer; C:Char; V:Double; FS:TFormatSettings;
+    Seen:set of Char;
+begin
+  Result:=Line;U:=UpperCase(Trim(Line));J:=Pos(';',U);if J>0 then Delete(U,J,MaxInt);
+  if (U='') or (U[1]<>'M') then Exit;
+  J:=2;K:=J;while (J<=Length(U)) and (U[J] in ['0'..'9']) do Inc(J);
+  if not TryStrToInt(Copy(U,K,J-K),Code) then Exit;
+  case Code of 73:Allowed:='PR';486:Allowed:='TS';200:Allowed:='D';else Exit;end;
+  Seen:=[];FS:=DefaultFormatSettings;FS.DecimalSeparator:='.';
+  while J<=Length(U) do begin
+    if U[J] in [' ',#9] then begin Inc(J);Continue;end;
+    C:=U[J];Inc(J);if (Pos(C,Allowed)=0) or (C in Seen) then Exit;Include(Seen,C);
+    K:=J;while (J<=Length(U)) and (U[J] in ['0'..'9','-','+','.']) do Inc(J);
+    Token:=Copy(U,K,J-K);if not TryStrToFloat(Token,V,FS) or IsNan(V) or IsInfinite(V) then Exit;
+    if (Code=200) and (V<>0) then Exit;
+    if (Code=73) and ((V<0) or ((C='P') and (V>100))) then Exit;
+    if (Code=486) and ((V<>Trunc(V)) or (V < -1)) then Exit;
+  end;
+  if Seen=[] then Exit;
+  { Metadata and length-mode selection do not change simulated mechanics.
+    Queue a zero dwell so their acknowledgement remains ordered AFTER motion.
+    Volumetric E, mesh compensation, pressure advance and arcs remain unsupported. }
+  Result:='G4 P0';Log('TCP metadado confirmado em ordem: '+Line);
+end;
 procedure TMainForm.TCPData(Sender:TObject; const Data:string);
-var Payload:string;
+var Payload,Line:string; I:Integer;
 begin
   Payload:=FilterRealtime(Data,TCPMarlin);
   if Payload='' then Exit;
@@ -723,7 +749,17 @@ begin
     Log('Comando GRBL ignorado: selecione o protocolo GRBL para simular este equipamento.');
     Exit;
   end;
-  TCPMarlin.Receive(Payload);
+  for I:=1 to Length(Payload) do begin
+    if Payload[I] in [#10,#13] then begin
+      Line:=Trim(TCPInputBuffer);TCPInputBuffer:='';
+      if Line<>'' then TCPMarlin.Receive(TCPPrintCommand(Line)+#10);
+    end else begin
+      TCPInputBuffer:=TCPInputBuffer+Payload[I];
+      if Length(TCPInputBuffer)>4096 then begin
+        TCPInputBuffer:='';TCP.Send('Error: command too long'+#10);Exit;
+      end;
+    end;
+  end;
 end;
 procedure TMainForm.UpdateLaserPower(const Data:string);
 var Lines:TStringList; I,P,Q:Integer; U,Token:string; V:Double; FS:TFormatSettings;
@@ -752,7 +788,7 @@ end;
 procedure TMainForm.TCPConnected(Sender:TObject);
 begin
   LaserPower:=0; Log('Controladora TCP conectada');
-  Status.SimpleText:='TCP conectado';CommandBuffer:='';CodeList.Clear; View.ClearPrint; TCPMarlin.Reset;
+  Status.SimpleText:='TCP conectado';CommandBuffer:='';TCPInputBuffer:='';CodeList.Clear; View.ClearPrint; TCPMarlin.Reset;
   UpdateStateBadge;
 end;
 procedure TMainForm.TCPDisconnected(Sender:TObject);

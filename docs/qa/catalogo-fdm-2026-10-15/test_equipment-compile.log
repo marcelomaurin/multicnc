@@ -1,0 +1,9 @@
+Free Pascal Compiler version 3.2.2 [2025/11/08] for x86_64
+Copyright (c) 1993-2021 by Florian Klaempfl and others
+Target OS: Win64 for x64
+Compiling D:\projetos\maurinsoft\multicnc\tests\test_equipment.lpr
+Compiling .\src\core\multicnc_types.pas
+Compiling .\src\shared\multisuite_numfmt.pas
+Compiling .\src\core\multicnc_equipment.pas
+Linking C:\Users\mmaurin\Documents\Codex\2026-10-14\si\work\qa_selected\test_equipment\test_equipment.exe
+567 lines compiled, 0.3 sec, 328144 bytes code, 15252 bytes data

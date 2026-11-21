@@ -51,6 +51,19 @@ begin
       (S[2] = '--file') and (S[3] = ExpandFileName(Artifact)), 'spaces and absolute file context survive launch');
     Check(not TSuiteLauncher.LaunchArtifact(T, Repo, Project, 'missing.nc', ErrorText), 'missing artifact is rejected');
     Check(Pos('Arquivo nao encontrado', ErrorText) > 0, 'specific missing-file feedback');
+    DeleteFile(Project + '/args.txt');
+    S.Text := '{"format":"MultiProject.Task"}'; S.SaveToFile(Project + '/new.mcad.task.json');
+    T := R.Tool(R.Find(stiMultiCAD));
+    CopySelf(Repo + '/bin/multicad' + ExtractFileExt(Exe));
+    Check(TSuiteLauncher.LaunchNew(T, Repo, Project, 'new.mcad', Project + '/new.mcad.task.json', ErrorText), 'launch new: ' + ErrorText);
+    Start := GetTickCount64;
+    while not FileExists(Project + '/args.txt') and (GetTickCount64 - Start < 5000) do Sleep(10);
+    Check(FileExists(Project + '/args.txt'), 'new child receives context');
+    S.LoadFromFile(Project + '/args.txt');
+    Check((S.Count = 6) and (S[2] = '--new') and (S[3] = ExpandFileName(Project + '/new.mcad')) and
+      (S[4] = '--task') and (S[5] = Project + '/new.mcad.task.json'), 'new and task delivered without shell quoting');
+    DeleteFile(Project + '/new.mcad.task.json');
+    DeleteFile(Repo + '/bin/multicad' + ExtractFileExt(Exe)); RemoveDir(Repo + '/bin');
     Writeln('Launcher delivery: OK (installed/development paths, project, file, spaces, missing artifact)');
   finally
     R.Free; S.Free; DeleteFile(Artifact); DeleteFile(Project + '/args.txt'); RemoveDir(Project);

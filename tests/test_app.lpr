@@ -18,6 +18,15 @@ begin
   Lines := TStringList.Create;
   FN := GetTempFileName(GetTempDir, 'cnc');
   try
+    Check(TTabSheet(F.FindComponent('CalibrationTab')).Caption='Calibração', 'Calibration tab caption');
+    Check(TFloatSpinEdit(F.FindComponent('CalibrationDistance')).Value=2, 'Calibration default distance');
+    Check(TFloatSpinEdit(F.FindComponent('CalibrationMarginX')).Value=5, 'Calibration default X');
+    Check(TFloatSpinEdit(F.FindComponent('CalibrationMarginY')).Value=5, 'Calibration default Y');
+    Check(TFloatSpinEdit(F.FindComponent('CalibrationTravelZ')).Value=10, 'Calibration travel height');
+    Check(not TSuiteButton(F.FindComponent('CalibrationStart')).Enabled, 'Calibration disconnected');
+    for I:=0 to F.ComponentCount-1 do
+      if F.Components[I] is TLabel then
+        Check(Pos('Ã',TLabel(F.Components[I]).Caption)=0,'Label encoding');
     ConnectButton := nil; StartButton := nil; JogZ := nil;
     PauseButton := nil; StopButton := nil;
     for I := 0 to F.ComponentCount - 1 do
@@ -153,6 +162,14 @@ begin
     TSuiteButton(F.FindComponent('ClearConsole')).Click;
     F.OnDropFiles(F, [FN]);
     Check(Pos('nao cabem no volume', Console.Text) > 0, 'oversized job warned');
+    Brand:=TComboBox(F.FindComponent('PrinterBrand'));
+    Model:=TComboBox(F.FindComponent('PrinterModel'));
+    Brand.ItemIndex:=Brand.Items.IndexOf('Creality');Brand.OnChange(Brand);
+    Check(Model.Items.IndexOf('K2')>=0,'K2 in controller model list');
+    Model.ItemIndex:=Model.Items.IndexOf('K2');Model.OnChange(Model);
+    TComboBox(F.FindComponent('CommunicationMode')).ItemIndex:=0;
+    TSuiteButton(F.FindComponent('ClearConsole')).Click;ConnectButton.Click;
+    Check(Pos('Creality Print',Console.Text)>0,'K2 explains vendor workflow before serial connection');
     WriteLn('MultiCNC GUI: OK (connection, search, UTF-8, shortcuts, file drop guards, console, GRBL compatibility warning, MultiSlicer printer jobs, zero from block and depth check)');
   finally
     F.Free;

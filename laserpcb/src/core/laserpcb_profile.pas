@@ -14,6 +14,8 @@ begin
   Result.Name := ''; Result.OpticalPowerW := 0;
   Result.SpotMM := 0.1; Result.Power := 0; Result.Feed := 0;
   Result.SMax := 1000; Result.Passes := 1; Result.Process := lpMaskResist;
+  Result.LaserSource := 0; Result.CopperUM := 35; Result.BoardMM := 1.6; Result.MaxFeed := 6000;
+  Result.CopperEv := 0; Result.CutEv := 0;
 end;
 
 class procedure TLaserProfileIO.Save(const P: TLaserProfile; const FN: string);
@@ -25,6 +27,9 @@ begin
     O.Add('power', P.Power); O.Add('feed', P.Feed);
     O.Add('s_max', P.SMax); O.Add('passes', P.Passes);
     O.Add('process', Ord(P.Process)); O.Add('optical_power_w',P.OpticalPowerW);
+    O.Add('laser_source', P.LaserSource); O.Add('copper_um', P.CopperUM);
+    O.Add('board_mm', P.BoardMM); O.Add('max_feed', P.MaxFeed);
+    O.Add('copper_ev', P.CopperEv); O.Add('cut_ev', P.CutEv);
     S.Text := O.FormatJSON; S.SaveToFile(FN);
   finally S.Free; O.Free; end;
 end;
@@ -47,6 +52,16 @@ begin
       Result.Feed := O.Get('feed', 0.0);
       Result.SMax := O.Get('s_max', 1000.0);
       Result.Passes := O.Get('passes', 1);
+      Result.LaserSource := EnsureRange(O.Get('laser_source', 0), 0, 2);
+      Result.CopperUM := O.Get('copper_um', 35.0);
+      Result.BoardMM := O.Get('board_mm', 1.6);
+      Result.MaxFeed := O.Get('max_feed', 6000.0);
+      if not (Result.CopperUM > 0) or not (Result.CopperUM < 1000) then Result.CopperUM := 35;
+      if not (Result.BoardMM > 0) or not (Result.BoardMM < 20) then Result.BoardMM := 1.6;
+      if not (Result.MaxFeed >= 60) or IsInfinite(Result.MaxFeed) then Result.MaxFeed := 6000;
+      Result.CopperEv := O.Get('copper_ev', 0.0); Result.CutEv := O.Get('cut_ev', 0.0);
+      if not (Result.CopperEv >= 0) or IsInfinite(Result.CopperEv) then Result.CopperEv := 0;
+      if not (Result.CutEv >= 0) or IsInfinite(Result.CutEv) then Result.CutEv := 0;
       Mode := O.Get('process', 0);
       if (Mode < Ord(Low(TLaserProcess))) or (Mode > Ord(High(TLaserProcess))) then
         raise Exception.Create('Processo do perfil invalido');

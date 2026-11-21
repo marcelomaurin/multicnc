@@ -218,6 +218,11 @@ begin
   F.Reply('X:10.00 Y:20.50 Z:5.00 E:3.00 Count X:800 Y:1640 Z:2000' + #10);
   Check((Abs(M.GetPosition.Y - 20.5) < 1e-9) and (Abs(M.GetPosition.E - 3) < 1e-9), 'Marlin: M114 lido');
   F.Reply('ok T:200.0 /200.0 B:60.0 /60.0' + #10);
+  M.SendGCode('G1 X30 F600');M.SendGCode('G1 X31 F600');N:=F.Sent.Count;
+  Check(M.Pause,'pausa com comando em voo');F.Ack(1);
+  Check(F.Sent.Count=N,'ok durante pausa nao libera lookahead Marlin');
+  Check(M.Resume,'retoma fila Marlin');
+  Check(F.Sent.Count=N+1,'resume libera proximo comando uma vez');F.Ack(1);
   { pausa no host: nada enviado }
   N := F.Sent.Count;
   Check(M.Pause and (F.Realtime = '') and (F.Sent.Count = N), 'Marlin: pausa no host, sem M25');
@@ -231,7 +236,7 @@ begin
     'Marlin impressora: aquecedores e ventilador desligados apos parada');
   N := 0;
   for I := 0 to F.Sent.Count - 1 do if F.Sent[I] = 'G1 X1 F100' then Inc(N);
-  Check(N = 1, 'so a linha que ja estava na controladora foi enviada; as da fila nao');
+  Check(N = 0, 'pausa bloqueia todas as novas linhas; stop descarta a fila');
   F.Reply('Error:Printer halted. kill() called!' + #10);
   Check(M.GetState = msAlarm, 'Marlin: halted = alarme');
   Check(not M.SendGCode('G28'), 'Marlin: bloqueia movimento apos halted');
@@ -513,6 +518,78 @@ begin
   end;
 end;
 
+procedure TestIntegralSessionLog;
+var S:TSimulationSession; F:TFakeController; L:TStringList; FN,RawName:string; I:Integer;
+begin
+  S:=TSimulationSession.Create;L:=TStringList.Create;FN:=GetTempFileName(GetTempDir,'log');
+  try
+    F:=TFakeController.Create;Check(S.ConnectTransport(mtPrinter3D,pkMarlin,F,F),'log connect');
+    for I:=1 to 1105 do F.Reply('T:200 /200 B:60 /60 tag'+IntToStr(I)+#10);
+    Sleep(2600);
+    Check(S.Send('G1 F1200'),'avanco solicitado');F.Ack(1);
+    Check(Abs(S.RequestedFeed-1200)<1e-9,'avanco em mm/min');
+    Check(S.Send('M106 S128'),'ventilador solicitado');F.Ack(1);
+    Check(Abs(S.RequestedFan-128*100/255)<1e-9,'ventilador em porcentagem');
+    Check(S.Send('M107'),'ventilador desligado');F.Ack(1);
+    Check(S.RequestedFan=0,'ventilador zero');
+    Check(S.Stop,'parada registrada');
+    S.SaveSessionLog(FN);L.LoadFromFile(FN);
+    Check(Pos('TX M410<LF>',L.Text)>0,'log inclui parada fora da fila');
+    Check(L.Count>1100,'log nao trunca em 1000 linhas');
+    Check(Pos('tag1<LF>',L.Text)>0,'preserva primeiro retorno');
+    Check(Pos('tag1105<LF>',L.Text)>0,'preserva ultimo retorno');
+    Check(Pos('RX T:200',L.Text)>0,'preserva temperaturas filtradas no console');
+    Check(S.SessionLogError='','log sem erro');
+    RawName:=S.SessionLogFile;
+  finally S.Free;L.Free;DeleteFile(FN);if RawName<>'' then DeleteFile(RawName);end;
+end;
+
+procedure TestMarlinTimeout;
+var M:TMultiCNCMachine; F:TFakeController; T0:QWord;
+begin
+  M:=NewMachine(mtPrinter3D,True,F);
+  try
+    Check(M.SendGCode('M109 S200'),'espera termica');
+    T0:=GetTickCount64;
+    M.CheckCommunicationTimeout(T0+119000);
+    Check(M.ErrorCount=0,'aquecimento nao expira prematuramente');
+    F.Reply('busy: processing'+#10+'T:180 /200 B:60 /60'+#10);
+    Check(M.InFlightLines=1,'busy e temperatura nao sao ok');
+    M.CheckCommunicationTimeout(GetTickCount64+120001);
+    Check(M.ErrorCount=1,'silencio interrompe');
+    Check(M.PendingLines=0,'timeout limpa fila');
+    Check(not M.SendGCode('G1 X10'),'timeout bloqueia movimento');
+  finally M.Free;F.Free;end;
+end;
+
+procedure TestMarlinCompletionAndReset;
+var S:TSimulationSession; F:TFakeController; L:TStringList; FN:string; N:Integer;
+begin
+  FN:=GetTempFileName(GetTempDir,'fdm'); L:=TStringList.Create; S:=TSimulationSession.Create;
+  try
+    L.Text:='G90'+#10+'G1 X20 F900'; L.SaveToFile(FN); S.LoadFile(FN);
+    F:=TFakeController.Create;
+    Check(S.ConnectTransport(mtPrinter3D,pkMarlin,F,F),'conecta Marlin');
+    Sleep(2600); { espera de boot real tambem no transporte falso }
+    S.SetWorkEnvelope(10,220,250);
+    Check(not S.Start,'volume incompatível bloqueado antes do envio');
+    Check(F.Sent.Count=0,'preflight nao envia comandos');
+    S.SetWorkEnvelope(220,220,250);
+    Check(S.Start,'inicia Marlin');
+    F.Reply('okay'+#10); Check(F.Sent.Count=1,'token malformado nao confirma');
+    F.Reply('busy: processing'+#10); Check(F.Sent.Count=1,'busy nao confirma');
+    F.Ack(2); S.Tick;
+    Check(F.Sent[F.Sent.Count-1]='M400','barreira fisica enviada');
+    Check(S.State=ssRunning,'ok de G1 nao conclui movimento');
+    F.Ack(1); S.Tick; Check(S.State=ssDone,'ok de M400 conclui');
+    Check(S.Start,'reinicia para testar reset'); N:=F.Sent.Count;
+    F.Reply('sta'); F.Reply('rt'+#10); S.Tick;
+    Check(S.State=ssError,'reset parcial interrompe trabalho');
+    Check(F.Sent.Count=N,'reset nao retoma fila');
+    Check(not S.Resume,'sem retomada cega');
+  finally S.Free; L.Free; DeleteFile(FN); end;
+end;
+
 procedure TestSessionRejectsBadProgram;
 var S: TSimulationSession; F: TFakeController; L: TStringList; FN: string;
 begin
@@ -587,6 +664,9 @@ begin
   TestSessionEndCommands(mtPrinter3D, False, False);
   TestNoHomingProfileProgram;
   TestSessionRejectsBadProgram;
+  TestMarlinCompletionAndReset;
+  TestMarlinTimeout;
+  TestIntegralSessionLog;
   if Failures > 0 then begin Writeln(Failures, ' falha(s)'); Halt(1); end;
   Writeln('PASS: controle de fluxo, erros, alarmes, estado, seguranca e parada');
 end.

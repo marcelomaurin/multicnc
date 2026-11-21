@@ -1,0 +1,18 @@
+Free Pascal Compiler version 3.2.2 [2025/11/08] for x86_64
+Copyright (c) 1993-2021 by Florian Klaempfl and others
+Target OS: Win64 for x64
+Compiling D:\projetos\maurinsoft\multicnc\multislicer\tests\test_print_safety.lpr
+Compiling .\multislicer\src\core\multislicer_printers.pas
+multislicer_printers.pas(10,5) Warning: Comment level 2 found
+multislicer_printers.pas(10,16) Warning: Comment level 2 found
+multislicer_printers.pas(10,30) Warning: Comment level 2 found
+multislicer_printers.pas(10,53) Warning: Comment level 2 found
+multislicer_printers.pas(11,5) Warning: Comment level 2 found
+multislicer_printers.pas(11,13) Warning: Comment level 2 found
+multislicer_printers.pas(11,21) Warning: Comment level 2 found
+multislicer_printers.pas(11,29) Warning: Comment level 2 found
+Compiling .\src\shared\multisuite_fdm_catalog.pas
+multislicer_printers.pas(99,19) Warning: function result variable of a managed type does not seem to be initialized
+Linking C:\Users\mmaurin\Documents\Codex\2026-10-14\si\work\qa_selected\test_print_safety\test_print_safety.exe
+397 lines compiled, 1.0 sec, 524928 bytes code, 35684 bytes data
+9 warning(s) issued

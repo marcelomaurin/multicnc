@@ -18,6 +18,7 @@ const
   SEC_MANUFACTURE = 5;
   SEC_TOOLS       = 6;
   SEC_SETTINGS    = 7;
+  SEC_PLAN        = 8;   { novo: fica fora da sequencia para nao mudar os valores antigos }
 
 type
   TMultiSuiteForm = class(TForm)
@@ -128,6 +129,7 @@ begin
     stiLaserPCB: Result := akLaserPCB; stiLaserArt: Result := akLaserArt;
     stiMultiCNC, stiRouterPCB, stiMakeRouter, stiSimuCNC: Result := akGCode;
     stiMakePCB: Result := akPCB;
+    stiMultiProject: Result := akProject;
   end;
 end;
 
@@ -255,6 +257,7 @@ begin
   AddNavigationButton('Projeto atual', SEC_PROJECT);
 
   AddNavigationHeader('FLUXO');
+  AddNavigationButton('Planejar', SEC_PLAN);
   AddNavigationButton('Projetar', SEC_DESIGN);
   AddNavigationButton('Preparar', SEC_PREPARE);
   AddNavigationButton('Simular', SEC_SIMULATE);
@@ -376,7 +379,7 @@ end;
 
 procedure TMultiSuiteForm.ShowSection(ASection: Integer);
 begin
-  if (ASection < SEC_HOME) or (ASection > SEC_SETTINGS) then
+  if ((ASection < SEC_HOME) or (ASection > SEC_SETTINGS)) and (ASection <> SEC_PLAN) then
     ASection := SEC_HOME;
 
   CurrentSection := ASection;
@@ -385,6 +388,7 @@ begin
   case ASection of
     SEC_HOME:        ShowHome;
     SEC_PROJECT:     ShowProject;
+    SEC_PLAN,
     SEC_DESIGN,
     SEC_PREPARE,
     SEC_SIMULATE,
@@ -459,6 +463,8 @@ function TMultiSuiteForm.ToolInSection(AID: TSuiteToolID; ASection: Integer): Bo
 begin
   Result := False;
   case ASection of
+    SEC_PLAN:
+      Result := AID = stiMultiProject;
     SEC_DESIGN:
       Result := AID in [stiMultiCAD, stiMakePCB, stiMakeRouter, stiLaserPCB, stiLaserArt];
     SEC_PREPARE:
@@ -649,6 +655,11 @@ var
   TitleText, SubtitleText: string;
 begin
   case ASection of
+    SEC_PLAN:
+      begin
+        TitleText := 'Planejar';
+        SubtitleText := 'Defina o objetivo, divida em tarefas e acompanhe o cronograma ate a fabricacao.';
+      end;
     SEC_DESIGN:
       begin
         TitleText := 'Projetar';

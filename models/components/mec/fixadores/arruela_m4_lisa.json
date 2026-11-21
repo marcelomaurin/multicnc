@@ -1,0 +1,31 @@
+{
+  "name": "Arruela M4 Lisa",
+  "model": "DIN 125 M4",
+  "category": "fixadores",
+  "kind": "ackFastenerWasher",
+  "material": "Aço zincado",
+  "color": 13420482,
+  "size": {
+    "x": 9.0,
+    "y": 9.0,
+    "z": 0.8
+  },
+  "ports": [
+    {
+      "name": "FURO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Arruela lisa M4: Ø interno 4.3, Ø externo 9, espessura 0.8 mm.",
+  "standard": "DIN 125 / ISO 7089",
+  "mass_g": 0.3,
+  "specs": {
+    "d_int_mm": 4.3,
+    "d_ext_mm": 9.0,
+    "espessura_mm": 0.8
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [4.5, 4.5, 0.0], "r": 4.5, "h": 0.8, "color": "#C2C7CC", "ri": 2.15, "seg": 28}
+  ]
+}

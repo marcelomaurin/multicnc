@@ -1,0 +1,26 @@
+{
+  "base_commit": "903bd19",
+  "state": "local uncommitted changes; no push",
+  "scope": "commercial filaments only; shared files retain previous printing and FDM catalog changes; unrelated MultiAssembly excluded",
+  "sha256": {
+    "bin/multislicer.exe": "62fb2d13f1a1585c764aaa93a1ac9a07caec1f7929313f7801d4bacc87b99dc6",
+    "docs/FILAMENTOS_COMERCIAIS.md": "498479e66cde98d66557a063b88c32a62a4e41fd0ee3c384b00a19e2d446d7c5",
+    "docs/PLANO_CORRECAO_IMPRESSAO_3D.md": "6791be076242b9c7b339ffd995e0c870a59b87f41b54736fcefe1637cf7d0164",
+    "docs/qa/filamentos-comerciais-2026-10-15/material-screen.bmp": "1d2a0e1ef526055cb1870bb246f10531bba9c251888659797b36468111d28a27",
+    "docs/qa/filamentos-comerciais-2026-10-15/multislicer.log": "b957b47dafdc5cdafee53216c9739dbe2b3bc03fc5121f31463f108c14c58d35",
+    "docs/qa/filamentos-comerciais-2026-10-15/qa-tests.json": "90bcacef65c868f3cec8c3692f881bcc664aaa11cebdedf0e42f0f5d464d1439",
+    "docs/qa/filamentos-comerciais-2026-10-15/researched-filaments.json": "673cc78813ec924a24b5691dfa23fb69f65d006e8a7e46dd1fee94a75992d869",
+    "docs/qa/filamentos-comerciais-2026-10-15/test_commercial_materials-compile.log": "57500acc5c756710e0d6706539ea754dc0e998aae547c79d47d49151cca5c147",
+    "docs/qa/filamentos-comerciais-2026-10-15/test_commercial_materials-run.log": "0998731948b184f7633d8f32b3670b600a5485aae75be7d56ff37a257354d82f",
+    "docs/qa/filamentos-comerciais-2026-10-15/test_multislicer_print-compile.log": "ded1b29433cade634beb8e4c6477c9331dfac7322b2ef9ca4fce9e55daf33ba5",
+    "docs/qa/filamentos-comerciais-2026-10-15/test_multislicer_print-run.log": "7688c0c26e5f43142c6503efa59a14fef4a6825a2c1d01d920d35da11e32c1ee",
+    "docs/qa/filamentos-comerciais-2026-10-15/test_print_safety-compile.log": "99d87bf2fa5aca12b782b08cf5d6f019e4b462a810a338a1473c086c70ef3f1b",
+    "docs/qa/filamentos-comerciais-2026-10-15/test_print_safety-run.log": "9ea84c2198631f58eeaefefd6147bccec66a5a923b001eb9cd19ba023bda433a",
+    "docs/qa/filamentos-comerciais-2026-10-15/test_slicer_app-run.log": "31e875d383dfc354291d86ee9d289a5c34e9077a8334280307d69c15b4a8e000",
+    "docs/qa/filamentos-comerciais-2026-10-15/test_slicer_app.log": "15e11638f6e10823208c1a6673ee7846cf932197f5d71b3721f9ff34bb0f7ae9",
+    "multislicer/src/app/multislicer_main.pas": "9c60770d511d2163dbd7936a2bfb6b4afd6701ba8fd13d8a58e88e56cd53a5a0",
+    "multislicer/src/core/multislicer_materials.pas": "304d68e7d5961d596af664ef031ca8b88aa248ccf2fe911a3fafe3a2ba3aca3b",
+    "multislicer/tests/test_commercial_materials.lpr": "875020f940d95908b2220bd0c6d3a81332cbc29cdbf3bf028862c000c8f57818",
+    "multislicer/tests/test_slicer_app.lpr": "4279c55d464ce98ee7deadce0dd45d5b8affcde0b33d6af68d66c922c66895a4"
+  }
+}

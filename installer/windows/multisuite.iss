@@ -3,7 +3,7 @@
 #endif
 #include "..\..\dist\version.iss"
 #ifndef SetupSeq
-  #define SetupSeq "009"
+  #define SetupSeq "019"
 #endif
 #ifndef MyAppPublisher
   #define MyAppPublisher "Maurinsoft"
@@ -43,14 +43,15 @@ Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortugue
 
 [Types]
 Name: "full"; Description: "Instalacao Completa (Instalar todas as ferramentas)"
-Name: "compact"; Description: "Instalacao Basica (MultiCNC e MultiSuite Bandeja)"
+Name: "compact"; Description: "Instalacao Basica (MultiCNC, SimuCNC e MultiSuite Bandeja)"
 Name: "custom"; Description: "Instalacao Personalizada (Escolher as ferramentas desejadas)"; Flags: iscustom
 
 [Components]
 Name: "tools"; Description: "Ferramentas do MultiSuite"; Types: full compact custom; Flags: fixed
 Name: "tools\multicnc"; Description: "MultiCNC - Controle de Maquinas CNC (GRBL, Marlin, Simulador)"; Types: full compact custom
 Name: "tools\tray"; Description: "MultiSuite Bandeja - Ferramentas ao lado do relogio"; Types: full compact custom
-Name: "tools\simucnc"; Description: "SimuCNC - Simulador de maquina (impressora, router e laser) com porta serial virtual"; Types: full custom
+Name: "tools\simucnc"; Description: "SimuCNC - Simulador de maquina (impressora, router e laser) com porta serial virtual"; Types: full compact custom; Flags: fixed
+Name: "tools\multiproject"; Description: "MultiProject - Gestao de Projetos Mecanicos e Eletronicos (tarefas, grafo, Gantt)"; Types: full custom
 Name: "tools\multicad"; Description: "MultiCAD - Modelagem e Desenho CAD 2D/3D"; Types: full custom
 Name: "tools\multiassembly"; Description: "MultiAssembly - Montagem Eletromecanica"; Types: full custom
 Name: "tools\multiphysics"; Description: "MultiPhysics - Simulacao Fisica, Termica e Dinamica"; Types: full custom
@@ -68,13 +69,19 @@ Name: "extra\docs"; Description: "Documentacao e Manuais do Sistema (atalhos na 
 Name: "{userdocs}\MultiSuite Projects"
 
 [Files]
+Source: "..\..\installer\windows\multisuite_updater.ps1"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\installer\windows\calculix_manager.ps1"; DestDir: "{app}\solvers"; Components: tools\multiphysics; Flags: ignoreversion
+Source: "..\..\installer\windows\calculix_catalog.json"; DestDir: "{app}\solvers"; Components: tools\multiphysics; Flags: ignoreversion
 Source: "..\..\dist\app\qa-tests.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\dist\app\multicnc.exe"; DestDir: "{app}"; Components: tools\multicnc; Flags: ignoreversion
 Source: "..\..\dist\app\multisuite_tray.exe"; DestDir: "{app}"; Components: tools\tray; Flags: ignoreversion
 Source: "..\..\dist\app\SimuCNC.exe"; DestDir: "{app}"; Components: tools\simucnc; Flags: ignoreversion
+Source: "..\..\dist\app\multiproject.exe"; DestDir: "{app}"; Components: tools\multiproject; Flags: ignoreversion
+Source: "..\..\dist\app\models\multiproject\*"; DestDir: "{app}\models\multiproject"; Components: tools\multiproject; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\..\dist\app\multicad.exe"; DestDir: "{app}"; Components: tools\multicad; Flags: ignoreversion
 Source: "..\..\dist\app\mcad_occt.dll"; DestDir: "{app}"; Components: tools\multicad; Flags: ignoreversion
 Source: "..\..\dist\app\multiassembly.exe"; DestDir: "{app}"; Components: tools\multiassembly; Flags: ignoreversion
+Source: "..\..\dist\app\models\components\mec\*"; DestDir: "{app}\models\components\mec"; Components: tools\multiassembly; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\..\dist\app\multiphysics.exe"; DestDir: "{app}"; Components: tools\multiphysics; Flags: ignoreversion
 Source: "..\..\dist\app\multicam.exe"; DestDir: "{app}"; Components: tools\multicam; Flags: ignoreversion
 Source: "..\..\dist\app\multislicer.exe"; DestDir: "{app}"; Components: tools\multislicer; Flags: ignoreversion
@@ -90,6 +97,9 @@ Source: "..\..\dist\app\build-manifest.json"; DestDir: "{app}"; Flags: ignorever
 Source: "..\..\dist\installer-images\slide*.bmp"; Flags: dontcopy
 
 [Tasks]
+Name: "calculix_install"; Description: "Baixar e instalar CalculiX usando manifesto confiavel selecionado pelo usuario"; GroupDescription: "Motores de simulacao:"; Components: tools\multiphysics; Flags: unchecked
+Name: "calculix_status"; Description: "Verificar o estado do CalculiX apos instalar o MultiPhysics (nao baixa sem manifesto confiavel)"; GroupDescription: "Motores de simulacao:"; Components: tools\multiphysics; Flags: unchecked
+Name: "autoupdate"; Description: "Verificar atualizacoes automaticamente ao iniciar o Windows"; GroupDescription: "Atualizacoes:"; Flags: checkedonce
 Name: "desktopicon_tray"; Description: "Criar atalho da bandeja na area de trabalho"; GroupDescription: "Atalhos da Area de Trabalho:"; Components: tools\tray; Flags: unchecked
 Name: "desktopicon_cnc"; Description: "Criar atalho do MultiCNC na area de trabalho"; GroupDescription: "Atalhos da Area de Trabalho:"; Components: tools\multicnc; Flags: unchecked
 Name: "trayautostart"; Description: "Iniciar a MultiSuite Bandeja com o Windows"; GroupDescription: "Bandeja:"; Components: tools\tray; Flags: checkedonce
@@ -110,6 +120,7 @@ Name: "{autoprograms}\MultiSuite\MultiCNC"; Filename: "{app}\multicnc.exe"; Comp
 Name: "{autodesktop}\MultiCNC"; Filename: "{app}\multicnc.exe"; Tasks: desktopicon_cnc; Components: tools\multicnc
 Name: "{autoprograms}\MultiSuite\MultiSuite Bandeja"; Filename: "{app}\multisuite_tray.exe"; Components: tools\tray
 Name: "{autoprograms}\MultiSuite\SimuCNC"; Filename: "{app}\SimuCNC.exe"; Components: tools\simucnc
+Name: "{autoprograms}\MultiSuite\MultiProject"; Filename: "{app}\multiproject.exe"; Components: tools\multiproject
 Name: "{autoprograms}\MultiSuite\MultiCAD"; Filename: "{app}\multicad.exe"; Components: tools\multicad
 Name: "{autoprograms}\MultiSuite\MultiAssembly"; Filename: "{app}\multiassembly.exe"; Components: tools\multiassembly
 Name: "{autoprograms}\MultiSuite\MultiPhysics"; Filename: "{app}\multiphysics.exe"; Components: tools\multiphysics
@@ -128,9 +139,12 @@ Name: "{autodesktop}\Documentacao MultiSuite\Manual MultiCNC 0.1.0.3"; Filename:
 Name: "{autodesktop}\Documentacao MultiSuite\Manual LaserArt 0.02.1"; Filename: "{app}\documentation\docs\Manuals\Manual_do_Usuario_LaserArt_0.02.1_PT-BR.pdf"; Components: extra\docs
 
 [Registry]
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "MultiSuiteUpdater"; ValueData: """{sys}\WindowsPowerShell\v1.0\powershell.exe"" -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy RemoteSigned -File ""{app}\multisuite_updater.ps1"" -InstalledVersion ""{#MyAppVersion}"""; Flags: uninsdeletevalue; Tasks: autoupdate
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "MultiSuiteTray"; ValueData: """{app}\multisuite_tray.exe"" --tray"; Flags: uninsdeletevalue; Tasks: trayautostart; Components: tools\tray
 
 [Run]
+Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File ""{app}\solvers\calculix_manager.ps1"" -Action Install -ManifestPath ""{code:GetCalculixManifest}"""; Description: "Baixar e instalar CalculiX (SHA-256 obrigatorio)"; Flags: runhidden waituntilterminated; Tasks: calculix_install; Components: tools\multiphysics; Check: HasCalculixManifest
+Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File ""{app}\solvers\calculix_manager.ps1"" -Action Status"; Description: "Verificar instalacao gerenciada do CalculiX"; Flags: postinstall skipifsilent; Tasks: calculix_status; Components: tools\multiphysics
 Filename: "{app}\multisuite_tray.exe"; Parameters: "--tray"; Description: "Iniciar a MultiSuite Bandeja"; Flags: nowait postinstall skipifsilent; Components: tools\tray
 
 [UninstallRun]
@@ -141,6 +155,30 @@ var
   ProjectImage: TBitmapImage;
   ProjectCaption: TNewStaticText;
   CurrentSlide: Integer;
+  CalculixManifestPage: TInputFileWizardPage;
+
+function GetCalculixManifest(Param: String): String;
+begin
+  Result := CalculixManifestPage.Values[0];
+end;
+
+function HasCalculixManifest: Boolean;
+begin
+  Result := FileExists(GetCalculixManifest(''));
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+begin
+  Result := True;
+  if (CurPageID = CalculixManifestPage.ID) and WizardIsTaskSelected('calculix_install') then
+  begin
+    if not HasCalculixManifest then
+    begin
+      MsgBox('Selecione um manifesto JSON confiavel para baixar o CalculiX. Sem ele, desmarque a tarefa de instalacao do CalculiX.', mbError, MB_OK);
+      Result := False;
+    end;
+  end;
+end;
 
 procedure ShowProjectSlide(Index: Integer);
 var
@@ -156,7 +194,7 @@ begin
     3: Caption := 'SimuCNC - Simulacao da maquina antes da fabricacao';
     4: Caption := 'LaserPCB - Placas, componentes compartilhados e preparacao a laser';
     5: Caption := 'LaserArt - Desenhos, vetores e gravacao a laser';
-    6: Caption := 'MultiSlicer 0.0.7.0 - Previa 3D e fatiamento para impressao';
+    6: Caption := 'MultiSlicer 0.1.0.0 - Previa 3D e fatiamento para impressao';
   end;
   ProjectCaption.Caption := Caption;
 end;
@@ -165,6 +203,10 @@ procedure InitializeWizard;
 var
   I, ImageTop: Integer;
 begin
+  CalculixManifestPage := CreateInputFilePage(wpSelectTasks, 'Pacote CalculiX',
+    'Manifesto de versao confiavel',
+    'Para instalar CalculiX, escolha um manifesto JSON que contenha versao, URL HTTPS, SHA-256 e caminho do executavel. O download nao ocorre sem sua escolha explicita.');
+  CalculixManifestPage.Add('Manifesto JSON:', 'JSON files|*.json|All files|*.*', '.json');
   for I := 0 to 6 do
     ExtractTemporaryFile('slide' + IntToStr(I) + '.bmp');
   CurrentSlide := -1;

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+ <ProjectOptions>
+  <Version Value="12" />
+  <General>
+   <Title Value="MultiPhysics" />
+   <UseAppBundle Value="False" />
+   <ResourceType Value="res" />
+   <Icon Value="0"/>
+  </General>
+  <VersionInfo>
+   <UseVersionInfo Value="True" />
+   <MinorVersionNr Value="2" />
+   <StringTable CompanyName="Maurinsoft" FileDescription="MultiPhysics - simulacao fisica da montagem" ProductName="MultiSuite" ProductVersion="0.2.0.0" />
+  </VersionInfo>
+  <BuildModes Count="1">
+   <Item1 Name="Default" Default="True" />
+  </BuildModes>
+  <Units Count="1">
+   <Unit0>
+    <Filename Value="test_document_ui.lpr" />
+    <IsPartOfProject Value="True" />
+   </Unit0>
+  </Units>
+  <RequiredPackages Count="1">
+   <Item1>
+    <PackageName Value="LCL" />
+   </Item1>
+  </RequiredPackages>
+ </ProjectOptions>
+ <CompilerOptions>
+  <Version Value="11" />
+  <Target>
+   <Filename Value="test_document_ui" />
+  </Target>
+  <SearchPaths>
+   <OtherUnitFiles Value="../src/testing;../src/app;../src/core;../src/solver;../src/dynamics;../src/runtime;../src/instruments;../src/examples;../src/geometry;../src/mesh;../src/fem;../src/ccx;../src/ui;../../src/shared;../../multisuite/src/core;../../multiassembly/src/core" />
+   <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
+  </SearchPaths>
+  <Parsing>
+   <SyntaxOptions>
+    <SyntaxMode Value="ObjFPC" />
+   </SyntaxOptions>
+  </Parsing>
+  <Linking>
+   <Options>
+    <Win32>
+     <GraphicApplication Value="False" />
+    </Win32>
+   </Options>
+  </Linking>
+ </CompilerOptions>
+</CONFIG>

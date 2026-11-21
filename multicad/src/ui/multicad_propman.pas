@@ -21,7 +21,7 @@ uses
   Classes, SysUtils, Math, Controls, StdCtrls, ExtCtrls, Forms, Graphics,
   multicad_types, multicad_units, multicad_document, multicad_feature,
   multicad_refgeom, multicad_extrude, multicad_revolve, multicad_hole, multicad_pattern,
-  multicad_blend,
+  multicad_blend, multicad_sketch, multicad_threadop, multicad_gears, multicad_gear,
   multicad_threads, multisuite_controls,
   multisuite_icons, multicad_log;
 
@@ -62,6 +62,16 @@ type
     { padroes e espelho }
     edSeeds, edDirA, edDirB, edSpacA, edSpacB, edCountA, edCountB, edPatAngle, edMirrorPlane: TEdit;
     ckRevA, ckRevB, ckUseB, ckEqual: TCheckBox;
+    { rosca }
+    edThFace, edThDia, edThPitch, edThLen, edThOff, edThClr: TEdit;
+    cbThSize: TComboBox;
+    ckThFine, ckThFlip, ckThLeft: TCheckBox;
+    lbInfo: TLabel;
+    { engrenagem }
+    cbGKind, cbGTeeth: TComboBox;
+    edGMod, edGCount, edGPress, edGHelix, edGWidth, edGShift, edGBack, edGBore, edGKeyW,
+      edGKeyD, edGOuter, edGRackH, edGPlane, edGCenter, edGAngle, edGOff: TEdit;
+    ckGLeft, ckGRev, ckGMerge: TCheckBox;
     { filete, chanfro e casca }
     lbItems: TListBox;
     FItemRefs: TStringList;
@@ -69,6 +79,11 @@ type
     edBlendR, edChD1, edChD2, edChAng, edShellT: TEdit;
     cbChMode: TComboBox;
     ckChFlip, ckShellOut: TCheckBox;
+    procedure BuildThread(T: TCadModelThread);
+    procedure ReadThread(T: TCadModelThread);
+    procedure BuildGear(G: TCadGear);
+    procedure ReadGear(G: TCadGear);
+    procedure UpdateGearInfo(G: TCadGear);
     procedure BuildBlend(F: TCadFeature);
     procedure ReadBlend(F: TCadFeature);
     procedure AddItemList(const ACaption: string; const Refs: TCadStrArray);
@@ -88,6 +103,7 @@ type
     function AddCheck(const ACaption: string; AChecked: Boolean): TCheckBox;
     function AddEdit(const ACaption, AText: string): TEdit;
     function AddRef(const ACaption, AText: string): TEdit;
+    function KeyEdit(E: TEdit; const AKey: string): TEdit;
     procedure Changed(Sender: TObject);
     procedure RefEnter(Sender: TObject);
     procedure OkClick(Sender: TObject);
@@ -109,6 +125,8 @@ type
     function SetPickedRef(const ARef: string): Boolean;
     procedure ShowMessageText(const S: string; IsError: Boolean);
     procedure SetExtrudeDepth(Direction: Integer; Depth: Double; const Expr: string = '');
+    { Texto calculado pela reconstrucao (medida da rosca, medidas da engrenagem). }
+    procedure RefreshInfo;
     { Referencias da lista (arestas/faces do filete, chanfro ou casca). }
     function ItemRefs: TCadStrArray;
     destructor Destroy; override;
@@ -285,7 +303,7 @@ begin
   if F is TCadShell then
   begin
     Section('Parâmetros');
-    edShellT := AddEdit('Espessura (mm)', CadFmt(TCadShell(F).Thickness));
+    edShellT := KeyEdit(AddEdit('Espessura (mm)', CadFmt(TCadShell(F).Thickness)), 'thickness');
     ckShellOut := AddCheck('Casca para fora', TCadShell(F).Outward);
     Section('Faces a remover');
     AddItemList('Clique nas faces abertas (nenhuma = oco fechado)', TCadShell(F).Faces);
@@ -297,7 +315,7 @@ begin
     if F is TCadFillet3D then
     begin
       Section('Parâmetros do filete');
-      edBlendR := AddEdit('Raio (mm)', CadFmt(TCadFillet3D(F).Radius));
+      edBlendR := KeyEdit(AddEdit('Raio (mm)', CadFmt(TCadFillet3D(F).Radius)), 'radius');
     end
     else
     begin
@@ -309,9 +327,9 @@ begin
       end;
       Section('Parâmetros do chanfro');
       cbChMode := AddCombo('', Modes, Ord(TCadChamfer3D(F).Mode));
-      edChD1 := AddEdit('Distância (mm)', CadFmt(TCadChamfer3D(F).Distance));
-      edChD2 := AddEdit('Distância 2 (mm)', CadFmt(TCadChamfer3D(F).Distance2));
-      edChAng := AddEdit('Ângulo (°)', CadFmt(TCadChamfer3D(F).Angle));
+      edChD1 := KeyEdit(AddEdit('Distância (mm)', CadFmt(TCadChamfer3D(F).Distance)), 'distance');
+      edChD2 := KeyEdit(AddEdit('Distância 2 (mm)', CadFmt(TCadChamfer3D(F).Distance2)), 'distance2');
+      edChAng := KeyEdit(AddEdit('Ângulo (°)', CadFmt(TCadChamfer3D(F).Angle)), 'angle');
       ckChFlip := AddCheck('Inverter direção', TCadChamfer3D(F).Flip);
     end;
   end;
@@ -370,6 +388,14 @@ begin
   FY := 6;
   cbStart := nil; cbEnd1 := nil; cbEnd2 := nil; cbThin := nil; cbCond := nil;
   cbPlaneType := nil;
+  { os controles acima foram liberados: campos usados para comparar com o
+    campo ativo nao podem guardar enderecos antigos (um controle novo pode
+    nascer no mesmo endereco) }
+  lbInfo := nil;
+  edAxis := nil;
+  edThFace := nil;
+  edGPlane := nil;
+  edGCenter := nil;
 end;
 
 function TCadPropManager.NewLabel(const S: string; Bold: Boolean): TLabel;
@@ -441,6 +467,21 @@ begin
   Inc(FY, 30);
 end;
 
+function TCadPropManager.KeyEdit(E: TEdit; const AKey: string): TEdit;
+begin
+  { campo com chave: guarda a expressao digitada na operacao (reavaliada a
+    cada reconstrucao) e a mostra de volta ao editar }
+  Result := E;
+  E.HelpKeyword := AKey;
+  if Assigned(FFeature) and (FFeature.ExprOf(AKey) <> '') then
+    E.Text := FFeature.ExprOf(AKey);
+  if E.Hint = '' then
+  begin
+    E.Hint := 'Aceita contas e variáveis: 35-10mm, Cubo.aresta*2, [Ressalto-Extrusão1].aresta';
+    E.ShowHint := True;
+  end;
+end;
+
 function TCadPropManager.AddRef(const ACaption, AText: string): TEdit;
 begin
   Result := AddEdit(ACaption, AText);
@@ -501,6 +542,24 @@ begin
   Result := Assigned(FActiveRef) and (ARef <> '');
   if not Result then
     Exit;
+  { cada campo so aceita o tipo de referencia que entende }
+  if (FActiveRef = edAxis) and Assigned(edAxis) then
+  begin
+    if (Pos('.', Copy(ARef, Pos('/', ARef) + 1, MaxInt)) > 0) and (Pos('sketch:', ARef) = 1) then
+      Exit(False);   { ponto nao e eixo }
+    if (Pos('sketch:', ARef) = 1) and (Pos('/', ARef) = 0) then
+      Exit(False);   { o esboco inteiro nao e eixo }
+    if Pos('plane:', ARef) = 1 then
+      Exit(False);
+  end;
+  if (FActiveRef = edThFace) and Assigned(edThFace) and (Pos('face:', ARef) <> 1) then
+    Exit(False);
+  if (FActiveRef = edGPlane) and Assigned(edGPlane) and (Pos('plane:', ARef) <> 1) and
+    (Pos('face:', ARef) <> 1) then
+    Exit(False);
+  if (FActiveRef = edGCenter) and Assigned(edGCenter) and (ARef <> 'origin') and
+    not ((Pos('sketch:', ARef) = 1) and (Pos('.', ARef) > 0)) then
+    Exit(False);
   if (FActiveRef = edSeeds) and Assigned(edSeeds) then
   begin
     { operacoes a repetir: clicar numa face acrescenta a operacao dela }
@@ -553,11 +612,27 @@ begin
   if Assigned(FOnChange) then FOnChange(Self);
 end;
 
+function IsPlainNumber(const S: string): Boolean;
+var
+  V: Double;
+begin
+  Result := TryStrToFloat(StringReplace(Trim(S), ',', '.', []), V, DefaultFormatSettings) or
+    TryStrToFloat(StringReplace(Trim(S), '.', ',', []), V);
+end;
+
 function TCadPropManager.Num(E: TEdit; out V: Double): Boolean;
 var
   Err: string;
 begin
   Result := Assigned(E) and FDoc.Eval(E.Text, V, Err);
+  if Result and (E.HelpKeyword <> '') and Assigned(FFeature) then
+  begin
+    { numero puro: valor fixo; conta ou variavel: fica a expressao }
+    if IsPlainNumber(E.Text) then
+      FFeature.SetExpr(E.HelpKeyword, '')
+    else
+      FFeature.SetExpr(E.HelpKeyword, E.Text);
+  end;
   if Assigned(E) then
   begin
     if Result then
@@ -573,13 +648,6 @@ begin
   end;
 end;
 
-function IsPlainNumber(const S: string): Boolean;
-var
-  V: Double;
-begin
-  Result := TryStrToFloat(StringReplace(Trim(S), ',', '.', []), V, DefaultFormatSettings) or
-    TryStrToFloat(StringReplace(Trim(S), '.', ',', []), V);
-end;
 
 procedure TCadPropManager.Edit(ADoc: TCadDocument; F: TCadFeature; AIsNew: Boolean);
 begin
@@ -603,6 +671,10 @@ begin
       BuildPattern(TCadPatternBase(F))
     else if (F is TCadBlendBase) or (F is TCadShell) then
       BuildBlend(F)
+    else if F is TCadModelThread then
+      BuildThread(TCadModelThread(F))
+    else if F is TCadGear then
+      BuildGear(TCadGear(F))
     else
       NewLabel('Sem parâmetros editáveis');
   finally
@@ -774,16 +846,31 @@ end;
 { ---------- revolucao ---------- }
 
 procedure TCadPropManager.BuildRevolve(R: TCadRevolve);
+var
+  S: TCadFeature;
+  I: Integer;
+  HasAxis: Boolean;
 begin
   Section('Eixo de revolução');
-  edAxis := AddRef('Linha de centro / eixo (vazio = 1ª linha de centro)', R.AxisRef);
+  edAxis := AddRef('Eixo (vazio = linha de centro do esboço)', R.AxisRef);
+  edAxis.Hint := 'Clique aqui e depois numa linha do esboço, aresta reta, eixo ou face cilíndrica';
+  NewLabel('Clique numa linha do esboço,');
+  NewLabel('aresta reta, eixo ou face cilíndrica.');
+  S := FDoc.FindById(R.SketchId);
+  HasAxis := False;
+  if S is TCadSketch then
+    for I := 0 to TCadSketch(S).EntityCount - 1 do
+      if TCadSketch(S).Entity(I).Centerline then
+        HasAxis := True;
+  if (R.AxisRef = '') and not HasAxis then
+    SetActiveRef(edAxis);
   Section('Direção 1');
   cbCond := AddCombo('', [CAD_REVOLVE_COND_NAMES[rcBlind], CAD_REVOLVE_COND_NAMES[rcMidPlane]], Ord(R.Cond));
   ckRevR := AddCheck('Inverter direção', R.Reverse);
-  edAngle := AddEdit('Ângulo (°)', CadFmt(R.Angle));
+  edAngle := KeyEdit(AddEdit('Ângulo (°)', CadFmt(R.Angle)), 'angle');
   Section('Direção 2');
   ckDir2R := AddCheck('Direção 2', R.UseDir2);
-  edAngle2 := AddEdit('Ângulo 2 (°)', CadFmt(R.Angle2));
+  edAngle2 := KeyEdit(AddEdit('Ângulo 2 (°)', CadFmt(R.Angle2)), 'angle2');
   Section('Opções');
   if R.IsCut then
   begin
@@ -820,6 +907,224 @@ begin
   ckDir2R.Enabled := R.Cond = rcBlind;
 end;
 
+{ ---------- rosca ---------- }
+
+procedure TCadPropManager.BuildThread(T: TCadModelThread);
+var
+  Sizes: array of string;
+  I, Sel: Integer;
+begin
+  Section('Face cilíndrica');
+  edThFace := AddRef('Eixo (rosca externa) ou furo (interna)', T.FaceRef);
+  NewLabel('Clique na face na vista.');
+  SetLength(Sizes, CadThreadCount + 2);
+  Sizes[0] := 'Automática (pela face)';
+  Sel := 0;
+  for I := 0 to CadThreadCount - 1 do
+  begin
+    Sizes[I + 1] := CadThread(I).Size;
+    if SameText(CadThread(I).Size, T.Size) then
+      Sel := I + 1;
+  end;
+  Sizes[High(Sizes)] := 'Personalizada';
+  if T.Size = CAD_THREAD_CUSTOM then
+    Sel := High(Sizes);
+  Section('Medida (ISO métrica, 60°)');
+  cbThSize := AddCombo('', Sizes, Sel);
+  ckThFine := AddCheck('Passo fino', T.Fine);
+  edThDia := KeyEdit(AddEdit('Diâmetro nominal (mm)', CadFmt(T.Diameter)), 'diameter');
+  edThPitch := KeyEdit(AddEdit('Passo (mm)', CadFmt(T.Pitch)), 'pitch');
+  Section('Comprimento');
+  edThLen := KeyEdit(AddEdit('Comprimento (mm, 0 = face inteira)', CadFmt(T.Length)), 'length');
+  edThOff := KeyEdit(AddEdit('Deslocamento do início (mm)', CadFmt(T.Offset)), 'offset');
+  ckThFlip := AddCheck('Começar pela outra ponta', T.FlipStart);
+  ckThLeft := AddCheck('Rosca esquerda', T.LeftHand);
+  Section('Impressão 3D');
+  edThClr := KeyEdit(AddEdit('Folga radial (mm)', CadFmt(T.Clearance)), 'clearance');
+  NewLabel('FDM: 0,1 a 0,2 mm; usinagem: 0.');
+  Section('Resultado');
+  lbInfo := NewLabel('');
+  lbInfo.WordWrap := True;
+  lbInfo.Width := 220;
+  lbInfo.AutoSize := True;
+  if T.FaceRef = '' then
+    SetActiveRef(edThFace);
+  ReadThread(T);
+end;
+
+procedure TCadPropManager.ReadThread(T: TCadModelThread);
+var
+  V: Double;
+  I: Integer;
+begin
+  T.FaceRef := Trim(edThFace.Text);
+  I := cbThSize.ItemIndex;
+  if I <= 0 then
+    T.Size := ''
+  else if I = cbThSize.Items.Count - 1 then
+    T.Size := CAD_THREAD_CUSTOM
+  else
+    T.Size := cbThSize.Items[I];
+  T.Fine := ckThFine.Checked;
+  if Num(edThDia, V) then T.Diameter := V;
+  if Num(edThPitch, V) then T.Pitch := V;
+  if Num(edThLen, V) then T.Length := V;
+  if Num(edThOff, V) then T.Offset := V;
+  if Num(edThClr, V) then T.Clearance := V;
+  T.FlipStart := ckThFlip.Checked;
+  T.LeftHand := ckThLeft.Checked;
+  edThDia.Enabled := T.Size = CAD_THREAD_CUSTOM;
+  edThPitch.Enabled := T.Size = CAD_THREAD_CUSTOM;
+  ckThFine.Enabled := T.Size <> CAD_THREAD_CUSTOM;
+end;
+
+{ ---------- engrenagem ---------- }
+
+procedure TCadPropManager.BuildGear(G: TCadGear);
+var
+  K: TCadGearKind;
+  T: TCadGearTeeth;
+  Kinds, Teeth: array of string;
+begin
+  SetLength(Kinds, 0);
+  for K := Low(TCadGearKind) to High(TCadGearKind) do
+  begin
+    SetLength(Kinds, Length(Kinds) + 1);
+    Kinds[High(Kinds)] := CAD_GEAR_KIND_NAMES[K];
+  end;
+  SetLength(Teeth, 0);
+  for T := Low(TCadGearTeeth) to High(TCadGearTeeth) do
+  begin
+    SetLength(Teeth, Length(Teeth) + 1);
+    Teeth[High(Teeth)] := CAD_GEAR_TEETH_NAMES[T];
+  end;
+  Section('Tipo');
+  cbGKind := AddCombo('', Kinds, Ord(G.Spec.Kind));
+  cbGTeeth := AddCombo('', Teeth, Ord(G.Spec.Teeth));
+  Section('Dentes');
+  edGMod := KeyEdit(AddEdit('Módulo (mm)', CadFmt(G.Spec.Module)), 'module');
+  edGCount := KeyEdit(AddEdit('Número de dentes', IntToStr(G.Spec.Count)), 'count');
+  edGPress := KeyEdit(AddEdit('Ângulo de pressão (°)', CadFmt(G.Spec.Pressure)), 'pressure');
+  edGHelix := KeyEdit(AddEdit('Ângulo de hélice (°)', CadFmt(G.Spec.Helix)), 'helix');
+  ckGLeft := AddCheck('Hélice à esquerda', G.Spec.LeftHand);
+  edGWidth := KeyEdit(AddEdit('Largura da face (mm)', CadFmt(G.Spec.Width)), 'width');
+  edGShift := KeyEdit(AddEdit('Correção do perfil x (externa)', CadFmt(G.Spec.Shift)), 'shift');
+  edGBack := KeyEdit(AddEdit('Folga no primitivo (mm)', CadFmt(G.Spec.Backlash)), 'backlash');
+  Section('Corpo');
+  edGBore := KeyEdit(AddEdit('Furo central (mm, 0 = sem)', CadFmt(G.Spec.Bore)), 'bore');
+  edGKeyW := KeyEdit(AddEdit('Chaveta: largura (mm, 0 = sem)', CadFmt(G.Spec.KeyWidth)), 'key_width');
+  edGKeyD := KeyEdit(AddEdit('Chaveta: profundidade (mm)', CadFmt(G.Spec.KeyDepth)), 'key_depth');
+  edGOuter := KeyEdit(AddEdit('Anel: Ø externo (mm, 0 = automático)', CadFmt(G.Spec.OuterD)), 'outer_d');
+  edGRackH := KeyEdit(AddEdit('Cremalheira: altura (mm, 0 = automática)', CadFmt(G.Spec.RackHeight)), 'rack_height');
+  Section('Posição');
+  edGPlane := AddRef('Plano ou face plana da base', G.PlaneRef);
+  edGCenter := AddRef('Centro (ponto do esboço; vazio = origem)', G.CenterRef);
+  edGAngle := KeyEdit(AddEdit('Giro em torno do eixo (°)', CadFmt(G.Angle)), 'angle');
+  edGOff := KeyEdit(AddEdit('Afastar do plano (mm)', CadFmt(G.Offset)), 'offset');
+  ckGRev := AddCheck('Inverter lado', G.Reverse);
+  ckGMerge := AddCheck('Mesclar resultado', G.Merge);
+  Section('Medidas');
+  lbInfo := NewLabel('');
+  lbInfo.WordWrap := True;
+  lbInfo.Width := 220;
+  lbInfo.AutoSize := True;
+  ReadGear(G);
+end;
+
+procedure TCadPropManager.ReadGear(G: TCadGear);
+var
+  V: Double;
+  N: Integer;
+begin
+  G.Spec.Kind := TCadGearKind(Max(0, cbGKind.ItemIndex));
+  G.Spec.Teeth := TCadGearTeeth(Max(0, cbGTeeth.ItemIndex));
+  if Num(edGMod, V) then G.Spec.Module := V;
+  if TryStrToInt(Trim(edGCount.Text), N) then
+  begin
+    G.Spec.Count := N;
+    edGCount.Color := clWindow;
+  end
+  else if Num(edGCount, V) then
+    G.Spec.Count := Round(V);
+  if Num(edGPress, V) then G.Spec.Pressure := V;
+  if Num(edGHelix, V) then G.Spec.Helix := V;
+  G.Spec.LeftHand := ckGLeft.Checked;
+  if Num(edGWidth, V) then G.Spec.Width := V;
+  if Num(edGShift, V) then G.Spec.Shift := V;
+  if Num(edGBack, V) then G.Spec.Backlash := V;
+  if Num(edGBore, V) then G.Spec.Bore := V;
+  if Num(edGKeyW, V) then G.Spec.KeyWidth := V;
+  if Num(edGKeyD, V) then G.Spec.KeyDepth := V;
+  if Num(edGOuter, V) then G.Spec.OuterD := V;
+  if Num(edGRackH, V) then G.Spec.RackHeight := V;
+  G.PlaneRef := Trim(edGPlane.Text);
+  G.CenterRef := Trim(edGCenter.Text);
+  if Num(edGAngle, V) then G.Angle := V;
+  if Num(edGOff, V) then G.Offset := V;
+  G.Reverse := ckGRev.Checked;
+  G.Merge := ckGMerge.Checked;
+  edGHelix.Enabled := G.Spec.Teeth <> gtStraight;
+  ckGLeft.Enabled := G.Spec.Teeth <> gtStraight;
+  edGShift.Enabled := G.Spec.Kind = gkExternal;
+  edGBore.Enabled := G.Spec.Kind = gkExternal;
+  edGKeyW.Enabled := G.Spec.Kind = gkExternal;
+  edGKeyD.Enabled := (G.Spec.Kind = gkExternal) and (G.Spec.KeyWidth > 0);
+  edGOuter.Enabled := G.Spec.Kind = gkInternal;
+  edGRackH.Enabled := G.Spec.Kind = gkRack;
+  UpdateGearInfo(G);
+end;
+
+procedure TCadPropManager.UpdateGearInfo(G: TCadGear);
+var
+  I: TCadGearInfo;
+  S: string;
+
+  function F(V: Double): string;
+  begin
+    Result := FormatFloat('0.###', V);
+  end;
+
+begin
+  if lbInfo = nil then
+    Exit;
+  I := CadGearInfo(G.Spec);
+  case G.Spec.Kind of
+    gkRack:
+      S := 'Passo ' + F(I.CircPitch) + ' mm, comprimento ' + F(I.RackLength) + ' mm.' +
+        LineEnding + 'Engrena com externa de mesmo módulo e ângulo de pressão; ' +
+        'linha primitiva a d/2 do centro do pinhão.';
+    gkInternal:
+      S := 'Ø primitivo ' + F(I.PitchD) + ', Ø cabeça ' + F(I.TipD) + ', Ø pé ' + F(I.RootD) +
+        ' mm.' + LineEnding + 'Pinhão de z dentes: centros a m(' + IntToStr(G.Spec.Count) +
+        ' − z)/2. Use pelo menos 12 dentes a menos no pinhão.';
+  else
+    S := 'Ø primitivo ' + F(I.PitchD) + ', Ø externo ' + F(I.TipD) + ', Ø pé ' + F(I.RootD) +
+      ', Ø base ' + F(I.BaseD) + ' mm.' + LineEnding + 'Par com z2 dentes: centros a m(' +
+      IntToStr(G.Spec.Count) + ' + z2)/2.';
+  end;
+  if (G.Spec.Teeth <> gtStraight) and (G.Spec.Kind <> gkRack) then
+    S := S + LineEnding + 'Giro dos dentes: ' + F(I.TwistDeg) + '°. O par usa hélices opostas ' +
+      '(interna: a mesma mão).';
+  if (G.Spec.Kind = gkExternal) and I.Undercut then
+    S := S + LineEnding + 'Menos de ' + IntToStr(I.MinTeeth) + ' dentes: aumente a correção x.';
+  lbInfo.Caption := S;
+end;
+
+procedure TCadPropManager.RefreshInfo;
+begin
+  if lbInfo = nil then
+    Exit;
+  if FFeature is TCadModelThread then
+  begin
+    if TCadModelThread(FFeature).Summary <> '' then
+      lbInfo.Caption := 'Rosca ' + TCadModelThread(FFeature).Summary
+    else
+      lbInfo.Caption := '';
+  end
+  else if FFeature is TCadGear then
+    UpdateGearInfo(TCadGear(FFeature));
+end;
+
 { ---------- plano ---------- }
 
 procedure TCadPropManager.BuildPlane(P: TCadPlane);
@@ -851,8 +1156,8 @@ begin
     edRef[I] := AddRef(Format('Referência %d', [I + 1]), S);
   end;
   Section('Valores');
-  edDist := AddEdit('Distância (mm)', CadFmt(P.Distance));
-  edPlaneAngle := AddEdit('Ângulo (°)', CadFmt(P.Angle));
+  edDist := KeyEdit(AddEdit('Distância (mm)', CadFmt(P.Distance)), 'distance');
+  edPlaneAngle := KeyEdit(AddEdit('Ângulo (°)', CadFmt(P.Angle)), 'angle');
   ckPlaneFlip := AddCheck('Inverter', P.Flip);
   edCount := AddEdit('Número de planos', IntToStr(Max(1, P.Count)));
   SetActiveRef(edRef[0]);
@@ -924,12 +1229,12 @@ begin
   cbHoleSize := AddCombo('Tamanho do parafuso', Sizes, Sel);
   cbHoleFit := AddCombo('Ajuste (ISO 273)', Fits, Ord(H.Fit));
   ckHoleFine := AddCheck('Passo fino', H.FinePitch);
-  edHoleDia := AddEdit('Diâmetro (furo simples, mm)', CadFmt(H.Diameter));
+  edHoleDia := KeyEdit(AddEdit('Diâmetro (furo simples, mm)', CadFmt(H.Diameter)), 'diameter');
   Section('Condição final');
   cbHoleEnd := AddCombo('', Ends, Ord(H.EndCond));
-  edHoleDepth := AddEdit('Profundidade (mm)', CadFmt(H.Depth));
+  edHoleDepth := KeyEdit(AddEdit('Profundidade (mm)', CadFmt(H.Depth)), 'depth');
   ckHoleTip := AddCheck('Ponta de broca 118°', H.DrillTip);
-  edThreadLen := AddEdit('Comprimento da rosca (0 = todo)', CadFmt(H.ThreadDepth));
+  edThreadLen := KeyEdit(AddEdit('Comprimento da rosca (0 = todo)', CadFmt(H.ThreadDepth)), 'thread_depth');
   ckHoleRev := AddCheck('Inverter direção', H.Reverse);
   Section('Resultado');
   lbHoleInfo := NewLabel(H.Description);
@@ -997,13 +1302,13 @@ begin
     L := TCadLinearPattern(P);
     Section('Direção 1');
     edDirA := AddRef('x, y, z, linha, eixo ou face plana', L.Dir1);
-    edSpacA := AddEdit('Espaçamento (mm)', CadFmt(L.Spacing1));
+    edSpacA := KeyEdit(AddEdit('Espaçamento (mm)', CadFmt(L.Spacing1)), 'spacing1');
     edCountA := AddEdit('Número de cópias (com a original)', IntToStr(L.Count1));
     ckRevA := AddCheck('Inverter direção', L.Reverse1);
     Section('Direção 2');
     ckUseB := AddCheck('Direção 2', L.UseDir2);
     edDirB := AddRef('x, y, z, linha, eixo ou face plana', L.Dir2);
-    edSpacB := AddEdit('Espaçamento (mm)', CadFmt(L.Spacing2));
+    edSpacB := KeyEdit(AddEdit('Espaçamento (mm)', CadFmt(L.Spacing2)), 'spacing2');
     edCountB := AddEdit('Número de cópias', IntToStr(L.Count2));
     ckRevB := AddCheck('Inverter direção', L.Reverse2);
   end
@@ -1015,7 +1320,7 @@ begin
     ckRevA := AddCheck('Inverter sentido', C.Reverse);
     Section('Cópias');
     edCountA := AddEdit('Número de cópias (com a original)', IntToStr(C.Count));
-    edPatAngle := AddEdit('Ângulo (°)', CadFmt(C.Angle));
+    edPatAngle := KeyEdit(AddEdit('Ângulo (°)', CadFmt(C.Angle)), 'angle');
     ckEqual := AddCheck('Espaçamento igual (ângulo = total)', C.EqualSpacing);
   end
   else if P is TCadMirror then
@@ -1104,7 +1409,11 @@ begin
     else if FFeature is TCadPatternBase then
       ReadPattern(TCadPatternBase(FFeature))
     else if (FFeature is TCadBlendBase) or (FFeature is TCadShell) then
-      ReadBlend(FFeature);
+      ReadBlend(FFeature)
+    else if FFeature is TCadModelThread then
+      ReadThread(TCadModelThread(FFeature))
+    else if FFeature is TCadGear then
+      ReadGear(TCadGear(FFeature));
   finally
     FUpdating := False;
   end;

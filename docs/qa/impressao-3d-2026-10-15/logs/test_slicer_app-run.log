@@ -1,0 +1,9 @@
+  malha de 199712 triangulos: abrir + primeiro quadro 1812 ms
+  quadro completo: 172 ms
+  1o quadro ao girar (monta a malha reduzida): 328 ms
+  quadros seguintes ao girar: 16 ms
+  cancelar o fatiamento: 438 ms
+  Fino 149 camadas 1443 s | Normal 75 camadas 628 s | Rascunho 50 camadas 312 s
+  previa 3D: 84 camadas, quadro completo 78 ms
+  previa 3D girando: 31 ms
+MultiSlicer GUI: OK (suite UI, centering, validation, profiles, start/end G-code, persistence, 3D scene, picking, transform panel, undo, labels, quality profiles, supports, pillars, blockers, brim, raft, layers, export, 3D preview, threaded slicing, project, mesh check, drag and drop, equipment)

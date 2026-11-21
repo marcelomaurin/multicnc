@@ -505,7 +505,7 @@ Cabeçalhos como **; LaserArt -> MultiCNC** e **; ... -> MultiCNC (CNC Router)**
 
 Use o simulador local para praticar abertura, análise, execução e pausa.
 
-1. Crie em um editor um arquivo chamado quadrado.nc com o exemplo abaixo.
+1. Use o arquivo pronto `models/multicnc/quadrado.nc` (na instalação, `documentation\models\multicnc\quadrado.nc`) ou crie em um editor um arquivo chamado quadrado.nc com o exemplo abaixo.
 2. Em Config, selecione CNC Router, GRBL e Simulador local.
 3. Abra quadrado.nc. Em Trajetoria e analise, confira XY e os limites: X10..50 e Y10..40 no contorno.
 4. Clique Connect Device e Start. Confira o Console e os comandos confirmados.

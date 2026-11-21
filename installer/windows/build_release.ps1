@@ -1,11 +1,11 @@
 param(
   [string]$Version = $env:VERSION,
-  [ValidatePattern('^\d{3}$')][string]$SetupSeq = '009',
+  [ValidatePattern('^\d{3}$')][string]$SetupSeq = '019',
   [switch]$AllowDirty,
   [switch]$SkipBinUpdate
 )
 $ErrorActionPreference = 'Stop'
-if (-not $Version) { $Version = '0.09' }
+if (-not $Version) { $Version = '0.19' }
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 Set-Location -LiteralPath $root
 $dist = Join-Path $root 'dist'
@@ -20,7 +20,8 @@ function FindTool($EnvName, $Name, $Fallbacks) {
   throw "Ferramenta ausente: $Name. Configure $EnvName."
 }
 $env:LAZBUILD = FindTool 'LAZBUILD' 'lazbuild' @('C:\lazarus\lazbuild.exe')
-$env:FPC = FindTool 'FPC' 'fpc' @('C:\lazarus\fpc\3.2.2\bin\x86_64-win64\fpc.exe')
+$env:FPC = FindTool 'FPC' 'fpc' @('C:\lazarus\fpc\3.2.2\bin\x86_64-win64\fpc.exe', 'C:\lazarus\fpc\3.2.2\bin\i386-win32\fpc.exe')
+if (-not $env:MULTICNC_TEST_FLAGS) { $env:MULTICNC_TEST_FLAGS = '-Px86_64 -Twin64' }
 $python = FindTool 'PYTHON' 'python' @("$env:LOCALAPPDATA\Programs\Python\Python313\python.exe")
 $pf86 = [Environment]::GetFolderPath('ProgramFilesX86')
 $iscc = FindTool 'ISCC' 'iscc' @("$env:ProgramFiles\Inno Setup 7\ISCC.exe", "$pf86\Inno Setup 6\ISCC.exe")
@@ -42,6 +43,7 @@ foreach ($folder in @('pacote\AI', 'pacote\AI Input\AISerial', 'pacote\AI Simula
 }
 [IO.File]::WriteAllLines($config, $flags)
 $targets = @(
+ @('multiproject\src\app\multiproject','multiproject'),
  @('multicad\src\app\multicad','multicad'),
  @('multiassembly\src\app\multiassembly','multiassembly'),
  @('multiphysics\src\app\multiphysics','multiphysics'),
@@ -59,7 +61,7 @@ $targets = @(
 foreach ($target in $targets) {
   Write-Host "Compilando $($target[1])..."
   $log = Join-Path $dist ("build-logs\" + $target[1] + '.log')
-  & $env:LAZBUILD '--ws=win32' "--compiler=$env:FPC" "--opt=@$config" '--build-mode=Default' ($target[0]+'.lpi') *> $log
+  & $env:LAZBUILD '--cpu=x86_64' '--os=win64' '--ws=win32' "--compiler=$env:FPC" "--opt=@$config" '--build-mode=Default' ($target[0]+'.lpi') *> $log
   if ($LASTEXITCODE -ne 0) { Get-Content -LiteralPath $log -Tail 35; throw "Falha ao compilar $($target[1])" }
   Copy-Item -LiteralPath ($target[0]+'.exe') -Destination (Join-Path $app ($target[1]+'.exe')) -Force
 }
@@ -67,7 +69,20 @@ foreach ($target in $targets) {
 $occt = Join-Path $root 'bin\mcad_occt.dll'
 if (-not (Test-Path -LiteralPath $occt)) { throw 'DLL obrigatoria ausente: bin\mcad_occt.dll. O setup nao pode ser gerado sem o nucleo do MultiCAD.' }
 Copy-Item -LiteralPath $occt -Destination (Join-Path $app 'mcad_occt.dll') -Force
-$strip = Join-Path (Split-Path $env:FPC) 'strip.exe'
+# biblioteca de componentes 3D do MultiAssembly (models\components\mec)
+$library = Join-Path $root 'models\components\mec'
+if (-not (Test-Path -LiteralPath $library)) { throw 'Biblioteca ausente: models\components\mec.' }
+$libraryDest = Join-Path $app 'models\components'
+New-Item -ItemType Directory -Force -Path $libraryDest | Out-Null
+Copy-Item -LiteralPath $library -Destination $libraryDest -Recurse -Force
+# Modelos do MultiProject acompanham o aplicativo, mesmo sem os manuais opcionais.
+$projectModels = Join-Path $root 'models\multiproject'
+if (-not (Test-Path -LiteralPath $projectModels)) { throw 'Modelos ausentes: models\multiproject.' }
+Copy-Item -LiteralPath $projectModels -Destination (Join-Path $app 'models') -Recurse -Force
+$strip = Join-Path (Split-Path $env:FPC) 'x86_64-win64-strip.exe'
+if (-not (Test-Path -LiteralPath $strip)) {
+  $strip = Join-Path (Split-Path $env:FPC) 'strip.exe'
+}
 if (Test-Path -LiteralPath $strip) {
   foreach ($exe in Get-ChildItem -LiteralPath $app -Filter '*.exe') {
     & $strip '--strip-debug' $exe.FullName
@@ -90,6 +105,11 @@ Copy-Item -LiteralPath (Join-Path $dist "$name.exe") -Destination $bin -Force
 $setup = Join-Path $root 'setup'
 New-Item -ItemType Directory -Force -Path $setup | Out-Null
 Copy-Item -LiteralPath (Join-Path $dist "$name.exe") -Destination $setup -Force
+# Alias por versao para o nome de download publicado.
+$versionedName = "setup_multcnc_$Version.exe"
+foreach ($destination in @($dist, $bin, $setup)) {
+  Copy-Item -LiteralPath (Join-Path $dist "$name.exe") -Destination (Join-Path $destination $versionedName) -Force
+}
 $blocked = @()
 foreach ($target in $targets) {
   if ($SkipBinUpdate) { continue }
@@ -98,7 +118,12 @@ foreach ($target in $targets) {
 }
 $hash = (Get-FileHash -LiteralPath (Join-Path $dist "$name.exe") -Algorithm SHA256).Hash.ToLower()
 [IO.File]::WriteAllText((Join-Path $dist 'SHA256SUMS'), "$hash  $name.exe" + [Environment]::NewLine)
-Copy-Item -LiteralPath (Join-Path $dist 'SHA256SUMS') -Destination $setup -Force
+$checksumFile = Join-Path $setup 'SHA256SUMS'
+$previousChecksums = @()
+if (Test-Path -LiteralPath $checksumFile) {
+  $previousChecksums = @(Get-Content -LiteralPath $checksumFile | Where-Object { $_ -match '\S' -and $_ -notmatch ('  (' + [regex]::Escape($name + '.exe') + '|' + [regex]::Escape($versionedName) + ')$') })
+}
+@($previousChecksums; "$hash  $name.exe"; "$hash  $versionedName") | Set-Content -LiteralPath $checksumFile -Encoding ascii
 Copy-Item -LiteralPath (Join-Path $app 'build-manifest.json') -Destination (Join-Path $setup ('build-manifest-' + $SetupSeq + '.json')) -Force
 Copy-Item -LiteralPath (Join-Path $app 'qa-tests.json') -Destination (Join-Path $setup ('qa-tests-' + $SetupSeq + '.json')) -Force
 if ($blocked.Count) { throw "Setup gerado; executaveis de bin bloqueados: $($blocked -join ', ')" }

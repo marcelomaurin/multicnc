@@ -225,7 +225,7 @@ function TNewtonCircuit.AddNMOS(const Drain, Gate, Source: string; Vth, K, Lambd
 var E: TCktElement;
 begin
   E := Blank(ekNMOS); E.A := Node(Drain); E.B := Node(Gate); E.C := Node(Source);
-  E.Vth := Vth; E.K := K; E.Lambda := Max(0, Lambda);
+  E.Vth := Vth; E.K := K; E.Lambda := Max(0.0, Lambda);
   Result := AddElement(E);
 end;
 

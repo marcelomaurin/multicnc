@@ -27,7 +27,14 @@ type
     FRender: TMPRenderer;
     FOnPick: TMPPickEvent;
     FCols: Integer;
+    FGrouped: Boolean;
+    FTiles: array of TRect;
+    FHeadText: array of string;
+    FHeadTop: array of Integer;
+    FContentH: Integer;
     procedure Rebuild;
+    procedure Layout;
+    procedure SetGrouped(AValue: Boolean);
     procedure SetCategory(const AValue: string);
     procedure SetFilter(const AValue: string);
     procedure SetLib(AValue: TMPLibrary);
@@ -51,6 +58,8 @@ type
     property Lib: TMPLibrary read FLib write SetLib;
     property Category: string read FCategory write SetCategory;
     property Filter: string read FFilter write SetFilter;
+    { agrupa as miniaturas por categoria, com um titulo por grupo }
+    property Grouped: Boolean read FGrouped write SetGrouped;
     property SelectedFootprint: TMPFootprint read GetSelectedFootprint;
     property OnPick: TMPPickEvent read FOnPick write FOnPick;
   end;
@@ -62,6 +71,7 @@ uses multisuite_controls;
 const
   TILE_H = 104;
   GAP = 8;
+  HEAD_H = 26;
 
 constructor TMPGallery.Create(AOwner: TComponent);
 begin
@@ -104,11 +114,19 @@ begin
   Rebuild;
 end;
 
+procedure TMPGallery.SetGrouped(AValue: Boolean);
+begin
+  if FGrouped = AValue then Exit;
+  FGrouped := AValue;
+  Rebuild;
+end;
+
 procedure TMPGallery.Rebuild;
 var
-  I: Integer;
+  I, C: Integer;
   FP: TMPFootprint;
   F: string;
+  Found, Sorted: TList;
 begin
   FItems.Clear;
   FSelected := -1; FHot := -1;
@@ -122,26 +140,75 @@ begin
       if (F <> '') and (Pos(F, LowerCase(FP.Name + ' ' + FP.Description + ' ' + FP.DefaultValue)) = 0) then Continue;
       FItems.Add(FP);
     end;
+    { agrupado: reordena na ordem das categorias da biblioteca }
+    if FGrouped and (FCategory = '') then
+    begin
+      Found := TList.Create;
+      Sorted := TList.Create;
+      try
+        Found.Assign(FItems);
+        for C := 0 to FLib.Categories.Count - 1 do
+          for I := 0 to Found.Count - 1 do
+            if (Found[I] <> nil) and SameText(TMPFootprint(Found[I]).Category, FLib.Categories[C]) then
+            begin
+              Sorted.Add(Found[I]);
+              Found[I] := nil;
+            end;
+        for I := 0 to Found.Count - 1 do
+          if Found[I] <> nil then Sorted.Add(Found[I]);
+        FItems.Assign(Sorted);
+      finally
+        Sorted.Free;
+        Found.Free;
+      end;
+    end;
   end;
+  Layout;
   Height := NeededHeight;
   Invalidate;
 end;
 
+procedure TMPGallery.Layout;
+var
+  I, W, Col, Y, N: Integer;
+  Cat, Last: string;
+  Heads: Boolean;
+begin
+  W := (ClientWidth - GAP * (FCols + 1)) div FCols;
+  Heads := FGrouped and (FCategory = '');
+  SetLength(FTiles, FItems.Count);
+  SetLength(FHeadText, 0);
+  SetLength(FHeadTop, 0);
+  Col := 0; Y := GAP; Last := #0;
+  for I := 0 to FItems.Count - 1 do
+  begin
+    Cat := TMPFootprint(FItems[I]).Category;
+    if Heads and ((I = 0) or not SameText(Cat, Last)) then
+    begin
+      if Col > 0 then begin Col := 0; Inc(Y, TILE_H + GAP); end;
+      N := Length(FHeadText);
+      SetLength(FHeadText, N + 1); SetLength(FHeadTop, N + 1);
+      FHeadText[N] := Cat; FHeadTop[N] := Y;
+      Inc(Y, HEAD_H);
+      Last := Cat;
+    end;
+    FTiles[I] := Rect(GAP + Col * (W + GAP), Y, GAP + Col * (W + GAP) + W, Y + TILE_H);
+    Inc(Col);
+    if Col = FCols then begin Col := 0; Inc(Y, TILE_H + GAP); end;
+  end;
+  if Col > 0 then Inc(Y, TILE_H + GAP);
+  FContentH := Y;
+end;
+
 function TMPGallery.NeededHeight: Integer;
 begin
-  Result := GAP + ((FItems.Count + FCols - 1) div FCols) * (TILE_H + GAP);
-  Result := Max(Result, 40);
+  Result := Max(FContentH, 40);
 end;
 
 function TMPGallery.TileRect(I: Integer): TRect;
-var
-  W, C, R: Integer;
 begin
-  W := (ClientWidth - GAP * (FCols + 1)) div FCols;
-  C := I mod FCols; R := I div FCols;
-  Result := Rect(GAP + C * (W + GAP), GAP + R * (TILE_H + GAP), 0, 0);
-  Result.Right := Result.Left + W;
-  Result.Bottom := Result.Top + TILE_H;
+  if (I >= 0) and (I <= High(FTiles)) then Result := FTiles[I]
+  else Result := Rect(0, 0, 0, 0);
 end;
 
 function TMPGallery.IndexAt(X, Y: Integer): Integer;
@@ -182,6 +249,18 @@ begin
   Canvas.Brush.Color := clSuiteCard;
   Canvas.FillRect(ClientRect);
   Canvas.Font.Name := SUITE_FONT;
+  for I := 0 to High(FHeadText) do
+  begin
+    Canvas.Brush.Style := bsClear;
+    Canvas.Font.Size := 9;
+    Canvas.Font.Style := [fsBold];
+    Canvas.Font.Color := clSuiteMuted;
+    Canvas.TextOut(GAP, FHeadTop[I] + 3, UpperCase(FHeadText[I]));
+    Canvas.Pen.Width := 1;
+    Canvas.Pen.Color := clSuiteBorder;
+    Canvas.Line(GAP, FHeadTop[I] + HEAD_H - 5, ClientWidth - GAP, FHeadTop[I] + HEAD_H - 5);
+    Canvas.Brush.Style := bsSolid;
+  end;
   for I := 0 to FItems.Count - 1 do
   begin
     FP := TMPFootprint(FItems[I]);
@@ -231,6 +310,7 @@ end;
 procedure TMPGallery.Resize;
 begin
   inherited Resize;
+  Layout;
   Invalidate;
 end;
 

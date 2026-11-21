@@ -1,0 +1,39 @@
+{
+  "name": "Roda Mini V-Slot",
+  "model": "Mini V Wheel + 2x 625ZZ",
+  "category": "rodas_carros",
+  "kind": "ackBearing",
+  "material": "POM / rolamentos 625ZZ",
+  "color": 2236190,
+  "size": {
+    "x": 16.0,
+    "y": 16.0,
+    "z": 8.82
+  },
+  "ports": [
+    {
+      "name": "FURO_5MM",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "PISTA_V",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Roda mini em V Ø15,23 x 8,8 mm para carros compactos em perfis V-Slot.",
+  "standard": "OpenBuilds",
+  "mass_g": 6,
+  "specs": {
+    "D_mm": 15.23,
+    "largura_mm": 8.8,
+    "furo_mm": 5
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [8.0, 8.0, 0.01], "r": 6.105, "h": 1.936, "color": "#1E1F22", "r2": 7.615, "seg": 32},
+    {"type": "cyl", "axis": "z", "at": [8.0, 8.0, 1.946], "r": 7.615, "h": 4.928, "color": "#1E1F22", "seg": 32},
+    {"type": "cyl", "axis": "z", "at": [8.0, 8.0, 6.874], "r": 7.615, "h": 1.936, "color": "#1E1F22", "r2": 6.105, "seg": 32},
+    {"type": "cyl", "axis": "z", "at": [8.0, 8.0, 0.0], "r": 8.0, "h": 8.82, "color": "#DDE1E6", "ri": 2.5, "seg": 24}
+  ]
+}

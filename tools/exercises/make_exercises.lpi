@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+ <ProjectOptions>
+  <Version Value="12" />
+  <General>
+   <Title Value="MultiSuite Exercicios" />
+  </General>
+  <BuildModes Count="1">
+   <Item1 Name="Default" Default="True" />
+  </BuildModes>
+  <RequiredPackages Count="1">
+   <Item1>
+    <PackageName Value="LCL" />
+   </Item1>
+  </RequiredPackages>
+  <Units Count="1">
+   <Unit0>
+    <Filename Value="make_exercises.lpr" />
+    <IsPartOfProject Value="True" />
+   </Unit0>
+  </Units>
+ </ProjectOptions>
+ <CompilerOptions>
+  <Version Value="11" />
+  <Target>
+   <Filename Value="make_exercises" />
+  </Target>
+  <SearchPaths>
+   <OtherUnitFiles Value="../../laserart/src/core;../../laserart/src/ui;../../makepcb/src/core;../../makepcb/src/export;../../makepcb/src/route;../../makerouter/src/core;../../makerouter/src/geom;../../makerouter/src/cam;../../multicad/src/core;../../multicad/src/sketch;../../multicad/src/features;../../multicad/src/kernel;../../multiassembly/src/core;../../laserpcb/src/geom;../../laserpcb/src/core;../../laserpcb/src/import;../../laserpcb/src/cam;../../laserpcb/src/drill;../../laserpcb/src/export;../../laserpcb/src/layout;../../laserpcb/src/camera;../../routerpcb/src/core;../../routerpcb/src/cam;../../routerpcb/src/level;../../routerpcb/src/export;../../src/core;../../laserart/src/app;../../src/shared;../../src/shared/clipper2;../../multisuite/src/core" />
+   <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)" />
+  </SearchPaths>
+  <Parsing>
+   <SyntaxOptions>
+    <SyntaxMode Value="ObjFPC" />
+   </SyntaxOptions>
+  </Parsing>
+  <Linking>
+   <Options>
+    <Win32>
+     <GraphicApplication Value="False" />
+    </Win32>
+   </Options>
+  </Linking>
+ </CompilerOptions>
+</CONFIG>

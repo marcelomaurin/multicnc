@@ -1,25 +1,2885 @@
 unit multiphysics_main;
+
+{ MultiPhysics - simulacao fisica da montagem, no padrao visual da suite
+  (MultiAssembly / MakeRouter): cabecalho, etapas a esquerda, painel de
+  propriedades a direita, vista 3D ou grafico no centro e log embaixo.
+
+  Etapas: Montagem, Materiais, Cargas e fixacoes, Malha, Resolver,
+  Resultados (FEM proprio, ver multiphysics_analysis) e Sistema, Maquina
+  CNC, Circuito, Ambiente (modelos reduzidos, sempre ESTIMATIVA). }
+
 {$mode objfpc}{$H+}
+
 interface
-uses multisuite_numfmt, Classes,SysUtils,Forms,Controls,StdCtrls,ComCtrls,ExtCtrls,multiphysics_types,multiphysics_project,multiphysics_materials,multiphysics_solver,multiphysics_environment,multiphysics_scenario,multiphysics_vector,multiphysics_rigidbody,multiphysics_buoyancy,multiphysics_runtime,multiphysics_runtime_types,multiphysics_graph,multiphysics_graph_runtime,multiphysics_machine_runtime,multiphysics_machine_instruments;
-type TMultiPhysicsForm=class(TForm)
- private Machine:TMachineRuntime;P:TPhysicsProject;Graph:TSimulationGraph;GraphRuntime:TGraphRuntime;Runtime:TSimulationRuntime;RuntimeTimer:TTimer;Scenario:TSimulationScenario;Tree:TTreeView;Log:TMemo;Props:TPanel;EnvBox:TComboBox;FlowEdit,AreaEdit,VolumeEdit,CdEdit:TEdit;procedure MachineDemo(Sender:TObject);procedure MachineCommand(Sender:TObject);procedure Demo(Sender:TObject);procedure Analyze(Sender:TObject);procedure FloatTest(Sender:TObject);procedure LoadMachine(Sender:TObject);procedure RuntimeStart(Sender:TObject);procedure RuntimePause(Sender:TObject);procedure RuntimeStop(Sender:TObject);procedure RuntimeTick(Sender:TObject);procedure EnvironmentChanged(Sender:TObject);procedure Estimate(Sender:TObject);procedure RefreshTree;
- public constructor Create(AOwner:TComponent);override;destructor Destroy;override;
- end;
+
+uses
+  Classes, SysUtils, Math, StrUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, ExtCtrls,
+  ComCtrls, Spin, LCLType, IniFiles, multisuite_numfmt, multisuite_controls, multisuite_icons,
+  multisuite_context, multiphysics_types, multiphysics_materials, multiphysics_vector,
+  multiphysics_geometry, multiphysics_mesh, multiphysics_project, multiphysics_analysis,
+  multiphysics_scenario, multiphysics_environment, multiphysics_rigidbody,
+  multiphysics_buoyancy, multiphysics_runtime, multiphysics_runtime_types,
+  multiphysics_graph, multiphysics_graph_runtime, multiphysics_machine_runtime,
+  multiphysics_machine_faults, multiphysics_netlist, multiphysics_units,
+  multiphysics_view3d, multiphysics_chart, multiphysics_assembly_import, multiphysics_coupling,
+  multiphysics_sparse, DateUtils, multiphysics_hydro, multiphysics_history,
+  multiphysics_stl, multiphysics_ccx, Process;
+
+const
+  STEP_COUNT = 10;
+
+type
+  { resolve em segundo plano: a janela continua respondendo e pode cancelar }
+  TSolveThread = class(TThread)
+  private
+    FRun: TAnalysisRun;
+    FKind: TAnalysisKind;
+  public
+    Ok: Boolean;
+    constructor Create(ARun: TAnalysisRun; AKind: TAnalysisKind);
+    procedure Execute; override;
+  end;
+
+  TMultiPhysicsForm = class(TForm)
+  private
+    SolveThread: TSolveThread;
+    SolveTimer: TTimer;
+    SolveKind: TAnalysisKind;
+    SolveStart: TDateTime;
+    FooterSolveBtn, PageSolveBtn: TSuiteButton;
+    P: TPhysicsProject;
+    History: TPhysicsHistory;
+    HistoryLoading: Boolean;
+    SavedState: string;
+    UndoButton, RedoButton: TSuiteButton;
+    STLPreview: TFEMMesh;
+    ManagerProcess: TProcess;
+    ManagerTimer: TTimer;
+    ManagerOutput: string;
+    procedure RecordHistory;
+    procedure ResetHistory;
+    procedure UndoClick(Sender: TObject);
+    procedure RedoClick(Sender: TObject);
+    procedure RestoreHistory(const State: string);
+    procedure SettingsChange(Sender: TObject);
+    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure InspectSTLClick(Sender: TObject);
+    procedure InspectSTLFile(const FN: string);
+    procedure ManageCCXClick(Sender: TObject);
+    procedure ManagerTick(Sender: TObject);
+  private
+    Run: TAnalysisRun;
+    HasResult: Boolean;
+    FUpdating: Boolean;
+    FStep: Integer;
+    { estrutura }
+    Header: TSuiteHeader;
+    Badge: TSuiteBadge;
+    Footer, Sidebar, Work, ViewBar: TPanel;
+    StatusLabel, InfoLabel: TLabel;
+    Nav: array[0..STEP_COUNT - 1] of TSuiteButton;
+    Tree: TTreeView;
+    Pages: TPageControl;
+    View: TPhysicsView3D;
+    Chart: TPhysicsChart;
+    Log: TMemo;
+    { 1 montagem }
+    EdProjectName: TEdit;
+    CbPrimKind, CbAxis: TComboBox;
+    EdPartID: TEdit;
+    EdDim: array[0..3] of TFloatSpinEdit;
+    LbDim: array[0..3] of TLabel;
+    LbParts: TListBox;
+    EdPos, EdRot: array[0..2] of TFloatSpinEdit;
+    CkSuppressed: TCheckBox;
+    LbContacts: TListBox;
+    { 2 materiais }
+    LbMatParts: TListBox;
+    CbMaterial: TComboBox;
+    EdE, EdNu, EdRho, EdK, EdAlpha, EdYield: TFloatSpinEdit;
+    { 3 cargas }
+    LbBCs: TListBox;
+    EdBCName: TEdit;
+    CbBCKind, CbBCPart, CbBCFace: TComboBox;
+    EdVec: array[0..2] of TFloatSpinEdit;
+    EdVal1, EdVal2: TFloatSpinEdit;
+    LbVecUnit, LbVal1, LbVal2: TLabel;
+    CkDof: array[0..2] of TCheckBox;
+    { 4 malha }
+    EdMeshSize: TFloatSpinEdit;
+    CkQuadratic, CkConvergence: TCheckBox;
+    LbMeshInfo: TLabel;
+    { 5 resolver }
+    CbAnalysis, CbSolver: TComboBox;
+    EdModes: TSpinEdit;
+    EdCCX: TEdit;
+    { 6 resultados }
+    CbField: TComboBox;
+    EdScale: TFloatSpinEdit;
+    CkAnimate, CkDeformed: TCheckBox;
+    LbSummary: TLabel;
+    { 7 sistema }
+    Graph: TSimulationGraph;
+    GraphRuntime: TGraphRuntime;
+    Runtime: TSimulationRuntime;
+    RuntimeTimer: TTimer;
+    LbRuntime: TLabel;
+    { 8 maquina }
+    Machine: TMachineRuntime;
+    EdTarget: array[0..2] of TFloatSpinEdit;
+    EdFeed: TFloatSpinEdit;
+    CbFault, CbFaultAxis: TComboBox;
+    LbMachine: TLabel;
+    { 9 circuito }
+    MmNetlist: TMemo;
+    { 10 ambiente }
+    Scenario: TSimulationScenario;
+    CbEnv: TComboBox;
+    EdFlow, EdArea, EdVolume, EdCd, EdMass, EdAltitude: TFloatSpinEdit;
+    SoundSpeed: Double;
+
+    function Btn(AParent: TWinControl; const AText: string; X, Y, W, H: Integer;
+      AIcon: TSuiteIconKind; Handler: TNotifyEvent): TSuiteButton;
+    function Lbl(AParent: TWinControl; const AText: string; X, Y, W, H: Integer): TLabel;
+    function Num(AParent: TWinControl; const ACaption: string; X, Y, W: Integer;
+      AMin, AMax, AValue: Double; ADec: Integer): TFloatSpinEdit;
+    function Combo(AParent: TWinControl; const ACaption: string; X, Y, W: Integer): TComboBox;
+    procedure BuildPages;
+    procedure BuildAssemblyPage(S: TScrollBox);
+    procedure BuildMaterialsPage(S: TScrollBox);
+    procedure BuildLoadsPage(S: TScrollBox);
+    procedure BuildMeshPage(S: TScrollBox);
+    procedure BuildSolvePage(S: TScrollBox);
+    procedure BuildResultsPage(S: TScrollBox);
+    procedure BuildSystemPage(S: TScrollBox);
+    procedure BuildMachinePage(S: TScrollBox);
+    procedure BuildCircuitPage(S: TScrollBox);
+    procedure BuildEnvironmentPage(S: TScrollBox);
+    procedure ShowStep(I: Integer);
+    procedure SetStatus(const S: string);
+    procedure RefreshAll;
+    procedure RefreshTree;
+    procedure RefreshPartLists;
+    procedure RefreshBCList;
+    procedure RefreshFaceCombo;
+    procedure UpdateBCUnits;
+    procedure UpdatePrimLabels;
+    procedure ShowMarks;
+    procedure ShowResultField;
+    procedure ApplySettingsFromUI;
+    function SelectedPart: TPhysicsPart;
+    function BCFromUI(out B: TBoundaryCondition): Boolean;
+    procedure LoadProjectFile(const FN: string);
+    { eventos }
+    procedure NavClick(Sender: TObject);
+    procedure NewClick(Sender: TObject);
+    procedure OpenClick(Sender: TObject);
+    procedure SaveClick(Sender: TObject);
+    procedure DemoClick(Sender: TObject);
+    procedure ProjectNameChange(Sender: TObject);
+    procedure PrimKindChange(Sender: TObject);
+    procedure AddPartClick(Sender: TObject);
+    procedure PartListClick(Sender: TObject);
+    procedure ApplyPartClick(Sender: TObject);
+    procedure DeletePartClick(Sender: TObject);
+    procedure ImportAssemblyClick(Sender: TObject);
+    procedure ImportAssemblyFile(const FN: string);
+    procedure DetectContactsClick(Sender: TObject);
+    procedure DeleteContactClick(Sender: TObject);
+    procedure RefreshContacts;
+    procedure MatPartListClick(Sender: TObject);
+    procedure MaterialChange(Sender: TObject);
+    procedure ApplyMaterialClick(Sender: TObject);
+    procedure ApplyMaterialAllClick(Sender: TObject);
+    procedure BCKindChange(Sender: TObject);
+    procedure BCPartChange(Sender: TObject);
+    procedure BCListClick(Sender: TObject);
+    procedure AddBCClick(Sender: TObject);
+    procedure UpdateBCClick(Sender: TObject);
+    procedure DeleteBCClick(Sender: TObject);
+    procedure ViewPickFace(Sender: TObject; FaceTag: Integer; const TagName: string);
+    procedure MeshClick(Sender: TObject);
+    procedure SolveClick(Sender: TObject);
+    function PrepareSolve(out K: TAnalysisKind): Boolean;
+    procedure SolveSync;
+    procedure FinishSolve(K: TAnalysisKind; Ok: Boolean);
+    procedure SolveTimerTick(Sender: TObject);
+    procedure SetBusy(Busy: Boolean);
+    procedure BrowseCCXClick(Sender: TObject);
+    procedure SaveConfig;
+    procedure LoadConfig;
+    procedure FieldChange(Sender: TObject);
+    procedure ExportCSVClick(Sender: TObject);
+    procedure ReportClick(Sender: TObject);
+    procedure ExportVTKClick(Sender: TObject);
+    procedure ViewFitClick(Sender: TObject);
+    procedure ViewDirClick(Sender: TObject);
+    procedure LoadMachineClick(Sender: TObject);
+    procedure RuntimeStartClick(Sender: TObject);
+    procedure RuntimePauseClick(Sender: TObject);
+    procedure RuntimeStopClick(Sender: TObject);
+    procedure RuntimeTick(Sender: TObject);
+    procedure ChartCSVClick(Sender: TObject);
+    procedure MachineCreateClick(Sender: TObject);
+    procedure MachineMoveClick(Sender: TObject);
+    procedure MachineFaultClick(Sender: TObject);
+    procedure MachineHomeClick(Sender: TObject);
+    procedure MachineClearFaultsClick(Sender: TObject);
+    procedure RuntimeToFEMClick(Sender: TObject);
+    procedure CircuitSolveClick(Sender: TObject);
+    procedure EnvChange(Sender: TObject);
+    procedure EstimateClick(Sender: TObject);
+    procedure FloatTestClick(Sender: TObject);
+    procedure ISAClick(Sender: TObject);
+    procedure AssemblyFlotationClick(Sender: TObject);
+    procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+    procedure CaptureTick(Sender: TObject);
+    procedure HeaderResize(Sender: TObject);
+    procedure SetBadge(const ACaption: string; AColor: TColor);
+  public
+    procedure ApplySuiteContext(const Ctx: TSuiteContext);
+    constructor Create(AOwner: TComponent); override;
+    destructor Destroy; override;
+  end;
+
 implementation
-constructor TMultiPhysicsForm.Create(AOwner:TComponent);var B:TButton;begin inherited;Caption:='MultiPhysics - Simulacao Fisica da Montagem';Width:=1200;Height:=760;P:=TPhysicsProject.Create;Machine:=TMachineRuntime.Create;Graph:=nil;GraphRuntime:=nil;Runtime:=TSimulationRuntime.Create;RuntimeTimer:=TTimer.Create(Self);RuntimeTimer.Enabled:=False;RuntimeTimer.Interval:=20;RuntimeTimer.OnTimer:=@RuntimeTick;Scenario:=MarineScenario;EnvBox:=TComboBox.Create(Self);EnvBox.Parent:=Self;EnvBox.Align:=alTop;EnvBox.Items.Add('Ar');EnvBox.Items.Add('Agua');EnvBox.Items.Add('Vacuo');EnvBox.ItemIndex:=1;EnvBox.OnChange:=@EnvironmentChanged;FlowEdit:=TEdit.Create(Self);FlowEdit.Parent:=Self;FlowEdit.Align:=alTop;FlowEdit.Text:='2';FlowEdit.Hint:='Velocidade do fluido m/s';FlowEdit.ShowHint:=True;AreaEdit:=TEdit.Create(Self);AreaEdit.Parent:=Self;AreaEdit.Align:=alTop;AreaEdit.Text:='1';AreaEdit.Hint:='Area de referencia m2';AreaEdit.ShowHint:=True;VolumeEdit:=TEdit.Create(Self);VolumeEdit.Parent:=Self;VolumeEdit.Align:=alTop;VolumeEdit.Text:='0.1';VolumeEdit.Hint:='Volume deslocado m3';VolumeEdit.ShowHint:=True;CdEdit:=TEdit.Create(Self);CdEdit.Parent:=Self;CdEdit.Align:=alTop;CdEdit.Text:='0.8';CdEdit.Hint:='Coeficiente de arrasto';CdEdit.ShowHint:=True;B:=TButton.Create(Self);B.Parent:=Self;B.Align:=alTop;B.Caption:='Estimar ambiente / fluido';B.OnClick:=@Estimate;B:=TButton.Create(Self);B.Parent:=Self;B.Align:=alTop;B.Caption:='Teste preliminar de flutuacao';B.OnClick:=@FloatTest;B:=TButton.Create(Self);B.Parent:=Self;B.Align:=alTop;B.Caption:='CNC XYZ + SPINDLE';B.OnClick:=@MachineDemo;B:=TButton.Create(Self);B.Parent:=Self;B.Align:=alTop;B.Caption:='COMANDO X=100 Y=50 Z=20';B.OnClick:=@MachineCommand;B:=TButton.Create(Self);B.Parent:=Self;B.Align:=alTop;B.Caption:='DESLIGAR SIMULACAO';B.OnClick:=@RuntimeStop;B:=TButton.Create(Self);B.Parent:=Self;B.Align:=alTop;B.Caption:='PAUSAR SIMULACAO';B.OnClick:=@RuntimePause;B:=TButton.Create(Self);B.Parent:=Self;B.Align:=alTop;B.Caption:='CARREGAR MAQUINA EXECUTAVEL';B.OnClick:=@LoadMachine;B:=TButton.Create(Self);B.Parent:=Self;B.Align:=alTop;B.Caption:='LIGAR SIMULACAO';B.OnClick:=@RuntimeStart;B:=TButton.Create(Self);B.Parent:=Self;B.Align:=alTop;B.Caption:='Carregar demonstracao mecanica/termica';B.OnClick:=@Demo;B:=TButton.Create(Self);B.Parent:=Self;B.Align:=alTop;B.Caption:='Preparar analise FEM';B.OnClick:=@Analyze;Tree:=TTreeView.Create(Self);Tree.Parent:=Self;Tree.Align:=alLeft;Tree.Width:=340;Log:=TMemo.Create(Self);Log.Parent:=Self;Log.Align:=alClient;Log.ScrollBars:=ssAutoBoth;Log.Lines.Add('MultiPhysics: estrutural + termica + vibracao + contato + arrasto.');end;
-destructor TMultiPhysicsForm.Destroy;begin GraphRuntime.Free;Graph.Free;Runtime.Free;Machine.Free;P.Free;inherited;end;
-procedure TMultiPhysicsForm.MachineDemo(Sender:TObject);begin Machine.Clear;Machine.AddAxis('X',0,300,80,1.2);Machine.AddAxis('Y',0,200,80,1.2);Machine.AddAxis('Z',0,100,400,1.5);Machine.SetSpindle(12000);Machine.Start;Log.Lines.Add('CNC virtual XYZ energizada; spindle alvo 12000 RPM.');end;
-procedure TMultiPhysicsForm.MachineCommand(Sender:TObject);var I:Integer;begin if Machine.AxisCount=0 then MachineDemo(Sender);Machine.CommandAxis('X',100,50);Machine.CommandAxis('Y',50,40);Machine.CommandAxis('Z',20,10);for I:=1 to 5000 do Machine.Step;SampleMachine(Machine,Log.Lines);if Machine.TripReason<>'' then Log.Lines.Add('TRIP: '+Machine.TripReason);end;
-procedure TMultiPhysicsForm.LoadMachine(Sender:TObject);var I:Integer;C:TSimComponent;R,N:TTreeNode;begin GraphRuntime.Free;GraphRuntime:=nil;Graph.Free;Graph:=BuildDemoMachine;GraphRuntime:=TGraphRuntime.Create(Graph,Log.Lines);R:=Tree.Items.Add(nil,'Maquina executavel');for I:=0 to Graph.ComponentCount-1 do begin C:=Graph.ComponentAt(I);N:=Tree.Items.AddChild(R,C.ID+' - '+C.Name);Tree.Items.AddChild(N,'Dominio='+IntToStr(Ord(C.Domain)));end;Tree.Items.AddChild(R,'Conexoes: '+IntToStr(Graph.ConnectionCount));Tree.FullExpand;if GraphRuntime.Prepare then Log.Lines.Add('Maquina pronta para energizar.');end;
-procedure TMultiPhysicsForm.RuntimeStart(Sender:TObject);begin if Assigned(GraphRuntime) then begin if not GraphRuntime.Prepare then Exit;GraphRuntime.Start;end else Runtime.Start;RuntimeTimer.Enabled:=True;Log.Lines.Add('SIMULACAO ENERGIZADA');end;
-procedure TMultiPhysicsForm.RuntimePause(Sender:TObject);begin if Assigned(GraphRuntime) then GraphRuntime.Pause else Runtime.Pause;RuntimeTimer.Enabled:=False;Log.Lines.Add('SIMULACAO PAUSADA');end;
-procedure TMultiPhysicsForm.RuntimeStop(Sender:TObject);begin RuntimeTimer.Enabled:=False;if Assigned(GraphRuntime) then GraphRuntime.Stop else Runtime.Stop;Log.Lines.Add('SIMULACAO DESLIGADA');end;
-procedure TMultiPhysicsForm.RuntimeTick(Sender:TObject);var S:TSimulationSnapshot;I:Integer;begin if Assigned(GraphRuntime) then begin for I:=1 to 2 do GraphRuntime.Step;S:=GraphRuntime.Snapshot;end else begin for I:=1 to 2 do Runtime.Step;S:=Runtime.Snapshot;end;if (S.Clock.Step mod 20)=0 then Log.Lines.Add(Format('t=%.2fs | V=%.2fV | I=%.2fA | PWM=%.0f%% | vel=%.2f rad/s | torque=%.3f Nm | T=%.1f C',[S.Clock.Time,S.Electrical.BusVoltage,S.Electrical.TotalCurrent,S.Control.PWM*100,S.Mechanical.Velocity,S.Mechanical.Torque,S.Thermal.Temperature],InvariantFS));end;
-procedure TMultiPhysicsForm.EnvironmentChanged(Sender:TObject);begin case EnvBox.ItemIndex of 0:Scenario.Environment:=AirEnvironment;1:Scenario.Environment:=WaterEnvironment;2:Scenario.Environment:=VacuumEnvironment;end;Log.Lines.Add('Ambiente: '+Scenario.Environment.Name);end;
-procedure TMultiPhysicsForm.Estimate(Sender:TObject);var R:TFluidEstimate;begin Scenario.Environment.FlowX:=ParseFloatDef(FlowEdit.Text,0);Scenario.ReferenceArea:=ParseFloatDef(AreaEdit.Text,0);Scenario.DisplacedVolume:=ParseFloatDef(VolumeEdit.Text,0);Scenario.DragCoefficient:=ParseFloatDef(CdEdit.Text,0);R:=EstimateFluidLoads(Scenario.Environment,Scenario.ReferenceArea,Scenario.DragCoefficient,Scenario.DisplacedVolume);Log.Lines.Add('--- ESTIMATIVA, NAO CFD ---');Log.Lines.Add('Ambiente: '+Scenario.Environment.Name);Log.Lines.Add('Velocidade: '+FloatToStrF(R.Speed,ffFixed,8,3,InvariantFS)+' m/s');Log.Lines.Add('Pressao dinamica: '+FloatToStrF(R.DynamicPressure,ffFixed,12,2,InvariantFS)+' Pa');Log.Lines.Add('Arrasto estimado: '+FloatToStrF(R.DragForce,ffFixed,12,2,InvariantFS)+' N');Log.Lines.Add('Empuxo: '+FloatToStrF(R.BuoyancyForce,ffFixed,12,2,InvariantFS)+' N');Log.Lines.Add('Fidelidade: '+FidelityName(Scenario.Fidelity));end;
-procedure TMultiPhysicsForm.FloatTest(Sender:TObject);var B:TRigidBodyState;R:TBuoyancyResult;V:Double;begin FillChar(B,SizeOf(B),0);B.Mass:=100;B.CenterOfMass:=V3(0,0,0.20);B.Inertia:=V3(20,50,50);V:=ParseFloatDef(VolumeEdit.Text,0);R:=EvaluateBuoyancy(B,Scenario.Environment,V,V3(0,0,0));Log.Lines.Add('--- FLUTUACAO PRELIMINAR ---');Log.Lines.Add('Massa demonstracao: 100 kg');Log.Lines.Add('Peso: '+FloatToStrF(R.Weight,ffFixed,12,2,InvariantFS)+' N');Log.Lines.Add('Empuxo: '+FloatToStrF(R.Buoyancy,ffFixed,12,2,InvariantFS)+' N');Log.Lines.Add('Forca vertical liquida: '+FloatToStrF(R.NetVerticalForce,ffFixed,12,2,InvariantFS)+' N');Log.Lines.Add('Estado: '+FloatStateName(R.State));Log.Lines.Add('Ainda nao inclui superficie livre/metacentro/geometria submersa.');end;
-procedure TMultiPhysicsForm.Demo(Sender:TObject);var A:TPhysicsPart;B:TBoundaryCondition;C:TContact;begin A:=TPhysicsPart.Create;A.ID:='BASE';A.Name:='Base estrutural';A.Material:=Steel;P.AddPart(A);A:=TPhysicsPart.Create;A.ID:='MOTOR';A.Name:='Motor';A.Material:=Aluminum;P.AddPart(A);B.Name:='Fixacao base';B.TargetID:='BASE';B.Kind:=bkFixed;P.AddBC(B);B.Name:='Carga motor';B.TargetID:='MOTOR';B.Kind:=bkForce;B.Z:=-500;P.AddBC(B);B.Name:='Motor quente';B.TargetID:='MOTOR';B.Kind:=bkTemperature;B.Value:=80;P.AddBC(B);C.Name:='Contato motor-base';C.PartA:='MOTOR';C.PartB:='BASE';C.FrictionCoefficient:=0.30;C.ThermalConductance:=1000;P.AddContact(C);P.Settings.Physics:=[pkStructural,pkThermal,pkModal,pkFriction];RefreshTree;end;
-procedure TMultiPhysicsForm.RefreshTree;var R,N:TTreeNode;I:Integer;begin Tree.Items.Clear;R:=Tree.Items.Add(nil,'Montagem');for I:=0 to P.PartCount-1 do Tree.Items.AddChild(R,P.Part(I).Name+' | '+P.Part(I).Material.Name);N:=Tree.Items.Add(nil,'Condicoes de contorno');for I:=0 to P.BCCount-1 do Tree.Items.AddChild(N,P.BC(I).Name);N:=Tree.Items.Add(nil,'Contatos');for I:=0 to P.ContactCount-1 do Tree.Items.AddChild(N,P.Contact(I).Name+' | atrito='+FloatToStr(P.Contact(I).FrictionCoefficient,InvariantFS));Tree.FullExpand;end;
-procedure TMultiPhysicsForm.Analyze(Sender:TObject);var S:TCalculiXSolver;R:TPhysicsResult;begin S:=TCalculiXSolver.Create(GetEnvironmentVariable('CALCULIX_EXE'));try if not S.Solve(P,R,Log.Lines)then Log.Lines.Add('Defina CALCULIX_EXE e implemente/importe a malha antes da solucao numerica.');finally S.Free;end;end;
+
+const
+  STEP_NAMES: array[0..STEP_COUNT - 1] of string = (
+    '1  Montagem', '2  Materiais', '3  Cargas e fixacoes', '4  Malha', '5  Resolver',
+    '6  Resultados', '7  Sistema', '8  Maquina CNC', '9  Circuito', '10 Ambiente');
+  BC_KINDS: array[0..8] of TBoundaryKind = (bkFixed, bkDisplacement, bkForce, bkPressure,
+    bkGravity, bkTemperature, bkHeatFlux, bkConvection, bkHeatPower);
+  DEMO_NETLIST =
+    '* Filtro RC com degrau de 10 V'#13#10 +
+    'V1 in 0 10'#13#10 +
+    'R1 in out 1k'#13#10 +
+    'C1 out 0 1u'#13#10 +
+    '.tran 10u 5m'#13#10 +
+    '.probe in out'#13#10;
+
+function StepIcon(I: Integer): TSuiteIconKind;
+begin
+  case I of
+    0: Result := sikAssembly;
+    1: Result := sikLayers;
+    2: Result := sikTarget;
+    3: Result := sikPolygon;
+    4: Result := sikPlay;
+    5: Result := sikEye;
+    6: Result := sikPulse;
+    7: Result := sikCNC;
+    8: Result := sikPlug;
+    else Result := sikThermo;
+  end;
+end;
+
+function BCKindIndex(K: TBoundaryKind): Integer;
+var
+  I: Integer;
+begin
+  for I := 0 to High(BC_KINDS) do
+    if BC_KINDS[I] = K then Exit(I);
+  Result := 0;
+end;
+
+{ ---------------- construcao ---------------- }
+
+function TMultiPhysicsForm.Btn(AParent: TWinControl; const AText: string; X, Y, W, H: Integer;
+  AIcon: TSuiteIconKind; Handler: TNotifyEvent): TSuiteButton;
+begin
+  Result := TSuiteButton.Create(Self);
+  Result.Parent := AParent;
+  Result.SetBounds(X, Y, W, H);
+  Result.Caption := AText;
+  Result.SetLook(sbsSoft, clSuitePrimary, AIcon);
+  Result.OnClick := Handler;
+end;
+
+function TMultiPhysicsForm.Lbl(AParent: TWinControl; const AText: string; X, Y, W, H: Integer): TLabel;
+begin
+  Result := TLabel.Create(Self);
+  Result.Parent := AParent;
+  Result.AutoSize := False;
+  Result.WordWrap := True;
+  Result.SetBounds(X, Y, W, H);
+  Result.Caption := AText;
+  Result.Font.Color := clSuiteMuted;
+end;
+
+function TMultiPhysicsForm.Num(AParent: TWinControl; const ACaption: string; X, Y, W: Integer;
+  AMin, AMax, AValue: Double; ADec: Integer): TFloatSpinEdit;
+begin
+  { campos em duas colunas (140 px): o rotulo nao invade a coluna vizinha }
+  if ACaption <> '' then Lbl(AParent, ACaption, X, Y, IfThen(W <= 140, W + 8, Max(W + 40, 306 - X)), 18).BringToFront;
+  Result := TFloatSpinEdit.Create(Self);
+  Result.Parent := AParent;
+  Result.SetBounds(X, Y + 19, W, 26);
+  Result.MinValue := AMin;
+  Result.MaxValue := AMax;
+  Result.DecimalPlaces := ADec;
+  Result.Value := AValue;
+end;
+
+function TMultiPhysicsForm.Combo(AParent: TWinControl; const ACaption: string; X, Y, W: Integer): TComboBox;
+begin
+  if ACaption <> '' then Lbl(AParent, ACaption, X, Y, W, 18);
+  Result := TComboBox.Create(Self);
+  Result.Parent := AParent;
+  Result.SetBounds(X, Y + 19, W, 26);
+  Result.Style := csDropDownList;
+end;
+
+constructor TMultiPhysicsForm.Create(AOwner: TComponent);
+var
+  I: Integer;
+  B: TSuiteButton;
+  Split: TSplitter;
+begin
+  inherited CreateNew(AOwner, 1);
+  Caption := 'MultiPhysics • MultiSuite';
+  Width := 1360; Height := 880;
+  Constraints.MinWidth := 1100; Constraints.MinHeight := 700;
+  Position := poScreenCenter;
+  Font.Name := SUITE_FONT; Font.Size := 10;
+  Color := clSuiteSurface;
+  KeyPreview := True;
+  OnCloseQuery := @FormCloseQuery;
+  if FileExists(ExtractFilePath(ParamStr(0)) + 'multiphysics.ico') then
+    Icon.LoadFromFile(ExtractFilePath(ParamStr(0)) + 'multiphysics.ico');
+
+  P := TPhysicsProject.Create;
+  History := TPhysicsHistory.Create;
+  HistoryLoading := True;
+  STLPreview := TFEMMesh.Create;
+  ManagerTimer := TTimer.Create(Self);
+  ManagerTimer.Enabled := False;
+  ManagerTimer.Interval := 200;
+  ManagerTimer.OnTimer := @ManagerTick;
+  OnKeyDown := @FormKeyDown;
+  Run := TAnalysisRun.Create(P);
+  Runtime := TSimulationRuntime.Create;
+  Machine := TMachineRuntime.Create;
+  Scenario := MarineScenario;
+  RuntimeTimer := TTimer.Create(Self);
+  RuntimeTimer.Enabled := False;
+  RuntimeTimer.Interval := 30;
+  RuntimeTimer.OnTimer := @RuntimeTick;
+  FUpdating := True;
+
+  Header := TSuiteHeader.Create(Self);
+  Header.Parent := Self;
+  Header.Align := alTop;
+  Header.Height := 72;
+  Header.Setup('MultiPhysics', 'Simulacao fisica da montagem: estrutural, termica, modal, sistema e circuitos', sikPhysics);
+  Badge := TSuiteBadge.Create(Self);
+  Badge.Parent := Header;
+  Badge.SetBounds(Header.ClientWidth - 330, 22, 300, 28);
+  Header.OnResize := @HeaderResize;
+  SetBadge('Sem resultado', clSuiteFaint);
+
+  Footer := TPanel.Create(Self);
+  Footer.Parent := Self;
+  Footer.Align := alBottom;
+  Footer.Height := 58;
+  Footer.BevelOuter := bvNone;
+  Footer.Color := clSuiteCard;
+  StatusLabel := Lbl(Footer, 'Pronto.', 18, 8, 760, 22);
+  StatusLabel.Font.Color := clSuiteText;
+  StatusLabel.Font.Style := [fsBold];
+  InfoLabel := Lbl(Footer, 'Projeto novo. Adicione pecas ou abra a demonstracao.', 18, 30, 760, 22);
+  B := Btn(Footer, 'Resolver', 0, 11, 140, 36, sikPlay, @SolveClick);
+  B.Anchors := [akTop, akRight];
+  B.Left := Footer.ClientWidth - 156;
+  B.SetLook(sbsSolid, clSuitePrimary, sikPlay);
+  FooterSolveBtn := B;
+  SolveTimer := TTimer.Create(Self);
+  SolveTimer.Enabled := False;
+  SolveTimer.Interval := 200;
+  SolveTimer.OnTimer := @SolveTimerTick;
+
+  Sidebar := TPanel.Create(Self);
+  Sidebar.Parent := Self;
+  Sidebar.Align := alLeft;
+  Sidebar.Width := 214;
+  Sidebar.BevelOuter := bvNone;
+  Sidebar.Color := clSuiteCard;
+  for I := 0 to STEP_COUNT - 1 do
+  begin
+    Nav[I] := Btn(Sidebar, STEP_NAMES[I], 12, 12 + I * 37, 190, 32, StepIcon(I), @NavClick);
+    Nav[I].Tag := I;
+  end;
+  Btn(Sidebar, 'Novo', 12, 390, 92, 30, sikNew, @NewClick);
+  Btn(Sidebar, 'Abrir', 110, 390, 92, 30, sikFolder, @OpenClick);
+  Btn(Sidebar, 'Salvar', 12, 424, 92, 30, sikSave, @SaveClick);
+  Btn(Sidebar, 'Demo', 110, 424, 92, 30, sikWand, @DemoClick);
+  UndoButton := Btn(Sidebar, 'Desfazer', 12, 458, 92, 30, sikUndo, @UndoClick);
+  RedoButton := Btn(Sidebar, 'Refazer', 110, 458, 92, 30, sikRedo, @RedoClick);
+  Lbl(Sidebar, 'PROJETO', 16, 496, 180, 18).Font.Style := [fsBold];
+  Tree := TTreeView.Create(Self);
+  Tree.Parent := Sidebar;
+  Tree.SetBounds(12, 516, 190, 168);
+  Tree.Anchors := [akLeft, akTop, akRight, akBottom];
+  Tree.ReadOnly := True;
+  Tree.BorderStyle := bsNone;
+  Tree.Color := SuiteRGB(248, 250, 252);
+
+  Pages := TPageControl.Create(Self);
+  Pages.Parent := Self;
+  Pages.Align := alRight;
+  Pages.Width := 340;
+  Pages.ShowTabs := False;
+  BuildPages;
+
+  Work := TPanel.Create(Self);
+  Work.Parent := Self;
+  Work.Align := alClient;
+  Work.BevelOuter := bvNone;
+  Work.Color := clSuiteSurface;
+  ViewBar := TPanel.Create(Self);
+  ViewBar.Parent := Work;
+  ViewBar.Align := alTop;
+  ViewBar.Height := 46;
+  ViewBar.BevelOuter := bvNone;
+  ViewBar.Color := clSuiteSurface;
+  Btn(ViewBar, 'Ajustar', 10, 7, 92, 32, sikFit, @ViewFitClick);
+  B := Btn(ViewBar, 'Iso', 106, 7, 64, 32, sikFrame, @ViewDirClick); B.Tag := 0;
+  B := Btn(ViewBar, 'Frente', 174, 7, 76, 32, sikRect, @ViewDirClick); B.Tag := 1;
+  B := Btn(ViewBar, 'Topo', 254, 7, 70, 32, sikLayers, @ViewDirClick); B.Tag := 2;
+  B := Btn(ViewBar, 'Lado', 328, 7, 70, 32, sikRect, @ViewDirClick); B.Tag := 3;
+  Lbl(ViewBar, 'Arraste para girar, botao direito desloca, roda aproxima, clique seleciona a face.', 410, 14, 520, 20);
+
+  Log := TMemo.Create(Self);
+  Log.Parent := Work;
+  Log.Align := alBottom;
+  Log.Height := 150;
+  Log.ScrollBars := ssAutoVertical;
+  Log.ReadOnly := True;
+  Log.Font.Name := 'Consolas';
+  Log.Font.Size := 9;
+  Log.BorderStyle := bsNone;
+  Split := TSplitter.Create(Self);
+  Split.Parent := Work;
+  Split.Align := alBottom;
+  Split.Height := 5;
+
+  View := TPhysicsView3D.Create(Self);
+  View.Parent := Work;
+  View.Align := alClient;
+  View.OnPickFace := @ViewPickFace;
+  Chart := TPhysicsChart.Create(Self);
+  Chart.Parent := Work;
+  Chart.Align := alClient;
+  Chart.Visible := False;
+
+  Log.Lines.Add('MultiPhysics 0.2.1: FEM proprio (TET4/TET10) estatico, termico, termomecanico e modal;');
+  Log.Lines.Add('sistema eletromecanico, CNC virtual e circuitos com modelos reduzidos (ESTIMATIVA).');
+  FUpdating := False;
+  LoadConfig;
+  RefreshAll;
+  ShowStep(0);
+
+  { multiphysics.exe --capture=static|thermal|modal|system arquivo.png:
+    carrega a demonstracao, resolve, salva a imagem da janela e sai }
+  if Application.HasOption('capture') then
+    with TTimer.Create(Self) do
+    begin
+      Interval := 400;
+      OnTimer := @CaptureTick;
+      Enabled := True;
+    end;
+
+  HistoryLoading := False;
+  ResetHistory;
+  ApplySuiteContext(ReadSuiteContext);
+end;
+
+procedure TMultiPhysicsForm.ApplySuiteContext(const Ctx: TSuiteContext);
+begin
+  if (Ctx.FileName <> '') and FileExists(Ctx.FileName) then
+  begin
+    if SameText(ExtractFileExt(Ctx.FileName), MPHYS_EXT) then LoadProjectFile(Ctx.FileName)
+    else if SameText(ExtractFileExt(Ctx.FileName), '.massembly') then ImportAssemblyFile(Ctx.FileName)
+    else if SameText(ExtractFileExt(Ctx.FileName), '.massembly') then ImportAssemblyFile(Ctx.FileName)
+    else if SameText(ExtractFileExt(Ctx.FileName), '.stl') then InspectSTLFile(Ctx.FileName)
+    else SetStatus('Formato de arquivo nao suportado: ' + ExtractFileExt(Ctx.FileName));
+  end
+  else if Ctx.NewFileName <> '' then
+  begin
+    if FileExists(Ctx.NewFileName) then
+      SetStatus('O destino ja existe. Abra o arquivo para evitar sobrescrever.')
+    else if SameText(ExtractFileExt(Ctx.NewFileName), MPHYS_EXT) then
+    begin
+      P.FileName := Ctx.NewFileName;
+      P.Name := ChangeFileExt(ExtractFileName(Ctx.NewFileName), '');
+      P.Modified := True;
+      RefreshAll;
+      ResetHistory;
+      P.Modified := True; SavedState := '';
+      RefreshTree;
+      SetStatus('Projeto novo: ' + Ctx.NewFileName + '. Salve para criar o arquivo.');
+    end
+    else SetStatus('Projeto novo exige extensao .mphys');
+  end
+  else if Ctx.FileName <> '' then SetStatus('Arquivo nao encontrado: ' + Ctx.FileName);
+  if Ctx.ProjectRoot <> '' then Log.Lines.Add('Projeto da suite: ' + Ctx.ProjectRoot);
+  if Ctx.TaskFile <> '' then Log.Lines.Add('Tarefa da suite: ' + Ctx.TaskFile);
+end;
+
+destructor TMultiPhysicsForm.Destroy;
+begin
+  if SolveThread <> nil then
+  begin
+    FEMCancelRequested := True;
+    SolveThread.WaitFor;
+    FreeAndNil(SolveThread);
+  end;
+  RuntimeTimer.Enabled := False;
+  ManagerTimer.Enabled := False;
+  // FormCloseQuery impede fechar enquanto o gerenciador instala.
+  ManagerProcess.Free;
+  View.SetMesh(nil);
+  STLPreview.Free;
+  History.Free;
+  GraphRuntime.Free;
+  Graph.Free;
+  Machine.Free;
+  Runtime.Free;
+  Run.Free;
+  P.Free;
+  inherited Destroy;
+end;
+
+procedure TMultiPhysicsForm.BuildPages;
+var
+  I: Integer;
+  Page: TTabSheet;
+  S: TScrollBox;
+  T: TLabel;
+begin
+  for I := 0 to STEP_COUNT - 1 do
+  begin
+    Page := TTabSheet.Create(Self);
+    Page.PageControl := Pages;
+    S := TScrollBox.Create(Self);
+    S.Parent := Page;
+    S.Align := alClient;
+    S.BorderStyle := bsNone;
+    S.Color := clSuiteCard;
+    S.HorzScrollBar.Visible := False;
+    T := Lbl(S, Copy(STEP_NAMES[I], 4, MaxInt), 16, 12, 290, 26);
+    T.Font.Style := [fsBold];
+    T.Font.Color := clSuiteText;
+    T.Font.Size := 12;
+    case I of
+      0: BuildAssemblyPage(S);
+      1: BuildMaterialsPage(S);
+      2: BuildLoadsPage(S);
+      3: BuildMeshPage(S);
+      4: BuildSolvePage(S);
+      5: BuildResultsPage(S);
+      6: BuildSystemPage(S);
+      7: BuildMachinePage(S);
+      8: BuildCircuitPage(S);
+      9: BuildEnvironmentPage(S);
+    end;
+  end;
+end;
+
+procedure TMultiPhysicsForm.ResetHistory;
+begin
+  History.Reset(P.ToJSON);
+  SavedState := P.ToJSON;
+  P.Modified := False;
+  UndoButton.Enabled := False;
+  RedoButton.Enabled := False;
+  RefreshTree;
+end;
+
+procedure TMultiPhysicsForm.RecordHistory;
+begin
+  if HistoryLoading or FUpdating or (History = nil) then Exit;
+  if History.Push(P.ToJSON) then
+  begin
+    HasResult := False;
+    if View <> nil then
+    begin
+      View.ClearScalar;
+      View.ClearDisplacement;
+      SetBadge('Sem resultado', clSuiteFaint);
+    end;
+  end;
+  UndoButton.Enabled := History.CanUndo;
+  RedoButton.Enabled := History.CanRedo;
+  if SavedState <> '' then P.Modified := P.ToJSON <> SavedState;
+end;
+
+procedure TMultiPhysicsForm.SettingsChange(Sender: TObject);
+begin
+  if FUpdating or HistoryLoading then Exit;
+  ApplySettingsFromUI;
+  P.Modified := True;
+  RecordHistory;
+end;
+
+procedure TMultiPhysicsForm.RestoreHistory(const State: string);
+var
+  FN: string;
+begin
+  if State = '' then Exit;
+  FN := P.FileName;
+  HistoryLoading := True;
+  try
+    View.SetMesh(nil);
+    P.FromJSON(State);
+    P.FileName := FN;
+    Run.Mesh.Clear;
+    HasResult := False;
+    SetBadge('Sem resultado', clSuiteFaint);
+    RefreshAll;
+    P.Modified := (SavedState = '') or (P.ToJSON <> SavedState);
+  finally
+    HistoryLoading := False;
+  end;
+  UndoButton.Enabled := History.CanUndo;
+  RedoButton.Enabled := History.CanRedo;
+  RefreshTree;
+  SetStatus('Estado restaurado. Gere a malha novamente antes de resolver.');
+end;
+
+procedure TMultiPhysicsForm.UndoClick(Sender: TObject);
+begin
+  if (SolveThread <> nil) or (ManagerProcess <> nil) or RuntimeTimer.Enabled then Exit;
+  RestoreHistory(History.Undo);
+end;
+
+procedure TMultiPhysicsForm.RedoClick(Sender: TObject);
+begin
+  if (SolveThread <> nil) or (ManagerProcess <> nil) or RuntimeTimer.Enabled then Exit;
+  RestoreHistory(History.Redo);
+end;
+
+procedure TMultiPhysicsForm.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+begin
+  if not (ssCtrl in Shift) then Exit;
+  { Editores de texto preservam o proprio Ctrl+Z. Os botoes sempre editam o projeto. }
+  if (ActiveControl is TCustomEdit) or (ActiveControl is TCustomMemo) then Exit;
+  if Key = VK_Z then
+  begin
+    if ssShift in Shift then RedoClick(nil) else UndoClick(nil);
+    Key := 0;
+  end
+  else if Key = VK_Y then begin RedoClick(nil); Key := 0; end;
+end;
+
+procedure TMultiPhysicsForm.InspectSTLClick(Sender: TObject);
+var
+  D: TOpenDialog;
+begin
+  if (SolveThread <> nil) or (ManagerProcess <> nil) then Exit;
+  D := TOpenDialog.Create(Self);
+  try
+    D.Filter := 'Superficie STL (*.stl)|*.stl';
+    if D.Execute then InspectSTLFile(D.FileName);
+  finally
+    D.Free;
+  end;
+end;
+
+procedure TMultiPhysicsForm.InspectSTLFile(const FN: string);
+var
+  R: TSTLInspection;
+  DensityText, Summary: string;
+  Density: Double;
+begin
+  HasResult := False;
+  View.SetMesh(nil);
+  try
+    R := InspectSTL(FN, STLPreview);
+    View.SetMesh(STLPreview);
+    View.FitView;
+    View.Message := 'STL em mm: inspecao geometrica, sem elementos FEM';
+    Chart.Visible := False;
+    View.Visible := True;
+    Summary := Format('%d triangulos. ', [R.Triangles]) + R.Message;
+    if R.Closed then
+    begin
+      Summary := Summary + Format(' Volume: %.6g m3.', [R.Volume]);
+      DensityText := '7850';
+      if InputQuery('Massa do STL', 'Densidade uniforme (kg/m3), entrada STL em mm:', DensityText) then
+        if TryStrToFloat(DensityText, Density) and (Density > 0) and not IsNan(Density) and not IsInfinite(Density) then
+          Summary := Summary + Format(' Massa estimada: %.6g kg.', [R.Volume * Density]);
+    end;
+    Log.Lines.Add(FN + ': ' + Summary);
+    SetStatus(Summary);
+    SetBadge('ESTIMATIVA - inspecao STL', clSuiteFaint);
+  except
+    on E: Exception do
+    begin
+      View.SetMesh(nil);
+      MessageDlg('STL invalido', E.Message, mtError, [mbOK], 0);
+    end;
+  end;
+end;
+
+procedure TMultiPhysicsForm.ManageCCXClick(Sender: TObject);
+var
+  D: TOpenDialog;
+  Script, Base, Manifest, ManagerAction, ApprovedVersion: string;
+  I: Integer;
+begin
+  if (SolveThread <> nil) or (ManagerProcess <> nil) or RuntimeTimer.Enabled then
+  begin
+    SetStatus('Pare a simulacao antes de gerenciar o CalculiX.');
+    Exit;
+  end;
+  if TComponent(Sender).Tag = 0 then
+  begin
+    EdCCX.Text := FindCCX;
+    Run.CCXExe := EdCCX.Text;
+    if EdCCX.Text = '' then SetStatus('CalculiX nao encontrado. Instale um pacote homologado ou selecione o executavel.')
+    else begin SaveConfig; SetStatus('CalculiX detectado: ' + EdCCX.Text); end;
+    Exit;
+  end;
+  {$IFNDEF WINDOWS}
+  MessageDlg('CalculiX', 'O gerenciador de pacotes atual e exclusivo do Windows.', mtInformation, [mbOK], 0);
+  Exit;
+  {$ENDIF}
+  Base := ExtractFilePath(ParamStr(0));
+  Script := Base + 'solvers' + PathDelim + 'calculix_manager.ps1';
+  for I := 0 to 5 do
+  begin
+    if FileExists(Script) then Break;
+    Script := IncludeTrailingPathDelimiter(Base) + 'installer' + PathDelim + 'windows' + PathDelim + 'calculix_manager.ps1';
+    if FileExists(Script) then Break;
+    Base := ExtractFileDir(ExcludeTrailingPathDelimiter(Base));
+  end;
+  if not FileExists(Script) then
+  begin
+    SetStatus('Gerenciador CalculiX nao encontrado nesta instalacao.');
+    Exit;
+  end;
+  Manifest := ''; ApprovedVersion := '';
+  if TComponent(Sender).Tag = 1 then
+  begin
+    ApprovedVersion := ApprovedCCXVersion(ExtractFilePath(Script) + 'calculix_catalog.json');
+    if ApprovedVersion = '' then
+    begin
+      D := TOpenDialog.Create(Self);
+      try
+        D.Title := 'Manifesto CalculiX homologado (versao, URL, SHA256, executable, licenseFile)';
+        D.Filter := 'Manifesto JSON (*.json)|*.json';
+        if not D.Execute then Exit;
+        Manifest := D.FileName;
+      finally
+        D.Free;
+      end;
+    end;
+    ManagerAction := 'Install';
+  end
+  else ManagerAction := 'Rollback';
+  if MessageDlg('CalculiX', 'Executar ' + ManagerAction + ' ' + ApprovedVersion + '? O pacote sera testado antes de ativar. ' +
+    'A versao atual sera preservada em caso de falha.', mtConfirmation, [mbYes, mbNo], 0) <> mrYes then Exit;
+  ManagerProcess := TProcess.Create(nil);
+  try
+    ManagerProcess.Executable := GetEnvironmentVariable('WINDIR') + '\System32\WindowsPowerShell\v1.0\powershell.exe';
+    ManagerProcess.Parameters.Add('-NoProfile');
+    ManagerProcess.Parameters.Add('-NonInteractive');
+    ManagerProcess.Parameters.Add('-ExecutionPolicy'); ManagerProcess.Parameters.Add('Bypass');
+    ManagerProcess.Parameters.Add('-File'); ManagerProcess.Parameters.Add(Script);
+    ManagerProcess.Parameters.Add('-Action'); ManagerProcess.Parameters.Add(ManagerAction);
+    if Manifest <> '' then
+    begin
+      ManagerProcess.Parameters.Add('-ManifestPath'); ManagerProcess.Parameters.Add(Manifest);
+    end;
+    if ApprovedVersion <> '' then
+    begin
+      ManagerProcess.Parameters.Add('-Version'); ManagerProcess.Parameters.Add(ApprovedVersion);
+    end;
+    ManagerProcess.Options := [poUsePipes, poStderrToOutPut, poNoConsole];
+    ManagerProcess.Execute;
+    ManagerOutput := '';
+    ManagerTimer.Enabled := True;
+    Sidebar.Enabled := False;
+    Pages.Enabled := False;
+    FooterSolveBtn.Enabled := False;
+    SetStatus('Gerenciando CalculiX. Download e benchmark em segundo plano...');
+  except
+    on E: Exception do
+    begin
+      FreeAndNil(ManagerProcess);
+      MessageDlg('CalculiX', E.Message, mtError, [mbOK], 0);
+    end;
+  end;
+end;
+
+procedure TMultiPhysicsForm.ManagerTick(Sender: TObject);
+var
+  Buf: array[0..4095] of Char;
+  N, Code: Integer;
+  Chunk: string;
+begin
+  if ManagerProcess = nil then Exit;
+  while ManagerProcess.Output.NumBytesAvailable > 0 do
+  begin
+    N := ManagerProcess.Output.Read(Buf, SizeOf(Buf));
+    SetString(Chunk, PChar(@Buf[0]), N);
+    if Length(ManagerOutput) < 1024 * 1024 then ManagerOutput := ManagerOutput + Chunk;
+  end;
+  if ManagerProcess.Running then Exit;
+  Code := ManagerProcess.ExitStatus;
+  ManagerTimer.Enabled := False;
+  FreeAndNil(ManagerProcess);
+  Sidebar.Enabled := True; Pages.Enabled := True; FooterSolveBtn.Enabled := True;
+  Log.Lines.Add(ManagerOutput);
+  if Code = 0 then
+  begin
+    EdCCX.Text := FindCCX;
+    Run.CCXExe := EdCCX.Text;
+    SaveConfig;
+    SetStatus('CalculiX verificado. Caminho: ' + EdCCX.Text);
+  end
+  else SetStatus('Falha ao gerenciar CalculiX. Veja o log; a versao ativa foi preservada.');
+end;
+
+procedure TMultiPhysicsForm.BuildAssemblyPage(S: TScrollBox);
+var
+  I: Integer;
+begin
+  Lbl(S, 'Nome do projeto', 16, 44, 290, 18);
+  EdProjectName := TEdit.Create(Self);
+  EdProjectName.Parent := S;
+  EdProjectName.SetBounds(16, 63, 290, 26);
+  EdProjectName.OnChange := @ProjectNameChange;
+  Lbl(S, 'NOVA PECA', 16, 100, 290, 18).Font.Style := [fsBold];
+  CbPrimKind := Combo(S, 'Forma', 16, 120, 180);
+  CbPrimKind.Items.CommaText := '"Caixa","Cilindro","Tubo","Perfil L"';
+  CbPrimKind.ItemIndex := 0;
+  CbPrimKind.OnChange := @PrimKindChange;
+  CbAxis := Combo(S, 'Eixo', 206, 120, 100);
+  CbAxis.Items.CommaText := 'x,y,z';
+  CbAxis.ItemIndex := 2;
+  for I := 0 to 3 do
+  begin
+    EdDim[I] := Num(S, '', 16 + (I mod 2) * 150, 186 + (I div 2) * 50, 140, 0.01, 100000, 10, 2);
+    LbDim[I] := Lbl(S, '', 16 + (I mod 2) * 150, 167 + (I div 2) * 50, 140, 18);
+  end;
+  Lbl(S, 'ID da peca', 16, 270, 140, 18);
+  EdPartID := TEdit.Create(Self);
+  EdPartID.Name := 'PartIDEdit';
+  EdPartID.Parent := S;
+  EdPartID.SetBounds(16, 289, 140, 26);
+  Btn(S, 'Adicionar peca', 166, 286, 140, 32, sikNew, @AddPartClick);
+  Lbl(S, 'PECAS', 16, 330, 290, 18).Font.Style := [fsBold];
+  LbParts := TListBox.Create(Self);
+  LbParts.Parent := S;
+  LbParts.SetBounds(16, 350, 290, 110);
+  LbParts.OnClick := @PartListClick;
+  for I := 0 to 2 do
+  begin
+    EdPos[I] := Num(S, 'Posicao ' + Chr(Ord('X') + I) + ' (mm)', 16 + I * 98, 468, 90, -1e6, 1e6, 0, 2);
+    EdRot[I] := Num(S, 'Rot. ' + Chr(Ord('X') + I) + ' (graus)', 16 + I * 98, 518, 90, -360, 360, 0, 1);
+  end;
+  CkSuppressed := TCheckBox.Create(Self);
+  CkSuppressed.Parent := S;
+  CkSuppressed.SetBounds(16, 572, 290, 22);
+  CkSuppressed.Caption := 'Suprimida (fora da analise)';
+  Btn(S, 'Aplicar', 16, 600, 140, 32, sikSave, @ApplyPartClick);
+  Btn(S, 'Excluir peca', 166, 600, 140, 32, sikTrash, @DeletePartClick);
+  Lbl(S, 'MONTAGEM E CONTATOS', 16, 646, 290, 18).Font.Style := [fsBold];
+  Btn(S, 'Importar montagem (.massembly)', 16, 668, 290, 32, sikImport, @ImportAssemblyClick);
+  LbContacts := TListBox.Create(Self);
+  LbContacts.Parent := S;
+  LbContacts.SetBounds(16, 708, 290, 90);
+  Btn(S, 'Detectar contatos', 16, 806, 140, 32, sikSearch, @DetectContactsClick);
+  Btn(S, 'Excluir contato', 166, 806, 140, 32, sikTrash, @DeleteContactClick);
+  Lbl(S, 'Contato colado: as faces encostadas (ou volumes sobrepostos) das duas pecas se movem juntas, ' +
+    'sem atrito nem separacao. Primitivas da mesma peca sao sempre coladas.', 16, 846, 290, 60);
+  Btn(S, 'Inspecionar STL (sem FEM)', 16, 916, 290, 32, sikImport, @InspectSTLClick);
+  UpdatePrimLabels;
+end;
+
+procedure TMultiPhysicsForm.BuildMaterialsPage(S: TScrollBox);
+var
+  I: Integer;
+begin
+  Lbl(S, 'Peca', 16, 44, 290, 18);
+  LbMatParts := TListBox.Create(Self);
+  LbMatParts.Parent := S;
+  LbMatParts.SetBounds(16, 63, 290, 110);
+  LbMatParts.OnClick := @MatPartListClick;
+  CbMaterial := Combo(S, 'Material da biblioteca', 16, 182, 290);
+  for I := 0 to MaterialCount - 1 do CbMaterial.Items.Add(MaterialByIndex(I).Name);
+  CbMaterial.OnChange := @MaterialChange;
+  EdE := Num(S, 'E (GPa)', 16, 234, 140, 0.0001, 2000, 200, 3);
+  EdNu := Num(S, 'Poisson', 166, 234, 140, 0, 0.4999, 0.3, 3);
+  EdRho := Num(S, 'Densidade (kg/m3)', 16, 284, 140, 0.001, 100000, 7850, 1);
+  EdK := Num(S, 'Condutividade (W/m K)', 166, 284, 140, 0.0001, 10000, 50, 3);
+  EdAlpha := Num(S, 'Dilatacao (1e-6/K)', 16, 334, 140, 0, 1000, 12, 2);
+  EdYield := Num(S, 'Escoamento (MPa)', 166, 334, 140, 0, 100000, 250, 1);
+  Btn(S, 'Aplicar a peca', 16, 392, 140, 32, sikSave, @ApplyMaterialClick);
+  Btn(S, 'Aplicar a todas', 166, 392, 140, 32, sikCopy, @ApplyMaterialAllClick);
+  Lbl(S, 'Os valores podem ser ajustados depois de escolher o material; o projeto guarda as propriedades da peca.',
+    16, 436, 290, 50);
+end;
+
+procedure TMultiPhysicsForm.BuildLoadsPage(S: TScrollBox);
+var
+  I: Integer;
+begin
+  LbBCs := TListBox.Create(Self);
+  LbBCs.Parent := S;
+  LbBCs.SetBounds(16, 44, 290, 120);
+  LbBCs.OnClick := @BCListClick;
+  Lbl(S, 'Nome', 16, 172, 290, 18);
+  EdBCName := TEdit.Create(Self);
+  EdBCName.Parent := S;
+  EdBCName.SetBounds(16, 191, 290, 26);
+  CbBCKind := Combo(S, 'Tipo', 16, 222, 290);
+  for I := 0 to High(BC_KINDS) do CbBCKind.Items.Add(BoundaryKindName(BC_KINDS[I]));
+  CbBCKind.ItemIndex := 0;
+  CbBCKind.OnChange := @BCKindChange;
+  CbBCPart := Combo(S, 'Peca', 16, 272, 140);
+  CbBCPart.OnChange := @BCPartChange;
+  CbBCFace := Combo(S, 'Face (ou clique na vista)', 166, 272, 140);
+  LbVecUnit := Lbl(S, 'Vetor', 16, 322, 290, 18);
+  for I := 0 to 2 do
+  begin
+    EdVec[I] := Num(S, '', 16 + I * 98, 322, 90, -1e9, 1e9, 0, 3);
+    Lbl(S, Chr(Ord('X') + I), 16 + I * 98 + 92, 345, 10, 18);
+  end;
+  LbVal1 := Lbl(S, 'Valor', 16, 372, 140, 18);
+  EdVal1 := Num(S, '', 16, 372, 140, -1e12, 1e12, 0, 3);
+  LbVal2 := Lbl(S, 'Valor 2', 166, 372, 140, 18);
+  EdVal2 := Num(S, '', 166, 372, 140, -1e12, 1e12, 0, 3);
+  Lbl(S, 'Graus fixos', 16, 422, 290, 18);
+  for I := 0 to 2 do
+  begin
+    CkDof[I] := TCheckBox.Create(Self);
+    CkDof[I].Parent := S;
+    CkDof[I].SetBounds(16 + I * 70, 440, 60, 22);
+    CkDof[I].Caption := Chr(Ord('X') + I);
+    CkDof[I].Checked := True;
+  end;
+  Btn(S, 'Incluir', 16, 472, 92, 32, sikNew, @AddBCClick);
+  Btn(S, 'Atualizar', 115, 472, 92, 32, sikSave, @UpdateBCClick);
+  Btn(S, 'Excluir', 214, 472, 92, 32, sikTrash, @DeleteBCClick);
+  Lbl(S, 'Forca: total em N, repartida pela area da face. Pressao em MPa (positiva empurra para dentro). ' +
+    'Deslocamento em mm. Temperatura em C, fluxo em W/m2, conveccao h em W/m2K e ambiente em C, potencia em W na peca inteira.',
+    16, 512, 290, 96);
+  UpdateBCUnits;
+end;
+
+procedure TMultiPhysicsForm.BuildMeshPage(S: TScrollBox);
+begin
+  EdMeshSize := Num(S, 'Tamanho dos elementos (mm)', 16, 44, 140, 0.05, 1000, 5, 2);
+  EdMeshSize.Name := 'MeshSizeEdit';
+  CkQuadratic := TCheckBox.Create(Self);
+  CkQuadratic.Parent := S;
+  CkQuadratic.SetBounds(16, 100, 290, 22);
+  CkQuadratic.Caption := 'Elementos quadraticos TET10 (recomendado)';
+  CkQuadratic.Checked := True;
+  CkConvergence := TCheckBox.Create(Self);
+  CkConvergence.Parent := S;
+  CkConvergence.SetBounds(16, 126, 290, 22);
+  CkConvergence.Caption := 'Estudo de convergencia (para ENGENHARIA)';
+  CkConvergence.Checked := True;
+  Btn(S, 'Gerar malha', 16, 160, 140, 32, sikPolygon, @MeshClick);
+  LbMeshInfo := Lbl(S, '', 16, 204, 290, 140);
+  LbMeshInfo.Font.Color := clSuiteText;
+  Lbl(S, 'Cada forma vira uma secao triangulada extrudada em camadas. TET4 e rigido demais em flexao; ' +
+    'use TET10 para estrutural e modal. A convergencia resolve de novo com elementos 1,5x maiores e compara.',
+    16, 350, 290, 90);
+end;
+
+procedure TMultiPhysicsForm.BuildSolvePage(S: TScrollBox);
+var
+  B: TSuiteButton;
+begin
+  CbAnalysis := Combo(S, 'Analise', 16, 44, 290);
+  CbAnalysis.Items.CommaText := '"Estatica linear","Termica permanente","Termomecanica","Modal (frequencias naturais)"';
+  CbAnalysis.ItemIndex := 0;
+  Lbl(S, 'Modos (modal)', 16, 96, 140, 18);
+  EdModes := TSpinEdit.Create(Self);
+  EdModes.Parent := S;
+  EdModes.SetBounds(16, 115, 140, 26);
+  EdModes.MinValue := 1; EdModes.MaxValue := 30; EdModes.Value := 6;
+  CbSolver := Combo(S, 'Solver', 166, 96, 140);
+  CbSolver.Items.CommaText := '"FEM proprio","CalculiX (ccx)"';
+  CbSolver.ItemIndex := 0;
+  Lbl(S, 'Executavel do CalculiX (ccx)', 16, 146, 290, 18);
+  EdCCX := TEdit.Create(Self);
+  EdCCX.Parent := S;
+  EdCCX.SetBounds(16, 165, 220, 26);
+  Btn(S, '...', 242, 162, 64, 30, sikFolder, @BrowseCCXClick);
+  B := Btn(S, 'Resolver', 16, 204, 290, 36, sikPlay, @SolveClick);
+  B.SetLook(sbsSolid, clSuitePrimary, sikPlay);
+  PageSolveBtn := B;
+  Lbl(S, 'FEM proprio: Cholesky esparso ou em perfil (o de menor custo), ou gradiente conjugado em modelos ' +
+    'grandes. CalculiX: o mesmo modelo vai para o ccx (.inp) e o resultado volta do .frd; o ccx nao vem no ' +
+    'instalador. Use as opcoes abaixo para gerenciar o pacote opcional. Resultado sem convergencia sai como ESTIMATIVA.',
+    16, 252, 290, 120);
+  B := Btn(S, 'Detectar CalculiX', 16, 380, 290, 32, sikSearch, @ManageCCXClick); B.Tag := 0;
+  B := Btn(S, 'Instalar / atualizar CalculiX', 16, 420, 290, 32, sikImport, @ManageCCXClick); B.Tag := 1;
+  B := Btn(S, 'Restaurar CalculiX anterior', 16, 460, 290, 32, sikUndo, @ManageCCXClick); B.Tag := 2;
+  CbAnalysis.OnChange := @SettingsChange; CbSolver.OnChange := @SettingsChange;
+  EdModes.OnChange := @SettingsChange;
+  EdMeshSize.OnChange := @SettingsChange;
+  CkQuadratic.OnChange := @SettingsChange; CkConvergence.OnChange := @SettingsChange;
+end;
+
+procedure TMultiPhysicsForm.BuildResultsPage(S: TScrollBox);
+begin
+  CbField := Combo(S, 'Campo', 16, 44, 290);
+  CbField.OnChange := @FieldChange;
+  CkDeformed := TCheckBox.Create(Self);
+  CkDeformed.Parent := S;
+  CkDeformed.SetBounds(16, 96, 140, 22);
+  CkDeformed.Caption := 'Deformada';
+  CkDeformed.Checked := True;
+  CkDeformed.OnClick := @FieldChange;
+  CkAnimate := TCheckBox.Create(Self);
+  CkAnimate.Parent := S;
+  CkAnimate.SetBounds(166, 96, 140, 22);
+  CkAnimate.Caption := 'Animar';
+  CkAnimate.OnClick := @FieldChange;
+  EdScale := Num(S, 'Escala da deformada (0 = automatica)', 16, 122, 140, 0, 1e9, 0, 1);
+  EdScale.OnChange := @FieldChange;
+  LbSummary := Lbl(S, 'Resolva uma analise para ver os resultados.', 16, 180, 290, 260);
+  LbSummary.Font.Color := clSuiteText;
+  Btn(S, 'Exportar CSV', 16, 450, 140, 32, sikExport, @ExportCSVClick);
+  Btn(S, 'Relatorio HTML', 166, 450, 140, 32, sikFile, @ReportClick);
+  Btn(S, 'VTK (ParaView)', 16, 490, 140, 32, sikExport, @ExportVTKClick);
+end;
+
+procedure TMultiPhysicsForm.BuildSystemPage(S: TScrollBox);
+begin
+  Btn(S, 'Carregar maquina demonstracao', 16, 44, 290, 32, sikWand, @LoadMachineClick);
+  Btn(S, 'Ligar', 16, 84, 92, 32, sikPlay, @RuntimeStartClick);
+  Btn(S, 'Pausar', 115, 84, 92, 32, sikPause, @RuntimePauseClick);
+  Btn(S, 'Desligar', 214, 84, 92, 32, sikStop, @RuntimeStopClick);
+  Btn(S, 'Exportar CSV', 16, 124, 140, 32, sikExport, @ChartCSVClick);
+  Btn(S, 'Perdas -> termica', 166, 124, 140, 32, sikFlame, @RuntimeToFEMClick);
+  LbRuntime := Lbl(S, '', 16, 168, 290, 120);
+  LbRuntime.Font.Color := clSuiteText;
+  Lbl(S, 'Fonte -> driver PWM -> motor DC (com indutancia) -> carga -> sensor -> controlador PI, em passos de tempo. ' +
+    'Modelo reduzido e deterministico: ESTIMATIVA (ver docs/RUNTIME.md). "Perdas -> termica" leva a potencia I2R ' +
+    'do instante atual para a peca selecionada na etapa Montagem, como potencia dissipada.', 16, 296, 290, 110);
+end;
+
+procedure TMultiPhysicsForm.BuildMachinePage(S: TScrollBox);
+var
+  I: Integer;
+begin
+  Btn(S, 'Criar CNC XYZ + spindle', 16, 44, 290, 32, sikCNC, @MachineCreateClick);
+  for I := 0 to 2 do
+    EdTarget[I] := Num(S, 'Alvo ' + Chr(Ord('X') + I) + ' (mm)', 16 + I * 98, 86, 90, -1000, 10000, 0, 2);
+  EdTarget[0].Value := 100; EdTarget[1].Value := 50; EdTarget[2].Value := 20;
+  EdFeed := Num(S, 'Velocidade (mm/s)', 16, 136, 140, 0.1, 1000, 40, 1);
+  Btn(S, 'Executar movimento', 166, 152, 140, 32, sikPlay, @MachineMoveClick);
+  CbFaultAxis := Combo(S, 'Eixo', 16, 196, 90);
+  CbFaultAxis.Items.CommaText := 'X,Y,Z';
+  CbFaultAxis.ItemIndex := 0;
+  CbFault := Combo(S, 'Falha', 116, 196, 190);
+  CbFault.Items.CommaText := '"Circuito aberto","Curto-circuito","Eixo travado","Sensor falhou","Fim de curso preso","Corrosao","Oxidacao","Sobrecorrente"';
+  CbFault.ItemIndex := 2;
+  Btn(S, 'Injetar falha', 16, 248, 140, 32, sikFlame, @MachineFaultClick);
+  Btn(S, 'Limpar falhas', 166, 248, 140, 32, sikClose, @MachineClearFaultsClick);
+  Btn(S, 'Homing (X, Y, Z)', 16, 288, 290, 32, sikHome, @MachineHomeClick);
+  LbMachine := Lbl(S, '', 16, 330, 290, 140);
+  LbMachine.Font.Color := clSuiteText;
+end;
+
+procedure TMultiPhysicsForm.BuildCircuitPage(S: TScrollBox);
+begin
+  Lbl(S, 'Netlist (estilo SPICE): R, C, L, V (DC ou SIN), I, D, M (NMOS), .tran passo fim, .probe nos', 16, 44, 290, 36);
+  MmNetlist := TMemo.Create(Self);
+  MmNetlist.Parent := S;
+  MmNetlist.SetBounds(16, 84, 290, 260);
+  MmNetlist.Font.Name := 'Consolas';
+  MmNetlist.ScrollBars := ssAutoBoth;
+  MmNetlist.Text := DEMO_NETLIST;
+  Btn(S, 'Resolver circuito', 16, 352, 290, 32, sikPlay, @CircuitSolveClick);
+  Lbl(S, 'MNA com Newton-Raphson (diodo, NMOS) e transitorio trapezoidal. O transitorio parte de capacitores descarregados.',
+    16, 394, 290, 60);
+end;
+
+procedure TMultiPhysicsForm.BuildEnvironmentPage(S: TScrollBox);
+begin
+  CbEnv := Combo(S, 'Ambiente', 16, 44, 290);
+  CbEnv.Items.CommaText := 'Ar,Agua,Vacuo';
+  CbEnv.ItemIndex := 1;
+  CbEnv.OnChange := @EnvChange;
+  EdFlow := Num(S, 'Velocidade do fluido (m/s)', 16, 96, 140, -1e4, 1e4, 2, 3);
+  EdArea := Num(S, 'Area de referencia (m2)', 166, 96, 140, 0, 1e6, 1, 4);
+  EdVolume := Num(S, 'Volume deslocado (m3)', 16, 146, 140, 0, 1e6, 0.1, 4);
+  EdCd := Num(S, 'Coeficiente de arrasto', 166, 146, 140, 0, 10, 0.8, 3);
+  EdMass := Num(S, 'Massa do corpo (kg)', 16, 196, 140, 0, 1e9, 100, 2);
+  EdAltitude := Num(S, 'Altitude (m, atmosfera ISA)', 166, 196, 140, 0, 20000, 0, 0);
+  Btn(S, 'Atmosfera ISA na altitude', 16, 252, 290, 32, sikThermo, @ISAClick);
+  Btn(S, 'Estimar arrasto e empuxo', 16, 292, 290, 32, sikPulse, @EstimateClick);
+  Btn(S, 'Teste de flutuacao (volume informado)', 16, 332, 290, 32, sikTarget, @FloatTestClick);
+  Btn(S, 'Flutuacao da montagem (calado e GM)', 16, 372, 290, 32, sikAssembly, @AssemblyFlotationClick);
+  Lbl(S, 'Formulas reduzidas (pressao dinamica, arrasto Cd, empuxo hidrostatico): ESTIMATIVA, nao e CFD. ' +
+    'Acima de Mach 0,3 a hipotese incompressivel nao vale. A flutuacao da montagem usa a malha e as massas ' +
+    'das pecas: calado de equilibrio, centro de empuxo e altura metacentrica (inclinacao em torno de X).', 16, 414, 290, 170);
+end;
+
+{ ---------------- utilidades ---------------- }
+
+procedure TMultiPhysicsForm.SetStatus(const S: string);
+begin
+  StatusLabel.Caption := S;
+end;
+
+procedure TMultiPhysicsForm.ShowStep(I: Integer);
+var
+  K: Integer;
+begin
+  FStep := I;
+  for K := 0 to STEP_COUNT - 1 do
+    if K = I then Nav[K].SetLook(sbsSolid, clSuitePrimary, StepIcon(K))
+    else Nav[K].SetLook(sbsSoft, clSuitePrimary, StepIcon(K));
+  Pages.ActivePageIndex := I;
+  Chart.Visible := I in [6, 7, 8];
+  View.Visible := not Chart.Visible;
+  ViewBar.Visible := View.Visible;
+  if I = 2 then ShowMarks;
+  if I = 5 then ShowResultField;
+end;
+
+procedure TMultiPhysicsForm.NavClick(Sender: TObject);
+begin
+  ShowStep(TComponent(Sender).Tag);
+end;
+
+function TMultiPhysicsForm.SelectedPart: TPhysicsPart;
+begin
+  Result := nil;
+  if (LbParts.ItemIndex >= 0) and (LbParts.ItemIndex < P.PartCount) then Result := P.Part(LbParts.ItemIndex);
+end;
+
+procedure TMultiPhysicsForm.RefreshAll;
+begin
+  FUpdating := True;
+  try
+    EdProjectName.Text := P.Name;
+    EdMeshSize.Value := MToMm(P.Settings.MeshSize);
+    CkQuadratic.Checked := P.Settings.Quadratic;
+    CkConvergence.Checked := P.Settings.CheckConvergence;
+    EdModes.Value := Max(1.0, P.Settings.Modes);
+    if pkModal in P.Settings.Physics then CbAnalysis.ItemIndex := 3
+    else if (pkStructural in P.Settings.Physics) and (pkThermal in P.Settings.Physics) then CbAnalysis.ItemIndex := 2
+    else if pkThermal in P.Settings.Physics then CbAnalysis.ItemIndex := 1
+    else CbAnalysis.ItemIndex := 0;
+    CbSolver.ItemIndex := EnsureRange(P.Settings.Solver, 0, 1);
+  finally
+    FUpdating := False;
+  end;
+  RefreshPartLists;
+  RefreshBCList;
+  RefreshContacts;
+  RefreshTree;
+end;
+
+procedure TMultiPhysicsForm.RefreshContacts;
+var
+  I: Integer;
+begin
+  LbContacts.Items.BeginUpdate;
+  try
+    LbContacts.Items.Clear;
+    for I := 0 to P.ContactCount - 1 do
+      LbContacts.Items.Add(P.Contact(I).Name + ' (colado)');
+  finally
+    LbContacts.Items.EndUpdate;
+  end;
+end;
+
+procedure TMultiPhysicsForm.ImportAssemblyFile(const FN: string);
+var
+  L: TStringList;
+  Draft: TPhysicsProject;
+  I: Integer;
+begin
+  L := TStringList.Create;
+  Draft := TPhysicsProject.Create;
+  try
+    try
+      Screen.Cursor := crHourGlass;
+      try
+        if not multiphysics_assembly_import.ImportAssemblyFile(FN, Draft, L) then
+        begin
+          MessageDlg('Importar montagem', 'Nenhuma peca com geometria na montagem.'#13#10 + L.Text, mtWarning, [mbOK], 0);
+          Exit;
+        end;
+      finally
+        Screen.Cursor := crDefault;
+      end;
+      P.FromJSON(Draft.ToJSON);
+      Log.Lines.Add('--- Importacao ---');
+      for I := 0 to L.Count - 1 do Log.Lines.Add(L[I]);
+      HasResult := False;
+      View.SetMesh(nil);
+      RefreshAll;
+      MeshClick(nil);
+      ResetHistory;
+      P.Modified := True; SavedState := '';
+      RefreshTree;
+      SetStatus(Format('Montagem importada: %d pecas, %d contatos. Confira materiais e fixacoes.', [P.PartCount, P.ContactCount]));
+    except
+      on E: Exception do MessageDlg('Nao foi possivel importar', E.Message, mtError, [mbOK], 0);
+    end;
+  finally
+    Draft.Free;
+    L.Free;
+  end;
+end;
+
+procedure TMultiPhysicsForm.RefreshTree;
+var
+  R, N: TTreeNode;
+  I: Integer;
+  B: TBoundaryCondition;
+begin
+  RecordHistory;
+  Tree.Items.BeginUpdate;
+  try
+    Tree.Items.Clear;
+    R := Tree.Items.Add(nil, P.Name);
+    N := Tree.Items.AddChild(R, Format('Pecas (%d)', [P.PartCount]));
+    for I := 0 to P.PartCount - 1 do
+      Tree.Items.AddChild(N, P.Part(I).ID + ' - ' + P.Part(I).Material.Name);
+    N := Tree.Items.AddChild(R, Format('Condicoes (%d)', [P.BCCount]));
+    for I := 0 to P.BCCount - 1 do
+    begin
+      B := P.BC(I);
+      Tree.Items.AddChild(N, B.Name + ' (' + BoundaryKindName(B.Kind) + ')');
+    end;
+    N := Tree.Items.AddChild(R, Format('Contatos (%d)', [P.ContactCount]));
+    for I := 0 to P.ContactCount - 1 do Tree.Items.AddChild(N, P.Contact(I).Name);
+    if HasResult then
+      Tree.Items.AddChild(R, 'Resultado: ' + AnalysisKindName(Run.Kind) + ' - ' + FidelityName(Run.Fidelity));
+    R.Expand(True);
+  finally
+    Tree.Items.EndUpdate;
+  end;
+  if P.FileName <> '' then InfoLabel.Caption := P.FileName + IfThen(P.Modified, ' (alterado)', '')
+  else InfoLabel.Caption := IfThen(P.Modified, 'Projeto nao salvo (alterado)', 'Projeto nao salvo');
+end;
+
+procedure TMultiPhysicsForm.RefreshPartLists;
+var
+  I, Sel, MSel: Integer;
+  Txt: string;
+begin
+  Sel := LbParts.ItemIndex; MSel := LbMatParts.ItemIndex;
+  LbParts.Items.BeginUpdate; LbMatParts.Items.BeginUpdate;
+  try
+    LbParts.Items.Clear; LbMatParts.Items.Clear;
+    CbBCPart.Items.Clear;
+    for I := 0 to P.PartCount - 1 do
+    begin
+      Txt := Format('%s  (%s, %.3f kg)', [P.Part(I).ID, P.Part(I).Material.Name, P.Part(I).Mass]);
+      if P.Part(I).Suppressed then Txt := Txt + ' [suprimida]';
+      LbParts.Items.Add(Txt);
+      LbMatParts.Items.Add(P.Part(I).ID + ' - ' + P.Part(I).Material.Name);
+      CbBCPart.Items.Add(P.Part(I).ID);
+    end;
+  finally
+    LbParts.Items.EndUpdate; LbMatParts.Items.EndUpdate;
+  end;
+  if (Sel >= 0) and (Sel < LbParts.Count) then LbParts.ItemIndex := Sel;
+  if (MSel >= 0) and (MSel < LbMatParts.Count) then LbMatParts.ItemIndex := MSel;
+  if (CbBCPart.ItemIndex < 0) and (CbBCPart.Items.Count > 0) then CbBCPart.ItemIndex := 0;
+  RefreshFaceCombo;
+  if EdPartID.Text = '' then EdPartID.Text := 'PECA' + IntToStr(P.PartCount + 1);
+end;
+
+procedure TMultiPhysicsForm.RefreshBCList;
+var
+  I, Sel: Integer;
+  B: TBoundaryCondition;
+begin
+  Sel := LbBCs.ItemIndex;
+  LbBCs.Items.BeginUpdate;
+  try
+    LbBCs.Items.Clear;
+    for I := 0 to P.BCCount - 1 do
+    begin
+      B := P.BC(I);
+      LbBCs.Items.Add(Format('%s: %s em %s/%s', [B.Name, BoundaryKindName(B.Kind), B.TargetID,
+        IfThen(B.TargetFace = '', '(todas)', B.TargetFace)]));
+    end;
+  finally
+    LbBCs.Items.EndUpdate;
+  end;
+  if (Sel >= 0) and (Sel < LbBCs.Count) then LbBCs.ItemIndex := Sel;
+end;
+
+procedure TMultiPhysicsForm.RefreshFaceCombo;
+var
+  Part: TPhysicsPart;
+  I, J: Integer;
+  Names: TStringList;
+  Seen: TStringList;
+begin
+  CbBCFace.Items.Clear;
+  CbBCFace.Items.Add('(todas as faces)');
+  if (CbBCPart.ItemIndex >= 0) and (CbBCPart.ItemIndex < P.PartCount) then
+  begin
+    Part := P.Part(CbBCPart.ItemIndex);
+    Names := TStringList.Create; Seen := TStringList.Create;
+    try
+      for I := 0 to High(Part.Primitives) do
+      begin
+        Names.CommaText := PrimFaceNames(Part.Primitives[I]);
+        for J := 0 to Names.Count - 1 do
+        begin
+          { nome curto (vale em todas as primitivas) e nome completo }
+          if Seen.IndexOf(Names[J]) < 0 then Seen.Add(Names[J]);
+          if Length(Part.Primitives) > 1 then
+            CbBCFace.Items.Add(Part.ID + '/' + Part.Primitives[I].ID + '/' + Names[J]);
+        end;
+      end;
+      for J := 0 to Seen.Count - 1 do CbBCFace.Items.Insert(1 + J, Seen[J]);
+    finally
+      Seen.Free; Names.Free;
+    end;
+  end;
+  CbBCFace.ItemIndex := 0;
+end;
+
+procedure TMultiPhysicsForm.UpdatePrimLabels;
+const
+  CAP: array[0..3, 0..3] of string = (
+    ('Comprimento X (mm)', 'Largura Y (mm)', 'Altura Z (mm)', ''),
+    ('Raio (mm)', 'Altura (mm)', '', ''),
+    ('Raio externo (mm)', 'Raio interno (mm)', 'Altura (mm)', ''),
+    ('Aba U (mm)', 'Aba V (mm)', 'Espessura (mm)', 'Comprimento (mm)'));
+  DEF: array[0..3, 0..3] of Double = ((200, 10, 20, 0), (10, 100, 0, 0), (20, 16, 100, 0), (40, 30, 5, 200));
+var
+  K, I: Integer;
+begin
+  K := Max(0, CbPrimKind.ItemIndex);
+  for I := 0 to 3 do
+  begin
+    LbDim[I].Caption := CAP[K, I];
+    EdDim[I].Visible := CAP[K, I] <> '';
+    if EdDim[I].Visible then EdDim[I].Value := DEF[K, I];
+  end;
+  CbAxis.Enabled := K > 0;
+end;
+
+procedure TMultiPhysicsForm.UpdateBCUnits;
+var
+  K: TBoundaryKind;
+  I: Integer;
+begin
+  K := BC_KINDS[Max(0, CbBCKind.ItemIndex)];
+  for I := 0 to 2 do EdVec[I].Enabled := K in [bkDisplacement, bkForce, bkGravity];
+  for I := 0 to 2 do CkDof[I].Enabled := K in [bkFixed, bkDisplacement];
+  EdVal1.Enabled := K in [bkPressure, bkTemperature, bkHeatFlux, bkConvection, bkHeatPower];
+  EdVal2.Enabled := K = bkConvection;
+  CbBCFace.Enabled := not (K in [bkGravity, bkHeatPower]);
+  CbBCPart.Enabled := K <> bkGravity;
+  case K of
+    bkDisplacement: LbVecUnit.Caption := 'Deslocamento (mm)';
+    bkForce: LbVecUnit.Caption := 'Forca total (N)';
+    bkGravity: LbVecUnit.Caption := 'Aceleracao da gravidade (m/s2)';
+    else LbVecUnit.Caption := 'Vetor (nao usado)';
+  end;
+  case K of
+    bkPressure: LbVal1.Caption := 'Pressao (MPa)';
+    bkTemperature: LbVal1.Caption := 'Temperatura (C)';
+    bkHeatFlux: LbVal1.Caption := 'Fluxo (W/m2)';
+    bkConvection: LbVal1.Caption := 'h (W/m2 K)';
+    bkHeatPower: LbVal1.Caption := 'Potencia (W)';
+    else LbVal1.Caption := 'Valor (nao usado)';
+  end;
+  if K = bkConvection then LbVal2.Caption := 'T ambiente (C)' else LbVal2.Caption := 'Valor 2 (nao usado)';
+end;
+
+function TMultiPhysicsForm.BCFromUI(out B: TBoundaryCondition): Boolean;
+var
+  K: TBoundaryKind;
+  Face: string;
+begin
+  Result := False;
+  K := BC_KINDS[Max(0, CbBCKind.ItemIndex)];
+  if (K <> bkGravity) and (CbBCPart.ItemIndex < 0) then
+  begin
+    SetStatus('Escolha a peca da condicao.');
+    Exit;
+  end;
+  Face := '';
+  if (CbBCFace.ItemIndex > 0) and CbBCFace.Enabled then Face := CbBCFace.Text;
+  B := NewBC(Trim(EdBCName.Text), '', Face, K);
+  if K <> bkGravity then B.TargetID := CbBCPart.Text;
+  if B.Name = '' then B.Name := BoundaryKindName(K) + ' ' + IntToStr(P.BCCount + 1);
+  case K of
+    bkDisplacement: begin B.X := MmToM(EdVec[0].Value); B.Y := MmToM(EdVec[1].Value); B.Z := MmToM(EdVec[2].Value); end;
+    bkForce, bkGravity: begin B.X := EdVec[0].Value; B.Y := EdVec[1].Value; B.Z := EdVec[2].Value; end;
+  end;
+  case K of
+    bkPressure: B.Value := MPaToPa(EdVal1.Value);
+    bkTemperature, bkHeatFlux, bkConvection, bkHeatPower: B.Value := EdVal1.Value;
+  end;
+  if K = bkConvection then B.Value2 := EdVal2.Value;
+  if K in [bkFixed, bkDisplacement] then
+  begin
+    B.DofMask := Ord(CkDof[0].Checked) or (Ord(CkDof[1].Checked) shl 1) or (Ord(CkDof[2].Checked) shl 2);
+    if B.DofMask = 7 then B.DofMask := 0;
+    if (B.DofMask = 0) and not (CkDof[0].Checked or CkDof[1].Checked or CkDof[2].Checked) then
+    begin
+      SetStatus('Marque ao menos um grau fixo.');
+      Exit;
+    end;
+  end;
+  Result := True;
+end;
+
+procedure TMultiPhysicsForm.ShowMarks;
+var
+  I, J: Integer;
+  B: TBoundaryCondition;
+  Clr: TColor;
+  Arrow: TVector3;
+  FaceName, Prefix: string;
+  Hit: Boolean;
+begin
+  View.ClearMarks;
+  if View = nil then Exit;
+  for I := 0 to P.BCCount - 1 do
+  begin
+    B := P.BC(I);
+    case B.Kind of
+      bkFixed, bkDisplacement: Clr := SuiteRGB(80, 120, 220);
+      bkForce, bkPressure: Clr := SuiteRGB(230, 120, 90);
+      bkTemperature, bkHeatFlux: Clr := SuiteRGB(240, 170, 60);
+      bkConvection: Clr := SuiteRGB(90, 190, 200);
+      else Continue;
+    end;
+    if B.Kind = bkForce then Arrow := V3(B.X, B.Y, B.Z) else Arrow := V3(0, 0, 0);
+    Prefix := B.TargetID + '/';
+    for J := 0 to Run.Mesh.FaceNames.Count - 1 do
+    begin
+      FaceName := Run.Mesh.FaceNames[J];
+      if not SameText(Copy(FaceName, 1, Length(Prefix)), Prefix) then Continue;
+      if B.TargetFace = '' then Hit := True
+      else if Pos('/', B.TargetFace) > 0 then Hit := SameText(FaceName, B.TargetFace)
+      else Hit := SameText(Copy(FaceName, LastDelimiter('/', FaceName) + 1, MaxInt), B.TargetFace);
+      if Hit then View.AddMark(J, Clr, Arrow);
+    end;
+  end;
+end;
+
+procedure TMultiPhysicsForm.ApplySettingsFromUI;
+begin
+  P.Settings.MeshSize := MmToM(EdMeshSize.Value);
+  P.Settings.Quadratic := CkQuadratic.Checked;
+  P.Settings.CheckConvergence := CkConvergence.Checked;
+  P.Settings.Modes := EdModes.Value;
+  P.Settings.Solver := Max(0, CbSolver.ItemIndex);
+  Run.CCXExe := Trim(EdCCX.Text);
+  case CbAnalysis.ItemIndex of
+    1: P.Settings.Physics := [pkThermal];
+    2: P.Settings.Physics := [pkStructural, pkThermal];
+    3: P.Settings.Physics := [pkModal];
+    else P.Settings.Physics := [pkStructural];
+  end;
+end;
+
+{ ---------------- arquivo ---------------- }
+
+procedure TMultiPhysicsForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+begin
+  CanClose := ManagerProcess = nil;
+  if not CanClose then
+  begin
+    SetStatus('Aguarde a conclusao da instalacao do CalculiX antes de sair.');
+    Exit;
+  end;
+  if P.Modified then
+    CanClose := MessageDlg('MultiPhysics', 'O projeto foi alterado e nao foi salvo. Sair mesmo assim?',
+      mtConfirmation, [mbYes, mbNo], 0) = mrYes;
+end;
+
+procedure TMultiPhysicsForm.CaptureTick(Sender: TObject);
+var
+  Mode, FN: string;
+  Bmp: TBitmap;
+  Png: TPortableNetworkGraphic;
+  I: Integer;
+begin
+  TTimer(Sender).Enabled := False;
+  Mode := LowerCase(Application.GetOptionValue('capture'));
+  FN := ParamStr(ParamCount);
+  if Mode = 'environment' then
+  begin
+    { o casco veio por --file; flutuacao na etapa Ambiente }
+    ShowStep(9);
+    AssemblyFlotationClick(nil);
+  end
+  else if Mode = 'materials' then
+  begin
+    DemoClick(nil);
+    ShowStep(1);
+    LbMatParts.ItemIndex := 0;
+    MatPartListClick(nil);
+  end
+  else if Mode = 'mesh' then
+  begin
+    DemoClick(nil);
+    ShowStep(3);
+    MeshClick(Self);
+  end
+  else if Mode = 'cnc' then
+  begin
+    ShowStep(7);
+    MachineCreateClick(nil);
+    MachineMoveClick(nil);
+  end
+  else if Pos('assembly', Mode) = 1 then
+  begin
+    { a montagem veio por --file; resolve com a estrutura FRAME presa }
+    if Mode = 'assemblysolve' then
+    begin
+      if P.FindPart('FRAME') >= 0 then P.AddBC(NewBC('Base', 'FRAME', 'zmin', bkFixed));
+      EdMeshSize.Value := 6;
+      CkQuadratic.Checked := False;
+      CkConvergence.Checked := False;
+      CbAnalysis.ItemIndex := 0;
+      SolveSync;
+      CbField.ItemIndex := 0;
+      ShowResultField;
+    end
+    else
+      ShowStep(0);
+  end
+  else
+    DemoClick(nil);
+  if (Pos('assembly', Mode) = 1) or (Mode = 'environment') or (Mode = 'materials') or (Mode = 'mesh') or (Mode = 'cnc') then
+  else if Mode = 'system' then
+  begin
+    ShowStep(6);
+    LoadMachineClick(nil);
+    GraphRuntime.Start;
+    for I := 1 to 300 do RuntimeTick(nil);
+  end
+  else if Mode = 'circuit' then
+  begin
+    ShowStep(8);
+    CircuitSolveClick(nil);
+  end
+  else if Mode = 'loads' then
+    ShowStep(2)
+  else
+  begin
+    if Mode = 'thermal' then CbAnalysis.ItemIndex := 1
+    else if Mode = 'thermomech' then CbAnalysis.ItemIndex := 2
+    else if Mode = 'modal' then CbAnalysis.ItemIndex := 3
+    else CbAnalysis.ItemIndex := 0;
+    if Mode = 'thread' then
+    begin
+      { mesmo caminho do botao: thread + temporizador }
+      SolveClick(nil);
+      while (SolveThread <> nil) or SolveTimer.Enabled do
+      begin
+        Application.ProcessMessages;
+        Sleep(20);
+      end;
+    end
+    else
+      SolveSync;
+    if Mode = 'modal' then CkAnimate.Checked := False;
+    if Mode = 'static' then begin CbField.ItemIndex := 1; ShowResultField; end;
+  end;
+  Application.ProcessMessages;
+  Repaint;
+  Application.ProcessMessages;
+  Bmp := GetFormImage;
+  Png := TPortableNetworkGraphic.Create;
+  try
+    Png.Assign(Bmp);
+    Png.SaveToFile(FN);
+  finally
+    Png.Free;
+    Bmp.Free;
+  end;
+  P.Modified := False;
+  Application.Terminate;
+end;
+
+procedure TMultiPhysicsForm.SetBadge(const ACaption: string; AColor: TColor);
+begin
+  Badge.Caption := ACaption;
+  Badge.DotColor := AColor;
+  HeaderResize(nil);
+end;
+
+procedure TMultiPhysicsForm.HeaderResize(Sender: TObject);
+begin
+  Badge.Left := Max(400, Header.ClientWidth - Badge.Width - 24);
+end;
+
+function ConfigFile: string;
+begin
+  Result := GetAppConfigDir(False) + 'multiphysics.ini';
+end;
+
+procedure TMultiPhysicsForm.LoadConfig;
+var
+  Ini: TIniFile;
+begin
+  EdCCX.Text := Run.CCXExe;
+  try
+    Ini := TIniFile.Create(ConfigFile);
+    try
+      if Ini.ReadString('calculix', 'exe', '') <> '' then EdCCX.Text := Ini.ReadString('calculix', 'exe', '');
+    finally
+      Ini.Free;
+    end;
+  except
+    { configuracao e opcional }
+  end;
+  Run.CCXExe := EdCCX.Text;
+end;
+
+procedure TMultiPhysicsForm.SaveConfig;
+var
+  Ini: TIniFile;
+begin
+  try
+    ForceDirectories(GetAppConfigDir(False));
+    Ini := TIniFile.Create(ConfigFile);
+    try
+      Ini.WriteString('calculix', 'exe', Trim(EdCCX.Text));
+    finally
+      Ini.Free;
+    end;
+  except
+    { sem permissao: segue sem guardar }
+  end;
+end;
+
+procedure TMultiPhysicsForm.BrowseCCXClick(Sender: TObject);
+var
+  D: TOpenDialog;
+begin
+  D := TOpenDialog.Create(Self);
+  try
+    D.Filter := 'CalculiX (ccx*.exe)|ccx*.exe|Executaveis (*.exe)|*.exe|Todos|*.*';
+    if D.Execute then
+    begin
+      EdCCX.Text := D.FileName;
+      Run.CCXExe := D.FileName;
+      SaveConfig;
+    end;
+  finally
+    D.Free;
+  end;
+end;
+
+procedure TMultiPhysicsForm.NewClick(Sender: TObject);
+begin
+  if (SolveThread <> nil) or (ManagerProcess <> nil) then Exit;
+  if P.Modified and (MessageDlg('Novo projeto', 'Descartar as alteracoes do projeto atual?',
+    mtConfirmation, [mbYes, mbNo], 0) <> mrYes) then Exit;
+  P.Clear;
+  Run.Mesh.Clear;
+  HasResult := False;
+  View.SetMesh(nil);
+  SetBadge('Sem resultado', clSuiteFaint);
+  EdPartID.Text := '';
+  RefreshAll;
+  ResetHistory;
+  SetStatus('Projeto novo.');
+  ShowStep(0);
+end;
+
+procedure TMultiPhysicsForm.LoadProjectFile(const FN: string);
+var
+  Draft: TPhysicsProject;
+begin
+  Draft := TPhysicsProject.Create;
+  try
+    try
+      { Valida em outro documento: arquivo invalido nao apaga o projeto aberto. }
+      Draft.LoadFromFile(FN);
+      P.FromJSON(Draft.ToJSON);
+      P.FileName := Draft.FileName;
+      HasResult := False;
+      Run.Mesh.Clear;
+      View.SetMesh(nil);
+      SetBadge('Sem resultado', clSuiteFaint);
+      RefreshAll;
+      ResetHistory;
+      SetStatus('Projeto aberto: ' + ExtractFileName(FN));
+      Log.Lines.Add('Aberto ' + FN);
+      MeshClick(nil);
+    except
+      on E: Exception do MessageDlg('Nao foi possivel abrir', E.Message, mtError, [mbOK], 0);
+    end;
+  finally
+    Draft.Free;
+  end;
+end;
+
+procedure TMultiPhysicsForm.OpenClick(Sender: TObject);
+var
+  D: TOpenDialog;
+begin
+  if (SolveThread <> nil) or (ManagerProcess <> nil) then Exit;
+  D := TOpenDialog.Create(Self);
+  try
+    D.Filter := 'Projeto MultiPhysics (*.mphys)|*.mphys|Todos os arquivos|*.*';
+    if D.Execute then
+    begin
+      if P.Modified and (MessageDlg('Abrir projeto', 'Descartar as alteracoes do projeto atual?',
+        mtConfirmation, [mbYes, mbNo], 0) <> mrYes) then Exit;
+      LoadProjectFile(D.FileName);
+    end;
+  finally
+    D.Free;
+  end;
+end;
+
+procedure TMultiPhysicsForm.SaveClick(Sender: TObject);
+var
+  D: TSaveDialog;
+  FN: string;
+begin
+  if (SolveThread <> nil) or (ManagerProcess <> nil) then Exit;
+  ApplySettingsFromUI;
+  FN := P.FileName;
+  if FN = '' then
+  begin
+    D := TSaveDialog.Create(Self);
+    try
+      D.Filter := 'Projeto MultiPhysics (*.mphys)|*.mphys';
+      D.DefaultExt := 'mphys';
+      D.FileName := P.Name + MPHYS_EXT;
+      D.Options := D.Options + [ofOverwritePrompt];
+      if not D.Execute then Exit;
+      FN := D.FileName;
+    finally
+      D.Free;
+    end;
+  end;
+  try
+    P.SaveToFile(FN);
+    SavedState := P.ToJSON;
+    RecordHistory;
+    RefreshTree;
+    SetStatus('Salvo em ' + FN);
+  except
+    on E: Exception do MessageDlg('Nao foi possivel salvar', E.Message, mtError, [mbOK], 0);
+  end;
+end;
+
+{ demonstracao: suporte em L engastado com carga na ponta }
+procedure TMultiPhysicsForm.DemoClick(Sender: TObject);
+var
+  Part: TPhysicsPart;
+  B: TBoundaryCondition;
+begin
+  if (SolveThread <> nil) or (ManagerProcess <> nil) then Exit;
+  if P.Modified and (MessageDlg('Demonstracao', 'Descartar as alteracoes do projeto atual?',
+    mtConfirmation, [mbYes, mbNo], 0) <> mrYes) then Exit;
+  P.Clear;
+  P.Name := 'Demo - viga em balanco';
+  Part := TPhysicsPart.Create;
+  Part.ID := 'VIGA'; Part.Name := 'Viga de aco 200 x 10 x 20 mm';
+  Part.Material := MaterialByIndex(FindMaterial('Aco carbono'));
+  Part.AddPrimitive(BoxPrim('b', V3(0, 0, 0), V3(0.2, 0.01, 0.02)));
+  P.AddPart(Part);
+  P.AddBC(NewBC('Engaste', 'VIGA', 'xmin', bkFixed));
+  B := NewBC('Carga na ponta', 'VIGA', 'xmax', bkForce);
+  B.Z := -100;
+  P.AddBC(B);
+  B := NewBC('Base quente', 'VIGA', 'xmin', bkTemperature);
+  B.Value := 80;
+  P.AddBC(B);
+  B := NewBC('Ar ambiente', 'VIGA', '', bkConvection);
+  B.Value := 15; B.Value2 := 20;
+  P.AddBC(B);
+  P.Settings.MeshSize := 0.005;
+  P.Modified := False;
+  HasResult := False;
+  RefreshAll;
+  MeshClick(nil);
+  ShowStep(2);
+  ResetHistory;
+  SetStatus('Demonstracao: viga engastada, 100 N na ponta. Va em Resolver.');
+end;
+
+procedure TMultiPhysicsForm.ProjectNameChange(Sender: TObject);
+begin
+  if FUpdating then Exit;
+  P.Name := EdProjectName.Text;
+  P.Modified := True;
+  RefreshTree;
+end;
+
+{ ---------------- 1 montagem ---------------- }
+
+procedure TMultiPhysicsForm.PrimKindChange(Sender: TObject);
+begin
+  UpdatePrimLabels;
+end;
+
+procedure TMultiPhysicsForm.AddPartClick(Sender: TObject);
+var
+  Part: TPhysicsPart;
+  ID: string;
+  Ax: Char;
+  D: array[0..3] of Double;
+  I: Integer;
+begin
+  ID := UpperCase(Trim(EdPartID.Text));
+  if (ID = '') or (Pos('/', ID) > 0) then begin SetStatus('Informe um ID sem barra.'); Exit; end;
+  if P.FindPart(ID) >= 0 then begin SetStatus('Ja existe uma peca ' + ID + '.'); Exit; end;
+  for I := 0 to 3 do D[I] := MmToM(EdDim[I].Value);
+  Ax := CbAxis.Text[1];
+  Part := TPhysicsPart.Create;
+  Part.ID := ID; Part.Name := ID;
+  Part.Material := MaterialByIndex(FindMaterial('Aco carbono'));
+  case CbPrimKind.ItemIndex of
+    1: Part.AddPrimitive(CylPrim('c', Ax, V3(0, 0, 0), D[0], D[1]));
+    2:
+      begin
+        if D[1] >= D[0] then begin Part.Free; SetStatus('Raio interno deve ser menor que o externo.'); Exit; end;
+        Part.AddPrimitive(CylPrim('t', Ax, V3(0, 0, 0), D[0], D[2], D[1]));
+      end;
+    3:
+      begin
+        if (D[2] >= D[0]) or (D[2] >= D[1]) then begin Part.Free; SetStatus('Espessura deve ser menor que as abas.'); Exit; end;
+        Part.AddPrimitive(PrismPrim('l', Ax, V3(0, 0, 0), D[3],
+          [V2(0, 0), V2(D[0], 0), V2(D[0], D[2]), V2(D[2], D[2]), V2(D[2], D[1]), V2(0, D[1])]));
+      end;
+    else Part.AddPrimitive(BoxPrim('b', V3(0, 0, 0), V3(D[0], D[1], D[2])));
+  end;
+  P.AddPart(Part);
+  EdPartID.Text := '';
+  RefreshPartLists;
+  LbParts.ItemIndex := P.PartCount - 1;
+  PartListClick(nil);
+  RefreshTree;
+  MeshClick(nil);
+  SetStatus('Peca ' + ID + ' adicionada (aco carbono). Ajuste o material na etapa 2.');
+end;
+
+procedure TMultiPhysicsForm.PartListClick(Sender: TObject);
+var
+  Part: TPhysicsPart;
+begin
+  Part := SelectedPart;
+  if Part = nil then Exit;
+  EdPos[0].Value := MToMm(Part.Position.X);
+  EdPos[1].Value := MToMm(Part.Position.Y);
+  EdPos[2].Value := MToMm(Part.Position.Z);
+  EdRot[0].Value := Part.RotX; EdRot[1].Value := Part.RotY; EdRot[2].Value := Part.RotZ;
+  CkSuppressed.Checked := Part.Suppressed;
+  if (Run.Mesh.ElemCount > 0) and (LbParts.ItemIndex < Run.Mesh.PartNames.Count) then
+    with Run.Mesh.MassProperties(LbParts.ItemIndex, Part.Material.Density) do
+      SetStatus(Format('%s: massa %.4f kg, centro (%.1f, %.1f, %.1f) mm, Ixx %.3g Iyy %.3g Izz %.3g kg m2 (malha)',
+        [Part.ID, Mass, Center.X * 1000, Center.Y * 1000, Center.Z * 1000, Ixx, Iyy, Izz]));
+end;
+
+procedure TMultiPhysicsForm.ApplyPartClick(Sender: TObject);
+var
+  Part: TPhysicsPart;
+begin
+  Part := SelectedPart;
+  if Part = nil then begin SetStatus('Selecione uma peca na lista.'); Exit; end;
+  Part.Position := V3(MmToM(EdPos[0].Value), MmToM(EdPos[1].Value), MmToM(EdPos[2].Value));
+  Part.RotX := EdRot[0].Value; Part.RotY := EdRot[1].Value; Part.RotZ := EdRot[2].Value;
+  Part.Suppressed := CkSuppressed.Checked;
+  P.Modified := True;
+  RefreshPartLists;
+  RefreshTree;
+  MeshClick(nil);
+end;
+
+procedure TMultiPhysicsForm.ImportAssemblyClick(Sender: TObject);
+var
+  D: TOpenDialog;
+begin
+  if (SolveThread <> nil) or (ManagerProcess <> nil) then Exit;
+  if P.Modified and (MessageDlg('Importar montagem', 'Substituir o projeto atual pela montagem?',
+    mtConfirmation, [mbYes, mbNo], 0) <> mrYes) then Exit;
+  D := TOpenDialog.Create(Self);
+  try
+    D.Filter := 'Montagem MultiAssembly (*.massembly;*.massembly)|*.massembly;*.massembly|Todos os arquivos|*.*';
+    if D.Execute then ImportAssemblyFile(D.FileName);
+  finally
+    D.Free;
+  end;
+end;
+
+procedure TMultiPhysicsForm.DetectContactsClick(Sender: TObject);
+var
+  N: Integer;
+begin
+  N := P.ContactCount;
+  DetectContacts(P, 0.0002, nil);
+  RefreshContacts;
+  RefreshTree;
+  SetStatus(Format('%d contato(s) novo(s) pelas caixas envolventes que se tocam.', [P.ContactCount - N]));
+end;
+
+procedure TMultiPhysicsForm.DeleteContactClick(Sender: TObject);
+begin
+  if (LbContacts.ItemIndex < 0) or (LbContacts.ItemIndex >= P.ContactCount) then Exit;
+  P.DeleteContact(LbContacts.ItemIndex);
+  RefreshContacts;
+  RefreshTree;
+end;
+
+procedure TMultiPhysicsForm.DeletePartClick(Sender: TObject);
+begin
+  if SelectedPart = nil then Exit;
+  P.DeletePart(LbParts.ItemIndex);
+  RefreshAll;
+  MeshClick(nil);
+end;
+
+{ ---------------- 2 materiais ---------------- }
+
+procedure TMultiPhysicsForm.MatPartListClick(Sender: TObject);
+var
+  M: TMaterial;
+begin
+  if (LbMatParts.ItemIndex < 0) or (LbMatParts.ItemIndex >= P.PartCount) then Exit;
+  M := P.Part(LbMatParts.ItemIndex).Material;
+  FUpdating := True;
+  try
+    CbMaterial.ItemIndex := FindMaterial(M.Name);
+    EdE.Value := M.YoungModulus / 1e9;
+    EdNu.Value := M.Poisson;
+    EdRho.Value := M.Density;
+    EdK.Value := M.ThermalConductivity;
+    EdAlpha.Value := M.ThermalExpansion * 1e6;
+    EdYield.Value := M.YieldStrength / 1e6;
+  finally
+    FUpdating := False;
+  end;
+end;
+
+procedure TMultiPhysicsForm.MaterialChange(Sender: TObject);
+var
+  M: TMaterial;
+begin
+  if FUpdating or (CbMaterial.ItemIndex < 0) then Exit;
+  M := MaterialByIndex(CbMaterial.ItemIndex);
+  EdE.Value := M.YoungModulus / 1e9;
+  EdNu.Value := M.Poisson;
+  EdRho.Value := M.Density;
+  EdK.Value := M.ThermalConductivity;
+  EdAlpha.Value := M.ThermalExpansion * 1e6;
+  EdYield.Value := M.YieldStrength / 1e6;
+end;
+
+procedure TMultiPhysicsForm.ApplyMaterialClick(Sender: TObject);
+var
+  M: TMaterial;
+  Part: TPhysicsPart;
+begin
+  if (LbMatParts.ItemIndex < 0) or (LbMatParts.ItemIndex >= P.PartCount) then
+  begin
+    SetStatus('Selecione a peca.');
+    Exit;
+  end;
+  Part := P.Part(LbMatParts.ItemIndex);
+  if CbMaterial.ItemIndex >= 0 then M := MaterialByIndex(CbMaterial.ItemIndex) else M := Part.Material;
+  M.YoungModulus := EdE.Value * 1e9;
+  M.Poisson := EdNu.Value;
+  M.Density := EdRho.Value;
+  M.ThermalConductivity := EdK.Value;
+  M.ThermalExpansion := EdAlpha.Value * 1e-6;
+  M.YieldStrength := EdYield.Value * 1e6;
+  Part.Material := M;
+  P.Modified := True;
+  RefreshPartLists;
+  RefreshTree;
+  SetStatus(Format('Material de %s: %s', [Part.ID, M.Name]));
+end;
+
+procedure TMultiPhysicsForm.ApplyMaterialAllClick(Sender: TObject);
+var
+  I: Integer;
+begin
+  HistoryLoading := True;
+  try
+    for I := 0 to P.PartCount - 1 do
+    begin
+      LbMatParts.ItemIndex := I;
+      ApplyMaterialClick(nil);
+    end;
+  finally
+    HistoryLoading := False;
+  end;
+  RecordHistory;
+end;
+
+{ ---------------- 3 cargas ---------------- }
+
+procedure TMultiPhysicsForm.BCKindChange(Sender: TObject);
+begin
+  UpdateBCUnits;
+end;
+
+procedure TMultiPhysicsForm.BCPartChange(Sender: TObject);
+begin
+  RefreshFaceCombo;
+end;
+
+procedure TMultiPhysicsForm.BCListClick(Sender: TObject);
+var
+  B: TBoundaryCondition;
+  I: Integer;
+begin
+  if (LbBCs.ItemIndex < 0) or (LbBCs.ItemIndex >= P.BCCount) then Exit;
+  B := P.BC(LbBCs.ItemIndex);
+  EdBCName.Text := B.Name;
+  CbBCKind.ItemIndex := BCKindIndex(B.Kind);
+  UpdateBCUnits;
+  CbBCPart.ItemIndex := P.FindPart(B.TargetID);
+  RefreshFaceCombo;
+  I := CbBCFace.Items.IndexOf(B.TargetFace);
+  if I >= 0 then CbBCFace.ItemIndex := I else CbBCFace.ItemIndex := 0;
+  case B.Kind of
+    bkDisplacement: begin EdVec[0].Value := MToMm(B.X); EdVec[1].Value := MToMm(B.Y); EdVec[2].Value := MToMm(B.Z); end;
+    bkForce, bkGravity: begin EdVec[0].Value := B.X; EdVec[1].Value := B.Y; EdVec[2].Value := B.Z; end;
+  end;
+  if B.Kind = bkPressure then EdVal1.Value := PaToMPa(B.Value) else EdVal1.Value := B.Value;
+  EdVal2.Value := B.Value2;
+  for I := 0 to 2 do CkDof[I].Checked := (B.DofMask = 0) or ((B.DofMask and (1 shl I)) <> 0);
+end;
+
+procedure TMultiPhysicsForm.AddBCClick(Sender: TObject);
+var
+  B: TBoundaryCondition;
+begin
+  if not BCFromUI(B) then Exit;
+  P.AddBC(B);
+  RefreshBCList;
+  LbBCs.ItemIndex := P.BCCount - 1;
+  RefreshTree;
+  ShowMarks;
+  SetStatus('Condicao "' + B.Name + '" adicionada.');
+end;
+
+procedure TMultiPhysicsForm.UpdateBCClick(Sender: TObject);
+var
+  B: TBoundaryCondition;
+begin
+  if (LbBCs.ItemIndex < 0) or (LbBCs.ItemIndex >= P.BCCount) then
+  begin
+    SetStatus('Selecione a condicao na lista.');
+    Exit;
+  end;
+  if not BCFromUI(B) then Exit;
+  P.SetBC(LbBCs.ItemIndex, B);
+  RefreshBCList;
+  RefreshTree;
+  ShowMarks;
+end;
+
+procedure TMultiPhysicsForm.DeleteBCClick(Sender: TObject);
+begin
+  if (LbBCs.ItemIndex < 0) or (LbBCs.ItemIndex >= P.BCCount) then Exit;
+  P.DeleteBC(LbBCs.ItemIndex);
+  RefreshBCList;
+  RefreshTree;
+  ShowMarks;
+end;
+
+procedure TMultiPhysicsForm.ViewPickFace(Sender: TObject; FaceTag: Integer; const TagName: string);
+var
+  Parts: TStringList;
+  I: Integer;
+begin
+  SetStatus('Face: ' + TagName);
+  if FStep <> 2 then Exit;
+  Parts := TStringList.Create;
+  try
+    Parts.Delimiter := '/';
+    Parts.StrictDelimiter := True;
+    Parts.DelimitedText := TagName;
+    if Parts.Count < 3 then Exit;
+    CbBCPart.ItemIndex := P.FindPart(Parts[0]);
+    RefreshFaceCombo;
+    I := CbBCFace.Items.IndexOf(TagName);
+    if I < 0 then I := CbBCFace.Items.IndexOf(Parts[2]);
+    if I >= 0 then CbBCFace.ItemIndex := I;
+  finally
+    Parts.Free;
+  end;
+end;
+
+{ ---------------- 4 malha / 5 resolver ---------------- }
+
+procedure TMultiPhysicsForm.MeshClick(Sender: TObject);
+var
+  Q: TMeshQuality;
+begin
+  ApplySettingsFromUI;
+  Screen.Cursor := crHourGlass;
+  try
+    if not Run.MeshOnly(Q) then
+    begin
+      View.SetMesh(nil);
+      LbMeshInfo.Caption := 'Nenhuma peca com geometria.';
+      Exit;
+    end;
+  finally
+    Screen.Cursor := crDefault;
+  end;
+  HasResult := False;
+  View.SetMesh(Run.Mesh);
+  View.Message := '';
+  ShowMarks;
+  LbMeshInfo.Caption := Format('%d nos, %d elementos TET%d'#13#10'%d faces de contorno'#13#10 +
+    'Forma minima %.2f, media %.2f'#13#10'Elementos ruins (< 0,1): %d'#13#10'Invertidos: %d'#13#10'Volume %.4g cm3',
+    [Run.Mesh.NodeCount, Run.Mesh.ElemCount, Run.Mesh.NodesPerElement, Run.Mesh.FaceCount,
+     Q.MinShape, Q.MeanShape, Q.Poor, Q.Inverted, Run.Mesh.Volume * 1e6]);
+  if Sender <> nil then SetStatus('Malha gerada.');
+end;
+
+constructor TSolveThread.Create(ARun: TAnalysisRun; AKind: TAnalysisKind);
+begin
+  FRun := ARun;
+  FKind := AKind;
+  inherited Create(False);
+end;
+
+procedure TSolveThread.Execute;
+begin
+  Ok := FRun.Run(FKind);
+end;
+
+function TMultiPhysicsForm.PrepareSolve(out K: TAnalysisKind): Boolean;
+begin
+  Result := False;
+  if ManagerProcess <> nil then Exit;
+  ApplySettingsFromUI;
+  case CbAnalysis.ItemIndex of
+    1: K := akThermal;
+    2: K := akThermoMechanical;
+    3: K := akModal;
+    else K := akStatic;
+  end;
+  if (P.Settings.Solver = 1) and not FileExists(Run.CCXExe) then
+  begin
+    MessageDlg('CalculiX', 'Informe o executavel do CalculiX (ccx) na etapa Resolver, ou use o FEM proprio.',
+      mtWarning, [mbOK], 0);
+    ShowStep(4);
+    Exit;
+  end;
+  SaveConfig;
+  Result := True;
+end;
+
+procedure TMultiPhysicsForm.SetBusy(Busy: Boolean);
+var
+  I: Integer;
+begin
+  Pages.Enabled := not Busy;
+  for I := 0 to STEP_COUNT - 1 do Nav[I].Enabled := not Busy;
+  if Busy then
+  begin
+    FooterSolveBtn.Caption := 'Cancelar';
+    FooterSolveBtn.SetLook(sbsSolid, clSuiteDanger, sikStop);
+    PageSolveBtn.Caption := 'Cancelar';
+  end
+  else
+  begin
+    FooterSolveBtn.Caption := 'Resolver';
+    FooterSolveBtn.SetLook(sbsSolid, clSuitePrimary, sikPlay);
+    PageSolveBtn.Caption := 'Resolver';
+  end;
+end;
+
+{ Resolver: em segundo plano; clicar de novo durante o calculo cancela }
+procedure TMultiPhysicsForm.SolveClick(Sender: TObject);
+var
+  K: TAnalysisKind;
+begin
+  if SolveThread <> nil then
+  begin
+    FEMCancelRequested := True;
+    SetStatus('Cancelando...');
+    Exit;
+  end;
+  if not PrepareSolve(K) then Exit;
+  SolveKind := K;
+  SolveStart := Now;
+  SetStatus('Resolvendo ' + AnalysisKindName(K) + '...');
+  SetBusy(True);
+  { a thread reconstroi Run.Mesh: a vista nao pode pinta-la durante o calculo }
+  View.SetMesh(nil);
+  View.Message := 'Resolvendo ' + AnalysisKindName(K) + '...';
+  SolveThread := TSolveThread.Create(Run, K);
+  SolveTimer.Enabled := True;
+end;
+
+procedure TMultiPhysicsForm.SolveTimerTick(Sender: TObject);
+var
+  Ok: Boolean;
+begin
+  if SolveThread = nil then begin SolveTimer.Enabled := False; Exit; end;
+  if not SolveThread.Finished then
+  begin
+    SetStatus(Format('Resolvendo %s... %d s (clique em Cancelar para interromper)',
+      [AnalysisKindName(SolveKind), SecondsBetween(Now, SolveStart)]));
+    Exit;
+  end;
+  SolveTimer.Enabled := False;
+  SolveThread.WaitFor;
+  Ok := SolveThread.Ok;
+  FreeAndNil(SolveThread);
+  SetBusy(False);
+  FinishSolve(SolveKind, Ok);
+end;
+
+{ mesma resolucao sem thread (captura de tela por linha de comando) }
+procedure TMultiPhysicsForm.SolveSync;
+var
+  K: TAnalysisKind;
+  Ok: Boolean;
+begin
+  if not PrepareSolve(K) then Exit;
+  Screen.Cursor := crHourGlass;
+  try
+    Ok := Run.Run(K);
+  finally
+    Screen.Cursor := crDefault;
+  end;
+  FinishSolve(K, Ok);
+end;
+
+procedure TMultiPhysicsForm.FinishSolve(K: TAnalysisKind; Ok: Boolean);
+var
+  I: Integer;
+begin
+  HasResult := Ok;
+  Log.Lines.Add('--- ' + AnalysisKindName(K) + ' ---');
+  for I := 0 to Run.Log.Count - 1 do Log.Lines.Add(Run.Log[I]);
+  if not HasResult then
+  begin
+    SetStatus('Nao resolvido: ' + Run.Message);
+    SetBadge('Nao resolvido', clSuiteDanger);
+    View.SetMesh(Run.Mesh);
+    RefreshTree;
+    Exit;
+  end;
+  if Run.Fidelity = flEngineering then
+    SetBadge(AnalysisKindName(K) + ': ENGENHARIA', clSuiteSuccess)
+  else
+    SetBadge(AnalysisKindName(K) + ': ESTIMATIVA', clSuiteWarning);
+  SetStatus(Format('%s resolvida em %d ms (%s).', [AnalysisKindName(K), Run.ElapsedMs, FidelityName(Run.Fidelity)]));
+  View.SetMesh(Run.Mesh);
+  CbField.Items.Clear;
+  case K of
+    akStatic: CbField.Items.CommaText := '"Deslocamento","Tensao de von Mises","Fator de seguranca"';
+    akThermal: CbField.Items.CommaText := '"Temperatura"';
+    akThermoMechanical: CbField.Items.CommaText := '"Deslocamento","Tensao de von Mises","Fator de seguranca","Temperatura"';
+    akModal:
+      for I := 0 to High(Run.ModalRes.Freq) do
+        CbField.Items.Add(Format('Modo %d: %.2f Hz', [I + 1, Run.ModalRes.Freq[I]]));
+  end;
+  CbField.ItemIndex := 0;
+  CkAnimate.Checked := K = akModal;
+  RefreshTree;
+  ShowStep(5);
+end;
+
+{ ---------------- 6 resultados ---------------- }
+
+procedure TMultiPhysicsForm.ShowResultField;
+var
+  V: array of Double;
+  I, NN, Mode: Integer;
+  S, Yield: Double;
+  Txt: string;
+begin
+  if not HasResult then
+  begin
+    View.ClearScalar;
+    View.ClearDisplacement;
+    Exit;
+  end;
+  NN := Run.Mesh.NodeCount;
+  View.ClearMarks;
+  View.Animate := False;
+  V := nil;
+  Txt := CbField.Text;
+  if Run.Kind = akModal then
+  begin
+    Mode := Max(0, CbField.ItemIndex);
+    if Mode <= High(Run.ModalRes.Shapes) then
+    begin
+      SetLength(V, NN);
+      for I := 0 to NN - 1 do
+        V[I] := Sqrt(Sqr(Run.ModalRes.Shapes[Mode][3 * I]) + Sqr(Run.ModalRes.Shapes[Mode][3 * I + 1]) + Sqr(Run.ModalRes.Shapes[Mode][3 * I + 2]));
+      View.SetScalar(V, 'Forma modal', 'rel.');
+      S := EdScale.Value;
+      if S = 0 then S := View.AutoScale(Run.ModalRes.Shapes[Mode]);
+      View.SetDisplacement(Run.ModalRes.Shapes[Mode], S);
+      View.Animate := CkAnimate.Checked;
+    end;
+  end
+  else
+  begin
+    SetLength(V, NN);
+    if Pos('Temperatura', Txt) = 1 then
+    begin
+      for I := 0 to NN - 1 do V[I] := Run.ThermalRes.T[I];
+      View.SetScalar(V, 'Temperatura', 'C');
+    end
+    else if Pos('Tensao', Txt) = 1 then
+    begin
+      for I := 0 to NN - 1 do V[I] := Run.StaticRes.VonMises[I] / 1e6;
+      View.SetScalar(V, 'von Mises', 'MPa');
+    end
+    else if Pos('Fator', Txt) = 1 then
+    begin
+      Yield := 0;
+      if P.PartCount > 0 then Yield := P.Part(0).Material.YieldStrength;
+      for I := 0 to NN - 1 do V[I] := Min(10, Yield / Max(Run.StaticRes.VonMises[I], 1));
+      View.SetScalar(V, 'Fator de seguranca (max 10)', '-');
+    end
+    else if Length(Run.StaticRes.U) = 3 * NN then
+    begin
+      for I := 0 to NN - 1 do
+        V[I] := 1000 * Sqrt(Sqr(Run.StaticRes.U[3 * I]) + Sqr(Run.StaticRes.U[3 * I + 1]) + Sqr(Run.StaticRes.U[3 * I + 2]));
+      View.SetScalar(V, 'Deslocamento', 'mm');
+    end;
+    if CkDeformed.Checked and (Length(Run.StaticRes.U) = 3 * NN) then
+    begin
+      S := EdScale.Value;
+      if S = 0 then S := View.AutoScale(Run.StaticRes.U);
+      View.SetDisplacement(Run.StaticRes.U, S);
+      View.Animate := CkAnimate.Checked;
+    end
+    else
+      View.ClearDisplacement;
+  end;
+  { resumo }
+  Txt := AnalysisKindName(Run.Kind) + #13#10 + 'Fidelidade: ' + FidelityName(Run.Fidelity);
+  if Run.Fidelity <> flEngineering then Txt := Txt + #13#10 + '(' + Run.FidelityReason + ')';
+  if Run.Convergence >= 0 then Txt := Txt + Format(#13#10'Variacao entre malhas: %.2f%%', [Run.Convergence * 100]);
+  Txt := Txt + Format(#13#10'Malha: %d nos, %d elementos', [Run.Mesh.NodeCount, Run.Mesh.ElemCount]);
+  case Run.Kind of
+    akStatic, akThermoMechanical:
+      begin
+        Txt := Txt + #13#10#13#10'Deslocamento maximo: ' + FormatLength(Run.StaticRes.MaxDisp);
+        Txt := Txt + #13#10'von Mises maximo: ' + FormatStress(Run.StaticRes.MaxVonMises);
+        if Run.StaticRes.MinSafety < 1e30 then Txt := Txt + Format(#13#10'Fator de seguranca minimo: %.2f', [Run.StaticRes.MinSafety]);
+        Txt := Txt + Format(#13#10'Reacao: (%s, %s, %s)', [FormatForce(Run.StaticRes.Reaction.X),
+          FormatForce(Run.StaticRes.Reaction.Y), FormatForce(Run.StaticRes.Reaction.Z)]);
+        if Run.Kind = akThermoMechanical then
+          Txt := Txt + Format(#13#10'Temperatura: %.1f a %.1f C', [Run.ThermalRes.MinT, Run.ThermalRes.MaxT]);
+      end;
+    akThermal:
+      Txt := Txt + Format(#13#10#13#10'Temperatura: %.2f a %.2f C'#13#10'Calor pelas faces fixas: %.3f W',
+        [Run.ThermalRes.MinT, Run.ThermalRes.MaxT, Run.ThermalRes.HeatIn]);
+    akModal:
+      begin
+        Txt := Txt + #13#10;
+        for I := 0 to High(Run.ModalRes.Freq) do
+        begin
+          Txt := Txt + Format(#13#10'Modo %d: %.2f Hz', [I + 1, Run.ModalRes.Freq[I]]);
+          if I <= High(Run.ModalRes.EffMass) then
+            Txt := Txt + Format('  (massa efetiva x %.0f%% y %.0f%% z %.0f%%)', [100 * Run.ModalRes.EffMass[I][0],
+              100 * Run.ModalRes.EffMass[I][1], 100 * Run.ModalRes.EffMass[I][2]]);
+        end;
+      end;
+  end;
+  LbSummary.Caption := Txt;
+  View.Message := AnalysisKindName(Run.Kind) + ' - ' + FidelityName(Run.Fidelity);
+end;
+
+procedure TMultiPhysicsForm.FieldChange(Sender: TObject);
+begin
+  if FStep = 5 then ShowResultField;
+end;
+
+procedure TMultiPhysicsForm.ExportCSVClick(Sender: TObject);
+var
+  D: TSaveDialog;
+  L: TStringList;
+  I: Integer;
+  Line: string;
+  M: TFEMMesh;
+
+  function F(V: Double): string;
+  begin
+    Result := FloatToStr(V, InvariantFS);
+  end;
+
+begin
+  if not HasResult then begin SetStatus('Resolva uma analise antes.'); Exit; end;
+  D := TSaveDialog.Create(Self);
+  L := TStringList.Create;
+  try
+    D.Filter := 'CSV (*.csv)|*.csv';
+    D.DefaultExt := 'csv';
+    D.FileName := P.Name + '_resultado.csv';
+    if not D.Execute then Exit;
+    M := Run.Mesh;
+    L.Add('# MultiPhysics - ' + AnalysisKindName(Run.Kind) + ' - fidelidade ' + FidelityName(Run.Fidelity));
+    Line := 'no;x_m;y_m;z_m';
+    if Length(Run.StaticRes.U) = 3 * M.NodeCount then Line := Line + ';ux_m;uy_m;uz_m;von_mises_pa';
+    if Length(Run.ThermalRes.T) = M.NodeCount then Line := Line + ';temperatura_c';
+    L.Add(Line);
+    for I := 0 to M.NodeCount - 1 do
+    begin
+      Line := IntToStr(I) + ';' + F(M.Nodes[I].X) + ';' + F(M.Nodes[I].Y) + ';' + F(M.Nodes[I].Z);
+      if Length(Run.StaticRes.U) = 3 * M.NodeCount then
+        Line := Line + ';' + F(Run.StaticRes.U[3 * I]) + ';' + F(Run.StaticRes.U[3 * I + 1]) + ';' +
+          F(Run.StaticRes.U[3 * I + 2]) + ';' + F(Run.StaticRes.VonMises[I]);
+      if Length(Run.ThermalRes.T) = M.NodeCount then Line := Line + ';' + F(Run.ThermalRes.T[I]);
+      L.Add(Line);
+    end;
+    if Run.Kind = akModal then
+      for I := 0 to High(Run.ModalRes.Freq) do L.Add(Format('# modo %d: %s Hz', [I + 1, F(Run.ModalRes.Freq[I])]));
+    L.SaveToFile(D.FileName);
+    SetStatus('CSV salvo em ' + D.FileName);
+  finally
+    L.Free;
+    D.Free;
+  end;
+end;
+
+procedure TMultiPhysicsForm.ReportClick(Sender: TObject);
+var
+  D: TSaveDialog;
+  H: TStringList;
+  Bmp: TBitmap;
+  Png: TPortableNetworkGraphic;
+  ImgName: string;
+  I: Integer;
+
+  function Esc(const S: string): string;
+  begin
+    Result := StringReplace(StringReplace(StringReplace(S, '&', '&amp;', [rfReplaceAll]), '<', '&lt;', [rfReplaceAll]), '>', '&gt;', [rfReplaceAll]);
+  end;
+
+begin
+  if not HasResult then begin SetStatus('Resolva uma analise antes.'); Exit; end;
+  D := TSaveDialog.Create(Self);
+  H := TStringList.Create;
+  try
+    D.Filter := 'HTML (*.html)|*.html';
+    D.DefaultExt := 'html';
+    D.FileName := P.Name + '_relatorio.html';
+    if not D.Execute then Exit;
+    ImgName := ChangeFileExt(ExtractFileName(D.FileName), '.png');
+    Bmp := TBitmap.Create; Png := TPortableNetworkGraphic.Create;
+    try
+      Bmp.SetSize(View.ClientWidth, View.ClientHeight);
+      View.PaintTo(Bmp.Canvas, 0, 0);
+      Png.Assign(Bmp);
+      Png.SaveToFile(ChangeFileExt(D.FileName, '.png'));
+    finally
+      Png.Free; Bmp.Free;
+    end;
+    H.Add('<!doctype html><html><head><meta charset="utf-8"><title>' + Esc(P.Name) + ' - MultiPhysics</title>');
+    H.Add('<style>body{font-family:Segoe UI,Arial,sans-serif;margin:32px;color:#0f172a}td,th{border:1px solid #e2e8f0;padding:4px 10px;text-align:left}' +
+      'table{border-collapse:collapse}.fid{display:inline-block;padding:4px 10px;border-radius:6px;background:#f1f5f9;font-weight:600}pre{background:#f8fafc;padding:12px}</style></head><body>');
+    H.Add('<h1>' + Esc(P.Name) + '</h1>');
+    H.Add('<p>' + Esc(AnalysisKindName(Run.Kind)) + ' &middot; <span class="fid">' + FidelityName(Run.Fidelity) + '</span> ' +
+      Esc(Run.FidelityReason) + '</p>');
+    H.Add('<img src="' + Esc(ImgName) + '" style="max-width:100%;border:1px solid #e2e8f0">');
+    H.Add('<h2>Resumo</h2><pre>' + Esc(LbSummary.Caption) + '</pre>');
+    H.Add('<h2>Pecas</h2><table><tr><th>ID</th><th>Material</th><th>Massa</th></tr>');
+    for I := 0 to P.PartCount - 1 do
+      H.Add(Format('<tr><td>%s</td><td>%s</td><td>%.4f kg</td></tr>', [Esc(P.Part(I).ID), Esc(P.Part(I).Material.Name), P.Part(I).Mass]));
+    H.Add('</table><h2>Condicoes de contorno</h2><table><tr><th>Nome</th><th>Tipo</th><th>Peca/face</th></tr>');
+    for I := 0 to P.BCCount - 1 do
+      H.Add(Format('<tr><td>%s</td><td>%s</td><td>%s/%s</td></tr>', [Esc(P.BC(I).Name), Esc(BoundaryKindName(P.BC(I).Kind)),
+        Esc(P.BC(I).TargetID), Esc(P.BC(I).TargetFace)]));
+    H.Add('</table><h2>Registro do solver</h2><pre>' + Esc(Run.Log.Text) + '</pre>');
+    H.Add('<p style="color:#64748b">Gerado pelo MultiPhysics em ' + DateTimeToStr(Now) +
+      '. ENGENHARIA = FEM com malha verificada e convergencia &lt; 5%; ESTIMATIVA = sem essa verificacao. ' +
+      'Nenhum resultado e VALIDADO sem comparacao com ensaio ou referencia.</p></body></html>');
+    H.SaveToFile(D.FileName);
+    SetStatus('Relatorio salvo em ' + D.FileName);
+  finally
+    H.Free;
+    D.Free;
+  end;
+end;
+
+procedure TMultiPhysicsForm.ExportVTKClick(Sender: TObject);
+var
+  D: TSaveDialog;
+  Empty: array of Double;
+begin
+  if Run.Mesh.ElemCount = 0 then begin SetStatus('Gere a malha ou resolva antes.'); Exit; end;
+  D := TSaveDialog.Create(Self);
+  try
+    D.Filter := 'VTK legado (*.vtk)|*.vtk';
+    D.DefaultExt := 'vtk';
+    D.FileName := P.Name + '.vtk';
+    if not D.Execute then Exit;
+    Empty := nil;
+    if HasResult then
+      Run.Mesh.SaveVTK(D.FileName, Run.StaticRes.U, Run.StaticRes.VonMises, Run.ThermalRes.T)
+    else
+      Run.Mesh.SaveVTK(D.FileName, Empty, Empty, Empty);
+    SetStatus('VTK salvo em ' + D.FileName + ' (abra no ParaView).');
+  finally
+    D.Free;
+  end;
+end;
+
+procedure TMultiPhysicsForm.ViewFitClick(Sender: TObject);
+begin
+  View.FitView;
+end;
+
+procedure TMultiPhysicsForm.ViewDirClick(Sender: TObject);
+begin
+  case TComponent(Sender).Tag of
+    1: View.SetView(0, 0);
+    2: View.SetView(0, 89);
+    3: View.SetView(-90, 0);
+    else View.SetView(-35, 25);
+  end;
+end;
+
+{ ---------------- 7 sistema ---------------- }
+
+procedure TMultiPhysicsForm.LoadMachineClick(Sender: TObject);
+var
+  I: Integer;
+begin
+  RuntimeTimer.Enabled := False;
+  FreeAndNil(GraphRuntime);
+  FreeAndNil(Graph);
+  Graph := BuildDemoMachine;
+  GraphRuntime := TGraphRuntime.Create(Graph, Log.Lines);
+  Log.Lines.Add('--- Maquina executavel ---');
+  for I := 0 to Graph.ComponentCount - 1 do
+    Log.Lines.Add('  ' + Graph.ComponentAt(I).ID + ' - ' + Graph.ComponentAt(I).Name);
+  Log.Lines.Add(Format('  %d conexoes', [Graph.ConnectionCount]));
+  if GraphRuntime.Prepare then SetStatus('Maquina pronta. Clique em Ligar.');
+  Chart.Clear;
+  Chart.Title := 'Sistema eletromecanico (ESTIMATIVA)';
+  Chart.AddSeries('V barramento', 'V', clDefault);
+  Chart.AddSeries('Corrente', 'A', clDefault);
+  Chart.AddSeries('Velocidade', 'rad/s', clDefault);
+  Chart.AddSeries('Temperatura', 'C', clDefault);
+  Chart.AddSeries('PWM', '%', clDefault);
+end;
+
+procedure TMultiPhysicsForm.RuntimeStartClick(Sender: TObject);
+begin
+  if GraphRuntime = nil then LoadMachineClick(nil);
+  if not GraphRuntime.Prepare then Exit;
+  GraphRuntime.Start;
+  RuntimeTimer.Enabled := True;
+  SetStatus('Simulacao ligada.');
+end;
+
+procedure TMultiPhysicsForm.RuntimePauseClick(Sender: TObject);
+begin
+  if GraphRuntime <> nil then GraphRuntime.Pause;
+  RuntimeTimer.Enabled := False;
+  SetStatus('Simulacao pausada.');
+end;
+
+procedure TMultiPhysicsForm.RuntimeStopClick(Sender: TObject);
+begin
+  RuntimeTimer.Enabled := False;
+  if GraphRuntime <> nil then GraphRuntime.Stop;
+  SetStatus('Simulacao desligada.');
+end;
+
+procedure TMultiPhysicsForm.RuntimeTick(Sender: TObject);
+var
+  S: TSimulationSnapshot;
+  I: Integer;
+begin
+  if GraphRuntime = nil then Exit;
+  for I := 1 to 5 do GraphRuntime.Step;
+  S := GraphRuntime.Snapshot;
+  Chart.AddSample(S.Clock.Time, [S.Electrical.BusVoltage, S.Electrical.TotalCurrent, S.Mechanical.Velocity,
+    S.Thermal.Temperature, S.Control.PWM * 100]);
+  LbRuntime.Caption := Format('t = %.2f s'#13#10'Barramento %.2f V, %.2f A'#13#10'Velocidade %.2f rad/s'#13#10 +
+    'Torque %.3f N m'#13#10'Temperatura %.1f C'#13#10'PWM %.0f%%',
+    [S.Clock.Time, S.Electrical.BusVoltage, S.Electrical.TotalCurrent, S.Mechanical.Velocity,
+     S.Mechanical.Torque, S.Thermal.Temperature, S.Control.PWM * 100]);
+  if Chart.SampleCount > 4000 then RuntimeTimer.Enabled := False;
+end;
+
+procedure TMultiPhysicsForm.ChartCSVClick(Sender: TObject);
+var
+  D: TSaveDialog;
+begin
+  if Chart.SampleCount = 0 then begin SetStatus('Sem dados no grafico.'); Exit; end;
+  D := TSaveDialog.Create(Self);
+  try
+    D.Filter := 'CSV (*.csv)|*.csv';
+    D.DefaultExt := 'csv';
+    D.FileName := 'serie_temporal.csv';
+    if D.Execute then
+    begin
+      Chart.SaveCSV(D.FileName);
+      SetStatus('CSV salvo em ' + D.FileName);
+    end;
+  finally
+    D.Free;
+  end;
+end;
+
+{ ---------------- 8 maquina ---------------- }
+
+procedure TMultiPhysicsForm.MachineCreateClick(Sender: TObject);
+begin
+  Machine.Clear;
+  with Machine.AddAxis('X', 0, 300, 80, 1.2) do begin Accel := 500; NoLoadSpeed := 150; end;
+  with Machine.AddAxis('Y', 0, 200, 80, 1.2) do begin Accel := 500; NoLoadSpeed := 150; end;
+  with Machine.AddAxis('Z', 0, 100, 400, 1.5) do begin Accel := 300; NoLoadSpeed := 40; end;
+  Machine.SetSpindle(12000);
+  Machine.Start;
+  Chart.Clear;
+  Chart.Title := 'CNC virtual XYZ (ESTIMATIVA)';
+  Chart.AddSeries('X', 'mm', clSuiteAxisX);
+  Chart.AddSeries('Y', 'mm', clSuiteAxisY);
+  Chart.AddSeries('Z', 'mm', clSuiteAxisZ);
+  Chart.AddSeries('Spindle', 'rpm', clDefault);
+  LbMachine.Caption := 'CNC energizada: X 0-300, Y 0-200, Z 0-100 mm, rampa 500 mm/s2, spindle alvo 12000 rpm.';
+  SetStatus('CNC virtual criada.');
+end;
+
+procedure TMultiPhysicsForm.MachineMoveClick(Sender: TObject);
+var
+  I, K: Integer;
+  T: Double;
+  Txt: string;
+begin
+  if Machine.AxisCount = 0 then MachineCreateClick(nil);
+  for K := 0 to 2 do Machine.CommandAxis(Chr(Ord('X') + K), EdTarget[K].Value, EdFeed.Value);
+  T := 0;
+  for I := 1 to 6000 do
+  begin
+    Machine.Step;
+    T := T + 0.001;
+    if I mod 20 = 0 then
+      Chart.AddSample(T, [Machine.Axis(0).State.PositionMM, Machine.Axis(1).State.PositionMM,
+        Machine.Axis(2).State.PositionMM, Machine.SpindleRPM]);
+    if Machine.TripReason <> '' then Break;
+  end;
+  Txt := '';
+  for K := 0 to Machine.AxisCount - 1 do
+    with Machine.Axis(K) do
+      Txt := Txt + Format('%s = %.3f mm, passos perdidos %d%s'#13#10, [Name, State.PositionMM, State.LostSteps,
+        IfThen(State.AtMin or State.AtMax, ' (fim de curso)', '')]);
+  Txt := Txt + Format('Spindle %.0f rpm', [Machine.SpindleRPM]);
+  if Machine.TripReason <> '' then Txt := Txt + #13#10'DESARME: ' + Machine.TripReason;
+  LbMachine.Caption := Txt;
+  Log.Lines.Add('--- CNC ---');
+  Log.Lines.Add(StringReplace(Txt, #13#10, ' | ', [rfReplaceAll]));
+end;
+
+procedure TMultiPhysicsForm.MachineHomeClick(Sender: TObject);
+var
+  K: Integer;
+  Txt: string;
+begin
+  if Machine.AxisCount = 0 then MachineCreateClick(nil);
+  Machine.Start;
+  Txt := '';
+  for K := 0 to Machine.AxisCount - 1 do
+    if Machine.HomeAxis(Machine.Axis(K).Name, 30) then
+      Txt := Txt + Format('%s: referenciado (posicao real %.3f mm)'#13#10, [Machine.Axis(K).Name, Machine.Axis(K).State.PositionMM])
+    else
+      Txt := Txt + Machine.Axis(K).Name + ': fim de curso nao encontrado'#13#10;
+  if Machine.TripReason <> '' then Txt := Txt + 'DESARME: ' + Machine.TripReason;
+  LbMachine.Caption := Txt;
+  Log.Lines.Add('--- Homing ---');
+  Log.Lines.Add(StringReplace(Txt, #13#10, ' | ', [rfReplaceAll]));
+end;
+
+procedure TMultiPhysicsForm.MachineClearFaultsClick(Sender: TObject);
+var
+  K: Integer;
+begin
+  for K := 0 to Machine.AxisCount - 1 do
+  begin
+    ClearAxisFaults(Machine.Axis(K));
+    Machine.Axis(K).Motor.RunningTorque := IfThen(K = 2, 1.5, 1.2);
+    Machine.Axis(K).Command.Enabled := True;
+  end;
+  Machine.Start;
+  SetStatus('Falhas removidas; maquina religada.');
+end;
+
+procedure TMultiPhysicsForm.RuntimeToFEMClick(Sender: TObject);
+var
+  Part: TPhysicsPart;
+  S: TSimulationSnapshot;
+  K: Integer;
+begin
+  if GraphRuntime = nil then begin SetStatus('Ligue a simulacao do sistema antes.'); Exit; end;
+  Part := SelectedPart;
+  if (Part = nil) and (P.PartCount > 0) then Part := P.Part(0);
+  if Part = nil then begin SetStatus('Adicione ou selecione uma peca (etapa Montagem) para receber as perdas.'); Exit; end;
+  S := GraphRuntime.Snapshot;
+  K := ApplyRuntimeHeat(P, Part.ID, S);
+  RefreshBCList;
+  RefreshTree;
+  SetStatus(Format('Potencia dissipada de %.3f W aplicada em %s (condicao "%s"). Resolva a termica.',
+    [S.Thermal.HeatPower, Part.ID, P.BC(K).Name]));
+end;
+
+procedure TMultiPhysicsForm.MachineFaultClick(Sender: TObject);
+begin
+  if Machine.AxisCount = 0 then MachineCreateClick(nil);
+  InjectAxisFault(Machine.Axis(CbFaultAxis.ItemIndex), TMachineFault(CbFault.ItemIndex + 1));
+  Log.Lines.Add(Format('Falha injetada no eixo %s: %s', [CbFaultAxis.Text, MachineFaultName(TMachineFault(CbFault.ItemIndex + 1))]));
+  SetStatus('Falha injetada. Execute um movimento para ver o efeito.');
+end;
+
+{ ---------------- 9 circuito ---------------- }
+
+procedure TMultiPhysicsForm.CircuitSolveClick(Sender: TObject);
+var
+  R: TNetlistResult;
+  I, K, Stride: Integer;
+begin
+  R := RunNetlist(MmNetlist.Text);
+  try
+    Log.Lines.Add('--- Circuito ---');
+    if not R.Ok then
+    begin
+      Log.Lines.Add('Erro: ' + R.Message);
+      SetStatus('Circuito: ' + R.Message);
+      Exit;
+    end;
+    Log.Lines.Add('Ponto DC:');
+    for I := 0 to R.DCNodes.Count - 1 do Log.Lines.Add('  V(' + R.DCNodes.Names[I] + ') = ' + R.DCNodes.ValueFromIndex[I] + ' V');
+    Chart.Clear;
+    Chart.Title := 'Transitorio do circuito';
+    if R.HasTran then
+    begin
+      for I := 0 to R.Probes.Count - 1 do Chart.AddSeries('V(' + R.Probes[I] + ')', 'V', clDefault);
+      Stride := Max(1, Length(R.Times) div 2000);
+      K := 0;
+      while K <= High(R.Times) do
+      begin
+        Chart.AddSample(R.Times[K], R.Values[K]);
+        Inc(K, Stride);
+      end;
+    end;
+    SetStatus('Circuito resolvido: ' + R.Message);
+  finally
+    FreeNetlistResult(R);
+  end;
+end;
+
+{ ---------------- 10 ambiente ---------------- }
+
+procedure TMultiPhysicsForm.EnvChange(Sender: TObject);
+begin
+  case CbEnv.ItemIndex of
+    0: Scenario.Environment := AirEnvironment;
+    2: Scenario.Environment := VacuumEnvironment;
+    else Scenario.Environment := WaterEnvironment;
+  end;
+  Log.Lines.Add('Ambiente: ' + Scenario.Environment.Name);
+end;
+
+procedure TMultiPhysicsForm.EstimateClick(Sender: TObject);
+var
+  R: TFluidEstimate;
+begin
+  Scenario.Environment.FlowX := EdFlow.Value;
+  R := EstimateFluidLoads(Scenario.Environment, EdArea.Value, EdCd.Value, EdVolume.Value);
+  Log.Lines.Add('--- ESTIMATIVA, NAO E CFD ---');
+  Log.Lines.Add(Format('Velocidade %.3f m/s, pressao dinamica %.2f Pa', [R.Speed, R.DynamicPressure]));
+  Log.Lines.Add(Format('Arrasto estimado %.2f N, empuxo %.2f N', [R.DragForce, R.BuoyancyForce]));
+  if CbEnv.ItemIndex = 0 then
+  begin
+    if SoundSpeed <= 0 then SoundSpeed := ISAAtmosphere(0).SoundSpeed;
+    if CompressibilityWarning(MachNumber(EdFlow.Value, SoundSpeed)) <> '' then
+      Log.Lines.Add('Aviso: ' + CompressibilityWarning(MachNumber(EdFlow.Value, SoundSpeed)));
+  end;
+  SetStatus(Format('Arrasto %.2f N, empuxo %.2f N (ESTIMATIVA)', [R.DragForce, R.BuoyancyForce]));
+end;
+
+procedure TMultiPhysicsForm.ISAClick(Sender: TObject);
+var
+  A: TAtmosphere;
+begin
+  A := ISAAtmosphere(EdAltitude.Value);
+  CbEnv.ItemIndex := 0;
+  Scenario.Environment := AirEnvironment;
+  Scenario.Environment.Name := Format('Ar ISA a %.0f m', [A.Altitude]);
+  Scenario.Environment.Temperature := A.Temperature - 273.15;
+  Scenario.Environment.Pressure := A.Pressure;
+  Scenario.Environment.Density := A.Density;
+  Scenario.Environment.DynamicViscosity := A.Viscosity;
+  SoundSpeed := A.SoundSpeed;
+  Log.Lines.Add(Format('--- Atmosfera ISA a %.0f m: %.2f K (%.1f C), %.1f Pa, %.4f kg/m3, viscosidade %.3e Pa s, som %.1f m/s ---',
+    [A.Altitude, A.Temperature, A.Temperature - 273.15, A.Pressure, A.Density, A.Viscosity, A.SoundSpeed]));
+  SetStatus(Format('Ar ISA a %.0f m: densidade %.4f kg/m3', [A.Altitude, A.Density]));
+end;
+
+procedure TMultiPhysicsForm.AssemblyFlotationClick(Sender: TObject);
+var
+  I: Integer;
+  Mass, Rho: Double;
+  G: TVector3;
+  MP: TMassProperties;
+  F: TFlotation;
+  Q: TMeshQuality;
+begin
+  if P.PartCount = 0 then begin SetStatus('Adicione ou importe pecas antes.'); Exit; end;
+  ApplySettingsFromUI;
+  if Run.Mesh.ElemCount = 0 then Run.MeshOnly(Q);
+  Mass := 0; G := V3(0, 0, 0);
+  for I := 0 to P.PartCount - 1 do
+  begin
+    if P.Part(I).Suppressed then Continue;
+    MP := Run.Mesh.MassProperties(I, P.Part(I).Material.Density);
+    Mass := Mass + MP.Mass;
+    G := VAdd(G, VScale(MP.Center, MP.Mass));
+  end;
+  if Mass <= 0 then begin SetStatus('Massa nula: confira materiais e malha.'); Exit; end;
+  G := VScale(G, 1 / Mass);
+  Rho := Scenario.Environment.Density;
+  F := SolveFlotation(Run.Mesh, Mass, Rho, G, 2);
+  Log.Lines.Add('--- FLUTUACAO DA MONTAGEM (ESTIMATIVA, nao e CFD) ---');
+  Log.Lines.Add(Format('Massa %.3f kg, centro de gravidade (%.1f, %.1f, %.1f) mm, fluido %.1f kg/m3',
+    [Mass, G.X * 1000, G.Y * 1000, G.Z * 1000, Rho]));
+  Log.Lines.Add(F.Message);
+  if F.Ok then
+    Log.Lines.Add(Format('Linha d''agua z = %.1f mm, deslocamento %.4g m3, centro de empuxo (%.1f, %.1f, %.1f) mm',
+      [F.WaterlineZ * 1000, F.Displacement, F.CenterOfBuoyancy.X * 1000, F.CenterOfBuoyancy.Y * 1000, F.CenterOfBuoyancy.Z * 1000]));
+  SetStatus(F.Message);
+end;
+
+procedure TMultiPhysicsForm.FloatTestClick(Sender: TObject);
+var
+  Body: TRigidBodyState;
+  R: TBuoyancyResult;
+begin
+  FillChar(Body, SizeOf(Body), 0);
+  Body.Mass := EdMass.Value;
+  Body.CenterOfMass := V3(0, 0, 0.2);
+  Body.Inertia := V3(20, 50, 50);
+  R := EvaluateBuoyancy(Body, Scenario.Environment, EdVolume.Value, V3(0, 0, 0));
+  Log.Lines.Add('--- FLUTUACAO (ESTIMATIVA) ---');
+  Log.Lines.Add(Format('Peso %.2f N, empuxo %.2f N, forca liquida %.2f N: %s',
+    [R.Weight, R.Buoyancy, R.NetVerticalForce, FloatStateName(R.State)]));
+  Log.Lines.Add('Ainda nao inclui superficie livre nem metacentro.');
+  SetStatus('Flutuacao: ' + FloatStateName(R.State));
+end;
+
 end.

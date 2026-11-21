@@ -71,7 +71,7 @@ begin
       Check(First.Matches('projetar'), 'search matches original group labels');
       F.HidePanel;
       Check(not F.Visible, 'panel closes');
-      Writeln('Tray: OK (original panel, 12 current tools, search, keyboard and launcher targets)');
+      Writeln('Tray: OK (original panel, 13 current tools, search, keyboard and launcher targets)');
     finally R.Free; F.Free; end;
   except on E: Exception do begin Writeln('FAIL: ', E.Message); Halt(1); end; end;
 end.

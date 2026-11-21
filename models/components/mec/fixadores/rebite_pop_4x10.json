@@ -1,0 +1,38 @@
+{
+  "name": "Rebite POP 4x10",
+  "model": "Rebite de repuxo Ø4 x 10",
+  "category": "fixadores",
+  "kind": "ackFastenerRivet",
+  "material": "Alumínio / mandril de aço",
+  "color": 13815241,
+  "size": {
+    "x": 8.0,
+    "y": 8.0,
+    "z": 29.2
+  },
+  "ports": [
+    {
+      "name": "FURO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Rebite de repuxo Ø4 x 10 mm (aba Ø8) para chapas até ~6 mm.",
+  "standard": "ISO 15983",
+  "mass_g": 0.6,
+  "specs": {
+    "d_mm": 4,
+    "comprimento_mm": 10,
+    "aba_d_mm": 8,
+    "furo_mm": 4.1,
+    "pega_mm": [
+      3.5,
+      6.0
+    ]
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [4.0, 4.0, 0.0], "r": 2.0, "h": 10.0, "color": "#C9CDD2", "seg": 20},
+    {"type": "cyl", "axis": "z", "at": [4.0, 4.0, 10.0], "r": 4.0, "h": 1.2, "color": "#C9CDD2", "r2": 3.6, "seg": 24},
+    {"type": "cyl", "axis": "z", "at": [4.0, 4.0, 11.2], "r": 1.08, "h": 18.0, "color": "#DDE1E6", "seg": 12}
+  ]
+}

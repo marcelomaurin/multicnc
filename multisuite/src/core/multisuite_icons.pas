@@ -32,7 +32,8 @@ type
     sikUndo, sikRedo, sikCopy, sikMirrorH, sikMirrorV, sikImport, sikEye,
     sikWand, sikFit, sikLayers, sikExport, sikNew, sikZoomIn, sikZoomOut,
     { ferramentas novas (no fim: os ordinais aparecem em caches) }
-    sikMakePCB, sikRouterPCB, sikMakeRouter, sikTrim
+    sikMakePCB, sikRouterPCB, sikMakeRouter, sikTrim, sikStar, sikProject,
+    sikRevolve, sikThread
   );
 
   { sifNone    - apenas o glifo, ocupando toda a area
@@ -336,7 +337,7 @@ end;
 procedure DrawGlyph(Pn: TMaskPainter; AKind: TSuiteIconKind);
 var
   T: Integer;
-  B: Double;
+  B, Rs: Double;
   Pts: array of Double;
 begin
   case AKind of
@@ -700,6 +701,41 @@ begin
         Pn.Line(10.5, 7, 13.5, 9);
       end;
 
+    sikRevolve:
+      begin
+        { perfil ao lado da linha de centro e a seta de giro em volta }
+        Pn.Line(12, 2.5, 12, 21.5);
+        Pn.Poly([13.5, 7, 18, 7, 18, 17, 13.5, 17], False);
+        Pn.Arc(12, 12, 9, 200, 340);
+        Pn.Poly([19.5, 9.5, 20.6, 12.3, 23, 10.6], False);
+      end;
+
+    sikThread:
+      begin
+        { parafuso: cabeca e a haste com os filetes inclinados }
+        Pn.RoundBox(6.5, 2.5, 17.5, 7, 1, False);
+        Pn.Line(8.5, 7, 8.5, 21.5);
+        Pn.Line(15.5, 7, 15.5, 19);
+        Pn.Line(8.5, 21.5, 12, 21.5);
+        Pn.Line(12, 21.5, 15.5, 19);
+        Pn.Line(8.5, 10.5, 15.5, 8.5);
+        Pn.Line(8.5, 13.5, 15.5, 11.5);
+        Pn.Line(8.5, 16.5, 15.5, 14.5);
+        Pn.Line(8.5, 19.5, 15.5, 17.5);
+      end;
+
+    sikProject:
+      begin
+        { tres barras de Gantt deslocadas, ligadas, e o marco final }
+        Pn.RoundBox(2.5, 4, 11, 7.5, 1, False);
+        Pn.RoundBox(7.5, 10.25, 15.5, 13.75, 1, False);
+        Pn.RoundBox(4.5, 16.5, 12.5, 20, 1, False);
+        Pn.Line(11, 5.75, 12.5, 5.75);
+        Pn.Line(12.5, 5.75, 12.5, 10.25);
+        Pn.Poly([19, 14.25, 21.5, 16.75, 19, 19.25, 16.5, 16.75], True);
+        Pn.Line(12.5, 18.25, 16.5, 16.75);
+      end;
+
     sikPen:
       begin
         Pn.Poly([16, 3.5, 20.5, 8, 9, 19.5, 3.5, 20.5, 4.5, 15], True);
@@ -712,6 +748,18 @@ begin
     sikCircle:
       Pn.Circle(12, 12, 8.5);
 
+    sikStar:
+      begin
+        SetLength(Pts, 20);
+        for T := 0 to 9 do
+        begin
+          B := DegToRad(-90 + T * 36);
+          if Odd(T) then Rs := 4 else Rs := 9.5;
+          Pts[T * 2] := 12 + Rs * Cos(B);
+          Pts[T * 2 + 1] := 12.5 + Rs * Sin(B);
+        end;
+        Pn.Poly(Pts, True);
+      end;
     sikPolygon:
       begin
         SetLength(Pts, 12);

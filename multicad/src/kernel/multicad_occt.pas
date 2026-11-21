@@ -51,6 +51,11 @@ function OcctBlendTool(const Frame: TCadFrame; const Segs: TCadSectionSegs; Len:
 
 { 0 uniao, 1 diferenca, 2 intersecao. Os argumentos continuam do chamador. }
 function OcctBoolean(A, B: TOcctShape; Op: Integer; out AError: string): TOcctShape;
+{ Booleana sem juntar faces da mesma superficie (ponte versao 2; na antiga
+  cai na booleana normal). }
+{ A ponte tem a booleana sem juntar faces (versao 2). }
+function OcctHasRawBoolean: Boolean;
+function OcctBooleanRaw(A, B: TOcctShape; Op: Integer; out AError: string): TOcctShape;
 function OcctTransform(S: TOcctShape; const M: TCadMat4; const OldPrefix, NewPrefix: string): TOcctShape;
 function OcctFillet(S: TOcctShape; const FA, FB: array of string; R: Double;
   const Prefix: string; out AError: string): TOcctShape;
@@ -69,6 +74,10 @@ function OcctToMesh(S: TOcctShape; Deflection: Double; out AError: string): TCad
 
 function OcctStepWrite(const Shapes: array of TOcctShape; const AFile: string; out AError: string): Boolean;
 function OcctStepRead(const AFile, Prefix: string; out AError: string): TOcctShape;
+function OcctHasIGES: Boolean;
+function OcctIGESWrite(const Shapes: array of TOcctShape; const AFile: string; out AError: string): Boolean;
+function OcctIGESRead(const AFile, Prefix: string; out AError: string): TOcctShape;
+
 
 implementation
 
@@ -103,6 +112,7 @@ type
   Tf_pint = function: PInteger; cdecl;
   Tf_step_write = function(N: Integer; Shapes: PPointer; F: PChar): Integer; cdecl;
   Tf_step_read = function(F, Prefix: PChar): Pointer; cdecl;
+  Tf_bool_ex = function(A, B: Pointer; Op, Simplify: Integer): Pointer; cdecl;
 
 var
   GLib: TLibHandle = NilHandle;
@@ -135,7 +145,9 @@ var
   f_mesh_verts: Tf_pdbl;
   f_mesh_tris: Tf_pint;
   f_step_write: Tf_step_write;
-  f_step_read: Tf_step_read;
+  f_step_read, f_iges_read: Tf_step_read;
+  f_iges_write: Tf_step_write;
+  f_bool_ex: Tf_bool_ex; { opcional (ponte versao 2) }
 
 const
 {$IFDEF WINDOWS}
@@ -211,6 +223,10 @@ begin
   Pointer(f_mesh_tris) := P('mcad_mesh_tris');
   Pointer(f_step_write) := P('mcad_step_write');
   Pointer(f_step_read) := P('mcad_step_read');
+  { opcionais: ponte antiga continua valendo sem elas }
+  Pointer(f_bool_ex) := GetProcedureAddress(GLib, 'mcad_bool_ex');
+  Pointer(f_iges_read) := GetProcedureAddress(GLib, 'mcad_iges_read');
+  Pointer(f_iges_write) := GetProcedureAddress(GLib, 'mcad_iges_write');
   if Missing <> '' then
   begin
     GLoadErr := LIB_NAME + ' incompleta:' + Missing;
@@ -550,7 +566,42 @@ end;
 function OcctBoolean(A, B: TOcctShape; Op: Integer; out AError: string): TOcctShape;
 begin
   AError := '';
-  Result := f_bool(A, B, Op);
+  try
+    Result := f_bool(A, B, Op);
+  except
+    { falha interna do OpenCascade (no Windows chega como violacao de
+      acesso): a operacao fica com erro e o modelo anterior continua }
+    on E: Exception do
+    begin
+      Result := nil;
+      AError := 'falha interna do OpenCascade na booleana (' + E.ClassName + ')';
+      Exit;
+    end;
+  end;
+  if Result = nil then
+    AError := OcctLastError;
+end;
+
+function OcctHasRawBoolean: Boolean;
+begin
+  Result := OcctAvailable and Assigned(f_bool_ex);
+end;
+
+function OcctBooleanRaw(A, B: TOcctShape; Op: Integer; out AError: string): TOcctShape;
+begin
+  if not (OcctAvailable and Assigned(f_bool_ex)) then
+    Exit(OcctBoolean(A, B, Op, AError));
+  AError := '';
+  try
+    Result := f_bool_ex(A, B, Op, 0);
+  except
+    on E: Exception do
+    begin
+      Result := nil;
+      AError := 'falha interna do OpenCascade na booleana (' + E.ClassName + ')';
+      Exit;
+    end;
+  end;
   if Result = nil then
     AError := OcctLastError;
 end;
@@ -724,7 +775,8 @@ begin
   Result.RefreshPlaneNormals;
 end;
 
-function OcctStepWrite(const Shapes: array of TOcctShape; const AFile: string; out AError: string): Boolean;
+function ExchangeWrite(const Shapes: array of TOcctShape; const AFile: string;
+  WriteFile: Tf_step_write; out AError: string): Boolean;
 var
   A: array of Pointer;
   I: Integer;
@@ -743,7 +795,7 @@ begin
     AError := 'nenhum sólido';
     Exit(False);
   end;
-  Result := f_step_write(Length(A), @A[0], PChar(AFile)) <> 0;
+  Result := WriteFile(Length(A), @A[0], PChar(AFile)) <> 0;
   if not Result then
     AError := OcctLastError;
 end;
@@ -760,6 +812,38 @@ begin
   Result := f_step_read(PChar(AFile), PChar(Prefix));
   if Result = nil then
     AError := OcctLastError;
+end;
+
+function OcctStepWrite(const Shapes: array of TOcctShape; const AFile: string; out AError: string): Boolean;
+begin
+  OcctAvailable;
+  Result := ExchangeWrite(Shapes, AFile, f_step_write, AError);
+end;
+
+function OcctHasIGES: Boolean;
+begin
+  Result := OcctAvailable and Assigned(f_iges_read) and Assigned(f_iges_write);
+end;
+
+function OcctIGESWrite(const Shapes: array of TOcctShape; const AFile: string; out AError: string): Boolean;
+begin
+  if not OcctHasIGES then
+  begin
+    AError := 'Atualize a ponte OpenCascade para usar IGES.';
+    Exit(False);
+  end;
+  Result := ExchangeWrite(Shapes, AFile, f_iges_write, AError);
+end;
+
+function OcctIGESRead(const AFile, Prefix: string; out AError: string): TOcctShape;
+begin
+  if not OcctHasIGES then
+  begin
+    AError := 'Atualize a ponte OpenCascade para usar IGES.';
+    Exit(nil);
+  end;
+  Result := f_iges_read(PChar(AFile), PChar(Prefix));
+  if Result = nil then AError := OcctLastError else AError := '';
 end;
 
 finalization

@@ -1,0 +1,182 @@
+# MultiSlicer 0.1.0.0 — Manual do Usuário
+
+Manual técnico oficial do fatiador 3D para manufatura aditiva FDM/FFF do ecossistema **MultiSuite**.
+
+- **Versão do Aplicativo:** 0.1.0.0 (Windows x64)
+- **Edição da Documentação:** 17 de outubro de 2026 (adendo do elevação da superfície da mesa)
+- **Desenvolvedor:** MaurinSoft / MultiSuite
+- **Nota:** o PDF 0.1.0.0 permanece na edição anterior; as instruções do elevação da superfície da mesa estão atualizadas nesta versão em texto.
+- **Documento PDF Oficial:** [`Manual_do_Usuario_MultiSlicer_0.1.0.0_PT-BR.pdf`](Manual_do_Usuario_MultiSlicer_0.1.0.0_PT-BR.pdf) (A4, 30 páginas, sumário, marcadores e capturas de tela)
+
+---
+
+## Sumário dos Capítulos
+
+1. [Fluxo de Trabalho e Fatiamento 3D](#01-fluxo-de-trabalho-e-fatiamento-3d)
+2. [Conheça a Interface e Navegação na Mesa](#02-conheça-a-interface-e-navegação-na-mesa)
+3. [Importação de Modelos (STL, 3MF) e MultiCAD](#03-importação-de-modelos-stl-3mf-e-multicad)
+4. [Conferência e Reparo Automático de Malhas](#04-conferência-e-reparo-automático-de-malhas)
+5. [Manipulação de Peças: Posição, Escala e Giro](#05-manipulação-de-peças-posição-escala-e-giro)
+6. [Arranjo Automático e Cena com Múltiplas Peças](#06-arranjo-automático-e-cena-com-múltiplas-peças)
+7. [Equipamentos e Perfis de Impressoras 3D — Elevação da superfície da mesa](#07-equipamentos-e-perfis-de-impressoras-3d--degrau-inicial-z)
+8. [Configuração de Filamentos e Materiais](#08-configuração-de-filamentos-e-materiais)
+9. [Gestão Térmica e Refrigeração](#09-gestão-térmica-e-refrigeração)
+10. [Qualidade e Alturas de Camada](#10-qualidade-e-alturas-de-camada)
+11. [Perímetros, Paredes e Costura (Seam)](#11-perímetros-paredes-e-costura-seam)
+12. [Superfícies Sólidas de Topo e Base](#12-superfícies-sólidas-de-topo-e-base)
+13. [Padrões e Densidade de Preenchimento](#13-padrões-e-densidade-de-preenchimento)
+14. [Estratégias de Suportes e Aderência](#14-estratégias-de-suportes-e-aderência)
+15. [Hastes Manuais e Bloqueadores de Suporte](#15-hastes-manuais-e-bloqueadores-de-suporte)
+16. [Saia (Skirt), Aba (Brim) e Jangada (Raft)](#16-saia-skirt-aba-brim-e-jangada-raft)
+17. [Velocidades de Impressão e Acelerações](#17-velocidades-de-impressão-e-acelerações)
+18. [Retração, Z-Hop e Prevenção de Fios](#18-retração-z-hop-e-prevenção-de-fios)
+19. [Motor de Fatiamento e Segundo Plano](#19-motor-de-fatiamento-e-segundo-plano)
+20. [Inspeção da Prévia 3D por Camada](#20-inspeção-da-prévia-3d-por-camada)
+21. [Estimativa de Tempo e Consumo de Filamento](#21-estimativa-de-tempo-e-consumo-de-filamento)
+22. [Projeto MultiSlicer (.mslice) e Arquivos](#22-projeto-multislicer-mslice-e-arquivos)
+23. [Pós-Processamento e Firmwares (Marlin/Klipper)](#23-pós-processamento-e-firmwares-marlinklipper)
+24. [Contrato MultiSuite e Envio ao MultiCNC](#24-contrato-multisuite-e-envio-ao-multicnc)
+25. [Calibração de Fluxo e Precisão Dimensional](#25-calibração-de-fluxo-e-precisão-dimensional)
+26. [Exercício Guiado: Da Malha à Impressão](#26-exercício-guiado-da-malha-à-impressão)
+27. [Diagnóstico e Resolução de Problemas](#27-diagnóstico-e-resolução-de-problemas)
+28. [Teclas de Atalho e Especificações Técnicas](#28-teclas-de-atalho-e-especificações-técnicas)
+
+---
+
+## 01. Fluxo de Trabalho e Fatiamento 3D
+
+O **MultiSlicer** transforma malhas tridimensionais (polígonos de triângulos) em instruções de código G para manufatura aditiva FDM/FFF. 
+A esteira digital da MultiSuite divide o trabalho em:
+1. **Modelagem:** Concepção sólida paramétrica no MultiCAD ou softwares CAD externos;
+2. **Fatiamento (MultiSlicer):** Orientação da peça, fatiamento em camadas, infill, suportes e geração de código G;
+3. **Execução (MultiCNC):** Transmissão serial USB ou TCP para a impressora 3D com supervisão térmica e conferência de volume físico.
+
+---
+
+## 02. Conheça a Interface e Navegação na Mesa
+
+A interface do MultiSlicer é organizada em um fluxo de abas lineares:
+- **Topo:** Equipamento (Impressora cadastrada no MultiCNC ou Ajuste Manual);
+- **Modelo:** Transformações geométricas (Posição, Escala, Rotação, Espelho, Arranjo);
+- **Material:** Seleção do polímero (PLA, ABS, PETG, TPU), temperaturas de bico/mesa, ventilação e fluxo;
+- **Qualidade:** Alturas de camada (fixas e adaptativas), paredes, superfícies sólidas, infill e velocidades;
+- **Suporte:** Suportes automáticos e manuais (hastes), bloqueadores, saia (skirt), aba (brim) e jangada (raft);
+- **Prévia 3D:** Deslizante camada por camada, legenda de trajetórias e métricas de tempo/consumo;
+- **Saída:** Projeto `.mslice`, exportação de G-code e botão de envio direto *'Abrir no MultiCNC'*.
+
+**Navegação 3D:**
+- **Botão Direito do Mouse:** Rotação orbital;
+- **Shift + Botão Direito:** Panorâmica (Pan);
+- **Roda do Mouse (Scroll):** Zoom dinâmico.
+
+---
+
+## 07. Equipamentos e Perfis de Impressoras 3D — Elevação da superfície da mesa
+
+Na **etapa 1 — Impressora**, configure **Elevação da superfície da mesa em relação ao Z=0 (mm)** para equipamentos em que a superfície de impressão se encontre acima do zero físico, ou nos quais o início do trabalho requeira um deslocamento vertical positivo conhecido. O parâmetro é específico do **perfil da impressora**, separado da altura de camada, e tem valor padrão **0,00 mm**.
+
+### Configuração passo a passo
+
+1. Selecione a marca/modelo ou perfil manual da impressora.
+2. Confira as dimensões **Mesa X**, **Mesa Y** e **Altura máxima Z**.
+3. Preencha **Elevação da superfície da mesa em relação ao Z=0 (mm)** com o valor físico requerido, por exemplo **3,00**.
+4. Salve o perfil em **Salvar...**. O valor é persistido como `print_start_z`; perfis antigos sem esse campo assumem zero.
+5. Fatie novamente e confira na prévia e no G-code o Z da primeira camada; só envie ao MultiCNC após verificar o referencial do equipamento e a superfície real.
+
+**Exemplo:** modelo com altura da primeira camada de **0,20 mm** e degrau de **3,00 mm**. Sem raft, a primeira camada de deposição começa em **Z=3,20 mm**. As alturas subsequentes são deslocadas por +3,00 mm, sem alterar distância entre camadas, geometria fatiada ou quantidade de extrusão. Com raft, o mesmo deslocamento é aplicado ao conjunto de camadas, incluindo sua base.
+
+O G-code recebe o metadado `; MS-PRINT-START-Z: 3.00`; os comandos de Z da impressão e os comentários de camadas já incluem o deslocamento. A altura disponível é reduzida pelo degrau: uma peça de 100 mm, com degrau de 3 mm, exige pelo menos 103 mm de curso útil de impressão.
+
+### Cuidados e limitações
+
+- **Não confunda com Z-offset de calibração do bico.** O degrau não altera homing, malha de nivelamento nem configuração do firmware.
+- Se a mesa real estiver em Z=0 e não houver plataforma correspondente em Z=3, imprimir em Z=3 mm depositará material no ar.
+- Revise G-code inicial personalizado: comandos de purga, `G92 Z...`, outros offsets ou movimentos absolutos anteriores às camadas **não são corrigidos automaticamente** por este parâmetro.
+- Faça um teste supervisionado com movimento sem extrusão, seguido de primeira camada, antes de produzir peças completas.
+- A implementação foi publicada no código-fonte; o processo de compilação e testes físicos deste recurso ainda necessita validação.
+
+---
+
+## 08. Configuração de Filamentos e Materiais
+
+Tabela de parâmetros recomendados por polímero:
+
+| Polímero | Bico (1ª Camada / Demais) | Mesa Aquecida | Ventoinha de Peça |
+|---|---|---|---|
+| **PLA** | 210 °C / 200 °C | 60 °C / 55 °C | 100% (camada 2+) |
+| **PETG** | 235 °C / 230 °C | 80 °C / 75 °C | 30% a 50% |
+| **ABS / ASA** | 245 °C / 240 °C | 100 °C / 95 °C | 0% (desligada) |
+| **TPU (95A)** | 220 °C / 215 °C | 50 °C / 45 °C | 50% a 80% (baixa vel.) |
+
+---
+
+## 13. Padrões e Densidade de Preenchimento
+
+O MultiSlicer implementa o padrão moderno **Gyroid (Giroide)**:
+- Distribuição homogênea de rigidez tridimensional sem cruzamento de cordões na mesma camada;
+- Elimina batidas do bico aquecido e reduz drasticamente vibrações e ruídos;
+- Densidade recomendada: 15% a 25% para peças de uso geral; 40% a 50% para peças sujeitas a esforços mecânicos severos.
+
+---
+
+## 24. Contrato MultiSuite e Envio ao MultiCNC
+
+O MultiSlicer anexa ao início de cada G-code gerado o contrato de metadados:
+```gcode
+; MultiSlicer -> MultiCNC (Impressora 3D)
+; MS-Machine: printer3d
+; MS-Bounds: X10.0 Y15.0 X190.0 Y180.0 Z0.0 Z120.0
+; MS-Filament: PLA (1.75 mm) - Massa: 45.2 g
+; MS-Temperatures: Bed 60C, Nozzle 205C
+```
+
+Ao acionar **Abrir no MultiCNC**, o painel MultiCNC confere se as coordenadas `MS-Bounds` cabem na mesa da máquina. Se extrapolarem o limite, um alarme impede a partida acidental.
+
+---
+
+## 26. Exercício Guiado: Da Malha à Impressão
+
+1. Na etapa **1 Impressora**, escolha o perfil da impressora.
+2. Na etapa **2 Modelo**, clique em **Abrir modelo...** e abra `models/printer3d/cubo_calibracao_20mm.stl` (na instalação, `documentation\models\printer3d`).
+3. Em **3 Material** escolha PLA; em **4 Qualidade**, camada de 0,2 mm; em **5 Suportes**, nenhum.
+4. Em **6 Prévia**, clique em **Fatiar e visualizar** e percorra as camadas.
+5. Em **7 Saída**, clique em **Gerar G-code...** ou **Abrir no MultiCNC**.
+6. Imprima e meça o cubo: 20 × 20 × 20 mm.
+
+Mais exercícios (anel, cantoneira e a cantoneira do MultiCAD) em `models/multislicer/README.md`.
+
+---
+
+## 28. Teclas de Atalho de Referência Rápida
+
+| Atalho | Função |
+|---|---|
+| `Ctrl + O` | Abrir modelo (STL, 3MF, .mslice) |
+| `Ctrl + S` | Salvar projeto MultiSlicer (.mslice) |
+| `Ctrl + R` | Fatiar a cena atual |
+| `Esc` | Cancelar fatiamento em andamento |
+| `Delete` | Remover peça selecionada da cena |
+| `Ctrl + D` | Duplicar peça selecionada |
+
+## Transformar dimensões de uma peça
+
+Na etapa **2 Modelo**, selecione a peça e clique em **Transformar dimensões...**. O formulário permite escolher entre **Percentual** (por exemplo, 200% dobra o tamanho atual) e **Dimensão final em mm**. Marque os eixos X, Y e/ou Z a transformar.
+
+- Com **Escala proporcional nos eixos selecionados** ativado, o valor informado no primeiro eixo marcado determina um fator único aplicado apenas aos eixos marcados; eixos não marcados permanecem inalterados.
+- Com a opção desativada, somente os eixos marcados são alterados, cada um com seu percentual ou dimensão final. Eixos não marcados preservam a escala atual.
+- Clique em **Aplicar e visualizar**: a peça é atualizada na mesa 3D, e o G-code previamente gerado é invalidado. Use **Ctrl+Z / Desfazer** para retornar à escala anterior ou **Ctrl+Y / Refazer** para reaplicá-la.
+- **Cancelar** fecha a janela sem transformar a peça. A transformação não altera o STL/3MF original; altera a instância da peça na cena, que deve ser fatiada novamente.
+
+**Exemplo:** peça de 20 × 30 × 10 mm. Escala uniforme de 200% → 40 × 60 × 20 mm. Escala não uniforme com apenas Z marcado em 200% → 20 × 30 × 20 mm. Dimensão final apenas X = 50 mm → 50 × 30 × 10 mm.
+
+**Estado:** recurso publicado no código da branch `fila`; compilação e validação visual no executável ainda pendentes.
+
+**Atualização da transformação proporcional (17/10/2026):** tanto no modo percentual quanto no modo dimensão final (mm), escolha X, Y e/ou Z. Com *Escala proporcional nos eixos selecionados* marcada, o primeiro eixo selecionado determina o fator comum, aplicado **somente aos eixos marcados**. Exemplo: peça 20×30×10 mm, selecionar X e Y, definir X=40 mm, proporcional ativo → 40×60×10 mm. Selecionando X,Y,Z → 40×60×20 mm. Com proporcional desativado, os valores informados em cada eixo marcado são independentes. A peça atualiza ao aplicar; Ctrl+Z desfaz.
+
+## Adendo — Fragmentar e exportar peças STL (17/10/2026)
+
+Na etapa **Modelo**, selecione uma peça e clique em **Fragmentar e exportar STL...**. Escolha o eixo X, Y ou Z, informe a coordenada em milímetros, clique **Gerar partes** e indique uma pasta. O programa tenta gerar `peca_parte01.stl` e `peca_parte02.stl`, que são importadas como objetos editáveis na cena, mantendo o modelo original.
+
+**Limitações da versão inicial:** corte manual por plano, duas partes a cada operação; não existe divisão automática por volume da impressora, prévia anterior ao corte nem Undo de inclusão de objetos. Para voltar à situação original, remova os fragmentos e conserve o original. Malhas complexas, com furos e problemas topológicos, ainda precisam de validação geométrica; não tratar a saída como comprovadamente pronta para impressão. A funcionalidade publicada no código não teve compilação nem testes físicos confirmados.
+
+**Nota sobre a elevação da mesa:** este ajuste desloca apenas os movimentos Z da impressão; não cria degrau de plástico, não gera camadas adicionais e não consome filamento para preencher o espaço. Configure somente quando o zero da controladora estiver abaixo da superfície física de impressão. Se o firmware, homing ou Z-offset já corrigirem essa distância, deixe o parâmetro em 0 mm para evitar compensação duplicada.

@@ -1,5 +1,25 @@
 # Pendências da suíte (atualizado 12/10/2026)
 
+## MultiPhysics e atualizacao Windows (09/11/2026)
+
+O estado atual dessas melhorias esta em
+[multiphysics/docs/ENTREGA_0.2.1.md](../multiphysics/docs/ENTREGA_0.2.1.md).
+Os registros datados abaixo sao historicos e nao devem ser usados como lista
+atual de funcionalidades ausentes sem conferir os planos de cada modulo.
+
+
+## MultiProject (20/10/2026) - especificacao, fase 0
+
+- Novo modulo `multiproject/`: gerenciador de projeto a partir de um objetivo (ex.: construir
+  um motor), com tarefas de peca (MultiCAD), eletronica (MakePCB), montagem (MultiAssembly),
+  validacao (MultiPhysics) e fabricacao (impressao 3D, router, corte e arte laser, torno,
+  placa) em grafo de dependencias TI/II/TT/IT, cronograma CPM e referencia no Microsoft Project.
+- Documentos: `docs/MULTIPROJECT.md` (visao geral), `multiproject/README.md` e `multiproject/docs/` (REQUISITOS, ARCHITECTURE,
+  LAYOUT, TAREFA, AI_GUIDE).
+- Falta: decisoes D1 a D12 do Marcelo; depois fases 1 a 6 (primeira entrega) e 7 a 10.
+  Dependencias em outras ferramentas: `--new`/`--task` no contexto da suite, importacao DXF no
+  LaserArt e ferramenta/maquina de torno.
+
 ## Sincronização de 12/10/2026
 
 - Integrados os dez commits publicados em `origin/fila` até `0f67b3e`, incluindo

@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "generated": "2026-11-09",
+  "policy": "deny-unverified",
+  "entries": [
+    {
+      "version": "2.23",
+      "platform": "windows",
+      "arch": "x64",
+      "source": "https://github.com/calculix/CalculiX-Windows/tree/master/releases",
+      "artifact": "CalculiX-2.23.0-win-x64.zip",
+      "status": "artifact-located-hash-pending",
+      "sha256": null,
+      "executable": "bin/ccx.exe",
+      "note": "Arquivo ZIP confirmado na arvore GitHub. SHA-256 ainda nao calculado; instalacao bloqueada ate homologacao.",
+      "url": "https://raw.githubusercontent.com/calculix/CalculiX-Windows/master/releases/CalculiX-2.23.0-win-x64.zip"
+    },
+    {
+      "version": "2.22",
+      "platform": "windows",
+      "arch": "x64",
+      "source": "https://github.com/calculix/CalculiX-Windows/tree/master/releases",
+      "artifact": "CalculiX-2.22.0-win-x64.zip",
+      "status": "artifact-located-hash-pending",
+      "sha256": null,
+      "executable": "bin/ccx.exe",
+      "note": "Arquivo ZIP confirmado na arvore GitHub. SHA-256 ainda nao calculado; instalacao bloqueada ate homologacao.",
+      "url": "https://raw.githubusercontent.com/calculix/CalculiX-Windows/master/releases/CalculiX-2.22.0-win-x64.zip"
+    },
+    {
+      "version": "2.23",
+      "platform": "linux",
+      "arch": "x86_64",
+      "source": "https://www.calculix.de/",
+      "status": "candidate-unverified",
+      "sha256": null,
+      "note": "Compilacao/distribuicao Linux pendente; nao usar instalador Windows."
+    },
+    {
+      "version": "2.21",
+      "platform": "windows",
+      "arch": "x64",
+      "artifact": "CalculiX-2.21.0-win-x64.zip",
+      "url": "https://raw.githubusercontent.com/calculix/CalculiX-Windows/master/releases/CalculiX-2.21.0-win-x64.zip",
+      "status": "artifact-located-hash-pending",
+      "sha256": null,
+      "executable": "bin/ccx.exe"
+    }
+  ]
+}

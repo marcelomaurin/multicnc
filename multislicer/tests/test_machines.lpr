@@ -53,6 +53,11 @@ begin
     for I := 0 to High(Cat) do
     begin
       P := MachinePrinterDef(Cat[I], '', 0, 0, 0);
+      if Cat[I].VendorWorkflow<>'' then begin
+        Check((P.VendorWorkflow=Cat[I].VendorWorkflow) and (P.SourceURL<>''),'workflow and source retained');
+        Check((P.StartGCode='') and (P.EndGCode=''),'no fabricated vendor startup');
+        Continue;
+      end;
       S := P.StartGCode;
       Check((Pos('M82', S) = 0) and (Pos('{first_layer_hotend_temp}', S) > 0) and (Pos('G28', S) > 0),
         'start G-code relative and with variables: ' + Cat[I].Model);

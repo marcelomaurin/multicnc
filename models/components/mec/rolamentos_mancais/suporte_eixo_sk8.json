@@ -1,0 +1,42 @@
+{
+  "name": "Suporte de Eixo SK8",
+  "model": "SK8 Eixo 8mm",
+  "category": "rolamentos_mancais",
+  "kind": "ackMechanicalPart",
+  "material": "Alumínio",
+  "color": 13815241,
+  "size": {
+    "x": 42.0,
+    "y": 14.0,
+    "z": 33.0
+  },
+  "ports": [
+    {
+      "name": "FURO_EIXO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "BASE_FIXACAO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Suporte de eixo SK8 com aperto por fenda (centro a 20 mm da base).",
+  "mass_g": 24,
+  "specs": {
+    "d_mm": 8,
+    "W_mm": 42,
+    "H_mm": 33,
+    "h_centro_mm": 20,
+    "T_mm": 14,
+    "furos_mm": 32
+  },
+  "geometry": [
+    {"type": "prism", "axis": "y", "at": [0.0, 0.0, 0.0], "h": 14.0, "poly": [[0.0, 0.0], [9.9, 0.0], [33.0, 12.6], [33.0, 29.4], [9.9, 42.0], [0.0, 42.0]], "color": "#C9CDD2"},
+    {"type": "disk", "axis": "y", "at": [21.0, 14.0, 20.0], "r": 4.0, "color": "#15161A"},
+    {"type": "disk", "axis": "y", "at": [21.0, 0.0, 20.0], "r": 4.0, "color": "#15161A"},
+    {"type": "box", "at": [20.5, 0.0, 24.0], "size": [1.0, 14.0, 9.0], "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [7.04, 7.0, 9.9], "r": 2.25, "color": "#15161A"}
+  ]
+}

@@ -56,6 +56,17 @@ type
     class function ToJSON(const B: TBOMLines): string;
   end;
 
+  TInterferencePair = record
+    IDA, IDB: string;
+    OverlapVolume: Double;
+  end;
+  TInterferencePairs = array of TInterferencePair;
+
+  TAssemblyInterference = class
+  public
+    class function Check(P: TAssemblyProject): TInterferencePairs;
+  end;
+
   TDriveKind = (dkLeadScrew, dkBelt, dkRackPinion, dkDirect);
 
   TAxisConfig = record
@@ -117,6 +128,11 @@ begin
     ackEStop: Result := 'Parada de emergencia';
     ackConnector: Result := 'Conector';
     ackPCB: Result := 'Placa (PCB)';
+    ackFastenerScrew: Result := 'Parafuso';
+    ackFastenerNut: Result := 'Porca';
+    ackFastenerWasher: Result := 'Arruela';
+    ackFastenerRivet: Result := 'Rebite';
+    ackPinSpacer: Result := 'Pino / Espacador';
   else
     Result := 'Outro';
   end;
@@ -511,6 +527,45 @@ begin
     Output.Add('      standard_stepper:');
     Output.Add('        step_pin: NO_PIN');
     Output.Add('        direction_pin: NO_PIN');
+  end;
+end;
+
+
+class function TAssemblyInterference.Check(P: TAssemblyProject): TInterferencePairs;
+var
+  I, J, N: Integer;
+  CA, CB: TAssemblyComponent;
+  MinAX, MaxAX, MinAY, MaxAY, MinAZ, MaxAZ: Double;
+  MinBX, MaxBX, MinBY, MaxBY, MinBZ, MaxBZ: Double;
+  OX, OY, OZ, Vol: Double;
+begin
+  SetLength(Result, 0);
+  if P = nil then Exit;
+  for I := 0 to P.ComponentCount - 2 do
+  begin
+    CA := P.Component(I);
+    MinAX := CA.Position.X; MaxAX := MinAX + CA.Size.X;
+    MinAY := CA.Position.Y; MaxAY := MinAY + CA.Size.Y;
+    MinAZ := CA.Position.Z; MaxAZ := MinAZ + CA.Size.Z;
+    for J := I + 1 to P.ComponentCount - 1 do
+    begin
+      CB := P.Component(J);
+      MinBX := CB.Position.X; MaxBX := MinBX + CB.Size.X;
+      MinBY := CB.Position.Y; MaxBY := MinBY + CB.Size.Y;
+      MinBZ := CB.Position.Z; MaxBZ := MinBZ + CB.Size.Z;
+      OX := Max(0.0, Min(MaxAX, MaxBX) - Max(MinAX, MinBX));
+      OY := Max(0.0, Min(MaxAY, MaxBY) - Max(MinAY, MinBY));
+      OZ := Max(0.0, Min(MaxAZ, MaxBZ) - Max(MinAZ, MinBZ));
+      if (OX > 0.01) and (OY > 0.01) and (OZ > 0.01) then
+      begin
+        Vol := OX * OY * OZ;
+        N := Length(Result);
+        SetLength(Result, N + 1);
+        Result[N].IDA := CA.ID;
+        Result[N].IDB := CB.ID;
+        Result[N].OverlapVolume := Vol;
+      end;
+    end;
   end;
 end;
 

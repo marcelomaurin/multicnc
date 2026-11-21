@@ -17,7 +17,11 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 MODULES = [".", "multisuite", "multiphysics", "multicam",
-           "laserpcb", "multislicer", "multiassembly", "multicad", "laserart", "makepcb", "makerouter", "routerpcb"]
+           "laserpcb", "multislicer", "multiassembly", "multicad", "laserart", "makepcb", "makerouter", "routerpcb", "multiproject"]
+
+
+# testes de console mais demorados (segundos)
+SLOW_TESTS = {"test_multicad": 600}
 
 
 def execute(command, cwd=ROOT, timeout=120):
@@ -33,6 +37,13 @@ def dependency_flags():
     joystick = chatgpt / "pacote/AI Input/AIJoystick"
     if not joystick.is_dir():
         extra.append("-Fu" + str(ROOT / "third_party/chatgpt/AIJoystick"))
+    # AI Project Core (MultiProject): external copy when it has the units, else snapshot.
+    project_core = chatgpt / "pacote/AI Project Core"
+    snapshot = ROOT / "third_party/chatgpt/AIProjectCore"
+    if all((project_core / u.name).is_file() for u in snapshot.glob("*.pas")):
+        extra.append("-Fu" + str(project_core))
+    else:
+        extra.append("-Fu" + str(snapshot))
     for folder in ("pacote/AI Input/AIJoystick", "pacote/AI", "pacote/AI Input/AISerial", "pacote/AI Simulation/Marlin", "pacote/AI Input/AISockets", "pacote/AI Input/AIVirtualSerial"):
         path = chatgpt / folder
         if path.is_dir(): extra.append("-Fu" + str(path))
@@ -84,7 +95,12 @@ def console(args):
                     continue
                 binary = source.with_suffix(suffix)
                 if run_tests:
-                    result = execute([str(binary)], cwd=source.parent, timeout=int(os.environ.get("MULTICNC_TEST_TIMEOUT", "30")))
+                    # MULTICNC_TEST_RUNNER roda binarios cruzados (ex.: "wine" para win64 no Linux)
+                    runner = shlex.split(os.environ.get("MULTICNC_TEST_RUNNER", ""))
+                    limit = int(os.environ.get("MULTICNC_TEST_TIMEOUT", "30"))
+                    # nucleo do MultiCAD: corta roscas em helice (OpenCascade e Pascal), leva minutos no Wine
+                    limit = max(limit, SLOW_TESTS.get(source.stem, 0))
+                    result = execute([*runner, str(binary)], cwd=source.parent, timeout=limit)
                     record["status"] = "passed" if result.returncode == 0 else "failed"
                     record["exit_code"] = result.returncode
                     (output / "run.log").write_text(result.stdout, encoding="utf-8")
@@ -133,7 +149,8 @@ def gui(args):
         else:
             print("OK", project.relative_to(ROOT))
     if args.run and not failed:
-        for name in ("tests/test_app", "multisuite/tests/test_suite_app", "multislicer/tests/test_slicer_app"):
+        for name in ("tests/test_app", "multisuite/tests/test_suite_app", "multislicer/tests/test_slicer_app",
+                     "multiproject/tests/test_multiproject_ui", "multiproject/tests/test_multiproject_toolctx", "multiproject/tests/test_multiproject_rules_ui"):
             binary = ROOT / (name + (".exe" if os.name == "nt" else ""))
             if not binary.exists():
                 continue

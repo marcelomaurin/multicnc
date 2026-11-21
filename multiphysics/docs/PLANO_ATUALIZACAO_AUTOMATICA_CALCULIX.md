@@ -1,0 +1,90 @@
+# Pacote de atualização automática do CalculiX — MultiPhysics
+
+Data: 2026-11-09 | Estado: PARCIAL (ver entrega 0.2.1) | Prioridade: P1 | Referência: issue #16
+
+## Objetivo
+Adicionar ao MultiPhysics e ao instalador MultiSuite um gerenciador opcional que detecta, baixa, verifica, instala e atualiza o CalculiX CrunchiX (ccx) sem exigir instalação manual. O solver interno continua independente e funcional offline.
+
+## Escopo do pacote de atualização
+- Interface: Configurações > Motores de simulação > CalculiX: Detectar, Instalar, Verificar atualizações, Atualizar e Restaurar versão anterior.
+- Inicialização: detectar CALCULIX_EXE, configuração persistida e instalação gerenciada; mostrar versão, caminho e status sem alterar instalações externas automaticamente.
+- Catálogo de versões: manifesto versionado mantido pelo projeto com plataforma, arquitetura, URL oficial/autorizada, licença, SHA-256 e dependências. Não usar URL fixa não verificada ou baixar binários de fonte desconhecida.
+- Download: HTTPS, timeout, progresso, cancelamento, retomada quando suportada, hash SHA-256 obrigatório, verificação de assinatura quando disponível; bloquear falhas de integridade.
+- Instalação: extrair em diretório isolado por versão; verificar DLLs/runtime e licença; executar teste mínimo com entrada conhecida; ativar somente após sucesso.
+- Atualização: verificar sob demanda e opcionalmente em intervalo configurável, com consentimento antes de baixar/alterar; nunca atualizar durante simulação; preservar versão anterior e fazer rollback atômico em falha.
+- Integração Lazarus: módulo Free Pascal para gerenciar manifesto, downloads, verificação e configuração do caminho do ccx; usar TProcess para teste e execução, sem bloquear UI.
+- Distribuição: instalador oferece caixa opcional “Baixar e configurar CalculiX”; sem internet ou com recusa, continuar instalação com solver interno. Ngspice é tarefa futura separada e não deve ser baixado sem integração funcional.
+- Auditoria: registrar data, versão anterior/nova, URL de origem, hash, consentimento, tempo, saída de teste e erros em log sem dados sensíveis.
+
+## Pendências de implementação
+- [ ] AUD-CCX-01: inventariar integração atual em multiphysics_ccx.pas, testes e instalador, incluindo descoberta de CALCULIX_EXE.
+- [ ] AUD-CCX-02: definir catálogo/manifesto assinado ou confiável e política de versões suportadas por Windows/Linux/arquitetura.
+- [ ] AUD-CCX-03: implementar downloader com validação de SHA-256, timeout, cancelamento e erros de rede.
+- [ ] AUD-CCX-04: implementar instalação lado a lado, ativação transacional e rollback.
+- [ ] AUD-CCX-05: criar tela de status e atualização no MultiPhysics; configurar consentimento e frequência.
+- [ ] AUD-CCX-06: integrar opção ao instalador Windows sem tornar CalculiX obrigatório.
+- [ ] AUD-CCX-07: validar licenças, redistribuição e dependências de cada pacote antes de publicar downloads.
+- [ ] AUD-CCX-08: criar testes automáticos de versão atual, desatualizada, offline, hash incorreto, download interrompido, DLL ausente, rollback e concorrência com simulação.
+- [ ] AUD-CCX-09: testar execução de benchmark FEM real após instalar/atualizar e documentar compatibilidade.
+- [ ] AUD-CCX-10: atualizar MANUAL.md, RUNTIME.md e notas de versão após implementação.
+
+## Critérios de aceite
+1. Usuário instala/atualiza CalculiX por opção explícita, sem operações manuais de ZIP, PATH ou DLL.
+2. Falhas de rede, licença, hash ou teste não alteram a versão ativa; logs permitem diagnóstico.
+3. Instalação offline e solver interno continuam funcionando.
+4. Versão, origem e resultado do autoteste são visíveis; rollback funciona.
+5. Pipeline automatizado cobre casos positivos e negativos; teste com CalculiX real não é marcado como aprovado quando ausente.
+
+## Entrega e limites
+Este arquivo é o **pacote de especificação e pendências**, não um atualizador executável. Implementação, build, testes e distribuição permanecem pendentes. Vincular à issue #16 e não declarar a atualização automática como concluída até passar nos critérios acima.
+
+## Avanço de implementação — PR #18 (2026-11-09)
+- Verificador offline em `multiphysics/tools/verify_ccx_package.py`: SHA-256 obrigatório, inspeção de ZIP e bloqueio de caminhos perigosos, links simbólicos e múltiplos executáveis.
+- Testes unitários adicionados em `multiphysics/tools/test_verify_ccx_package.py`: cenários de hash incorreto, ZIP corrompido, path traversal, executável ausente/duplicado e pacote estruturalmente válido.
+- Executar testes: `cd multiphysics/tools && python -m unittest -v test_verify_ccx_package.py`.
+- O resultado `VERIFICADO_PARA_INSPECAO` **não** significa pacote homologado ou seguro para ativação; testes reais em Windows, assinatura/proveniência, DLLs e licença continuam necessários.
+- **Status**: alterações em branch de desenvolvimento, sem aprovação de instalação automática em produção.
+
+## Entrada de validação Windows — 2026-11-09
+Foi adicionado `multiphysics/tools/validate_ccx_windows.ps1` para executar a inspeção SHA-256/ZIP no Windows e registrar `ccx_windows_validation.log`.
+Exemplo, a partir da raiz do repositório:
+```powershell
+powershell -NoProfile -File multiphysics/tools/validate_ccx_windows.ps1 -ZipPath "C:\\Pacotes\\calculix.zip" -ExpectedSha256 "<SHA256_VERIFICADO_DE_FONTE_CONFIAVEL>"
+```
+O comando **não instala nem executa** binários do ZIP. O pacote só poderá ser homologado após confirmação independente de origem/hash, licença, DLLs e benchmark com o executável real. Não preencher o hash com valor inventado. A integração com o instalador e os testes em Windows permanecem pendentes.
+
+## Execução de testes isolados — 2026-11-09
+- Executados 10 testes unitários do verificador ZIP em ambiente Linux com Python; **10/10 passaram**.
+- Cobertura: integridade SHA-256, ZIP corrompido, ZIP com caminho perigoso, symlink, ccx.exe ausente/duplicado e estrutura nominal.
+- **Não foi testado o atualizador automático**: não existe evidência de fluxo completo download → instalação → ativação → rollback. Também não foi executado teste Windows/PowerShell nem benchmark com CalculiX real.
+- Não promover o recurso a funcional ou homologado até testes de ponta a ponta com pacote confiável e ambiente Windows.
+
+## Estado atual apos a implementacao 0.2.1 - 09/11/2026
+
+Esta secao atualiza o estado descrito nos registros historicos acima.
+
+| Item | Estado atual |
+|---|---|
+| AUD-CCX-01 | Feito: descoberta por CALCULIX_EXE, caminho manual e active.txt gerenciado. |
+| AUD-CCX-02 | Parcial: catalogo exige schemaVersion=1, deny-unverified e entradas approved; nenhum pacote real homologado. |
+| AUD-CCX-03 | Parcial: HTTPS, timeout, SHA256, validacao completa do ZIP antes de extrair; sem retomada/cancelamento de download. |
+| AUD-CCX-04 | Implementado: pasta por versao, lock exclusivo, ponteiros atomicos, preservacao da ativa em falha e rollback testado. |
+| AUD-CCX-05 | Parcial: interface para detectar, instalar/atualizar e restaurar, processo em segundo plano, bloqueio durante simulacao; verificacao periodica ainda pendente. |
+| AUD-CCX-06 | Parcial: instalador opcional distribui catalogo e gerenciador; fluxo de manifesto existente preservado. Selecao de versao aprovada sem manifesto disponivel no aplicativo e CLI. |
+| AUD-CCX-07 | Pendente de homologacao: pacote deve trazer licenseFile e dependencias; verificacao juridica/proveniencia de pacotes reais nao foi concluida. |
+| AUD-CCX-08 | Parcial: testes Windows com executavel sintetico cobrem instalacao, troca, rollback e falhas; nao homologam o solver. |
+| AUD-CCX-09 | Pendente: benchmark com CalculiX real. O gerenciador agora exige resultado numerico antes de ativar. |
+| AUD-CCX-10 | Documentos e limites atualizados nesta entrega. |
+
+Teste numerico usado na ativacao: tetraedro C3D4 unitario, E=1000 Pa,
+nu=0.3, Fx=1 N no no 2, todos os demais graus presos. Deslocamento esperado
+6*(1+nu)*(1-2nu)/(E*(1-nu)) = 0.004457142857 m, tolerancia 1%.
+Saida, versoes, origem, SHA256 e falhas ficam em update.log / last-smoke.log.
+
+Manifesto manual: version, url, sha256, executable, licenseFile e opcional
+requiredFiles. Catalogo automatico: os mesmos campos mais platform=windows,
+arch=x64 e status=approved. Catalogos sem homologacao nao liberam downloads.
+
+Nao declarar a homologacao real concluida: a tentativa de obter o ZIP oficial
+nesta sessao falhou por erro de conexao SSL. Nenhum hash ficticio foi adicionado.
+Resultados e comandos: [ENTREGA_0.2.1.md](ENTREGA_0.2.1.md).

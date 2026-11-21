@@ -1,5 +1,7 @@
 # MakePCB
 
+[Manual ilustrado em português (PDF)](../docs/Manuals/Manual_do_Usuario_MakePCB_0.1.0.0_PT-BR.pdf) · [Versão em texto](../docs/Manuals/Manual_do_Usuario_MakePCB_0.1.0.0_PT-BR.md)
+
 Projeto de placas de circuito impresso **do zero**, no estilo do PCB Wizard,
 gerando os arquivos que o **LaserPCB** consome (Gerber RS-274X/X2 + Excellon).
 

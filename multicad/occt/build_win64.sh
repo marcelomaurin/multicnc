@@ -7,7 +7,7 @@
 #   cmake ../src -DCMAKE_TOOLCHAIN_FILE=mingw64.cmake -DBUILD_LIBRARY_TYPE=Static \
 #     -DBUILD_MODULE_Visualization=OFF -DBUILD_MODULE_ApplicationFramework=OFF \
 #     -DBUILD_MODULE_Draw=OFF -DBUILD_MODULE_DataExchange=OFF \
-#     -DBUILD_ADDITIONAL_TOOLKITS="TKXSBase;TKSTEPBase;TKSTEPAttr;TKSTEP209;TKSTEP" \
+#     -DBUILD_ADDITIONAL_TOOLKITS="TKXSBase;TKSTEPBase;TKSTEPAttr;TKSTEP209;TKSTEP;TKIGES" \
 #     -DUSE_FREETYPE=OFF -DUSE_TK=OFF -DUSE_TCL=OFF -DUSE_OPENGL=OFF -DINSTALL_DIR=$OCCT_WIN
 #   make -j && make install
 # (mingw64.cmake: CMAKE_SYSTEM_NAME Windows, compiladores x86_64-w64-mingw32-*-posix)
@@ -17,7 +17,7 @@ OCCT_WIN=${OCCT_WIN:-/home/claude/occt/win}
 OUT=${1:-../../bin/mcad_occt.dll}
 INC=$(dirname "$(find "$OCCT_WIN" -name Standard_Version.hxx | head -1)")
 LIB=$(dirname "$(find "$OCCT_WIN" -name 'libTKernel.a' | head -1)")
-TK="TKSTEP TKSTEP209 TKSTEPAttr TKSTEPBase TKXSBase TKOffset TKFillet TKBool TKBO TKPrim TKMesh \
+TK="TKIGES TKSTEP TKSTEP209 TKSTEPAttr TKSTEPBase TKXSBase TKOffset TKFillet TKBool TKBO TKPrim TKMesh \
 TKShHealing TKTopAlgo TKGeomAlgo TKBRep TKGeomBase TKG3d TKG2d TKMath TKernel"
 LIBS=""
 for t in $TK; do LIBS="$LIBS $LIB/lib$t.a"; done

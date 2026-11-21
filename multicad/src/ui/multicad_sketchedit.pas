@@ -381,7 +381,8 @@ end;
 function TCadSketchEditor.AskValue(Sender: TObject; const ACaption: string;
   var AText: string): Boolean;
 begin
-  Result := InputQuery('Modificar', ACaption + ' (mm, graus ou expressão):', AText);
+  Result := InputQuery('Modificar', ACaption + ' (ex.: 25, 35-10mm, aresta=25, Esboço1.aresta*2):',
+    AText);
 end;
 
 function TCadSketchEditor.AskDim(Sender: TObject; const ACaption: string;
@@ -399,15 +400,15 @@ begin
     F.Caption := 'Cota ' + ACaption;
     F.BorderStyle := bsDialog;
     F.Position := poMainFormCenter;
-    F.Width := 330;
+    F.Width := 380;
     F.Height := 158;
     L := TLabel.Create(F);
     L.Parent := F;
-    L.SetBounds(12, 10, 300, 18);
-    L.Caption := 'Valor (mm, graus ou expressão):';
+    L.SetBounds(12, 10, 356, 18);
+    L.Caption := 'Valor (ex.: 25, 35-10mm, aresta=25, Esboço1.aresta*2):';
     E := TEdit.Create(F);
     E.Parent := F;
-    E.SetBounds(12, 30, 304, 26);
+    E.SetBounds(12, 30, 354, 26);
     E.Text := AText;
     K := TCheckBox.Create(F);
     K.Parent := F;
@@ -578,18 +579,20 @@ end;
 procedure TCadSketchEditor.EditDim(AIndex: Integer);
 var
   C: TSketchConstraint;
-  Txt: string;
+  Txt, Err: string;
 begin
   C := FSketch.Constraint(AIndex);
   if not C.Driving then
     Exit;
-  if C.Expr <> '' then
-    Txt := C.Expr
-  else
-    Txt := FormatFloat('0.###', C.Value);
+  Txt := FSketch.ConstraintEditText(AIndex);
   if AskValue(Self, C.DimName, Txt) and (Trim(Txt) <> '') then
   begin
-    FSketch.SetConstraintExpr(AIndex, Trim(Txt));
+    if not FSketch.SetConstraintText(AIndex, Trim(Txt), Err) then
+    begin
+      FSession.LastMessage := Err;
+      Changed;
+      Exit;
+    end;
     FSession.Solve;
     if FSession.LastSolve.Status = ssConflict then
       FSession.LastMessage := FSession.LastSolve.Message

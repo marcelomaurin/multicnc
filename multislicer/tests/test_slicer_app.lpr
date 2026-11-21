@@ -1,14 +1,18 @@
 program test_slicer_app;
 {$mode objfpc}{$H+}
-uses {$IFDEF UNIX}cthreads,{$ENDIF} Interfaces, Forms, Classes, SysUtils, Math, Spin, StdCtrls, multislicer_main,
-  multislicer_mesh, multislicer_pipeline, multislicer_stl, multislicer_types,
+uses {$IFDEF UNIX}cthreads,{$ENDIF} Interfaces, Forms, Graphics, Classes, SysUtils, Math, Spin, StdCtrls, multislicer_main,
+  multisuite_gcode_writer, multislicer_mesh, multislicer_pipeline, multislicer_stl, multislicer_types,
   multislicer_userdata, multislicer_materials, multislicer_scene, multicad_camera, multislicer_quality,
-  multicnc_types, multicnc_equipment, ExtCtrls, Controls, multislicer_meshcheck;
-var F: TMultiSlicerForm; Mesh: TMesh; G: TStringList; A, B: TVec3; Bx: TBox3; Pt: TPoint; T0: QWord;
+  multicnc_types, multicnc_equipment, ExtCtrls, Controls, ComCtrls, multislicer_meshcheck, fpjson, jsonparser, multisuite_controls;
+var Header:TSuiteGCodeHeader; PrintBounds:TSuiteBounds;
+  MaterialPreview: TBitmap;
+  SavedProject, ModelPath: TJSONData; RelativeModelPath: string;
+  F: TMultiSlicerForm; Mesh: TMesh; G: TStringList; A, B: TVec3; Bx: TBox3; Pt: TPoint; T0: QWord;
   FN2, FNBig: string; I, J: Integer; Tri: TTriangle; LFino, LNormal, LRasc: Integer; TFino, TNormal, TRasc: Double;
   QD: TQualityDef; PX, PY, PZ, PD, PX0: Double; NSup: Integer; Blk: TSceneBlocker;
   FN, Output, BadOutput, ProfileDir: string; Mat: TMaterialDef; Raised: Boolean; Before: string;
-  EqFile: string; EqStore: TEquipmentStore; Eq: TEquipmentProfile; EqBox: TComboBox; IFS: TFormatSettings; PDir, PFile: string; St0: TTransformState; Canc: TObject; Tm: TTimer;
+  EqFile: string; EqStore: TEquipmentStore; Eq: TEquipmentProfile; EqBox, PBrand, PModel, FKind, FBrand, FModel: TComboBox; InfEd: TSpinEdit; InfTr: TTrackBar; IFS: TFormatSettings; PDir, PFile: string; St0: TTransformState; Canc: TObject; Tm: TTimer;
+  ObjList: TListBox; DelPartBtn: TSuiteButton;
 procedure Check(OK: Boolean; const Msg: string);
 begin if not OK then raise Exception.Create(Msg); end;
 type
@@ -201,7 +205,10 @@ begin
     Bx := F.Scene[0].WorldBox;
     Check((Abs(Bx.Min.X - 5) < 1e-6) and (Abs(Bx.Min.Y - 5) < 1e-6), 'X/Y fields move the part to the corner');
     F.ExportProgram(Output); G.LoadFromFile(Output);
-    Check(Pos(';MINX:5 MINY:5 MAXX:35 MAXY:20', G.Text) > 0, 'G-code envelope matches the corner position');
+    Check(SuiteParseHeader(G,Header,PrintBounds) and PrintBounds.Valid, 'bounds in contract');
+    Check((PrintBounds.X0>=0) and (PrintBounds.Y0>=0) and
+      (PrintBounds.X0<5) and (PrintBounds.Y0<5) and
+      (PrintBounds.X1>35) and (PrintBounds.Y1>20), 'envelope includes skirt around corner position');
     TFloatSpinEdit(F.FindComponent('PosX')).Value := -10;
     Check(not F.ValidateJob, 'part moved off the bed fails validation');
     TFloatSpinEdit(F.FindComponent('PosX')).Value := 60;
@@ -356,18 +363,34 @@ begin
     TFloatSpinEdit(F.FindComponent('BrimWidth')).Value := 6;
     TSpinEdit(F.FindComponent('HotendTemperature')).Value := 212;
     TFloatSpinEdit(F.FindComponent('LayerHeight')).Value := 0.16;
+    TFloatSpinEdit(F.FindComponent('MaxVolumetricFlow')).Value := 4.5;
+    TFloatSpinEdit(F.FindComponent('MaxZSpeed')).Value := 3;
+    TSpinEdit(F.FindComponent('MaxHotendTemp')).Value := 245;
     PFile := PDir + PathDelim + 'suporte_teste.mslice';
     F.SaveProjectAs(PFile);
     Check(FileExists(PFile) and not F.ProjectDirty and (F.ProjectFile = ExpandFileName(PFile)), 'project saved');
     Check(Pos('suporte_teste', F.Caption) > 0, 'project name in the caption');
     G.LoadFromFile(PFile);
-    Check((Pos('"format" : "mslice"', G.Text) > 0) and (Pos('modelos' + PathDelim + 'barra.stl', G.Text) + Pos('modelos/barra.stl', G.Text) > 0),
-      'project JSON with relative model path');
+    { JSON escapes Windows backslashes: validate the decoded relative path. }
+    SavedProject := GetJSON(G.Text);
+    try
+      Check(TJSONObject(SavedProject).Get('format', '') = 'mslice', 'project JSON format');
+      ModelPath := SavedProject.FindPath('scene.objects[0].file');
+      Check(Assigned(ModelPath), 'project JSON has a model path');
+      RelativeModelPath := ModelPath.AsString;
+      Check((RelativeModelPath = 'modelos' + PathDelim + 'barra.stl') or
+        (RelativeModelPath = 'modelos/barra.stl'), 'project JSON with relative model path');
+    finally
+      SavedProject.Free;
+    end;
     F.NewProject;
     TSpinEdit(F.FindComponent('HotendTemperature')).Value := 200;
     TComboBox(F.FindComponent('AdhesionType')).ItemIndex := 1;
     F.OpenProject(PFile);
     Check(F.Scene.Count = 2, 'both parts back');
+    Check(SameValue(TFloatSpinEdit(F.FindComponent('MaxVolumetricFlow')).Value,4.5,1e-6), 'project restores hotend flow limit');
+    Check(SameValue(TFloatSpinEdit(F.FindComponent('MaxZSpeed')).Value,3,1e-6), 'project restores Z speed limit');
+    Check(TSpinEdit(F.FindComponent('MaxHotendTemp')).Value=245, 'project restores thermal limit');
     Check(SameValue(F.Scene[1].X, St0.X, 1e-6) and SameValue(F.Scene[1].Y, St0.Y, 1e-6) and
       SameValue(F.Scene[1].RotZ, 30, 1e-6) and F.Scene[1].Locked, 'transform and lock restored');
     Check((F.Scene.PillarCount = 1) and F.Scene.PillarAbs(0, PX, PY, PZ, PD) and SameValue(PZ, 12, 1e-6) and SameValue(PD, 4, 1e-6),
@@ -436,7 +459,147 @@ begin
     EqBox.ItemIndex := 0; EqBox.OnChange(EqBox);
     Check(not F.HasMachine and (F.CurrentPrinter.Name = ReadLastChoice('printer')) and
       (ReadLastChoice('printer') <> 'Minha S1'), 'manual returns to the last printer profile chosen by hand');
+    F.SelectPrinter('Creality K2');
+    Check((F.CurrentPrinter.BedX=260) and (F.CurrentPrinter.VendorWorkflow='Creality Print'),'K2 selected from slicer list');
+    Before:=G.Text;Raised:=False;
+    try F.ExportProgram(Output);except Raised:=True;end;
+    Check(Raised,'dimensional K2 profile cannot export generic Marlin');
+    G.LoadFromFile(Output);Check(G.Text=Before,'blocked export preserves existing file');
+    F.SaveProjectAs(ProfileDir+PathDelim+'k2.mslice');
+    F.SelectPrinter('Generic Marlin');F.OpenProject(ProfileDir+PathDelim+'k2.mslice');
+    Check(F.CurrentPrinter.VendorWorkflow='Creality Print','project keeps vendor workflow');
+    DeleteFile(ProfileDir+PathDelim+'k2.mslice');
+    F.SelectPrinter('Generic Marlin');
+    { Commercial filaments: actual combo events, thermal targets and project persistence. }
+    F.OpenFile(FN2);
+    F.SelectMaterial('eSUN PLA+');
+    Check(TComboBox(F.FindComponent('MaterialKind')).Text='PLA','commercial choice selects PLA kind');
+    EqBox := TComboBox(F.FindComponent('CommercialFilament'));
+    Check((EqBox.Items.Count=8) and (Pos('Customizado',EqBox.Items[0])=1),'PLA options plus custom');
+    for I := 0 to EqBox.Items.Count-1 do Check(Pos('ABS',EqBox.Items[I])=0,'PLA hides ABS products');
+    Check((F.CurrentMaterial.HotendFirst=220) and (F.CurrentMaterial.Hotend=220) and
+      (F.CurrentMaterial.BedFirst=60) and (F.CurrentMaterial.Bed=60),'commercial applies all four temperatures');
+    F.ExportProgram(Output); G.LoadFromFile(Output);
+    Check((Pos('M109 S220',G.Text)>0) and (Pos('M190 S60',G.Text)>0),'commercial temperatures reach G-code');
+    EqBox := TComboBox(F.FindComponent('MaterialKind'));
+    EqBox.ItemIndex := EqBox.Items.IndexOf('ABS'); EqBox.OnChange(EqBox);
+    Check((F.CurrentMaterial.Name='ABS') and (F.CurrentMaterial.Hotend=240) and
+      (F.CurrentMaterial.HotendFirst=245) and (F.CurrentMaterial.BedFirst=105) and (F.CurrentMaterial.Bed=100),
+      'switching kind resets to ABS custom defaults');
+    EqBox := TComboBox(F.FindComponent('CommercialFilament'));
+    Check(EqBox.Items.Count=6,'ABS options plus custom');
+    for I := 0 to EqBox.Items.Count-1 do Check(Pos('PLA',EqBox.Items[I])=0,'ABS hides PLA products');
+    EqBox.ItemIndex := EqBox.Items.IndexOf('3D Lab ABS Premium'); EqBox.OnChange(EqBox);
+    Check((F.CurrentMaterial.Hotend=235) and (F.CurrentMaterial.Bed=110),'UI brand selection applies ABS recommendations');
+    TSpinEdit(F.FindComponent('HotendTemperature')).Value := 238;
+    F.SaveProjectAs(ProfileDir+PathDelim+'commercial.mslice');
+    F.SelectMaterial('PLA'); F.OpenProject(ProfileDir+PathDelim+'commercial.mslice');
+    Check((F.CurrentMaterial.Brand='3D Lab') and (F.CurrentMaterial.Kind='ABS') and (F.CurrentMaterial.Hotend=238) and
+      (TComboBox(F.FindComponent('MaterialKind')).Text='ABS'),'project preserves brand, filter and manual override');
+    F.ExportProgram(Output); G.LoadFromFile(Output);
+    Check((Pos('M109 S235',G.Text)>0) and (Pos('M104 S238',G.Text)>0) and (Pos('M190 S110',G.Text)>0),
+      'first and later-layer targets preserved in G-code');
+    TSpinEdit(F.FindComponent('MaxBedTemp')).Value := 100;
+    Check(not F.ValidateJob,'commercial profile cannot bypass printer bed limit');
+    Raised := False;
+    try F.ExportProgram(BadOutput); except Raised := True; end;
+    Check(Raised and not FileExists(BadOutput),'over-limit commercial profile cannot export');
+    TSpinEdit(F.FindComponent('MaxBedTemp')).Value := 110;
+    EqBox := TComboBox(F.FindComponent('CommercialFilament')); EqBox.ItemIndex := 0; EqBox.OnChange(EqBox);
+    Check((F.CurrentMaterial.Brand='') and (F.CurrentMaterial.Hotend=240),'custom clears commercial metadata and restores ABS');
+    F.SelectMaterial('PLA');
+    Check((F.CurrentMaterial.HotendFirst=205) and (F.CurrentMaterial.Hotend=200) and (F.CurrentMaterial.Bed=60),
+      'custom PLA retains old defaults');
+    DeleteFile(ProfileDir+PathDelim+'commercial.mslice');
+    if GetEnvironmentVariable('MULTISLICER_QA_IMAGE') <> '' then
+    begin
+      F.SelectMaterial('eSUN PLA+'); F.ShowStep(2); F.Show; Application.ProcessMessages;
+      MaterialPreview := F.GetFormImage;
+      try MaterialPreview.SaveToFile(GetEnvironmentVariable('MULTISLICER_QA_IMAGE'));
+      finally MaterialPreview.Free; end;
+    end;
     DeleteFile(FN2); DeleteFile(FNBig);
+    { Teste Etapa 1: Marca e modelo de impressora }
+    PBrand := TComboBox(F.FindComponent('PrinterBrandBox'));
+    PModel := TComboBox(F.FindComponent('PrinterModelBox'));
+    Check((PBrand <> nil) and (PModel <> nil), 'printer brand and model combos exist');
+    Check(PBrand.Items.IndexOf('Creality') >= 0, 'Creality in printer brands');
+    PBrand.ItemIndex := PBrand.Items.IndexOf('Creality');
+    PBrand.OnChange(PBrand);
+    Check(PModel.Items.IndexOf('Ender-3 S1') >= 0, 'Ender-3 S1 in Creality models');
+    PModel.ItemIndex := PModel.Items.IndexOf('Ender-3 S1');
+    PModel.OnChange(PModel);
+    Check(SameValue(TFloatSpinEdit(F.FindComponent('BedZ')).Value, 270, 1e-6), 'Ender-3 S1 has 270 mm Z');
+    Check(ReadLastChoice('printer_brand') = 'Creality', 'saved printer brand choice');
+    Check(ReadLastChoice('printer_model') = 'Ender-3 S1', 'saved printer model choice');
+
+    { Teste Etapa 3: Tipo, marca e modelo de filamento com temperaturas de bico e mesa }
+    FKind := TComboBox(F.FindComponent('FilamentKindBox'));
+    FBrand := TComboBox(F.FindComponent('FilamentBrandBox'));
+    FModel := TComboBox(F.FindComponent('FilamentModelBox'));
+    Check((FKind <> nil) and (FBrand <> nil) and (FModel <> nil), 'filament combos exist');
+    Check(FKind.Items.IndexOf('PLA') >= 0, 'PLA in filament kinds');
+    FKind.ItemIndex := FKind.Items.IndexOf('PLA');
+    FKind.OnChange(FKind);
+    Check(FBrand.Items.IndexOf('Voolt3D') >= 0, 'Voolt3D in PLA brands');
+    FBrand.ItemIndex := FBrand.Items.IndexOf('Voolt3D');
+    FBrand.OnChange(FBrand);
+    Check(FModel.Items.IndexOf('PLA High Speed') >= 0, 'PLA High Speed in Voolt3D models');
+    FModel.ItemIndex := FModel.Items.IndexOf('PLA High Speed');
+    FModel.OnChange(FModel);
+    Check(TSpinEdit(F.FindComponent('HotendFirstLayer')).Value = 215, 'Voolt3D PLA High Speed first layer hotend 215');
+    Check(TSpinEdit(F.FindComponent('HotendTemperature')).Value = 210, 'Voolt3D PLA High Speed hotend 210');
+    Check(TSpinEdit(F.FindComponent('BedFirstLayer')).Value = 60, 'Voolt3D PLA High Speed bed 60');
+    Check(ReadLastChoice('filament_kind') = 'PLA', 'saved filament kind');
+    Check(ReadLastChoice('filament_brand') = 'Voolt3D', 'saved filament brand');
+    Check(ReadLastChoice('filament_model') = 'PLA High Speed', 'saved filament model');
+
+    { Teste com ABS e 3D Fila }
+    FKind.ItemIndex := FKind.Items.IndexOf('ABS');
+    FKind.OnChange(FKind);
+    Check(FBrand.Items.IndexOf('3D Fila') >= 0, '3D Fila in ABS brands');
+    FBrand.ItemIndex := FBrand.Items.IndexOf('3D Fila');
+    FBrand.OnChange(FBrand);
+    Check(FModel.Items.IndexOf('ABS Alta Fluidez') >= 0, 'ABS Alta Fluidez in 3D Fila');
+    FModel.ItemIndex := FModel.Items.IndexOf('ABS Alta Fluidez');
+    FModel.OnChange(FModel);
+    Check(TSpinEdit(F.FindComponent('HotendFirstLayer')).Value = 245, '3D Fila ABS Alta Fluidez hotend 245');
+    Check(TSpinEdit(F.FindComponent('BedFirstLayer')).Value = 110, '3D Fila ABS Alta Fluidez bed 110');
+
+    { Teste Etapa 4: Preenchimento salvo e modificado }
+    InfEd := TSpinEdit(F.FindComponent('InfillDensity'));
+    Check(InfEd <> nil, 'infill spin edit exists');
+    InfEd.Value := 35;
+    InfEd.OnChange(InfEd);
+    Check(ReadLastChoice('infill_percent') = '35', 'infill saved to multislicer.json');
+
+    { Teste: Perfil antes de Marca e Modelo & Pre-preenchimento automatico }
+    F.SelectPrinter('Creality Ender-3');
+    Check(PBrand.Text = 'Creality', 'PrinterBrandBox auto-filled Creality on profile selection');
+    Check(PModel.Text = 'Ender-3', 'PrinterModelBox auto-filled Ender-3 on profile selection');
+
+    F.SelectMaterial('3D Lab PLA');
+    Check(FKind.Text = 'PLA', 'FilamentKindBox auto-filled PLA on material profile selection');
+    Check(FBrand.Text = '3D Lab', 'FilamentBrandBox auto-filled 3D Lab on material profile selection');
+    Check(FModel.Text = 'PLA', 'FilamentModelBox auto-filled PLA on material profile selection');
+
+    { Teste: Excluir peca selecionada na lista de pecas na mesa }
+    ObjList := TListBox(F.FindComponent('ObjectList'));
+    Check(ObjList <> nil, 'ObjectList exists');
+    DelPartBtn := TSuiteButton(F.FindComponent('DeletePartBtn'));
+    Check(DelPartBtn <> nil, 'DeletePartBtn exists');
+
+    Mesh.Clear; AddBox(Mesh, 0, 0, 0, 10, 10, 10); TSTLImporter.SaveBinary(Mesh, FN);
+    F.OpenFile(FN);
+    Check(ObjList.Items.Count > 0, 'ObjectList has loaded piece');
+    I := F.Scene.Count;
+    ObjList.ItemIndex := 0;
+    ObjList.OnClick(ObjList);
+    Check(F.Scene.SelectedCount > 0, 'Scene object selected from ObjectList');
+    DelPartBtn.Click;
+    Check(F.Scene.Count = I - 1, 'Scene count decreased after deleting piece');
+    Check(ObjList.Items.Count = I - 1, 'ObjectList count decreased after deleting piece');
+
     Writeln('MultiSlicer GUI: OK (suite UI, centering, validation, profiles, start/end G-code, persistence, 3D scene, picking, transform panel, undo, labels, quality profiles, supports, pillars, blockers, brim, raft, layers, export, 3D preview, threaded slicing, project, mesh check, drag and drop, equipment)');
   finally F.Free; Mesh.Free; DeleteFile(ProfileDir + PathDelim + 'multislicer.json'); RemoveDir(ProfileDir + PathDelim + 'materials'); RemoveDir(ProfileDir + PathDelim + 'quality'); RemoveDir(ProfileDir); G.Free; DeleteFile(FN); DeleteFile(Output); DeleteFile(BadOutput); DeleteFile(EqFile); DeleteFile(EqFile + '.bak'); end;
   except on E: Exception do begin Writeln('FAIL: ', E.Message); Halt(1); end; end;

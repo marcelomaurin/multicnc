@@ -10,6 +10,12 @@ type
     OpticalPowerW: Double; { rated optical output, not electrical input }
     Passes: Integer;
     Process: TLaserProcess;
+    { estimativa pela potencia (laserpcb_powerest): tipo de laser,
+      cobre em um, espessura da placa em mm e velocidade maxima mm/min }
+    LaserSource: Integer;
+    CopperUM, BoardMM, MaxFeed: Double;
+    { aferidos no gabarito (J/mm3, 0 = sem afericao) }
+    CopperEv, CutEv: Double;
   end;
   TPathPoint = record
     X, Y: Double;

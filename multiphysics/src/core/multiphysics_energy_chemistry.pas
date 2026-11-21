@@ -24,9 +24,9 @@ function LeadAcid12V(Ah:Double):TBatteryModel;begin Result:=MakeBattery('Chumbo-
 function LiIonCell(Ah:Double):TBatteryModel;begin Result:=MakeBattery('Li-ion 3.7 V',bcLiIon,3.7,Ah,0.05,Ah,3*Ah);end;
 function LiFePO4Cell(Ah:Double):TBatteryModel;begin Result:=MakeBattery('LiFePO4 3.2 V',bcLiFePO4,3.2,Ah,0.03,Ah,3*Ah);end;
 function NiMHCell(Ah:Double):TBatteryModel;begin Result:=MakeBattery('NiMH 1.2 V',bcNiMH,1.2,Ah,0.04,0.5*Ah,2*Ah);end;
-function BatteryTerminalVoltage(const B:TBatteryModel;Current:Double):Double;begin Result:=Max(0,B.NominalVoltage*(0.9+0.1*B.SOC)-Current*B.InternalResistance);end;
-procedure BatteryStep(var B:TBatteryModel;Current,Dt:Double);var D:Double;begin if(B.CapacityAh<=0)or(Dt<=0)then Exit;Current:=Max(-B.MaxChargeCurrent,Min(B.MaxDischargeCurrent,Current));D:=Current*Dt/3600/B.CapacityAh;B.SOC:=Max(0,Min(1,B.SOC-D));end;
-function SolarPower(const P:TSolarPanel;Irradiance,TemperatureC:Double):Double;var F:Double;begin F:=1+P.TemperatureCoefficient*(TemperatureC-25);Result:=Max(0,P.RatedPower*(Irradiance/1000)*F);end;
+function BatteryTerminalVoltage(const B:TBatteryModel;Current:Double):Double;begin Result:=Max(0.0,B.NominalVoltage*(0.9+0.1*B.SOC)-Current*B.InternalResistance);end;
+procedure BatteryStep(var B:TBatteryModel;Current,Dt:Double);var D:Double;begin if(B.CapacityAh<=0)or(Dt<=0)then Exit;Current:=Max(-B.MaxChargeCurrent,Min(B.MaxDischargeCurrent,Current));D:=Current*Dt/3600/B.CapacityAh;B.SOC:=Max(0.0,Min(1.0,B.SOC-D));end;
+function SolarPower(const P:TSolarPanel;Irradiance,TemperatureC:Double):Double;var F:Double;begin F:=1+P.TemperatureCoefficient*(TemperatureC-25);Result:=Max(0.0,P.RatedPower*(Irradiance/1000)*F);end;
 function Chem(const N,F:string;D,C,BP,FP:Double;H:TChemicalHazard):TChemical;begin Result.Name:=N;Result.Formula:=F;Result.Density:=D;Result.SpecificHeat:=C;Result.BoilingPoint:=BP;Result.FreezingPoint:=FP;Result.Hazard:=H;end;
 function Water:TChemical;begin Result:=Chem('Agua','H2O',998,4182,100,0,chNone);end;
 function Ethanol:TChemical;begin Result:=Chem('Etanol','C2H6O',789,2440,78.4,-114,chFlammable);end;

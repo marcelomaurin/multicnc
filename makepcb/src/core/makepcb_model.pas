@@ -100,6 +100,7 @@ type
     X, Y: Double;
     Rotation: Integer;        { 0, 90, 180, 270 }
     Flipped: Boolean;         { montado embaixo (espelhado em X antes de girar) }
+    Locked: Boolean;          { travado: o editor nao move, gira nem vira }
     function LocalToWorld(LX, LY: Double): TMPPoint;
     function PadCount: Integer;
     function PadPos(I: Integer): TMPPoint;
@@ -1150,6 +1151,7 @@ begin
       O.Add('y', C.Y);
       O.Add('rotation', C.Rotation);
       if C.Flipped then O.Add('flipped', True);
+      if C.Locked then O.Add('locked', True);
       A.Add(O);
     end;
     Root.Add('components', A);
@@ -1280,6 +1282,7 @@ begin
         C.Y := O.Get('y', 0.0);
         C.Rotation := O.Get('rotation', 0);
         C.Flipped := O.Get('flipped', False);
+        C.Locked := O.Get('locked', False);
         FComponents.Add(C);
       end;
     A := Root.Get('tracks', TJSONArray(nil));

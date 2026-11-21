@@ -1,0 +1,66 @@
+{
+  "name": "Parafuso M5x20 Allen",
+  "model": "DIN 912 M5x20 12.9",
+  "category": "fixadores",
+  "kind": "ackFastenerScrew",
+  "material": "Aço classe 12.9 oxidado preto",
+  "color": 4275258,
+  "size": {
+    "x": 8.5,
+    "y": 8.5,
+    "z": 25.0
+  },
+  "ports": [
+    {
+      "name": "ROSCA",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "CABECA",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Parafuso cabeça cilíndrica com sextavado interno M5 x 20 mm (cabeça Ø8.5 x 5.0, chave 4.0).",
+  "standard": "DIN 912 / ISO 4762",
+  "mass_g": 3.8,
+  "specs": {
+    "rosca": "M5 x 0.8",
+    "comprimento_mm": 20,
+    "cabeca_d_mm": 8.5,
+    "cabeca_h_mm": 5.0,
+    "chave_allen_mm": 4.0,
+    "torque_ref_Nm": 9.5
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 0.0], "r": 2.1, "h": 20.0, "color": "#2E3135", "seg": 16},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 0.2], "r": 2.5, "h": 0.4, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 1.0], "r": 2.5, "h": 0.4, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 1.8], "r": 2.5, "h": 0.4, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 2.6], "r": 2.5, "h": 0.4, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 3.4], "r": 2.5, "h": 0.4, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 4.2], "r": 2.5, "h": 0.4, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 5.0], "r": 2.5, "h": 0.4, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 5.8], "r": 2.5, "h": 0.4, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 6.6], "r": 2.5, "h": 0.4, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 7.4], "r": 2.5, "h": 0.4, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 8.2], "r": 2.5, "h": 0.4, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 9.0], "r": 2.5, "h": 0.4, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 9.8], "r": 2.5, "h": 0.4, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 10.6], "r": 2.5, "h": 0.4, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 11.4], "r": 2.5, "h": 0.4, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 12.2], "r": 2.5, "h": 0.4, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 13.0], "r": 2.5, "h": 0.4, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 13.8], "r": 2.5, "h": 0.4, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 14.6], "r": 2.5, "h": 0.4, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 15.4], "r": 2.5, "h": 0.4, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 16.2], "r": 2.5, "h": 0.4, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 17.0], "r": 2.5, "h": 0.4, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 17.8], "r": 2.5, "h": 0.4, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 18.6], "r": 2.5, "h": 0.4, "color": "#3C3F44", "seg": 16, "caps": false},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 20.0], "r": 4.25, "h": 4.7, "color": "#3A3C41", "seg": 28},
+    {"type": "cyl", "axis": "z", "at": [4.25, 4.25, 24.7], "r": 4.25, "h": 0.3, "color": "#3A3C41", "r2": 3.95, "seg": 28},
+    {"type": "disk", "axis": "z", "at": [4.25, 4.25, 25.0], "r": 2.309, "color": "#15161A", "seg": 6}
+  ]
+}

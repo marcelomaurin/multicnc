@@ -1,0 +1,31 @@
+{
+  "name": "Arruela M3 Lisa",
+  "model": "DIN 125 M3",
+  "category": "fixadores",
+  "kind": "ackFastenerWasher",
+  "material": "Aço zincado",
+  "color": 13420482,
+  "size": {
+    "x": 7.0,
+    "y": 7.0,
+    "z": 0.5
+  },
+  "ports": [
+    {
+      "name": "FURO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Arruela lisa M3: Ø interno 3.2, Ø externo 7, espessura 0.5 mm.",
+  "standard": "DIN 125 / ISO 7089",
+  "mass_g": 0.12,
+  "specs": {
+    "d_int_mm": 3.2,
+    "d_ext_mm": 7.0,
+    "espessura_mm": 0.5
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [3.5, 3.5, 0.0], "r": 3.5, "h": 0.5, "color": "#C2C7CC", "ri": 1.6, "seg": 28}
+  ]
+}

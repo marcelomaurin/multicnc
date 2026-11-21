@@ -1,6 +1,7 @@
 """Release validation rejects missing apps and mixed architectures."""
 import hashlib
 import importlib.util
+import json
 from pathlib import Path
 import struct
 import tempfile
@@ -12,7 +13,7 @@ release = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(release)
 NAMES = ("multisuite", "multicad", "multiassembly", "multiphysics",
          "multicam", "multislicer", "laserpcb", "laserart", "multicnc", "multisuite_test_center",
-         "makepcb", "makerouter", "routerpcb")
+         "makepcb", "makerouter", "routerpcb", "multiproject")
 
 
 def elf(machine=62, bits=2, flags=0):
@@ -67,6 +68,21 @@ class ReleaseChecks(unittest.TestCase):
         with self.assertRaises(SystemExit):
             release.verify_architecture(self.app, "windows", "amd64")
 
+    def test_windows_requires_simucnc(self):
+        self.fill(".exe", pe())
+        (self.app / "SimuCNC.exe").unlink()
+        with self.assertRaises(SystemExit):
+            release.verify_architecture(self.app, "windows", "amd64")
+
+    def test_installer_always_selects_simulator(self):
+        script = (Path(__file__).resolve().parents[1] /
+                  "installer/windows/multisuite.iss").read_text(encoding="utf-8")
+        component = next(line for line in script.splitlines()
+                         if line.startswith('Name: "tools\\simucnc";'))
+        self.assertIn("Types: full compact custom", component)
+        self.assertIn("Flags: fixed", component)
+        self.assertIn('SimuCNC.exe"; DestDir: "{app}"; Components: tools\\simucnc;', script)
+
     def test_windows_requires_cad_dll(self):
         self.fill(".exe", pe())
         (self.app / "mcad_occt.dll").unlink()
@@ -104,6 +120,25 @@ class ReleaseChecks(unittest.TestCase):
         self.assertEqual(digest, hashlib.sha256(data).hexdigest())
         p.write_bytes(data + b"tampered")
         self.assertNotEqual(digest, release.sha256(p))
+
+    def test_four_part_release_version_survives_packaging(self):
+        self.fill('.exe', pe())
+        (self.app / 'qa-tests.json').write_text(json.dumps({'tests_executed': True, 'tests': []}))
+        include = self.app / 'version.iss'
+        argv = ['release_manifest', '--app-dir', str(self.app), '--version', '0.19.1.2',
+                '--os', 'windows', '--arch', 'amd64', '--version-include', str(include)]
+        def command(*args):
+            return '' if args[:2] == ('git', 'status') else 'test-metadata'
+        with patch('sys.argv', argv), patch.object(release, 'command', side_effect=command), patch.object(release.os, 'chdir'):
+            release.main()
+        self.assertIn('#define MyBinaryVersion "0.19.1.2"', include.read_text())
+        self.assertEqual(json.loads((self.app / 'build-manifest.json').read_text())['version'], '0.19.1.2')
+
+    def test_five_part_release_version_is_rejected(self):
+        argv = ['release_manifest', '--app-dir', str(self.app), '--version', '0.19.1.2.3',
+                '--os', 'windows', '--arch', 'amd64']
+        with patch('sys.argv', argv), self.assertRaises(SystemExit):
+            release.main()
 
 
 if __name__ == "__main__":

@@ -272,6 +272,7 @@ procedure TAccessoriesFrame.Tick(Sender: TObject);
 var Input: TAIJoystickState; Active,Ready,Available: Boolean; I: Integer; Buttons,MessageText: string;
   Main: TCustomForm;
 begin
+  if not Enabled then begin Suspend; Exit; end;
   try
     FJoystick.Poll; Input:=FJoystick.State;
     Main:=GetParentForm(Self);

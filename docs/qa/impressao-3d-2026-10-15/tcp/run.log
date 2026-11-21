@@ -1,0 +1,2 @@
+PASS: real TCP generated print, 84 commands, 58532 ms; hotend 179,9, bed 30,0; final Z 5.4; reconnect and M400 completion
+PASS: startup, fragmented command, CRLF, batch, movement, temperature, disconnect/reconnect

@@ -481,14 +481,14 @@ type
 
 constructor TEdgeTable.Create(Cap: Integer);
 var
-  N: Int64;
+  N, I: Integer;
 begin
   inherited Create;
   N := 1024;
   while N < Cap * 2 do N := N * 2;
   SetLength(FKeys, N);
   SetLength(FVals, N);
-  for N := 0 to High(FKeys) do FKeys[N] := -1;
+  for I := 0 to High(FKeys) do FKeys[I] := -1;
   FMask := Length(FKeys) - 1;
   SetLength(Links, 1024);
 end;
@@ -508,7 +508,8 @@ end;
 
 function TEdgeTable.Ensure(Key: Int64; X, Y: Double): Integer;
 var
-  H, I: Int64;
+  H: Int64;
+  I: Integer;
   OldK: array of Int64;
   OldV: array of Integer;
 begin

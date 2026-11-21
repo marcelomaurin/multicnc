@@ -5,7 +5,7 @@ unit multicnc_printer_profiles;
 interface
 
 uses
-  Classes, SysUtils;
+  Classes, SysUtils, multisuite_fdm_catalog;
 
 type
   TPrinterProfile = record
@@ -21,10 +21,13 @@ type
     FilamentDiameter: Double;
     Firmware: string;
     Notes: string;
+    CatalogOnly: Boolean;
+    SourceURL, VerifiedOn, Workflow: string;
   end;
 
 const
-  PRINTER_PROFILE_COUNT = 15;
+  LEGACY_PRINTER_PROFILE_COUNT = 15;
+  PRINTER_PROFILE_COUNT = LEGACY_PRINTER_PROFILE_COUNT + FDM_MODEL_COUNT;
 
 procedure GetPrinterBrands(AList: TStrings);
 procedure GetPrinterModels(const ABrand: string; AList: TStrings);
@@ -43,7 +46,7 @@ function ValidateBedTemperature(ATemp: Double; AMaxAllowed: Integer; out Reason:
 implementation
 
 const
-  PROFILES: array[0..PRINTER_PROFILE_COUNT - 1] of TPrinterProfile = (
+  PROFILES: array[0..LEGACY_PRINTER_PROFILE_COUNT - 1] of TPrinterProfile = (
     // Creality
     (
       Brand: 'Creality';
@@ -205,15 +208,33 @@ const
     )
   );
 
+function ProfileAt(Index:Integer):TPrinterProfile;
+var M:TFDMModel;
+begin
+  if Index<LEGACY_PRINTER_PROFILE_COUNT then Exit(PROFILES[Index]);
+  M:=FDM_MODELS[Index-LEGACY_PRINTER_PROFILE_COUNT];
+  Result:=Default(TPrinterProfile);
+  Result.Brand:=M.Brand;Result.Model:=M.Model;
+  Result.VolumeX:=M.X;Result.VolumeY:=M.Y;Result.VolumeZ:=M.Z;
+  Result.MaxHotendTemp:=M.MaxHotend;Result.MaxBedTemp:=M.MaxBed;
+  Result.FilamentDiameter:=M.Filament;Result.HasHeatedBed:=True;
+  Result.CatalogOnly:=True;Result.Workflow:=M.Workflow;
+  Result.Firmware:='Fluxo '+M.Workflow+' (envio direto nao integrado)';
+  Result.SourceURL:=M.SourceURL;Result.VerifiedOn:=FDM_RESEARCH_DATE;
+  Result.Notes:=M.Notes+' Catalogo dimensional; imprimir pelo perfil oficial em '+M.Workflow+'.';
+  { BaudRate=0: no raw serial connection specification has been verified. }
+end;
+
 procedure GetPrinterBrands(AList: TStrings);
 var
   I: Integer;
   B: string;
+  P:TPrinterProfile;
 begin
   AList.Clear;
   for I := 0 to PRINTER_PROFILE_COUNT - 1 do
   begin
-    B := PROFILES[I].Brand;
+    P:=ProfileAt(I);B := P.Brand;
     if AList.IndexOf(B) < 0 then
       AList.Add(B);
   end;
@@ -221,34 +242,37 @@ end;
 
 procedure GetPrinterModels(const ABrand: string; AList: TStrings);
 var
-  I: Integer;
+  I: Integer;P:TPrinterProfile;
 begin
   AList.Clear;
   for I := 0 to PRINTER_PROFILE_COUNT - 1 do
   begin
-    if SameText(PROFILES[I].Brand, ABrand) then
-      AList.Add(PROFILES[I].Model);
+    P:=ProfileAt(I);
+    if SameText(P.Brand, ABrand) then AList.Add(P.Model);
   end;
 end;
 
 function FindPrinterProfile(const ABrand, AModel: string; out AProfile: TPrinterProfile): Boolean;
 var
-  I: Integer;
+  I: Integer;P:TPrinterProfile;
 begin
   for I := 0 to PRINTER_PROFILE_COUNT - 1 do
   begin
-    if SameText(PROFILES[I].Brand, ABrand) and SameText(PROFILES[I].Model, AModel) then
+    P:=ProfileAt(I);
+    if SameText(P.Brand, ABrand) and SameText(P.Model, AModel) then
     begin
-      AProfile := PROFILES[I];
+      AProfile := P;
       Exit(True);
     end;
   end;
-  FillChar(AProfile, SizeOf(AProfile), 0);
+  AProfile := Default(TPrinterProfile);
   Result := False;
 end;
 
 function PrinterProfileSummary(const P: TPrinterProfile): string;
 begin
+  if P.CatalogOnly then Exit(Format('%s %s | %.0f x %.0f x %.0f mm | Catalogo; usar %s',
+    [P.Brand,P.Model,P.VolumeX,P.VolumeY,P.VolumeZ,P.Workflow]));
   Result := Format('%s %s | Volume: %.0f x %.0f x %.0f mm | Baud: %d | Hotend: %d C | Bed: %d C (%s)',
     [P.Brand, P.Model, P.VolumeX, P.VolumeY, P.VolumeZ, P.BaudRate,
      P.MaxHotendTemp, P.MaxBedTemp, P.Firmware]);

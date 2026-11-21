@@ -17,7 +17,7 @@ function GearOutputSpeed(const G:TGearModel;InputSpeed:Double):Double;
 function ScrewLinearPosition(const S:TLeadScrewModel;AngleRad:Double):Double;
 function SpringDamperForce(const S:TSpringDamperModel;Position,Velocity:Double):Double;
 implementation
-procedure StepperPulse(var M:TStepperModel;Direction:Integer);var N:Double;begin N:=M.StepsPerRev*Max(1,M.Microsteps);if N>0 then M.Angle:=M.Angle+Direction*2*Pi/N;end;
+procedure StepperPulse(var M:TStepperModel;Direction:Integer);var N:Double;begin N:=M.StepsPerRev*Max(1.0,M.Microsteps);if N>0 then M.Angle:=M.Angle+Direction*2*Pi/N;end;
 procedure ServoStep(var S:TServoModel;Dt:Double);var V:Double;begin V:=(S.Target-S.Position)*S.Kp;V:=Max(-S.MaxSpeed,Min(S.MaxSpeed,V));S.Position:=S.Position+V*Dt;end;
 function BLDCStep(var M:TBLDCModel;Voltage,LoadTorque,Dt:Double):Double;var I,T,A:Double;begin if M.Resistance<=0 then Exit(0);I:=(Voltage-M.Ke*M.Velocity)/M.Resistance;T:=M.Kt*I;if M.Inertia>0 then begin A:=(T-LoadTorque)/M.Inertia;M.Velocity:=M.Velocity+A*Dt;end;Result:=I;end;
 function GearOutputTorque(const G:TGearModel;InputTorque:Double):Double;begin Result:=InputTorque*G.Ratio*G.Efficiency;end;

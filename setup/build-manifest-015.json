@@ -1,0 +1,3378 @@
+{
+  "version": "0.15",
+  "source_commit": "dc9a5f3d41ab75effa436e15452dac807a30346b",
+  "source_dirty": false,
+  "os": "windows",
+  "arch": "amd64",
+  "host": "Linux-6.18.44-fc-v139-x86_64-with-glibc2.39",
+  "fpc": "3.2.2",
+  "lazarus": "3.0",
+  "console_tests_executed": true,
+  "console_tests": 118,
+  "files": [
+    {
+      "path": "SimuCNC.exe",
+      "sha256": "f53c1e111c654a4bd555ca203d171200213f13d57aa56d5f4c3b724b7c268439"
+    },
+    {
+      "path": "documentation/README.md",
+      "sha256": "5a5418fb4dc8e46045088f4ed6b5a9ef0f725fff4c6d8d5db89a27e3462de0be"
+    },
+    {
+      "path": "documentation/docs/AI_TOOLS_GUIDE.md",
+      "sha256": "7dbcf03961b828f3b8db8b734c3c7db4588473b74fb5ecc57710e1c093731520"
+    },
+    {
+      "path": "documentation/docs/ARCHITECTURE.md",
+      "sha256": "fda4d19e92de6c2487e06823ef9caf6a119feddd1c4005cb726ece888df9fecf"
+    },
+    {
+      "path": "documentation/docs/CATALOGO_IMPRESSORAS_FDM.md",
+      "sha256": "e5c24f4818e7e7b20a8d75cdcc31df1ae0747d67e150c4df4767ff6b47782731"
+    },
+    {
+      "path": "documentation/docs/CONCILIACAO_BRANCHES.md",
+      "sha256": "aaed5c27ded9ff937a486821dd84bdc5edc41e15ca6e10171b643199a720ac79"
+    },
+    {
+      "path": "documentation/docs/CONTRATO_GCODE.md",
+      "sha256": "a9dd4a1facda75954d3458c636e3b97eaeae4c5f26c3e5a2e156c07a1f0fc0d8"
+    },
+    {
+      "path": "documentation/docs/FILAMENTOS_COMERCIAIS.md",
+      "sha256": "ed1f44a721fc5a7c05da76ffe66b15a35b2e6ca9fffc4105156a455468aeddc3"
+    },
+    {
+      "path": "documentation/docs/FLUXOS_IMPLEMENTADOS.md",
+      "sha256": "a94689578cc5549937ff5f785b7bdddeafde24ed86ffad39a98448f44ee277c7"
+    },
+    {
+      "path": "documentation/docs/IMPRESSAO_3D_VALIDACAO.md",
+      "sha256": "fcfeee036b8246b78af363fbc9b255bb40e285b5f105daa5e3938784a48a9280"
+    },
+    {
+      "path": "documentation/docs/JOYSTICK.md",
+      "sha256": "d90e24816ac2ef7048bfba0fa180aefe7b68f657a9d1984f85d9b8fd221185a5"
+    },
+    {
+      "path": "documentation/docs/LASER_PROFILES.md",
+      "sha256": "63cefeb90d6d05c2ee83f30b848f5769f54022522ad020f1840015bb19880e75"
+    },
+    {
+      "path": "documentation/docs/MULTIPROJECT.md",
+      "sha256": "9177ace50c36d1e431152d179b96f446cdaba2ac630545d47372f877d347f1ae"
+    },
+    {
+      "path": "documentation/docs/Manuals/Manual_do_Usuario_LaserArt_0.02.1_PT-BR.pdf",
+      "sha256": "3d44f38c808d526298674d15e8f8b7a460268aa80caa5befef14be917ae19d27"
+    },
+    {
+      "path": "documentation/docs/Manuals/Manual_do_Usuario_MakePCB_0.1.0.0_PT-BR.md",
+      "sha256": "c445db2ed3d641ab33e4c73d55e23005f6b353cf3755aec119ed7ed2e6073b9c"
+    },
+    {
+      "path": "documentation/docs/Manuals/Manual_do_Usuario_MakePCB_0.1.0.0_PT-BR.pdf",
+      "sha256": "f40531039f71663c19e0b5331dc1d52233e0dae6c65b2f5d3fad62ec81eaf46b"
+    },
+    {
+      "path": "documentation/docs/Manuals/Manual_do_Usuario_MakeRouter_0.1.0.0_PT-BR.md",
+      "sha256": "befc28c94ce80fd2e7a07e6d29598ece37ee3f459a78f7694e63d1361af9dc2b"
+    },
+    {
+      "path": "documentation/docs/Manuals/Manual_do_Usuario_MakeRouter_0.1.0.0_PT-BR.pdf",
+      "sha256": "2e54427455f34820bf8ad5908cda6a0c9c1c21c6de9c3859c7b026685d8b71f6"
+    },
+    {
+      "path": "documentation/docs/Manuals/Manual_do_Usuario_MultiCAD_0.0.8.4_PT-BR.pdf",
+      "sha256": "f6f92773b7d842a9ac04498e32f51ff357362523a79e1834fa8210a846c75808"
+    },
+    {
+      "path": "documentation/docs/Manuals/Manual_do_Usuario_MultiCNC_0.1.0.3_PT-BR.md",
+      "sha256": "8adf4a2ab192a16ff368ce4206449da2c759b9dbafdb4bce705315b1c4627faf"
+    },
+    {
+      "path": "documentation/docs/Manuals/Manual_do_Usuario_MultiCNC_0.1.0.3_PT-BR.pdf",
+      "sha256": "d8e2eb683990ed75bd05cc898370e6c1a8d9e0b3001bab2025db02143f34f84b"
+    },
+    {
+      "path": "documentation/docs/Manuals/Manual_do_Usuario_MultiPhysics_0.2.0.0_PT-BR.md",
+      "sha256": "8fe83429a98c01d1d30c3a7ead057b9d71fcfab8fc070a098e1af930f08ecfe4"
+    },
+    {
+      "path": "documentation/docs/Manuals/Manual_do_Usuario_MultiPhysics_0.2.0.0_PT-BR.pdf",
+      "sha256": "80d13a5c531d43318a2212d380305f0ca61c11566941f5b08ba8225a0d0a26f2"
+    },
+    {
+      "path": "documentation/docs/Manuals/Manual_do_Usuario_MultiSlicer_0.1.0.0_PT-BR.md",
+      "sha256": "51f0863219931e389fe088a16d941ba1c72156c9ba9619711c3260506331fe59"
+    },
+    {
+      "path": "documentation/docs/Manuals/Manual_do_Usuario_MultiSlicer_0.1.0.0_PT-BR.pdf",
+      "sha256": "b9f9c0389360dd48acd3e33f58c9325e77f97e1489a3887fd374b577065ab6ba"
+    },
+    {
+      "path": "documentation/docs/Manuals/README.md",
+      "sha256": "ec18f2d0c88f21ea8ff1b165fe258d8d4a50d8fef5d7e4e99a02a8a1cf2421cf"
+    },
+    {
+      "path": "documentation/docs/OUTLINE.md",
+      "sha256": "f48eb4cf8d2b5100ba9826cab3ef8abd2ed9d24ceee61f7c86ef981e9311e014"
+    },
+    {
+      "path": "documentation/docs/PENDENCIAS.md",
+      "sha256": "6b865dfef76302050f357356bb1c74cc853d05eb499f88d4325c27c505798b6f"
+    },
+    {
+      "path": "documentation/docs/PLANO_CORRECAO_IMPRESSAO_3D.md",
+      "sha256": "5c56a07763bcd3b05869a92b57264a13fa957c26e81033197966b49a01c879ab"
+    },
+    {
+      "path": "documentation/docs/SETUP_007.md",
+      "sha256": "e372603ed8241cc355b93aa830b659937397502e282c8a9d790b9a3ca20dbc81"
+    },
+    {
+      "path": "documentation/docs/SETUP_008.md",
+      "sha256": "865413574ece6977d6a267c11f31965c97c193fe32a8b887f9d69dd57f72e4fc"
+    },
+    {
+      "path": "documentation/docs/SETUP_009.md",
+      "sha256": "8ab8e6f24afbf77a623cc1c504be0aab0c9a303af9bf2f178bca310c8c8150e6"
+    },
+    {
+      "path": "documentation/docs/SETUP_010.md",
+      "sha256": "0a755f96e891bef78ad102309498fde8db8838e94a02ee2be3e3a39f9d2d8198"
+    },
+    {
+      "path": "documentation/docs/SETUP_011.md",
+      "sha256": "c93181787e2c52af55155a4094445f4d51ad85ed47c014e41441fa350455278d"
+    },
+    {
+      "path": "documentation/docs/SETUP_012.md",
+      "sha256": "1f11567bdff7fcde334df4a204f58d0d3f05499d69ea3c70ba0f1cd167c9a3d9"
+    },
+    {
+      "path": "documentation/docs/SETUP_013.md",
+      "sha256": "32c8b94a79452ca689c241ce00fa584349a74e2c9e601e99c1375f1c6687f0e9"
+    },
+    {
+      "path": "documentation/docs/SETUP_014.md",
+      "sha256": "8de72fef884303bf3bf5562b88ec03a903a7061e464d1c2148521b3e78b1e78f"
+    },
+    {
+      "path": "documentation/docs/SETUP_015.md",
+      "sha256": "9eabd199b7bfc29903d8828e1a593c411ff4b75a6dcd15bfaead2cc6581ebe9c"
+    },
+    {
+      "path": "documentation/docs/SIMUCNC_COM0COM.md",
+      "sha256": "ba849cd8696195d87cccc5a01b6160d5976da125c73b1c57a558764a558cecc7"
+    },
+    {
+      "path": "documentation/docs/SIMUCNC_TCP.md",
+      "sha256": "1cc0d85afb4ae96db8a4cb7795de1bf14998e09ab6ddc0fd0a0d20a80241e98a"
+    },
+    {
+      "path": "documentation/docs/bugs.md",
+      "sha256": "ad3a62b878d724f0a77f48c2003c9fea80817eb8537cb587d85b88ff516db4bd"
+    },
+    {
+      "path": "documentation/docs/index.html",
+      "sha256": "3df2a970336174621714f651e2ab2c31af7239d24209fdcf46d1d0b0ae32efb7"
+    },
+    {
+      "path": "documentation/docs/qa/catalogo-fdm-2026-10-15/manifest.json",
+      "sha256": "9f5b021a869ba39b5f3ff6240130041cf96084c6f302b6d1a4dbdace8ca8d768"
+    },
+    {
+      "path": "documentation/docs/qa/catalogo-fdm-2026-10-15/multicnc.log",
+      "sha256": "82eaf4852b9788576f0b90d28d0f39148b6c192bbcb8f3e5e4ee40e7990eeaef"
+    },
+    {
+      "path": "documentation/docs/qa/catalogo-fdm-2026-10-15/multislicer.log",
+      "sha256": "1d7c7b8f6a3bd9188f4188d6ef47dd70041942c1b621437fe778516ea77fa9ad"
+    },
+    {
+      "path": "documentation/docs/qa/catalogo-fdm-2026-10-15/qa-tests.json",
+      "sha256": "f0e750482c1a954ecbfa19e20ca7e4b42f61fde3916671ab097bd77b5ef31e11"
+    },
+    {
+      "path": "documentation/docs/qa/catalogo-fdm-2026-10-15/researched-models.json",
+      "sha256": "47f889936f563dfa9e93da115cffcd5321169cfcd3aaa95aa46dfec676e38f20"
+    },
+    {
+      "path": "documentation/docs/qa/catalogo-fdm-2026-10-15/test_app-run.log",
+      "sha256": "b4f1d32358c72988e982b67f1064df5000337da327e0661d48fbe50ea4ffbd7a"
+    },
+    {
+      "path": "documentation/docs/qa/catalogo-fdm-2026-10-15/test_app.log",
+      "sha256": "74b607cd8fb969e49b99255c9bf08e236f0d9e681b6d139b5c11faa919e5176d"
+    },
+    {
+      "path": "documentation/docs/qa/catalogo-fdm-2026-10-15/test_equipment-compile.log",
+      "sha256": "05f0427636dcc1d864a080e6c0b9e53aa8ed1fc7d32625d55ce075002e8bf059"
+    },
+    {
+      "path": "documentation/docs/qa/catalogo-fdm-2026-10-15/test_equipment-run.log",
+      "sha256": "497fa37cba2322b8f3f4965e172af27ecf4781dad90daf6f99a546a46f5c50fa"
+    },
+    {
+      "path": "documentation/docs/qa/catalogo-fdm-2026-10-15/test_fdm_catalog-compile.log",
+      "sha256": "be70035f009ae4191f99fc677f00e436786c4e549fe28fe5bd7a64ebf08d48a4"
+    },
+    {
+      "path": "documentation/docs/qa/catalogo-fdm-2026-10-15/test_fdm_catalog-run.log",
+      "sha256": "8132be7435a287345cf7a471fd8eb709c5c02b6ec054125f62833a0dcd51149a"
+    },
+    {
+      "path": "documentation/docs/qa/catalogo-fdm-2026-10-15/test_machines-compile.log",
+      "sha256": "252bd703c9daa93df49e799bc6ca6a1deade74e230d913d67434fb2b1dfe1e0a"
+    },
+    {
+      "path": "documentation/docs/qa/catalogo-fdm-2026-10-15/test_machines-run.log",
+      "sha256": "2c75fbf5a35c6b240b55c00968faccb05a9fa39bbdd0e69b25fbcd1814783e32"
+    },
+    {
+      "path": "documentation/docs/qa/catalogo-fdm-2026-10-15/test_multislicer_print-compile.log",
+      "sha256": "d4d6f7580bd992a7e941de6bfa45909676eb5978bdd6a31706b5514fcbc7d6b0"
+    },
+    {
+      "path": "documentation/docs/qa/catalogo-fdm-2026-10-15/test_multislicer_print-run.log",
+      "sha256": "ec31c5483fab2ee6c51ed55821d39f9096215fa00a83019f51711e40236ef0c9"
+    },
+    {
+      "path": "documentation/docs/qa/catalogo-fdm-2026-10-15/test_print_safety-compile.log",
+      "sha256": "34ce3dc1b08a065485cd4540e89a9a4f0a61afd24bd23b7d0d3dd80a21d03fe7"
+    },
+    {
+      "path": "documentation/docs/qa/catalogo-fdm-2026-10-15/test_print_safety-run.log",
+      "sha256": "21fd62da295d58ecef0a34a9b97b5719d1a7ef8594acab0fd86fdf7dcb198f00"
+    },
+    {
+      "path": "documentation/docs/qa/catalogo-fdm-2026-10-15/test_printer_temperatures-compile.log",
+      "sha256": "3e96a5e35e36b61ae83f4cbcd5365b90877306d8803bf33efea7bd7051149db8"
+    },
+    {
+      "path": "documentation/docs/qa/catalogo-fdm-2026-10-15/test_printer_temperatures-run.log",
+      "sha256": "b4012503d7a8067d05341331e070d215ee46d079e5b55f77e054ec7be862fb32"
+    },
+    {
+      "path": "documentation/docs/qa/catalogo-fdm-2026-10-15/test_slicer_app-run.log",
+      "sha256": "968117642946279b8a34cbbabe36ce3f13747fb47cceb7352cbcc41515b02488"
+    },
+    {
+      "path": "documentation/docs/qa/catalogo-fdm-2026-10-15/test_slicer_app.log",
+      "sha256": "a31d02a53faa4b8159ad0da3d180f4945c351a468cb2f2c0521959a2398a58ba"
+    },
+    {
+      "path": "documentation/docs/qa/filamentos-comerciais-2026-10-15/manifest.json",
+      "sha256": "292de1cb2d0ac6d5f2022d37ef8e93b23448a07287c9e7a53b98fbddbaf11eed"
+    },
+    {
+      "path": "documentation/docs/qa/filamentos-comerciais-2026-10-15/material-screen.bmp",
+      "sha256": "1d2a0e1ef526055cb1870bb246f10531bba9c251888659797b36468111d28a27"
+    },
+    {
+      "path": "documentation/docs/qa/filamentos-comerciais-2026-10-15/multislicer.log",
+      "sha256": "fd8d588192162096a489fa7a6ff42f34b2c98e9c7c1f1da6eca69143a4a74bb0"
+    },
+    {
+      "path": "documentation/docs/qa/filamentos-comerciais-2026-10-15/qa-tests.json",
+      "sha256": "8303367580d5f03e21d1cf4de2b66ccfabb395e2997eaddcb8251a1723b11fe7"
+    },
+    {
+      "path": "documentation/docs/qa/filamentos-comerciais-2026-10-15/researched-filaments.json",
+      "sha256": "e11b59bc17c86d76aa48ce620a19a6db561437d0d55a233e10ff80456adc196b"
+    },
+    {
+      "path": "documentation/docs/qa/filamentos-comerciais-2026-10-15/test_commercial_materials-compile.log",
+      "sha256": "cb871d36173d35d8d057c9504cda833b13736c99180d00683597ca87cc53ccab"
+    },
+    {
+      "path": "documentation/docs/qa/filamentos-comerciais-2026-10-15/test_commercial_materials-run.log",
+      "sha256": "1f9177bb14577809cef8ce7d9c678e47483db4734f1059f980cc6efae784c6e8"
+    },
+    {
+      "path": "documentation/docs/qa/filamentos-comerciais-2026-10-15/test_multislicer_print-compile.log",
+      "sha256": "e89bc960688a1d55d20c824f145d0dadc4ad84fdbf9e7a462003cc33d8a16741"
+    },
+    {
+      "path": "documentation/docs/qa/filamentos-comerciais-2026-10-15/test_multislicer_print-run.log",
+      "sha256": "ec31c5483fab2ee6c51ed55821d39f9096215fa00a83019f51711e40236ef0c9"
+    },
+    {
+      "path": "documentation/docs/qa/filamentos-comerciais-2026-10-15/test_print_safety-compile.log",
+      "sha256": "2006e5e92144fafa2fc0375b761218d45479cf8a4835b4a9252c767feb3734dd"
+    },
+    {
+      "path": "documentation/docs/qa/filamentos-comerciais-2026-10-15/test_print_safety-run.log",
+      "sha256": "21fd62da295d58ecef0a34a9b97b5719d1a7ef8594acab0fd86fdf7dcb198f00"
+    },
+    {
+      "path": "documentation/docs/qa/filamentos-comerciais-2026-10-15/test_slicer_app-run.log",
+      "sha256": "2b252f8da8ed3872abb8f42d79c5b354a2e0fb9e27ed2663de072f5beaf40263"
+    },
+    {
+      "path": "documentation/docs/qa/filamentos-comerciais-2026-10-15/test_slicer_app.log",
+      "sha256": "50f328955a73b3af47eee55be0f6a66ad50ed10843f4d3efbc7d7cf338eb3e62"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/build-summary.json",
+      "sha256": "b59691d3eacfd8e0ec0e71358e4bb5957b37e18c2002a456b54f2920b7098391"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/caixa-20x20x3-simulador.gcode",
+      "sha256": "9f44297b99f42d93cea4935227efc440b0044b6915ae7799cb63f5867970eb67"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/laserpcb-test_alignment.log",
+      "sha256": "65264542cdfb7526829ea0090dc26514d5e03ee4094f7268e27bd88731eed2d4"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/laserpcb-test_board.log",
+      "sha256": "c47d5fc4a55478cb510ade4e1cabc3654924d4c707ef4e3d490b2ce13419599b"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/laserpcb-test_drill.log",
+      "sha256": "4e3395bcd0f9747cc976889be9deb2d149bb72c19fea3b332ad7c039ec3ef605"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/laserpcb-test_job.log",
+      "sha256": "a077a34ed2fbccb434959edfcf5bae68ac50f4f63ced8e641f65f19ea14c54bb"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/laserpcb-test_layout.log",
+      "sha256": "7e352d54e64a5d2ccf34ea853f02e9dfd772dab91704712e813d9413ee641e23"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/laserpcb-test_pipeline.log",
+      "sha256": "4ef1d3a03567518ddb80f3e742d30b7e430170b3aa02eed5febcdfb81e35378b"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/laserpcb-test_raster.log",
+      "sha256": "3233a7da51caac832ee985d25ea5601657c6849988b90d64bfcd3b979dc5c522"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/makerouter-test_makerouter.log",
+      "sha256": "e5b0b99265ffb063cb1909f883d022426c6fb42624d9eb9de57e9577613cbfbe"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multicnc-debug_parser.log",
+      "sha256": "54215bc5a87bcf3c8a368ac42482927731b16d9107ba4d9916f1ef68196ac188"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multicnc-test_connection_startup.log",
+      "sha256": "a829ad2f4d7f4f0c949a53952d0131fabfe2473954588080fadffc85ddf5dc50"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multicnc-test_controller.log",
+      "sha256": "63eb7f01c257cdc2bff1fd4d682158ee6b212ac2795fc3bc77193d8589b06de4"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multicnc-test_equipment.log",
+      "sha256": "497fa37cba2322b8f3f4965e172af27ecf4781dad90daf6f99a546a46f5c50fa"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multicnc-test_gcode_compat.log",
+      "sha256": "173b7324610810387bd6f05fb5736401f807f6067c9fcd4a4b79a6a6761f50a8"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multicnc-test_gcode_trace.log",
+      "sha256": "5609146d204c7f08461efc1ede9904d75e887b7777e84fe42871836433d906ff"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multicnc-test_grbl_legacy.log",
+      "sha256": "a51640f892eb869bf273c407797e20956ebb73641929187b63e111589ad912e8"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multicnc-test_grbl_regressions.log",
+      "sha256": "0384335f791255ce3bc2acf413414a2fd26fc0eb87d220ec019c6f86b67f3240"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multicnc-test_joystick.log",
+      "sha256": "db84b3153d7299cc010cf5dc750bb3fd82039812da7453f4a82409cc7f5d525a"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multicnc-test_laser_profiles.log",
+      "sha256": "3ea87037a30a6dde04282868f23ae64a8385301c5c9926719bf9d6548049a473"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multicnc-test_locale_invariant.log",
+      "sha256": "7446707730d1d0bb27dfa508bd28781675268b432d2a063e79184c64f9d85c97"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multicnc-test_multislicer_print.log",
+      "sha256": "4d666b05b59157f2b65c1619127af8a04b7e4a8d768894621e94a2a011a830ea"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multicnc-test_outline.log",
+      "sha256": "4e2eb2ed8acab407bdbd44c175fde97134e8f578b725d35bb056aed045476605"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multicnc-test_printer_temperatures.log",
+      "sha256": "b4012503d7a8067d05341331e070d215ee46d079e5b55f77e054ec7be862fb32"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multicnc-test_router_profiles.log",
+      "sha256": "27118ded0c32f59ebd90ae591fee8a0f25f598b399857cbd5833d6045766034c"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multicnc-test_router_spindle.log",
+      "sha256": "36906d29a3bfd8239f1a563cea9a5e41f961efa500c229464554489313f6b6dc"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multicnc-test_serial_transport.log",
+      "sha256": "f44a03894e2c348b038cff6bda5b414ace6b8f4277947a19a74aed11e14005b8"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multicnc-test_session.log",
+      "sha256": "49b964197ea1c6e2d82c11ce8a613985d7caf005379007e08e03980955606dff"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multicnc-test_shared_geometry.log",
+      "sha256": "3368e279100e0cacfca887f44b9c51100c5a1fc99176872bf9e8e439c5de434a"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multicnc-test_shared_heightmap.log",
+      "sha256": "19910cbfb814fd6c37b6e88b37eea5d5b412b560f6ec32f4795e0b45f090bb80"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multicnc-test_shared_zcompensation.log",
+      "sha256": "c82d2ecd95b72e667c80f300f13b03e758570b00f786467d04cacf37a4ad3964"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multicnc-test_simu_temperature_control.log",
+      "sha256": "bc29936cc2106886d026e75da153feb3905fe19beeda14a9b53b9d968e3e1e27"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multicnc-test_simulator.log",
+      "sha256": "5dd9e4246adb6913cc0e62e2bb57ba90179dbf7003a6d5aa3410ad8debaa3bff"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multicnc-test_streaming.log",
+      "sha256": "97b19d0cb2031b682aa6614b12aac95da030ed15090d8bc230ad1b46a1aec061"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multicnc-test_zero_assist.log",
+      "sha256": "f2c0001ac8653611cc9d75b6eb4191e8d9342c4ee944136f50c10583130c2334"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multislicer-test_machines.log",
+      "sha256": "7d885793f09a5c3213e41702beb14b9a1216e5d49fde59fcfff410e4119c3fb8"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multislicer-test_meshcheck.log",
+      "sha256": "d9fe5b03772eb6f5ae615f61e55098aa1dcd13a516c5f73067dc50b9aef56bc5"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multislicer-test_modern_slicer.log",
+      "sha256": "160b9bfd589749e37b7cc09a5ed187977eaac3b345a7f262efb59d1a567b4aac"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multislicer-test_print_safety.log",
+      "sha256": "21fd62da295d58ecef0a34a9b97b5719d1a7ef8594acab0fd86fdf7dcb198f00"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multislicer-test_scene.log",
+      "sha256": "7b5128a7f1736d4606cce748096fab181bc8623a9e322898978665ab1f0fa6ee"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/multislicer-test_support.log",
+      "sha256": "d18b37e7c3119eefde5a13d3bdcbb69531641ba5164f521252117939223d835f"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/test_app.log",
+      "sha256": "b4f1d32358c72988e982b67f1064df5000337da327e0661d48fbe50ea4ffbd7a"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/logs/test_slicer_app.log",
+      "sha256": "c84f6b157075c33a89c12e7abe7ac75dda3a636097936f45e02abe805c31c9c9"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/manifest.json",
+      "sha256": "15ac6973d3cc31b0efd4d7e510da0d94c5f56d9864cd6f74d512696ce17bd69c"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-14/qa-tests.json",
+      "sha256": "d552286cc750b2b7b215d5112c8546652e01ba4ff590b2a5d5cad1f4eccdc14f"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/laserpcb-test_alignment.log",
+      "sha256": "65264542cdfb7526829ea0090dc26514d5e03ee4094f7268e27bd88731eed2d4"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/laserpcb-test_board.log",
+      "sha256": "c47d5fc4a55478cb510ade4e1cabc3654924d4c707ef4e3d490b2ce13419599b"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/laserpcb-test_drill.log",
+      "sha256": "4e3395bcd0f9747cc976889be9deb2d149bb72c19fea3b332ad7c039ec3ef605"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/laserpcb-test_job.log",
+      "sha256": "a077a34ed2fbccb434959edfcf5bae68ac50f4f63ced8e641f65f19ea14c54bb"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/laserpcb-test_layout.log",
+      "sha256": "7e352d54e64a5d2ccf34ea853f02e9dfd772dab91704712e813d9413ee641e23"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/laserpcb-test_pipeline.log",
+      "sha256": "4ef1d3a03567518ddb80f3e742d30b7e430170b3aa02eed5febcdfb81e35378b"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/laserpcb-test_raster.log",
+      "sha256": "3233a7da51caac832ee985d25ea5601657c6849988b90d64bfcd3b979dc5c522"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/makerouter-test_makerouter.log",
+      "sha256": "e5b0b99265ffb063cb1909f883d022426c6fb42624d9eb9de57e9577613cbfbe"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multicnc-build.log",
+      "sha256": "c14f1f49ffc8a1c3c8bcf21261a6de23b54cc3a76aa0e4f086d93e5722f338f1"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multicnc-debug_parser.log",
+      "sha256": "54215bc5a87bcf3c8a368ac42482927731b16d9107ba4d9916f1ef68196ac188"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_connection_startup.log",
+      "sha256": "a829ad2f4d7f4f0c949a53952d0131fabfe2473954588080fadffc85ddf5dc50"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_controller.log",
+      "sha256": "63eb7f01c257cdc2bff1fd4d682158ee6b212ac2795fc3bc77193d8589b06de4"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_equipment.log",
+      "sha256": "497fa37cba2322b8f3f4965e172af27ecf4781dad90daf6f99a546a46f5c50fa"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_gcode_compat.log",
+      "sha256": "173b7324610810387bd6f05fb5736401f807f6067c9fcd4a4b79a6a6761f50a8"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_gcode_trace.log",
+      "sha256": "5609146d204c7f08461efc1ede9904d75e887b7777e84fe42871836433d906ff"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_grbl_legacy.log",
+      "sha256": "a51640f892eb869bf273c407797e20956ebb73641929187b63e111589ad912e8"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_grbl_regressions.log",
+      "sha256": "0384335f791255ce3bc2acf413414a2fd26fc0eb87d220ec019c6f86b67f3240"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_joystick.log",
+      "sha256": "db84b3153d7299cc010cf5dc750bb3fd82039812da7453f4a82409cc7f5d525a"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_laser_profiles.log",
+      "sha256": "3ea87037a30a6dde04282868f23ae64a8385301c5c9926719bf9d6548049a473"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_locale_invariant.log",
+      "sha256": "7446707730d1d0bb27dfa508bd28781675268b432d2a063e79184c64f9d85c97"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_multislicer_print.log",
+      "sha256": "ec31c5483fab2ee6c51ed55821d39f9096215fa00a83019f51711e40236ef0c9"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_outline.log",
+      "sha256": "4e2eb2ed8acab407bdbd44c175fde97134e8f578b725d35bb056aed045476605"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_printer_temperatures.log",
+      "sha256": "b4012503d7a8067d05341331e070d215ee46d079e5b55f77e054ec7be862fb32"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_router_profiles.log",
+      "sha256": "27118ded0c32f59ebd90ae591fee8a0f25f598b399857cbd5833d6045766034c"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_router_spindle.log",
+      "sha256": "36906d29a3bfd8239f1a563cea9a5e41f961efa500c229464554489313f6b6dc"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_serial_transport.log",
+      "sha256": "f44a03894e2c348b038cff6bda5b414ace6b8f4277947a19a74aed11e14005b8"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_session.log",
+      "sha256": "49b964197ea1c6e2d82c11ce8a613985d7caf005379007e08e03980955606dff"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_shared_geometry.log",
+      "sha256": "3368e279100e0cacfca887f44b9c51100c5a1fc99176872bf9e8e439c5de434a"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_shared_heightmap.log",
+      "sha256": "19910cbfb814fd6c37b6e88b37eea5d5b412b560f6ec32f4795e0b45f090bb80"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_shared_zcompensation.log",
+      "sha256": "c82d2ecd95b72e667c80f300f13b03e758570b00f786467d04cacf37a4ad3964"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_simu_temperature_control.log",
+      "sha256": "bc29936cc2106886d026e75da153feb3905fe19beeda14a9b53b9d968e3e1e27"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_simulator.log",
+      "sha256": "5dd9e4246adb6913cc0e62e2bb57ba90179dbf7003a6d5aa3410ad8debaa3bff"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_streaming.log",
+      "sha256": "97b19d0cb2031b682aa6614b12aac95da030ed15090d8bc230ad1b46a1aec061"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multicnc-test_zero_assist.log",
+      "sha256": "f2c0001ac8653611cc9d75b6eb4191e8d9342c4ee944136f50c10583130c2334"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multislicer-build.log",
+      "sha256": "c02ce15d0222b67c94553d31b21abb69ea374efa70f902b1c74836c7a7e208be"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multislicer-test_machines.log",
+      "sha256": "7d885793f09a5c3213e41702beb14b9a1216e5d49fde59fcfff410e4119c3fb8"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multislicer-test_meshcheck.log",
+      "sha256": "d9fe5b03772eb6f5ae615f61e55098aa1dcd13a516c5f73067dc50b9aef56bc5"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multislicer-test_modern_slicer.log",
+      "sha256": "160b9bfd589749e37b7cc09a5ed187977eaac3b345a7f262efb59d1a567b4aac"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multislicer-test_print_safety.log",
+      "sha256": "21fd62da295d58ecef0a34a9b97b5719d1a7ef8594acab0fd86fdf7dcb198f00"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multislicer-test_scene.log",
+      "sha256": "7b5128a7f1736d4606cce748096fab181bc8623a9e322898978665ab1f0fa6ee"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/multislicer-test_support.log",
+      "sha256": "9fdc7aba3fba4c9eb6f08dfd7e256f6306f11d3bcdbfbcf24ec7553e11228ae8"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/simucnc-build.log",
+      "sha256": "52b3bbb9b5e51593823510be260b52db19bdcb0f46fc45a4a436feb864a474be"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/test_app-build.log",
+      "sha256": "63544a2782ac3faab00fbe96793d94ee5aaff94a2f657d290027d69710b1f2ee"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/test_app-run.log",
+      "sha256": "b4f1d32358c72988e982b67f1064df5000337da327e0661d48fbe50ea4ffbd7a"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/test_slicer_app-build.log",
+      "sha256": "2b2bd36cb1858ad606e7a044dc932d6da92678498291eae1c656de5739de03a5"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/logs/test_slicer_app-run.log",
+      "sha256": "1e05139e5bda824a77298992ec51bc9301087d631777d9be0d8a89469f8ea146"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/manifest.json",
+      "sha256": "7ef8dcf11724ec1f9358770f2f4b53d6e6156c2de3e955049dcb0723a1d3c4e1"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/qa-tests.json",
+      "sha256": "10e79d94ac79ad29eaab0c8e35932c4f63a1d64384729fce00ceb62e1b1d819c"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/tcp/print.gcode",
+      "sha256": "4bb1f0b05de084af6fa2ecfa581b2d14cb7d8135067e693ec2285d657626d1da"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/tcp/result.json",
+      "sha256": "a94af39bc995b378a462d197d4e46537bd80adfdd64ca51dee8a8f1b9166cf1a"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/tcp/run.log",
+      "sha256": "f4ab5e213b2a0e385148892aea74e1ac496dfd1d79ec577e0e82eceb37092778"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/tcp/session.log",
+      "sha256": "0c7adcb5a4ff2ffdfcfd59cc17cdd1e29008cb43d11dabef058d96c0fce2b582"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/tcp/test_multicnc_tcp-build.log",
+      "sha256": "9a071b2503e78413c9a6a33a34a1d77622992f52945a5a9a6d45ddaf848f1c39"
+    },
+    {
+      "path": "documentation/docs/qa/impressao-3d-2026-10-15/tcp/test_simucnc_server-build.log",
+      "sha256": "0f205493865d067b13c104c5ed71be5fb2e8810d9f20e54676a8f244b58b73ab"
+    },
+    {
+      "path": "documentation/imgs/Laserart01.png",
+      "sha256": "c8b637ffa8ad7c97621d4e9462868f0a183a7d285cf486602a5dd251087c0f3c"
+    },
+    {
+      "path": "documentation/imgs/Laserart02.png",
+      "sha256": "e94dcaae4feb740e5990848f7625e521598fc58553fdd085ed97067bd9e0512f"
+    },
+    {
+      "path": "documentation/imgs/Laserart03.png",
+      "sha256": "23ccacfe80b7ba1f76180c7b18d4f89a5053dbebef10f076ee5a3f07d86cdfaa"
+    },
+    {
+      "path": "documentation/imgs/Laserpcb01.png",
+      "sha256": "8b28b4ee2daf73a1ecd7c070d9bbd5e4bf3a6615d4930afcedabfb62e18ccd8c"
+    },
+    {
+      "path": "documentation/imgs/Laserpcb02.png",
+      "sha256": "985c1e99c3499702bc866869706fb0f3ab996dc312d617b0020c580a80413895"
+    },
+    {
+      "path": "documentation/imgs/Laserpcb03.png",
+      "sha256": "b693ec51f04dd41df440ba94972cb6501785b9b03ccfd1d62606df296d7e3c4d"
+    },
+    {
+      "path": "documentation/imgs/Laserpcb04.png",
+      "sha256": "23ccacfe80b7ba1f76180c7b18d4f89a5053dbebef10f076ee5a3f07d86cdfaa"
+    },
+    {
+      "path": "documentation/imgs/Makepcb01.png",
+      "sha256": "d18d4f8add6b3b1466b12e8d945eb223779d4a38754e4b05afab651d5d531d9f"
+    },
+    {
+      "path": "documentation/imgs/Makepcb02.png",
+      "sha256": "e7aa431ce22abf6248e56edb7d0c93d683ca028bfa0421bafaeb036c0e2d8a47"
+    },
+    {
+      "path": "documentation/imgs/Makepcb03.png",
+      "sha256": "233638c9a3e65fbf754447978ab6960685a5c71ad024cc3d665e7ef94e8c6e27"
+    },
+    {
+      "path": "documentation/imgs/Makepcb04.png",
+      "sha256": "f35b6f63424d5ebe9950857eaffc8d5ba2bc67975e5ce017013acdbb8d23207c"
+    },
+    {
+      "path": "documentation/imgs/Makepcb05.png",
+      "sha256": "46dbaf6997d422b7ebd64d06f5eb18e23536cb21ec0446f6fe86cbe79d2fa4e4"
+    },
+    {
+      "path": "documentation/imgs/Makepcb06.png",
+      "sha256": "6b2d33976f4b65f34d7f64427b67be28bd4c2f28f0dfac225a4bbdd8c79dcb5e"
+    },
+    {
+      "path": "documentation/imgs/Makerouter01.png",
+      "sha256": "377cda22a988e3f83c6c8ea6cd6ca829bf9277a0cfd421f8ec5636e352be59f7"
+    },
+    {
+      "path": "documentation/imgs/Makerouter02.png",
+      "sha256": "742acaa97be2d18443aabe7ee1fa0ed42321bfefe2134377a9bd698bbea122d8"
+    },
+    {
+      "path": "documentation/imgs/Makerouter03.png",
+      "sha256": "f658bd12632233427b65b195e9752c96993fec85215e276f3dc61750365911c4"
+    },
+    {
+      "path": "documentation/imgs/Makerouter04.png",
+      "sha256": "757f73c16304ec6c2bc1a06ad655c8bf637841d10936b33d2ff47b1570f73896"
+    },
+    {
+      "path": "documentation/imgs/Makerouter05.png",
+      "sha256": "ed866fd49dbcdca45725694720f59f5ddad490904a23e90ad03e162b4c498ea7"
+    },
+    {
+      "path": "documentation/imgs/Makerouter_bandeja.png",
+      "sha256": "2c1c3a9bd82bf7227ade68df5793843f6070f20b365c6b773cc9331fdf20fac7"
+    },
+    {
+      "path": "documentation/imgs/Multicad01.png",
+      "sha256": "0951bf9443d82dd4f28ec37aa054d5876ef6fd364c82fd965942ae55c5eeee96"
+    },
+    {
+      "path": "documentation/imgs/Multicad02.png",
+      "sha256": "b4bda8ea4bc0c9a6c65d02c800b961c68eebaf0f2635486690a10e3620af5b1e"
+    },
+    {
+      "path": "documentation/imgs/Multicad03.png",
+      "sha256": "df67795833105c2fad32d816a95c7e9fbdfd4fd82cbde3ff1ff7dcedec4afff4"
+    },
+    {
+      "path": "documentation/imgs/Multicad04.png",
+      "sha256": "7533571b78a453155f16413c93d2216e6a81f1fec07167d474ae9e6720b9262d"
+    },
+    {
+      "path": "documentation/imgs/Multicad05.png",
+      "sha256": "22c6716cf3658d04b36759e80cffa3442dff657fc6cc7a47c720de43e7426424"
+    },
+    {
+      "path": "documentation/imgs/Multicad06.png",
+      "sha256": "8e6c50664647391eee1c4477d22c1a2a209a3f9a3251ff04834522e76e42fe49"
+    },
+    {
+      "path": "documentation/imgs/Multicad07.png",
+      "sha256": "0471028b26c088145c751a9cae329c6a1a9327c5bb20ce516269a8e48e082809"
+    },
+    {
+      "path": "documentation/imgs/Multicad08.png",
+      "sha256": "fc0da42dc2a33b819c867f1f7c9a390dbea689a7ec86b25bdb81c4f9f663104e"
+    },
+    {
+      "path": "documentation/imgs/README.md",
+      "sha256": "55d6f7f30a2db12af647ba771fba28796ff730691230584809b543118aa2e4fd"
+    },
+    {
+      "path": "documentation/imgs/Routerpcb01.png",
+      "sha256": "7b7f44ee964300c9ccbdd2d7a47558f7ee02269706701edddae459d609c30e4f"
+    },
+    {
+      "path": "documentation/imgs/Routerpcb02.png",
+      "sha256": "267525dabb7f242a9e775ea93605c0978df658c5dfd7a2ccb84228b325c81279"
+    },
+    {
+      "path": "documentation/imgs/Routerpcb03.png",
+      "sha256": "1480b6589d2c143b53e2f775d58321eb7ef925dcdf83b03b9499f2d6b8c9bdd0"
+    },
+    {
+      "path": "documentation/imgs/Routerpcb04.png",
+      "sha256": "c9d0209609a5732e5cd178aa3900326b930b44fcf5869b20b6edc03410076d82"
+    },
+    {
+      "path": "documentation/imgs/Routerpcb_bandeja.png",
+      "sha256": "5efdc41044a9466945cb53c3c435e67b152d6e000441958cfd7e5d7efce68097"
+    },
+    {
+      "path": "documentation/imgs/both.png",
+      "sha256": "4215381f6b97feb5037c7c10a7894c3bdc2124d85ff41a60bcbd91ecb42282cd"
+    },
+    {
+      "path": "documentation/imgs/cnc_slicer.png",
+      "sha256": "edf4b2480788ec0fb579222a661282b1e3865d24a35e9ce87ddf9ddfb932f76b"
+    },
+    {
+      "path": "documentation/imgs/manual_laserart_0_02_1/01_inicio.png",
+      "sha256": "5147c9e2cb0528407a91c46ed6732274db0b41c931ac719af8d3892388f97a8e"
+    },
+    {
+      "path": "documentation/imgs/manual_laserart_0_02_1/02_composicao.png",
+      "sha256": "4a02aac2cae07ce0b9e424e4bc2309a4772ae3337bcebb460d073426c10b8acc"
+    },
+    {
+      "path": "documentation/imgs/manual_laserart_0_02_1/03_camada_linha.png",
+      "sha256": "59ae112b8cb7ba4d9dd406f2cb547f17638dfc357736f6f6b3ae75cf240ad30f"
+    },
+    {
+      "path": "documentation/imgs/manual_laserart_0_02_1/04_texto.png",
+      "sha256": "669071be78f9b7e2da9a9cff65c1a740be4dbf19ae50ecad31a2990a55760564"
+    },
+    {
+      "path": "documentation/imgs/manual_laserart_0_02_1/05_poligono.png",
+      "sha256": "198973cb11970a712f11ee3f6586f839d850d83520f4b7a821e42f37be6b2ff3"
+    },
+    {
+      "path": "documentation/imgs/manual_laserart_0_02_1/06_cantos.png",
+      "sha256": "a7a420b3a8b725f96eaf60cc5986b8a4421d08948acb86f14afe4621a74cddfb"
+    },
+    {
+      "path": "documentation/imgs/manual_laserart_0_02_1/07_imagem.png",
+      "sha256": "e0e0b5ed57a73d1d82096e02c706cbe8387dee980ed2060364c608250aaaeb27"
+    },
+    {
+      "path": "documentation/imgs/manual_laserart_0_02_1/08_tons_cinza.png",
+      "sha256": "210aa57eb5f7401fd7456f7c5815969a2d4f0a8ef007b61bb1275614100ad423"
+    },
+    {
+      "path": "documentation/imgs/manual_laserart_0_02_1/09_vetorizacao.png",
+      "sha256": "1179937e9fbe7f2fed984027e612723af5f7967fb55a2fa3ded5dd3b6b7d84cc"
+    },
+    {
+      "path": "documentation/imgs/manual_laserart_0_02_1/10_camada_preencher.png",
+      "sha256": "1248bf226d4d6707b65c864fa189d1bcfbeab96c96e610d908e71f882da1c03a"
+    },
+    {
+      "path": "documentation/imgs/manual_laserart_0_02_1/11_materiais.png",
+      "sha256": "13c04329e23e07e3e46dbb2e4e0e9b887877b1197d91109ff3956d48be764e57"
+    },
+    {
+      "path": "documentation/imgs/manual_laserart_0_02_1/12_previa.png",
+      "sha256": "4363767a3100c25bd55bff70ee9c898a1b03725a2e61ac9e7913c06737c0db7c"
+    },
+    {
+      "path": "documentation/imgs/manual_laserart_0_02_1/13_transformacao.png",
+      "sha256": "039a7653f435a73cdf1863657187f23685f9be3c69505333c180898d9e9590b8"
+    },
+    {
+      "path": "documentation/imgs/manual_laserart_0_02_1/14_origem.png",
+      "sha256": "872b7c3a37df9da2f3bf0ca9736549413c00daa4f5b1652426d708498758b71d"
+    },
+    {
+      "path": "documentation/imgs/manual_laserart_0_02_1/15_mesa.png",
+      "sha256": "be597a6e65e27ace0ce61a7c161d0267924f1c7f21cb300aa41eeaa8ce2c1060"
+    },
+    {
+      "path": "documentation/imgs/manual_laserart_0_02_1/16_teste_material.png",
+      "sha256": "42e865ae63b350cbe8b89713b35dcc55e7a22cbe1c9e1379f64371e32e2e586c"
+    },
+    {
+      "path": "documentation/imgs/manual_laserart_0_02_1/README.md",
+      "sha256": "7c3d6767af8c8b2b7bb98eb46e1462c0a1f4bc9ce7a3fb291e59206d21a65744"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/01_isometrica.png",
+      "sha256": "0951bf9443d82dd4f28ec37aa054d5876ef6fd364c82fd965942ae55c5eeee96"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/02_estilo_0.png",
+      "sha256": "0951bf9443d82dd4f28ec37aa054d5876ef6fd364c82fd965942ae55c5eeee96"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/02_estilo_1.png",
+      "sha256": "2a901ac56ded5ab85430f393cc3a81a1502f8ec3431e4a655914c2cd2b415b41"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/02_estilo_2.png",
+      "sha256": "6961f16105faba4eef352a6fb483460381f18f5935441740f253cb9c7d095942"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/02_estilo_3.png",
+      "sha256": "a13d75b834a5386912b70566f38ed62f4187bcfdcddd84fee939e237033289b6"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/02_estilo_4.png",
+      "sha256": "a6298108947a490db10adc8abd0f9fa38e81cb67a2c2d88b38d18d546c85ca68"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/03_frontal.png",
+      "sha256": "068a72883a1781475136dffadf991a329f5152b06fc26d38e4738255dddd147c"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/04_secao.png",
+      "sha256": "22c6716cf3658d04b36759e80cffa3442dff657fc6cc7a47c720de43e7426424"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/05_esboco.png",
+      "sha256": "139149e681b3007cb758a0456bf05e2dd4122cb515e6af9b269db7514eec3393"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/05a_esboco_cotas_filete.png",
+      "sha256": "a3a3b35496cd79c33bced1cfd37a0fb078fe610b4d13230052529b0d1680fc7e"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/05b_peca_filete_chanfro.png",
+      "sha256": "139149e681b3007cb758a0456bf05e2dd4122cb515e6af9b269db7514eec3393"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/06_propertymanager.png",
+      "sha256": "14b84e8342425ecc85a7cdac8eaa462db7a6db5b3252c73d4edb25f8b6ccbf7c"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/07_pla_azul.png",
+      "sha256": "0471028b26c088145c751a9cae329c6a1a9327c5bb20ce516269a8e48e082809"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/07b_dialogo_material.png",
+      "sha256": "2d1f1971cb1a4c344ba4208c5f68a73ea0b5ccfd61bf219644346e4ec338eebb"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/08_madeira.png",
+      "sha256": "fc0da42dc2a33b819c867f1f7c9a390dbea689a7ec86b25bdb81c4f9f663104e"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/09_aluminio.png",
+      "sha256": "5b8fba89e33969bc01b590bbd4062f7e8bd0e58f1ddc3251be5f125367a6fcd1"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/10_furos_padrao.png",
+      "sha256": "b4bda8ea4bc0c9a6c65d02c800b961c68eebaf0f2635486690a10e3620af5b1e"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/11_filete_previa.png",
+      "sha256": "8e6c50664647391eee1c4477d22c1a2a209a3f9a3251ff04834522e76e42fe49"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/12_filete.png",
+      "sha256": "a302518d094a045246f3499a8733527a27356cd6d68e3313697e4e27e05c34d9"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/13_extrusao_painel.png",
+      "sha256": "52a464b570a7ba01c9d5278320cd0f4408cacb4c259adcf91c55849a769f7d83"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/14_furo_painel.png",
+      "sha256": "4f1bc703917d6cfcd9ddb18d7c7843b30a69f78e9646829b2fba1f10a9158dbc"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/15_padrao_painel.png",
+      "sha256": "a75763c5a8606b5a9004c7c0aedc5e55e3b1e5b6d65513cd05dbd38c44c0a050"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/16_casca_painel.png",
+      "sha256": "1a73853f3239354ef8aa2caecf9610f8f0848348a18ed0a51643b81a48382556"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/17_plano_painel.png",
+      "sha256": "49ce121f56360721c160aef5fec5e6f9d036cb457d8fcf978e253f12f9250cd3"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/18_exibir.png",
+      "sha256": "5fb40a34e66b833d2455300994f1bc6c344426c5d2b23cc2f79ce8037d224887"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/19_avaliar.png",
+      "sha256": "bbe9fc2248bf94f9f1e38d12d1ed992e653e321b2c731939d68698fb739750fc"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/20_exportar.png",
+      "sha256": "c9fb376c55079a87e2b70c8a4a2d3ee2d03c6241191b7c90028008f015683d96"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/README.md",
+      "sha256": "8e8e4c39fe3c70d6d2edba0fc37e5db2c5eb7dcbac8ef5f6af8fac80b31d0b4d"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/texto-dialogo.png",
+      "sha256": "052fd8bc60158d5b380b57a8be10bfa2c52dadffd3d01db17416c92cfcfbfb87"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/texto-esboco.png",
+      "sha256": "e00a22e9447228bb40b76a6b0a3d098305a4fe0f8d5b933b1706da93aadbb7cc"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/texto-solido.png",
+      "sha256": "1a5dd57b5ec95dd9493229a58759b5e270058bdbac0dd686b2ea51941fe2f943"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/trim-aplicado.png",
+      "sha256": "a286c161ffb50783cd4f863d3a76c142724304a82281be7e0570919e0e06bb76"
+    },
+    {
+      "path": "documentation/imgs/manual_multicad_0_0_8_4/trim-previa.png",
+      "sha256": "36c308780a913407cd2a6f843dd0e50a6e1967911a9654f753363fefce9e72ce"
+    },
+    {
+      "path": "documentation/imgs/manual_multicnc_0_1_0_3/01_programa.png",
+      "sha256": "a6e7887b1680cb3930d07a1d6430b040db08263df51ee763e75473d4a3319978"
+    },
+    {
+      "path": "documentation/imgs/manual_multicnc_0_1_0_3/02_router_config.png",
+      "sha256": "5b18d60789046f6aacf92abe955873f9e3db5a7929873954f6088b14657fc15c"
+    },
+    {
+      "path": "documentation/imgs/manual_multicnc_0_1_0_3/03_tcp.png",
+      "sha256": "418574c221a577b70318b3bc0c93efb6976ff4ed744a8f6129e761916f701c32"
+    },
+    {
+      "path": "documentation/imgs/manual_multicnc_0_1_0_3/04_analise.png",
+      "sha256": "846f6541fd405a0874d99da9da5fe473b0a89944f8c8d22806e828eb29ed0b95"
+    },
+    {
+      "path": "documentation/imgs/manual_multicnc_0_1_0_3/05_console.png",
+      "sha256": "c65f7348a1bb6329977167a0024de22f62f14cc47b0fc217bceb60879f6c713e"
+    },
+    {
+      "path": "documentation/imgs/manual_multicnc_0_1_0_3/06_laser_perfil.png",
+      "sha256": "e14f3707d932a2158584e6de42ff005f0f507a6516eddc4e6eae0088d3fd9507"
+    },
+    {
+      "path": "documentation/imgs/manual_multicnc_0_1_0_3/07_laser_trabalho.png",
+      "sha256": "84c4b98da4e0ba9fa0187bb9b50eecccf0776c07d3faf922c1b932e2258b2798"
+    },
+    {
+      "path": "documentation/imgs/manual_multicnc_0_1_0_3/08_laser_controle.png",
+      "sha256": "968daade93684c6d6d6f545ded7690d2922b386feaca2fd13357dbfc8f9df170"
+    },
+    {
+      "path": "documentation/imgs/manual_multicnc_0_1_0_3/09_laser_previa.png",
+      "sha256": "74d3f3a533078bfc5c9bc95c7fc518ce1aec67d030f0ba60334b49cf675890cd"
+    },
+    {
+      "path": "documentation/imgs/manual_multicnc_0_1_0_3/10_impressora_config.png",
+      "sha256": "cbca772fde4060e3a8c4e18b8bcb9c71a398b2394101cfa2672b0a9b6ffdc234"
+    },
+    {
+      "path": "documentation/imgs/manual_multicnc_0_1_0_3/11_impressora_painel.png",
+      "sha256": "c14c7377ce5c02d9da73bdf03ddd345c94a792a7168d4fc2fc09677036c0aeb0"
+    },
+    {
+      "path": "documentation/imgs/manual_multicnc_0_1_0_3/12_joystick.png",
+      "sha256": "5c002ad19001a5615428015f1d2a0a38ccf6a30a166febe37f774e867414fe74"
+    },
+    {
+      "path": "documentation/imgs/manual_multicnc_0_1_0_3/13_spindle.png",
+      "sha256": "f788bed94e341273385b517f7e3b5421d6590ed65fd53f7dbdd6cdad16813d62"
+    },
+    {
+      "path": "documentation/imgs/manual_multicnc_0_1_0_3/14_busca.png",
+      "sha256": "c5e12672823d98bbea2e92ee0bb96631bf673a070a1dd5a58e7e993aeb84b65a"
+    },
+    {
+      "path": "documentation/imgs/manual_multicnc_0_1_0_3/15_execucao.png",
+      "sha256": "c146591c69521306f74acc2c686c9c62aa7a587669d023d0c9b1432547d408cb"
+    },
+    {
+      "path": "documentation/imgs/manual_multicnc_0_1_0_3/16_pausa.png",
+      "sha256": "142b9206848ba6eb872849652f2ddb744995aad7697c682e8a484620cb9e3fad"
+    },
+    {
+      "path": "documentation/imgs/manual_multicnc_0_1_0_3/17_parada.png",
+      "sha256": "9f4360d3cc318447140bfbf32f89a8f20158ce500e20ab73a812c1c3de0e2d81"
+    },
+    {
+      "path": "documentation/imgs/manual_multicnc_0_1_0_3/README.md",
+      "sha256": "8f013ba04dda4a08e08495b83f1482b3f3fea5b0ced8de7385eede6c7b04be29"
+    },
+    {
+      "path": "documentation/imgs/manual_multiphysics_0_2_0_0/01_cargas.png",
+      "sha256": "591ee1a29bb9c6758159dabad900c7ec774bd4adc5f70887e5ea48d4764eead3"
+    },
+    {
+      "path": "documentation/imgs/manual_multiphysics_0_2_0_0/02_montagem.png",
+      "sha256": "a4ea1b86de30cffebf7702d522b5d26be144aaba0f2a134cbe616c01b64a8259"
+    },
+    {
+      "path": "documentation/imgs/manual_multiphysics_0_2_0_0/03_resultado_estatico.png",
+      "sha256": "bee278d7900ca128424e4a5cf8614c135aff26f206f4ee7dbe91ce350a7582bb"
+    },
+    {
+      "path": "documentation/imgs/manual_multiphysics_0_2_0_0/04_termica.png",
+      "sha256": "b85020fd638e6de37bd790a004d5e19fc12a9f029e2e529707d937083b06dacf"
+    },
+    {
+      "path": "documentation/imgs/manual_multiphysics_0_2_0_0/05_modal.png",
+      "sha256": "3371b94ecb7447d7ebb850765ebe113362d5bbd2d9c4af35741d6e10a7d62f9c"
+    },
+    {
+      "path": "documentation/imgs/manual_multiphysics_0_2_0_0/06_montagem_resolvida.png",
+      "sha256": "74b03e62ddfac6419535dc750efd2713ffb1232a385b772357e92e170af5d733"
+    },
+    {
+      "path": "documentation/imgs/manual_multiphysics_0_2_0_0/07_sistema.png",
+      "sha256": "9113acf2ee2ea1c69bc41dfc8621179cc31f4afc2d12dafe4b26b04ef702c6cc"
+    },
+    {
+      "path": "documentation/imgs/manual_multiphysics_0_2_0_0/08_cnc.png",
+      "sha256": "3407ae466fff0756072010684d286a4f079877edc4e7b202271608fefa8a9125"
+    },
+    {
+      "path": "documentation/imgs/manual_multiphysics_0_2_0_0/09_circuito.png",
+      "sha256": "1b2079c046a13e41a99b13991f10253543f14552eda7d3ea9ce525dd26b8822e"
+    },
+    {
+      "path": "documentation/imgs/manual_multiphysics_0_2_0_0/10_ambiente.png",
+      "sha256": "29f67ff6b9624cc1841b843b9933df4d2eda90cf427dd0e280f7b47248e070a2"
+    },
+    {
+      "path": "documentation/imgs/manual_multiphysics_0_2_0_0/11_malha.png",
+      "sha256": "324119c9c58f793a76ef6f890a90785e48ac322ba6673a4553210e569ee061b6"
+    },
+    {
+      "path": "documentation/imgs/manual_multiphysics_0_2_0_0/12_materiais.png",
+      "sha256": "8898a381a2747d9551b5361ae7833c8bf83da9b88dcd21f0d4c6600a999c1ffe"
+    },
+    {
+      "path": "documentation/imgs/manual_multiphysics_0_2_0_0/README.md",
+      "sha256": "8f3bfa40e6980ff9e7f61792cd6faba12e3a42cf1b91dd5a9b52f22c42de932e"
+    },
+    {
+      "path": "documentation/imgs/ms_preview3d.png",
+      "sha256": "9431d22e7edd533ea778509c8b32c1cc8074b0c83d87156d506363acd24c2a26"
+    },
+    {
+      "path": "documentation/imgs/ms_preview3d_layer.png",
+      "sha256": "2c668e833b8f367bab28297ed1b962470162f936bc555bd6b11118585f116ee3"
+    },
+    {
+      "path": "documentation/imgs/multicnc ajuste.webp",
+      "sha256": "1f34134f869b0d68dd17662f25d8f4fbcbf0a8a653f059a9971bcda4f55cc146"
+    },
+    {
+      "path": "documentation/imgs/multicnc ajuste2.webp",
+      "sha256": "5968569e4a4def4238c9fb2729ca59cdb1d66462a999ced6bfa20b1909778812"
+    },
+    {
+      "path": "documentation/imgs/multicnc_novo_layout.png",
+      "sha256": "0181ece24bab8216efad5796e19e6de6e3d57affd9db98a815820328d3ab800c"
+    },
+    {
+      "path": "documentation/imgs/multiphysics01.png",
+      "sha256": "c06a9a4dd9e4846e004cb43d0bcef4e9ef15c6193efb936c1f5aee19435de92d"
+    },
+    {
+      "path": "documentation/imgs/multiphysics02.png",
+      "sha256": "07d4fc83660e4166b4ea8794fd038b4267b6189114d0638f7e428369d365231f"
+    },
+    {
+      "path": "documentation/imgs/multiphysics03.png",
+      "sha256": "8898a381a2747d9551b5361ae7833c8bf83da9b88dcd21f0d4c6600a999c1ffe"
+    },
+    {
+      "path": "documentation/imgs/multislicer_material.png",
+      "sha256": "49757811b54fe5d2f5f114d091086d920fd46a3f8aed882c4fbc214723502751"
+    },
+    {
+      "path": "documentation/imgs/multislicer_previa.png",
+      "sha256": "69f9b9243fec6375b13b8ed3a71f48013ca1aae99bb0e0c4cb1659b7b1af2ac9"
+    },
+    {
+      "path": "documentation/imgs/multislicer_projeto.png",
+      "sha256": "2c103ec222c8054f67906853f01a4970f005efc26ac4b73d413c9618cfc97ac1"
+    },
+    {
+      "path": "documentation/imgs/multislicer_qualidade.png",
+      "sha256": "042059125f01a1ca0e7f2011c34e536147ff3a2fc3c49083657260c927fbed71"
+    },
+    {
+      "path": "documentation/imgs/multislicer_suporte.png",
+      "sha256": "7ee543ccbeba06b413aa291346552b611c648eaf7b990198fcb9b34edb1fa0c1"
+    },
+    {
+      "path": "documentation/imgs/preview.webp",
+      "sha256": "759c7dc24c65e49805990b05e1fd23004321a3feda83720d69bffd6284dc9331"
+    },
+    {
+      "path": "documentation/imgs/preview_multislice.webp",
+      "sha256": "7f4a1d41bec17c87c8e54b61b1a81f020e0034baf0e085a1bb89ef9ce3564a70"
+    },
+    {
+      "path": "documentation/imgs/simucnc_router_ao_vivo.png",
+      "sha256": "0b4f2a4e03fe3a6e051d33614e3ac421e3b193520e183e8db68321538e65b2a4"
+    },
+    {
+      "path": "documentation/imgs/tres_maquinas_3d.png",
+      "sha256": "fb26b8e51b051edec206bc20a3e75464a7571f6996d690c526b5cba9290d459c"
+    },
+    {
+      "path": "documentation/laserart/README.md",
+      "sha256": "154458ad7037efe1159712f50b1f3d7d1e1f9bbf8846acf89732493799ae7e16"
+    },
+    {
+      "path": "documentation/laserart/docs/AI_GUIDE.md",
+      "sha256": "bc38a0a60473e0e778d77a4386944f949df6aa7e70070c9b4ac7f0501a5f52e2"
+    },
+    {
+      "path": "documentation/laserart/docs/LASERART_PLANO.md",
+      "sha256": "3b382146bddec847352ec5a9824fe409a434a1a117bf1f0063a36133403bb6b7"
+    },
+    {
+      "path": "documentation/laserpcb/README.md",
+      "sha256": "77019e9bc93fc16fa4626340342ade05193852b95628dea42f00471cd15dd606"
+    },
+    {
+      "path": "documentation/laserpcb/docs/AI_GUIDE.md",
+      "sha256": "90e754e68df625f566706719dbdc7a53b8a4d0da1b10e1d9382bcd65d56e2632"
+    },
+    {
+      "path": "documentation/laserpcb/docs/ALINHAMENTO.md",
+      "sha256": "3c5b8f18897465d6f417ba4a540931b35af10594c6b957bdb845d8989863c8f3"
+    },
+    {
+      "path": "documentation/laserpcb/docs/ARCHITECTURE.md",
+      "sha256": "2aa59315194374d84a0004b53e815bae7acfb772c5a751b1aa87939e3dbc676d"
+    },
+    {
+      "path": "documentation/laserpcb/docs/FURACAO.md",
+      "sha256": "82b9769ba5b9da5937edd9419e90fbf611175c0379ff9d529930151e881c20f4"
+    },
+    {
+      "path": "documentation/laserpcb/docs/LASERART_PLANO.md",
+      "sha256": "23d7333072b22e29aae7013796cbd1c2fdcf86814b00c10c9470e42a472d0a32"
+    },
+    {
+      "path": "documentation/laserpcb/docs/POSICIONAMENTO.md",
+      "sha256": "fd87b423f782c7dbbcbd751182c683d94d89bf9f57b1ca5223cf15ee9a1b0a16"
+    },
+    {
+      "path": "documentation/laserpcb/docs/REFERENCIAS_LASER.md",
+      "sha256": "4455326fc1090c0f544817888c772d0af21896cec49641cf9de4285de9f444b5"
+    },
+    {
+      "path": "documentation/makepcb/README.md",
+      "sha256": "d3272c80855a5ebd30dbfb4fe121b0538addb113e634e87ef3b075b6bac04036"
+    },
+    {
+      "path": "documentation/makepcb/docs/AI_GUIDE.md",
+      "sha256": "f214a356043f19ba4c68ee6bc365b82e99aa25d973a0f2c78f518d8f4d94b7f7"
+    },
+    {
+      "path": "documentation/makepcb/docs/ARCHITECTURE.md",
+      "sha256": "68b3c9ae711f98da28531b60a043590a9556fb8ad05e7cf9bb4084ffe2086df4"
+    },
+    {
+      "path": "documentation/makerouter/README.md",
+      "sha256": "d3c4584c6c22b89622daf0c8ddc02eaa54e94b4099ccf342221d34eb3df1a5e5"
+    },
+    {
+      "path": "documentation/makerouter/docs/AI_GUIDE.md",
+      "sha256": "f867a72c6ea6ebed34cc09919056fe253734ee47ec4d04d95e9d6fabab301a5c"
+    },
+    {
+      "path": "documentation/makerouter/docs/ARCHITECTURE.md",
+      "sha256": "221c7f157c3a36fdf3349a1b488fcf86d319ef759b89820116aa125b770ccc76"
+    },
+    {
+      "path": "documentation/makerouter/docs/TAREFA.md",
+      "sha256": "fc417dde89f937995de9c1c91b09fd1a65492fc181c955454bbeffffec97a4a5"
+    },
+    {
+      "path": "documentation/models/README.md",
+      "sha256": "14ed55b2758906cee080b4e3f945bea2f6bbd18e3959eb3512531691f8379157"
+    },
+    {
+      "path": "documentation/models/cnc_laser/README.md",
+      "sha256": "eb330dadc8e47de6c70e8df357a832fc9cb11cbd73656bfb302e11f420e00782"
+    },
+    {
+      "path": "documentation/models/cnc_laser/square_grbl_laser.nc",
+      "sha256": "b17880910f129687a11094bd3687f1102c5b4fb007313f6f47a20b7742947b52"
+    },
+    {
+      "path": "documentation/models/cnc_router/01_movimentacao_sem_corte.nc",
+      "sha256": "4d65699176ecfd23016fddc89805c1fad839dde295ffd50f97e090daa82cf35e"
+    },
+    {
+      "path": "documentation/models/cnc_router/02_quadrado_40x40.nc",
+      "sha256": "c17cbcb4ab00565816787ef3026e5c3ac937183b3be23842a259101066a3a1f5"
+    },
+    {
+      "path": "documentation/models/cnc_router/03_circulos_g2_g3.nc",
+      "sha256": "2bf2ee9b77f12121e3bbbc65b12b0b8566e3b6d1f7f97d23768bfc12b8d85ee8"
+    },
+    {
+      "path": "documentation/models/cnc_router/04_furacao_quatro_pontos.nc",
+      "sha256": "bea20fae29efaf7de95b005f6018bcab0fac0dce72f54b673be7e202b9a4ceca"
+    },
+    {
+      "path": "documentation/models/cnc_router/05_bolsao_ziguezague.nc",
+      "sha256": "4738e657916abe96d0572ed4d0f3a45e4ebefdb855dc26f6a5e860e3c5927fe3"
+    },
+    {
+      "path": "documentation/models/cnc_router/06_contorno_arredondado.nc",
+      "sha256": "6cab4d80cb8d9a6ec2b96e678ccaa3a4101b6dc7d01d9945a2906197be381c60"
+    },
+    {
+      "path": "documentation/models/cnc_router/07_rampa_helicoidal.nc",
+      "sha256": "af72c0ca4fb79e6a21ee6b6df23a6ff511ba595bda735c5a4486b4fec4211095"
+    },
+    {
+      "path": "documentation/models/cnc_router/08_gravacao_multicnc.nc",
+      "sha256": "16381d2658d39d17b63197a73f6f6580fb278ec10ac5dafbb8ada3ad740b28b8"
+    },
+    {
+      "path": "documentation/models/cnc_router/09_grade_seis_copias.nc",
+      "sha256": "26a3a2ec02ec2b300f609bf5f50ebcc98301e586c3686fa168467c6b5a39eca9"
+    },
+    {
+      "path": "documentation/models/cnc_router/10_coordenadas_incrementais.nc",
+      "sha256": "ed573bd93ebed23ffe2b0624525c8a51f1df87556ee8b57cee181cfe4e29d19a"
+    },
+    {
+      "path": "documentation/models/cnc_router/11_superficie_ondulada_3d.nc",
+      "sha256": "aa98f6ec9f6fdb52bf9a7274ca1b712b24c8ea0b8a8d7abd5aab373b2946d838"
+    },
+    {
+      "path": "documentation/models/cnc_router/12_placa_combinada.nc",
+      "sha256": "53ce3bd0d7cc17b74273c56d95b6be6404df2a47ae5bfcafa84e40762d439098"
+    },
+    {
+      "path": "documentation/models/cnc_router/README.md",
+      "sha256": "a721bf8456c546b17b99a6389aef19bceed43847fd4a9a5577ca373dea18d9fb"
+    },
+    {
+      "path": "documentation/models/cnc_router/catalogo.json",
+      "sha256": "7035deaa948c5f8d76f6d0bf5a87267dd6e2418b0c1f769e5a32e257646728a2"
+    },
+    {
+      "path": "documentation/models/cnc_router/previas.png",
+      "sha256": "6363d8dec496a1dbd6fffbdb031745297fefc182ceaf9d28ba72945f9c5d89a0"
+    },
+    {
+      "path": "documentation/models/cnc_router/relatorio_validacao.csv",
+      "sha256": "2a010d3ce579d6595cc414800552dd1a189428d9007b31eab0bc39a49bf960d4"
+    },
+    {
+      "path": "documentation/models/cnc_router/square_grbl.nc",
+      "sha256": "0b2a8e26d64075b17561f61f76d6f40248221a251d0547a8f3beb54bcd69ce64"
+    },
+    {
+      "path": "documentation/models/components/README.md",
+      "sha256": "7c1ea3eb6f4e36400125bd70cac7dfb784e39ac2bf06d2cd6680be3ee6f72439"
+    },
+    {
+      "path": "documentation/models/components/mec/cabos_conectores/conector_gx16_4p.json",
+      "sha256": "c0d41060eead328dfe83bd07b135eb857af6bb5d9c4efaebc8c50550a9a00025"
+    },
+    {
+      "path": "documentation/models/components/mec/cabos_conectores/esteira_porta_cabo_10x15_500mm.json",
+      "sha256": "ea311047a6917be8ba56b8be55adf44bbb3606d340784389036184d131893f04"
+    },
+    {
+      "path": "documentation/models/components/mec/cabos_conectores/prensa_cabo_pg7.json",
+      "sha256": "59af1e02d880e521ad02945e1a9b0e475895ab53921f67935e941fb1f5073bd9"
+    },
+    {
+      "path": "documentation/models/components/mec/cabos_conectores/tomada_iec_c14_chave.json",
+      "sha256": "ad3de93bcd651aa371797beeb6962e6e53b4654be5290b8eb9a13d8a2b754740"
+    },
+    {
+      "path": "documentation/models/components/mec/eletronica/arduino_cnc_shield_v3.json",
+      "sha256": "bd669058c2bdc06f6572692eb3ae5eb65f788f8b2b377941e82a944269c1d2b4"
+    },
+    {
+      "path": "documentation/models/components/mec/eletronica/botao_e_stop_emergencia.json",
+      "sha256": "9aa3c16cf10c097169952ca856c28f9a5861f2ed5d38fd8d23c3b2ac979bd5ae"
+    },
+    {
+      "path": "documentation/models/components/mec/eletronica/controladora_fluidnc_esp32.json",
+      "sha256": "fa3f5c294481d2d66d6627c111a490a6b2c87d0897f7d413f5262aa8396a2306"
+    },
+    {
+      "path": "documentation/models/components/mec/eletronica/controladora_grblhal_32bit.json",
+      "sha256": "23343820312d6c465cf3ea75c8e0a7a551d65754334d989ce561065975aa9e43"
+    },
+    {
+      "path": "documentation/models/components/mec/eletronica/driver_a4988.json",
+      "sha256": "38375e2f000ed183a4377c6a589a58dcd9ae544932e4b2e8fa9898384fa30715"
+    },
+    {
+      "path": "documentation/models/components/mec/eletronica/driver_dm542.json",
+      "sha256": "53918e67df06d44f18e2186e71429777b4c475ce2c2b715c758fb5c5a9e32cbd"
+    },
+    {
+      "path": "documentation/models/components/mec/eletronica/driver_drv8825.json",
+      "sha256": "beb7ce9a5fe395ceaaeb973efcb3056cd1f91f84c9ab7f72211205641b238e18"
+    },
+    {
+      "path": "documentation/models/components/mec/eletronica/driver_tb6600_4a.json",
+      "sha256": "c37878d921fb6812769d6eedb7c0be41c8c4344727514e5f17d7b68048c4b6b1"
+    },
+    {
+      "path": "documentation/models/components/mec/eletronica/driver_tmc2209.json",
+      "sha256": "eb7fdc719acc3b6469c0b1fb3a38ba2fcfbad9d2c03e701efd65a6a4b4301cec"
+    },
+    {
+      "path": "documentation/models/components/mec/eletronica/esp32_devkit_v1.json",
+      "sha256": "29fb90720a49803b15074d170b018ca3d1efe1ccf33060cc580debcea1686043"
+    },
+    {
+      "path": "documentation/models/components/mec/eletronica/fonte_chaveada_12v_5a.json",
+      "sha256": "52a39c371543609fb0026483c4fce2e7b854c86bf524fd956d86f56189a205af"
+    },
+    {
+      "path": "documentation/models/components/mec/eletronica/fonte_chaveada_24v_15a.json",
+      "sha256": "9a1a19eade5744ed5a120cb7164884e7cd6c1830587f6601dfc8bf65a07b8e5c"
+    },
+    {
+      "path": "documentation/models/components/mec/eletronica/fonte_chaveada_48v_10a.json",
+      "sha256": "a0c816fe82fe3aaf180c90b3b65107cff5e0b38c3a4d51760fb9c62ce3ad5d7e"
+    },
+    {
+      "path": "documentation/models/components/mec/eletronica/inversor_vfd_1500w.json",
+      "sha256": "3212241c0a8f92071db5575ac0cb7834a930535daa907ae3a3fd574acea38e6b"
+    },
+    {
+      "path": "documentation/models/components/mec/eletronica/modulo_rele_5v_1canal.json",
+      "sha256": "f74e900fdb1d47c8bf7e57e1e6459fcd662ec62f98c68000d93513e8a9de4c23"
+    },
+    {
+      "path": "documentation/models/components/mec/eletronica/sensor_fim_de_curso_microswitch.json",
+      "sha256": "aaaec2d54edee52d72cefe6cc9a435e14a050c44c876a772440141bceb6959d4"
+    },
+    {
+      "path": "documentation/models/components/mec/eletronica/sensor_fim_de_curso_optico.json",
+      "sha256": "191bf8db04b92b72acb24826229f6fe782b4cbf5c71b3a5449633badf567344a"
+    },
+    {
+      "path": "documentation/models/components/mec/eletronica/sensor_indutivo_lj12a3.json",
+      "sha256": "975730c8cb35af7c4a9ced0ecb4ade9cc5b04e43551e3c25b46cde7abed58ea0"
+    },
+    {
+      "path": "documentation/models/components/mec/eletronica/ventoinha_40mm_24v.json",
+      "sha256": "0bd13964b63dba72682a613fb9c2797489f425a616a7efae4d3a01e590ff86ed"
+    },
+    {
+      "path": "documentation/models/components/mec/eletronica/ventoinha_80mm_24v.json",
+      "sha256": "19cb15269b68c6fb0ac45ea42adcc0d60fabbecbcf1651a4888d6d7fd501c9fb"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/arruela_m3_lisa.json",
+      "sha256": "889d8cc18c5e0722db59f445af5b7b376392535399aa720ac4a2936231d51ef3"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/arruela_m4_lisa.json",
+      "sha256": "39de3b5b3c9bf8eb395a4ef44c0bbb3f7bad350060ec3071e516503d778b59bd"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/arruela_m5_lisa.json",
+      "sha256": "6f3580c5480a7bc7ebdf19bebe0fdc44fdfc19b1b0a27eee96a44e3dc7b07598"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/arruela_m5_pressao.json",
+      "sha256": "2914dc3bddde0265a27c54033569e7305f9a7e13bfbbb318ac922418ff77c19d"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/arruela_m8_lisa.json",
+      "sha256": "f256986adb2e822c3e660fbbdad375402f68976b2f31df249105433fe9ae4d0c"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/cantoneira_esquadro_2020.json",
+      "sha256": "b00a0772cd97aeabe9537bab44beeb57cb3be4403570ff0bdebfe57b2b8b0b17"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/espacador_hex_m3x10_ff.json",
+      "sha256": "a55ca44d97560cae36c78ba5ff4f3c47ee4440e28822c0d8615ec30c3c72b9d6"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/espacador_m3x10.json",
+      "sha256": "a01cb87e3d73e0797b512d303ea84a50e67377c46e6ba0d62d2eb86b46960c52"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/parafuso_m3x10_allen.json",
+      "sha256": "b190cd1547392ce27fba837d91377a55556d83b7639d3745ca354222e92e6df0"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/parafuso_m3x16_allen.json",
+      "sha256": "2ed3300cd6a82385c9b1b09d3af2a859809b3ea48a7c52f3cca1ba1799079056"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/parafuso_m3x20_allen.json",
+      "sha256": "5e67dac4d258116a0718326da29537fbd329c95121d87ae5d9e58f957f2614f7"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/parafuso_m3x6_allen.json",
+      "sha256": "14e74e4984be8978592e90c7d388fb0481bed74c545766b3321b5b349a9ef432"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/parafuso_m4x10_allen.json",
+      "sha256": "0fecdcbf1be9d5def725033d194c01e3ace9f71fc56fbf3dd3fc063ccffc5296"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/parafuso_m4x16_allen.json",
+      "sha256": "052ee624ee38133793740e2c1684b7aeeca95e03c24d8360cfadc58fe64eb8ff"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/parafuso_m5x10_abaulado.json",
+      "sha256": "09fafbad78be664375a2a620552403c2b105fe9fd5d3e18b03feb7102c51db3f"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/parafuso_m5x12_escareado.json",
+      "sha256": "38f5f7a12e95edde245040a042993e90f341bac085479c61162da2107ded8628"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/parafuso_m5x16_allen.json",
+      "sha256": "26dfa5dd4960584c88950c94de641726d5a22b6ffc32c6e4565f4b8f40dc39e1"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/parafuso_m5x20_allen.json",
+      "sha256": "1811ade1f8f9da65960630e9b9d2d9494d1942ed7bdfe943eb1976ad9f8f21bf"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/parafuso_m5x25_allen.json",
+      "sha256": "5a2cec9e02ee66d33e6de85a564e14a9f2396d1b28d8264b3dfb530f3ab38ecb"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/parafuso_m5x40_allen.json",
+      "sha256": "a14992689ff6c665ca1e3bd5d71e43734d9ea1248e5772cef72a62d13262cec5"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/parafuso_m5x8_abaulado.json",
+      "sha256": "f9b58b3e03406ea574f566df1603e02f615b72ec45db926c2fc3c91b1596bd16"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/parafuso_m6x20_allen.json",
+      "sha256": "a2d70d2489a602c6285e68ca64c021a31e582653905a551758f0369c94cf3b82"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/parafuso_m8x25_sextavado.json",
+      "sha256": "6e14857e7451f43227acc808bc4ee4f49e3ea9ba657fb6a196dfb80371be4e3e"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/parafuso_m8x30_allen.json",
+      "sha256": "29c721275a19514033cdfe012dbbc7fd2e5a7227d8a48134713decddac906b9f"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/porca_m3_travante.json",
+      "sha256": "510adc83a88178f4228202bda4647b04ebfbbe29e3f48f58fa22320ac87e0842"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/porca_m4_travante.json",
+      "sha256": "082e868739d353ecab5d353cd6ec30df28268eccf18676be8546d706f2f7b8ee"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/porca_m5_sextavada.json",
+      "sha256": "bb64768f6d9faad7aa9fa71ab074596f95769dc5c7c822b13ebc2f5ef998d86d"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/porca_m5_travante.json",
+      "sha256": "f65527ba76ea3d1ba0bf79c7e5bfe41de7fff1c992e205f2b2fb7d28d2c2ee82"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/porca_m8_sextavada.json",
+      "sha256": "968a1d068a4307ddf9db7a2a9e46bd87158cd7ee137218cd724eeffc4441bcdb"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/porca_m8_travante.json",
+      "sha256": "e5a6952a65326613e3f892c78ca13b5580581364a0db85cb1d579a89b629dd92"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/porca_t_nut_m3.json",
+      "sha256": "0a76e523d8b8e3d980a3466b38a8f9c5e788a75ee20d5ba57a81e3842774b2f6"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/porca_t_nut_m5.json",
+      "sha256": "62e3a84160d02a5eb339e9895c47f490c7b5e4e8335219e7153e20e5f462e539"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/porca_t_nut_m5_mola.json",
+      "sha256": "d4a77bc00e1e131c6b2823f5f309b53a44c608c5ebec08580b5b8ea0c52f2085"
+    },
+    {
+      "path": "documentation/models/components/mec/fixadores/rebite_pop_4x10.json",
+      "sha256": "8f0fe04e0f8d6f9a0cecccf35252ea0e2b237b4d8b59ee56ac76d322200ea142"
+    },
+    {
+      "path": "documentation/models/components/mec/guias_fusos/carro_hgh15ca.json",
+      "sha256": "6d50f37aa2bb20d14f2c3e3b69bf836208e0cae588f65af6499db7f4332891c9"
+    },
+    {
+      "path": "documentation/models/components/mec/guias_fusos/carro_mgn12h.json",
+      "sha256": "1b68961c9418259eaca1dd6cd2885ac20181bab87022e3743c5d38566209f1b2"
+    },
+    {
+      "path": "documentation/models/components/mec/guias_fusos/castanha_sfu1204.json",
+      "sha256": "12bca4ecbbde29e22ddbffae773173f21a93dd7ede46a57185d9acaf857083ad"
+    },
+    {
+      "path": "documentation/models/components/mec/guias_fusos/castanha_sfu1605.json",
+      "sha256": "99319d4f47450a95e2ac41b0aa77b20be458fb71c0dd47f80230b8167169bfcc"
+    },
+    {
+      "path": "documentation/models/components/mec/guias_fusos/eixo_linear_12mm_400mm.json",
+      "sha256": "578a306f38209e7c0fe1bd50188929a66b10ac3fd6fdf5f4b3bc49ecd3ee162e"
+    },
+    {
+      "path": "documentation/models/components/mec/guias_fusos/eixo_linear_8mm_300mm.json",
+      "sha256": "b8ca48ef1d2b40f14484b731bd6c63373553ee8f78066c749ff80072b908fe24"
+    },
+    {
+      "path": "documentation/models/components/mec/guias_fusos/eixo_linear_8mm_400mm.json",
+      "sha256": "2067302a49bc373420d8b7c6de3993616f6d10ee031deb25e015c8c66c792f6d"
+    },
+    {
+      "path": "documentation/models/components/mec/guias_fusos/fuso_esferas_sfu1204_300mm.json",
+      "sha256": "a4bbe58f4d5e3632d70f641ffb8dcc6369d17919c7ad6cfd153da4601c27b683"
+    },
+    {
+      "path": "documentation/models/components/mec/guias_fusos/fuso_esferas_sfu1605_450mm.json",
+      "sha256": "b601c1e0594d856a539714e4b958db540d7809ae06e7d527737cdd96f08771a1"
+    },
+    {
+      "path": "documentation/models/components/mec/guias_fusos/fuso_trapezoidal_t8_300mm.json",
+      "sha256": "c70ed5f3b89a8df579ebb8bcefa8fb36136cb3834c3190bbb06f09e56b379d06"
+    },
+    {
+      "path": "documentation/models/components/mec/guias_fusos/fuso_trapezoidal_t8_500mm.json",
+      "sha256": "0875d102e154e9c0357c7b15621f40ce31e5d4487a7273d9326da5986574ba31"
+    },
+    {
+      "path": "documentation/models/components/mec/guias_fusos/guia_linear_hgr15_500mm.json",
+      "sha256": "87b53a4714e48667d9ce7ecd464aef0685d683b91f6f9f38b37623d43038994c"
+    },
+    {
+      "path": "documentation/models/components/mec/guias_fusos/guia_linear_mgn12h_300mm.json",
+      "sha256": "d5d1032c088634cbb9baff9e34d2aa85e8f240450466ef782e2f79886a715d40"
+    },
+    {
+      "path": "documentation/models/components/mec/guias_fusos/guia_linear_mgn12h_400mm.json",
+      "sha256": "4bfa5aca0e379550d8c94810a3fa98e61916249280770924010bd020822660fd"
+    },
+    {
+      "path": "documentation/models/components/mec/mesas_bases/bloco_sacrificial_mdf_300x180.json",
+      "sha256": "0dbab050bb8509deaf4df2cfb9e07edc7e248336d8c246a7ba49898ebfc4363b"
+    },
+    {
+      "path": "documentation/models/components/mec/mesas_bases/mesa_ranhurada_300x180.json",
+      "sha256": "0f01b730a7442672566494496a14ea704139821c0c2ad960504b809e12b30ca8"
+    },
+    {
+      "path": "documentation/models/components/mec/mesas_bases/placa_cama_aluminio_220x220.json",
+      "sha256": "49a517ebfac417641500e6afd6b5cd8b2c5494012e3e23477b0ce9ca87613a1b"
+    },
+    {
+      "path": "documentation/models/components/mec/motores/modulo_laser_10w.json",
+      "sha256": "c47388a36e6189a64b22f672ecebedbf994b4db18c6dffab687a8737788aea79"
+    },
+    {
+      "path": "documentation/models/components/mec/motores/motor_dc_775_24v.json",
+      "sha256": "2fd3c09775ab4b35610ad8d4dd30e7f1de0ad9986d3775d7e965103a50639782"
+    },
+    {
+      "path": "documentation/models/components/mec/motores/motor_dc_redutor_jgb37.json",
+      "sha256": "d8646b964b64c86781b54443c66ec1cd73166d40c24e36648f25e6a40a7b13c8"
+    },
+    {
+      "path": "documentation/models/components/mec/motores/motor_passo_nema17_42mm.json",
+      "sha256": "2651bbe67ecd1c46b6fe2b3d13cb0ed335579affa0949e5ef20fe67b89b2ad27"
+    },
+    {
+      "path": "documentation/models/components/mec/motores/motor_passo_nema17_48mm.json",
+      "sha256": "e5080f2c500389a4d5f9620e997fd8dbbf89cf93488d814b1454cdb959f34a81"
+    },
+    {
+      "path": "documentation/models/components/mec/motores/motor_passo_nema17_pancake.json",
+      "sha256": "43fbb05186d6ff02ad0036932abbd6f5e477c7e7198eb2dd499882ee0c9176ce"
+    },
+    {
+      "path": "documentation/models/components/mec/motores/motor_passo_nema23_56mm.json",
+      "sha256": "5eafa173f1045939083f15acafd760b543b67e311fa7be277987f73854e90616"
+    },
+    {
+      "path": "documentation/models/components/mec/motores/motor_passo_nema23_57mm.json",
+      "sha256": "3d76234961c316a8c26e4d26c7599c40e9694652e19046a854ddc038d0cf6d1a"
+    },
+    {
+      "path": "documentation/models/components/mec/motores/motor_passo_nema34_86mm.json",
+      "sha256": "ebab9515f47535c5af338f028a6211d0cac080f01efcf16048e96e2e6b61b493"
+    },
+    {
+      "path": "documentation/models/components/mec/motores/motor_spindle_500w_52mm.json",
+      "sha256": "95d6c123460b0ca42a32e238e6bc54887aef6b2d07edcb9bb0ae1909c07fb5db"
+    },
+    {
+      "path": "documentation/models/components/mec/motores/spindle_ac_1500w_65mm.json",
+      "sha256": "a7db80fcfbefd968fe4d9d6a4f099a25a273e760c51520467086c300626c60cf"
+    },
+    {
+      "path": "documentation/models/components/mec/perfis/perfil_2020_vslot_1000mm.json",
+      "sha256": "fd37974d32e22f8ddb028bdbc178a2e9005e8dbb86df7ac1f89c55bccef54db9"
+    },
+    {
+      "path": "documentation/models/components/mec/perfis/perfil_2020_vslot_300mm.json",
+      "sha256": "0e579bccc6c9c3676469589036b228f6740909855a14598907ce8d6da3b1e156"
+    },
+    {
+      "path": "documentation/models/components/mec/perfis/perfil_2020_vslot_500mm.json",
+      "sha256": "5720b5f623bcb84196a3007258a8c8844f4954aea6cb69a853e013ba2487eae6"
+    },
+    {
+      "path": "documentation/models/components/mec/perfis/perfil_2040_vslot_400mm.json",
+      "sha256": "09adf75cb95d6b5d3755f8ec71f24efe8d830774cf8b78a039c64b8cb25423d9"
+    },
+    {
+      "path": "documentation/models/components/mec/perfis/perfil_2040_vslot_600mm.json",
+      "sha256": "dd6ccb308206afe57d84221c95f0baee4c8c726c5de261f910c56ad48d3ca230"
+    },
+    {
+      "path": "documentation/models/components/mec/perfis/perfil_2060_vslot_500mm.json",
+      "sha256": "d6999eb98bc22b436e186f6beb9a294e21abcc6b78ef00441fbfed5b3e6349d1"
+    },
+    {
+      "path": "documentation/models/components/mec/perfis/perfil_2080_vslot_500mm.json",
+      "sha256": "d923c7274b7f1d4d64c81a3671e1f483558cc51e1fb78d32c4ce5e6eca6da174"
+    },
+    {
+      "path": "documentation/models/components/mec/perfis/perfil_4040_vslot_500mm.json",
+      "sha256": "81babaa71df613bef084d38240e7e1ceb859360284ddafe50679efffdd0e99c9"
+    },
+    {
+      "path": "documentation/models/components/mec/perfis/perfil_cbeam_4080_500mm.json",
+      "sha256": "0253442c85d785c254776eae9d306e120b00c6abc96f4ed1523fd3019dff1ed1"
+    },
+    {
+      "path": "documentation/models/components/mec/placas_suportes/bloco_carro_eixo_z.json",
+      "sha256": "2f43d8eae153ad3581ee80344fe5cb309ff41e66673d33008a18f091d6f87316"
+    },
+    {
+      "path": "documentation/models/components/mec/placas_suportes/placa_gantry_vslot_20mm.json",
+      "sha256": "112da3284119c6ce52427764fde62559eecac622c5a285e113ca14893d5c7e8f"
+    },
+    {
+      "path": "documentation/models/components/mec/placas_suportes/suporte_motor_nema17.json",
+      "sha256": "b48c4d24f5e516c9692a8241b7d5a8ff549fc0243a2244921f126fda3bbb9c46"
+    },
+    {
+      "path": "documentation/models/components/mec/placas_suportes/suporte_motor_nema23.json",
+      "sha256": "41ca9afa365977cb12bce89b8ab0afd4c7fb881ccb4a7745f4ea02ea38cde74d"
+    },
+    {
+      "path": "documentation/models/components/mec/placas_suportes/suporte_spindle_52mm.json",
+      "sha256": "7ccce09e132f771f7930470a7aa3ef0f40f8fb5b9fac2032e5130baa80e97ac6"
+    },
+    {
+      "path": "documentation/models/components/mec/rodas_carros/espacador_aluminio_6mm.json",
+      "sha256": "90f33e07a24f0b35733a53a8bc386224de6dbcf0aaf2c728204198b106fd8af2"
+    },
+    {
+      "path": "documentation/models/components/mec/rodas_carros/espacador_excentrico_6mm.json",
+      "sha256": "d2b68888104d394d3b4f199fb6685ac6f6af782830b6ca0f636fbafd4f713d4b"
+    },
+    {
+      "path": "documentation/models/components/mec/rodas_carros/roda_vslot_delrin.json",
+      "sha256": "63bb6fae9ccfc719e6b36799f5dbea01454301d8f748f3c78d33ccc6e832d8cd"
+    },
+    {
+      "path": "documentation/models/components/mec/rodas_carros/roda_vslot_mini.json",
+      "sha256": "7cb1df65de784f8c98b4f3c8f3851cff8a6745d8331980f83c6ec2b62710d3c2"
+    },
+    {
+      "path": "documentation/models/components/mec/rolamentos_mancais/bloco_suporte_bf12.json",
+      "sha256": "5279db56e7863ee1378c525c1bacbdf6eaab3672e3094964e0ffa47c28f20b0a"
+    },
+    {
+      "path": "documentation/models/components/mec/rolamentos_mancais/bloco_suporte_fk12.json",
+      "sha256": "e28eeb7f01bc7156e5fbf3a15957ff2a45d88ac2a39748897b4360d3c00d04ea"
+    },
+    {
+      "path": "documentation/models/components/mec/rolamentos_mancais/mancal_kfl08.json",
+      "sha256": "3aa3f1c3a2990ef93c00a5f46334f10a302f7b054a49830ffe2f7c9d90020ad9"
+    },
+    {
+      "path": "documentation/models/components/mec/rolamentos_mancais/mancal_kp08.json",
+      "sha256": "1d6c4660b4c1b8277bcc1d801774e30da59cc3f7c117b4291a42963c94ae341f"
+    },
+    {
+      "path": "documentation/models/components/mec/rolamentos_mancais/patim_scs12uu.json",
+      "sha256": "7289d3ed23a9c81df71749376b4dae675e2df8cf9bf25bcdb9eb895d4750ddd5"
+    },
+    {
+      "path": "documentation/models/components/mec/rolamentos_mancais/patim_scs8uu.json",
+      "sha256": "6cfdc2bdb70957af40df6fbfb1bf42dc017a0feb3709baa0486b5a3fd7438e87"
+    },
+    {
+      "path": "documentation/models/components/mec/rolamentos_mancais/rolamento_6000zz.json",
+      "sha256": "5aa34971cc4551ec04398c13c687cfc893977e973d6e3b5ed41cebfb3a51f801"
+    },
+    {
+      "path": "documentation/models/components/mec/rolamentos_mancais/rolamento_608zz.json",
+      "sha256": "10bb4a10011d1adfc42538bb2edc5ce9dff965d40c530b8b1dd43bccddfbb54c"
+    },
+    {
+      "path": "documentation/models/components/mec/rolamentos_mancais/rolamento_6205.json",
+      "sha256": "c2981a1f70580b7347fbb2528b27be8c4eece82457753f38e0862e1587bb49d2"
+    },
+    {
+      "path": "documentation/models/components/mec/rolamentos_mancais/rolamento_623zz.json",
+      "sha256": "845eb43d1b25612de57f6ec9b0e01aa9dc9e6a8de2d08ad236d3ebb3ac3b32df"
+    },
+    {
+      "path": "documentation/models/components/mec/rolamentos_mancais/rolamento_625zz.json",
+      "sha256": "8c7a439f805c27b12b43cb8392812cba85f2626ad734d999b4ae24c4dcdbc5f5"
+    },
+    {
+      "path": "documentation/models/components/mec/rolamentos_mancais/rolamento_f623zz.json",
+      "sha256": "beb4739e49bb8230a0f91e60bdf3d7f4650b9c10182217b5b9f6b4ac914af4c3"
+    },
+    {
+      "path": "documentation/models/components/mec/rolamentos_mancais/rolamento_linear_lm12uu.json",
+      "sha256": "af034b9e3af7359ff8b9fc2488d7318cf580a94533a681e8372669caa8b68699"
+    },
+    {
+      "path": "documentation/models/components/mec/rolamentos_mancais/rolamento_linear_lm8luu.json",
+      "sha256": "342f40fce98823dda92b8d349b3f306e9a18bcc604ccdc64c1f5e8e245056dce"
+    },
+    {
+      "path": "documentation/models/components/mec/rolamentos_mancais/rolamento_linear_lm8uu.json",
+      "sha256": "19121bac145b27551d9d10793f3a43afc74a7ed1cd866d47a04af2330459e82e"
+    },
+    {
+      "path": "documentation/models/components/mec/rolamentos_mancais/suporte_eixo_sk12.json",
+      "sha256": "3219d7a0127ba3a6c5ea8cdab59213525489b0bcf09b5f605aa98a70e5da7f7b"
+    },
+    {
+      "path": "documentation/models/components/mec/rolamentos_mancais/suporte_eixo_sk8.json",
+      "sha256": "e355f230e2cfbc66cf93949ea8ce4208e597e3f60d09c525ff6e903abf134dcd"
+    },
+    {
+      "path": "documentation/models/components/mec/transmissao/acoplador_flexivel_5x8mm.json",
+      "sha256": "52fd10e8d82b6cf7f4f8c5b853875876f173f9cd8b3b1e781768dddd0749af74"
+    },
+    {
+      "path": "documentation/models/components/mec/transmissao/acoplador_flexivel_635x10mm.json",
+      "sha256": "191c9fdc5411319eac0674ceef6e6c3df590639a5901b8e0519b9694c6b8dce1"
+    },
+    {
+      "path": "documentation/models/components/mec/transmissao/acoplador_flexivel_8x8mm.json",
+      "sha256": "88be6bfef6128dc8fe6ff07a8d4471f78a903487cbbea2279c82e5ba16cc3076"
+    },
+    {
+      "path": "documentation/models/components/mec/transmissao/acoplador_rigido_5x8mm.json",
+      "sha256": "5c28a4a2725c76988c955fbdfd3a32304dc547241af5529ec31a2d8f013781b4"
+    },
+    {
+      "path": "documentation/models/components/mec/transmissao/castanha_fuso_t8.json",
+      "sha256": "83be8774f9d6863892b1d4d7d5d73b4648e04e3057af76da44a7c3fa22878a0b"
+    },
+    {
+      "path": "documentation/models/components/mec/transmissao/castanha_fuso_t8_antifolga.json",
+      "sha256": "38be859a4e9f33465736655195c8e2c4c7fface4c4b78a6bb214c51f421a2180"
+    },
+    {
+      "path": "documentation/models/components/mec/transmissao/correia_gt2_aberta_1000mm.json",
+      "sha256": "d68726de3b926474d24c5cc45b1aa84359056155dcea058623771a3f5037072d"
+    },
+    {
+      "path": "documentation/models/components/mec/transmissao/correia_gt2_fechada.json",
+      "sha256": "f02aa6d4a3a782b7104e25805a1a412ca4937f443f3988e6745bb94918660ff0"
+    },
+    {
+      "path": "documentation/models/components/mec/transmissao/polia_gt2_16d_eixo5.json",
+      "sha256": "5b23d9c7693f11ea9c2a053bfe91768f0ab0623ad6439b0fac00d38dc5c433b3"
+    },
+    {
+      "path": "documentation/models/components/mec/transmissao/polia_gt2_20d_eixo5.json",
+      "sha256": "4fa0e586b2c64b6416a1ef843f864742354406f55991f0e1c52a332fa5dfe4a0"
+    },
+    {
+      "path": "documentation/models/components/mec/transmissao/polia_gt2_20d_eixo8.json",
+      "sha256": "41a8eac53d5791ccb90fa26a6af6af18c7a7a8f99fb86adfa832da6238fe0968"
+    },
+    {
+      "path": "documentation/models/components/mec/transmissao/polia_gt2_60d_eixo8.json",
+      "sha256": "5317d1e8b0c80c0477cde2464a99e87fdb9c305a3a9a0ad8fed20fc04863ddfc"
+    },
+    {
+      "path": "documentation/models/components/mec/transmissao/polia_tensora_gt2_20d.json",
+      "sha256": "be9a39a9bceb18ce8eaf17178f278fe556a4fe017d2bfb6e2ab26fa949ae7c51"
+    },
+    {
+      "path": "documentation/models/components/mec/transmissao/polia_tensora_lisa_3mm.json",
+      "sha256": "28d9920f02288205f55e681d4c501c75df02690bf00ea8056a02093be9462c5c"
+    },
+    {
+      "path": "documentation/models/laserart/README.md",
+      "sha256": "1b3770b32ceb9fa8b77b29eb8ef2cf1d749faec4d2598b1b746911909af61439"
+    },
+    {
+      "path": "documentation/models/laserart/caixa_encaixes_80x60x40.lart",
+      "sha256": "d7b411c9a778bfaed49462febd0f990f0624b49d2eae030cb45aed0434efa8ed"
+    },
+    {
+      "path": "documentation/models/laserart/engrenagem_estrela.lart",
+      "sha256": "eed267ae10ccab94dc87ef71825f5c8c273659c3d0c57cb9f7b5beb029e6fada"
+    },
+    {
+      "path": "documentation/models/laserart/placa_identificacao.lart",
+      "sha256": "02a18392ac089dc3b6046ceb9449be34d0298cab045c7adfd3bb87b5bf558d62"
+    },
+    {
+      "path": "documentation/models/laserpcb/README.md",
+      "sha256": "4dd92b74452bb80ec3175beb41118ca067dcaa2ee584f9c6010e182d792c2145"
+    },
+    {
+      "path": "documentation/models/makepcb/README.md",
+      "sha256": "ee69f0c560d5ebdf13c2a0bbda172dc61a79b68717d84502ef718d2fb44f703c"
+    },
+    {
+      "path": "documentation/models/makepcb/pisca_555_gerber/pisca_555-B_Cu.gbl",
+      "sha256": "a1ec10056529ba0e7d06c0f723d57615765d28ee7eb9cfcd95b7173ddec3ea76"
+    },
+    {
+      "path": "documentation/models/makepcb/pisca_555_gerber/pisca_555-B_Mask.gbs",
+      "sha256": "e73e3d0ed7281f735f6240dca5e335beccfa20ff1a206aab63f626d370f27fe1"
+    },
+    {
+      "path": "documentation/models/makepcb/pisca_555_gerber/pisca_555-Edge_Cuts.gm1",
+      "sha256": "4be48ea1dad22f7e9403a05fd1ae3866cb9a3cbc563270de3b0411611e5ee0a6"
+    },
+    {
+      "path": "documentation/models/makepcb/pisca_555_gerber/pisca_555-F_Silkscreen.gto",
+      "sha256": "cf41e83d322c770ee7e5a8e55212fa90ecbd588fb71ee8bf2ed24506b1a60237"
+    },
+    {
+      "path": "documentation/models/makepcb/pisca_555_gerber/pisca_555-NPTH.drl",
+      "sha256": "bfd02334d8bad9af42987a7f0957d2770ce0ae2df57798b7b912b6a21897b989"
+    },
+    {
+      "path": "documentation/models/makepcb/pisca_555_gerber/pisca_555-PTH.drl",
+      "sha256": "54a072b2b67f2917f8c8a96373b12b7628116dae4a3e7dbb979d7fe4104b6d28"
+    },
+    {
+      "path": "documentation/models/makepcb/pisca_555_roteado.mpcb",
+      "sha256": "d940a0d6ae58185e9416b07bc75939f43e978c512089c7ae78c843e573a6896d"
+    },
+    {
+      "path": "documentation/models/makepcb/pisca_555_sem_trilhas.mpcb",
+      "sha256": "28bab3355665832c3a1f689b5634ec2c834f9234f84cbf368e5ec5a89675d1e9"
+    },
+    {
+      "path": "documentation/models/makerouter/README.md",
+      "sha256": "16bd4927ddbb50c81b647cf02acf6c3052ff0c1f83c01627f597cdd3499c17f8"
+    },
+    {
+      "path": "documentation/models/makerouter/placa_exemplo.mrouter",
+      "sha256": "46207046f1af813d6bc524ba92a58a8d316357896b9c68a132c69f4b6a8933d6"
+    },
+    {
+      "path": "documentation/models/makerouter/porta_copos.mrouter",
+      "sha256": "e2153a65430057d185f2cafcb40683bc2ac95140a0cfd8a27bc019c6d8ad2ee2"
+    },
+    {
+      "path": "documentation/models/multiassembly/README.md",
+      "sha256": "d8a998b35007162be060a69b79f1974351e36481a31add1234ba9553dd7de572"
+    },
+    {
+      "path": "documentation/models/multiassembly/cnc_demo.massembly",
+      "sha256": "82c7a30475c5eaf04db86fdafe48dac0ea555e476f6cde062ec7de2c8cc9d501"
+    },
+    {
+      "path": "documentation/models/multicad/README.md",
+      "sha256": "47e373195792e3c2302a1ce7490e00b16e4a37a36fe0967739a3832840d18826"
+    },
+    {
+      "path": "documentation/models/multicad/cantoneira_L.mcad",
+      "sha256": "b538868de207f7574df3b85dc5cbef5d724e47fe1201905ca34c35a18462425d"
+    },
+    {
+      "path": "documentation/models/multicad/placa_furos.mcad",
+      "sha256": "3c66b71b4941f60294cbdb1b569fabeee4e48ca72e377ae95fc315de3166d466"
+    },
+    {
+      "path": "documentation/models/multicam/README.md",
+      "sha256": "548d15293a8b4ae17dde8411975f9d525ff19fb831fa9bd02078b94d413dcf8f"
+    },
+    {
+      "path": "documentation/models/multicnc/README.md",
+      "sha256": "6d2e3afe6a225c8e562642a8416ed9abde80260b8accf6571b8486cac06d99d7"
+    },
+    {
+      "path": "documentation/models/multicnc/quadrado.nc",
+      "sha256": "56fdb2c0a60b1a56b45731aeda8e02c8871d1e0b5427f4f5367a0c8beb0c6fe7"
+    },
+    {
+      "path": "documentation/models/multiphysics/README.md",
+      "sha256": "84b796b12c57b37c6fec1f338462982502213977afd2a8df97f2ee631569d2db"
+    },
+    {
+      "path": "documentation/models/multiphysics/casco_flutuacao.mphys",
+      "sha256": "f65611a2f8307452654cdd1a9a0f1cd142ec7f271407f1d7582a2caa21225e84"
+    },
+    {
+      "path": "documentation/models/multiphysics/cnc_demo.massembly",
+      "sha256": "bceb4ee5d54fd44998c6182225737743cdfe189756417c1005487b4a7adac9d1"
+    },
+    {
+      "path": "documentation/models/multiphysics/filtro_rc.cir",
+      "sha256": "1d1ca266a4576b54e98403b6eac7ba09007bbba0247ebff888321d90f3de3f50"
+    },
+    {
+      "path": "documentation/models/multiphysics/retificador.cir",
+      "sha256": "893d3f0c4593c66f855166a2f4c6bb60a870c8aa9f6981c13aa11b2b82f1514e"
+    },
+    {
+      "path": "documentation/models/multiphysics/suporte_motor_termico.mphys",
+      "sha256": "f30371b9eb16aacda812fba63e9cbf866241029c1b7263103a3362c0edc88a0c"
+    },
+    {
+      "path": "documentation/models/multiphysics/viga_balanco.mphys",
+      "sha256": "39f393ab928027ac8c44f2a3774ebc04f4a9fe3c6f6981a1d478b8cf71e68341"
+    },
+    {
+      "path": "documentation/models/multislicer/README.md",
+      "sha256": "524c026ea4fae0f8fd490b02c492db1f771fc2a03a9ff16e598dd1e3ffff2f73"
+    },
+    {
+      "path": "documentation/models/printer3d/README.md",
+      "sha256": "f85d33ca75dc3926b5c4e54e20ae70116ea89c85332db4b7002cff9c31a35c08"
+    },
+    {
+      "path": "documentation/models/printer3d/anel_20x12mm_marlin.gcode",
+      "sha256": "f837d656879eab5c50c18bacbd1088443714900ded4b8047be1f94d94db3f753"
+    },
+    {
+      "path": "documentation/models/printer3d/anel_diametros_20x12mm.stl",
+      "sha256": "a97c446afb903a0317262bd6868a9400ee7c25e65a5bc79a7056105324c53438"
+    },
+    {
+      "path": "documentation/models/printer3d/cantoneira_30mm_marlin.gcode",
+      "sha256": "6797d651232273f5793b6ff09555e863895b97f8ead6259363fcf6a8a8f6e054"
+    },
+    {
+      "path": "documentation/models/printer3d/cantoneira_esquadro_30mm.stl",
+      "sha256": "87a43c38c3b85d9e722f3f37da2f4bb9809cc7fb051527e21898a1ced9dcf79b"
+    },
+    {
+      "path": "documentation/models/printer3d/cube_marlin.gcode",
+      "sha256": "8f38ddb6018a63899626a4532f90aec215f35daaf224203b19e3e20905b57999"
+    },
+    {
+      "path": "documentation/models/printer3d/cubo_calibracao_20mm.stl",
+      "sha256": "032369f5850474b36b9fab1ac6643d6f47d250c154cd978c6ff02356a155b3af"
+    },
+    {
+      "path": "documentation/models/printer3d/quadrado_20mm_marlin.gcode",
+      "sha256": "4147d11a1b59d253c0f7d3e023950457c37574b0875f3a3b235737b99b4ea42f"
+    },
+    {
+      "path": "documentation/models/routerpcb/README.md",
+      "sha256": "6ddc7ecf2763b285a8072d75539188339aa5de0f699b48986fe32de665c657bd"
+    },
+    {
+      "path": "documentation/multiassembly/README.md",
+      "sha256": "5ce3f7d56d3eceb28560119b34997139c8fef277baf1e9a0916db83f4315ab61"
+    },
+    {
+      "path": "documentation/multiassembly/docs/AI_GUIDE.md",
+      "sha256": "d8795148cd063d459d583b27a109edb4dbbe9a83605d98183cb7ec86f2706b9b"
+    },
+    {
+      "path": "documentation/multiassembly/docs/TAREFA.md",
+      "sha256": "37f70bb1160ee2148af93f860c4df32f14747e7ace3d0fa82d8669dc999ea065"
+    },
+    {
+      "path": "documentation/multicad/README.md",
+      "sha256": "74ee58441b8457b60cb5173f90edb4ec1c45e465ffcc18a50283e9163940fdad"
+    },
+    {
+      "path": "documentation/multicad/docs/AI_GUIDE.md",
+      "sha256": "c3751aeed3021e718651e9821ab36cafade9516e2d1c18f7f36a2611907eb115"
+    },
+    {
+      "path": "documentation/multicad/docs/ARCHITECTURE.md",
+      "sha256": "715d6af44723f3851cc007c3a8029253cf6917e37bd111409bef70e0c47ae5b3"
+    },
+    {
+      "path": "documentation/multicad/docs/TAREFA.md",
+      "sha256": "2503608fada6bb7ccfa08a23ffcfed0e9a7733d015fe94b05b73692be6a9cbb4"
+    },
+    {
+      "path": "documentation/multicam/README.md",
+      "sha256": "55a8c155722c94df9c9f04d8ef0989b9746aca99e74ef9a69f377baf92e7322f"
+    },
+    {
+      "path": "documentation/multicam/docs/AI_GUIDE.md",
+      "sha256": "dbdffa02c91dd5be03531e03838cef3690cf10923acf1189ff3d6da34a58d48a"
+    },
+    {
+      "path": "documentation/multicam/docs/ARCHITECTURE.md",
+      "sha256": "52e2dae221b1842edf527dd6eda6e8ffc61fe1cd6f74b6f03672f76e90afb6f4"
+    },
+    {
+      "path": "documentation/multicam/docs/COLLISION_DETECTION.md",
+      "sha256": "c02d488016627f045dd002393c6247fe1171dfbaf8540fabc96792d0914dd0bf"
+    },
+    {
+      "path": "documentation/multicam/docs/POSICIONAMENTO.md",
+      "sha256": "1315dadf2e6867347446864016b4874cd47ad57d113bbf801ce812d3966b7853"
+    },
+    {
+      "path": "documentation/multiphysics/README.md",
+      "sha256": "9f89274872dcb81331da971d05a0c2710eac8ca885c31c1477489864552f57e0"
+    },
+    {
+      "path": "documentation/multiphysics/docs/AI_GUIDE.md",
+      "sha256": "f4bd39d20be609b60d1bcafa97f4189f2d7d43fd0e03e093c33defc8ef25e053"
+    },
+    {
+      "path": "documentation/multiphysics/docs/INTEGRATION_ROADMAP.md",
+      "sha256": "f201330ece43db97ab5399658b5a2c1de1c6bc4113b7ea919615ceba4972fb94"
+    },
+    {
+      "path": "documentation/multiphysics/docs/MANUAL.md",
+      "sha256": "9f0628d747aa9fdb992adb4d238927551e05fd2bcdf8a70121526cb08bb51e1d"
+    },
+    {
+      "path": "documentation/multiphysics/docs/RUNTIME.md",
+      "sha256": "fac023a0844ff3f0c8b492993f94b32855a33827c379a10aa4ea7ca0bd976625"
+    },
+    {
+      "path": "documentation/multiphysics/docs/TAREFA.md",
+      "sha256": "eb2cae4109ff4d49125779c9c2dd9f4de9fa5e51ed380440caa01bcf92b6bca3"
+    },
+    {
+      "path": "documentation/multiproject/README.md",
+      "sha256": "933b4e723af43525c6a95183b848677df81e62ce0613f35822f53ee41726337a"
+    },
+    {
+      "path": "documentation/multiproject/docs/AI_GUIDE.md",
+      "sha256": "604d02aa18a5f05c7a08d5609321135f8870c8c2055da5713eef84be84e712cc"
+    },
+    {
+      "path": "documentation/multiproject/docs/ARCHITECTURE.md",
+      "sha256": "aa16f74f2aa92e1817f356aa30fb1ee6e07c8f28df8cf78d7ddcd700cf2f0897"
+    },
+    {
+      "path": "documentation/multiproject/docs/LAYOUT.md",
+      "sha256": "1ff55f0eff5cde541bc010f3907a52d9a0a76b3c2e162c2edb8f7a4664aeb52a"
+    },
+    {
+      "path": "documentation/multiproject/docs/REQUISITOS.md",
+      "sha256": "7f365426d7a55b27a4aaa9af3d9ccac1b5d8f2151232a769ee9e0d661cd0292f"
+    },
+    {
+      "path": "documentation/multiproject/docs/TAREFA.md",
+      "sha256": "0604c51eabc7e1c5530076234899bb9a9fd49b553e442fdca47a6a0304ebea42"
+    },
+    {
+      "path": "documentation/multislicer/README.md",
+      "sha256": "3fb2c3868666b2aede47cdd2c33f6e9f19e4e5ca6b2bf504f35dd4d36f071424"
+    },
+    {
+      "path": "documentation/multislicer/docs/AI_GUIDE.md",
+      "sha256": "71bb8921c0c523e29e7336061cfe912bb16cb8340085e5fb324b3f6fce29306f"
+    },
+    {
+      "path": "documentation/multislicer/docs/ARCHITECTURE.md",
+      "sha256": "d92a31d4637fc774f8384af19881c960e790df1b853f5920dfa9e13b11656710"
+    },
+    {
+      "path": "documentation/multislicer/docs/PLANO_FRAGMENTACAO_3D.md",
+      "sha256": "6690c57b3f83ec8cb8fad58f9764c1a9732be1f8bfc5f6c03ded427c7078ef48"
+    },
+    {
+      "path": "documentation/multislicer/docs/PLANO_TAREFAS.md",
+      "sha256": "245e0f415059978252e6699d901e6cd817c26fccaebed6b182c206c9646bb88c"
+    },
+    {
+      "path": "documentation/multislicer/docs/POSICIONAMENTO_3D.md",
+      "sha256": "ee107cf4c0c729353882aef63f568135167bbc29c829879cc0569a4e152e43f3"
+    },
+    {
+      "path": "documentation/multislicer/docs/REQUISITOS.md",
+      "sha256": "df0484a7860f8d10f38d768123b4126762f5e8988b38747bd640add78d6c5cf1"
+    },
+    {
+      "path": "documentation/multisuite/README.md",
+      "sha256": "6f3cde4547f35064c190a17530b0e9e312c333562bf9aeab4f2055055d9ed6c6"
+    },
+    {
+      "path": "documentation/multisuite/docs/AI_GUIDE.md",
+      "sha256": "5da51ecd3dd03577ae0a2f163d95ae9fc67561826309f2e251505bc900cb5c2f"
+    },
+    {
+      "path": "documentation/multisuite/docs/TESTING.md",
+      "sha256": "c97db6f10012d3cf921380880671ffe824bf878cc1576a21880517c9e7526e67"
+    },
+    {
+      "path": "documentation/routerpcb/README.md",
+      "sha256": "cd17c0a3e1846caa9fef7d03f68ad16bc9de26ba4179b19186d1df9b954f19c2"
+    },
+    {
+      "path": "documentation/routerpcb/docs/AI_GUIDE.md",
+      "sha256": "dd23a0cfac7d9e60fc4e91ca04400aa6cc96e325437d35896105cd896f676575"
+    },
+    {
+      "path": "documentation/routerpcb/docs/ARCHITECTURE.md",
+      "sha256": "e360abb52ec29781c01596b1bb0a473ee34542ce04efea3d2cb3d4bd913e8f45"
+    },
+    {
+      "path": "documentation/routerpcb/docs/TAREFA.md",
+      "sha256": "7c5a7dfe8c0a7d06eaa657f17cc7972b4126935bdd1eda7104a2ad039153482a"
+    },
+    {
+      "path": "documentation/screenshots/multislicer_fatiando.png",
+      "sha256": "120356443c45a6e7c715d4fdc5f3b0c420395b456203074ec6ff9a938e7759d6"
+    },
+    {
+      "path": "documentation/screenshots/multislicer_material.png",
+      "sha256": "49757811b54fe5d2f5f114d091086d920fd46a3f8aed882c4fbc214723502751"
+    },
+    {
+      "path": "documentation/screenshots/multislicer_mesa.png",
+      "sha256": "c9e998439b1b9dd0e28e0c552cec44d86e8f18843671d3a1d29636029fb6dde2"
+    },
+    {
+      "path": "documentation/screenshots/multislicer_mesa3d.png",
+      "sha256": "975fbf5e5e9ab3fd6faa0faa3307c39f96eb45467bb26d87de6945f5f374e7d3"
+    },
+    {
+      "path": "documentation/screenshots/multislicer_modelo.png",
+      "sha256": "882e3101a72cf00b5f90abff42ec2ab23cba54b8c0df1a68780c76e05fb45585"
+    },
+    {
+      "path": "documentation/screenshots/multislicer_previa.png",
+      "sha256": "69f9b9243fec6375b13b8ed3a71f48013ca1aae99bb0e0c4cb1659b7b1af2ac9"
+    },
+    {
+      "path": "documentation/screenshots/multislicer_previa3d.png",
+      "sha256": "5da5c12c5080d55510cbd396ca6ff8150e84ecd4acf9ab4491bcf15fb55a6f9e"
+    },
+    {
+      "path": "documentation/screenshots/multislicer_projeto.png",
+      "sha256": "2c103ec222c8054f67906853f01a4970f005efc26ac4b73d413c9618cfc97ac1"
+    },
+    {
+      "path": "documentation/screenshots/multislicer_qualidade.png",
+      "sha256": "042059125f01a1ca0e7f2011c34e536147ff3a2fc3c49083657260c927fbed71"
+    },
+    {
+      "path": "documentation/screenshots/multislicer_suporte.png",
+      "sha256": "7ee543ccbeba06b413aa291346552b611c648eaf7b990198fcb9b34edb1fa0c1"
+    },
+    {
+      "path": "documentation/screenshots/simucnc.bmp",
+      "sha256": "c2ff02af76977c81f8bd30b1a2349fd4846a2373171ee30481a0ea3e84889b4c"
+    },
+    {
+      "path": "documentation/src/app/README.md",
+      "sha256": "ae7075ed9def03bfb2038e2ff09fced115b3e2652e0cff903e1c02e6f279f223"
+    },
+    {
+      "path": "laserart.exe",
+      "sha256": "eebd625d4d7a3d807b53fd81dee4cb275fa55378c89620183b9b94ce1de40228"
+    },
+    {
+      "path": "laserpcb.exe",
+      "sha256": "41c557f59f30a25a6194f9c71ec81f17210f9cde4a06c0770fd807115e193dbc"
+    },
+    {
+      "path": "makepcb.exe",
+      "sha256": "a5c2c54a312b5710e26aebd1b886641c2539a361f4a8194ac8974e62dd8b1109"
+    },
+    {
+      "path": "makerouter.exe",
+      "sha256": "52eaf9b36eb6de171b8a084e978a47fede8922abf55a88db2e4a47040aa0afb3"
+    },
+    {
+      "path": "mcad_occt.dll",
+      "sha256": "ddd442b6321a59351e5ffd99b9a1b2c98608bbe9446dec4f58e94b51ca56702d"
+    },
+    {
+      "path": "models/components/mec/cabos_conectores/conector_gx16_4p.json",
+      "sha256": "c0d41060eead328dfe83bd07b135eb857af6bb5d9c4efaebc8c50550a9a00025"
+    },
+    {
+      "path": "models/components/mec/cabos_conectores/esteira_porta_cabo_10x15_500mm.json",
+      "sha256": "ea311047a6917be8ba56b8be55adf44bbb3606d340784389036184d131893f04"
+    },
+    {
+      "path": "models/components/mec/cabos_conectores/prensa_cabo_pg7.json",
+      "sha256": "59af1e02d880e521ad02945e1a9b0e475895ab53921f67935e941fb1f5073bd9"
+    },
+    {
+      "path": "models/components/mec/cabos_conectores/tomada_iec_c14_chave.json",
+      "sha256": "ad3de93bcd651aa371797beeb6962e6e53b4654be5290b8eb9a13d8a2b754740"
+    },
+    {
+      "path": "models/components/mec/eletronica/arduino_cnc_shield_v3.json",
+      "sha256": "bd669058c2bdc06f6572692eb3ae5eb65f788f8b2b377941e82a944269c1d2b4"
+    },
+    {
+      "path": "models/components/mec/eletronica/botao_e_stop_emergencia.json",
+      "sha256": "9aa3c16cf10c097169952ca856c28f9a5861f2ed5d38fd8d23c3b2ac979bd5ae"
+    },
+    {
+      "path": "models/components/mec/eletronica/controladora_fluidnc_esp32.json",
+      "sha256": "fa3f5c294481d2d66d6627c111a490a6b2c87d0897f7d413f5262aa8396a2306"
+    },
+    {
+      "path": "models/components/mec/eletronica/controladora_grblhal_32bit.json",
+      "sha256": "23343820312d6c465cf3ea75c8e0a7a551d65754334d989ce561065975aa9e43"
+    },
+    {
+      "path": "models/components/mec/eletronica/driver_a4988.json",
+      "sha256": "38375e2f000ed183a4377c6a589a58dcd9ae544932e4b2e8fa9898384fa30715"
+    },
+    {
+      "path": "models/components/mec/eletronica/driver_dm542.json",
+      "sha256": "53918e67df06d44f18e2186e71429777b4c475ce2c2b715c758fb5c5a9e32cbd"
+    },
+    {
+      "path": "models/components/mec/eletronica/driver_drv8825.json",
+      "sha256": "beb7ce9a5fe395ceaaeb973efcb3056cd1f91f84c9ab7f72211205641b238e18"
+    },
+    {
+      "path": "models/components/mec/eletronica/driver_tb6600_4a.json",
+      "sha256": "c37878d921fb6812769d6eedb7c0be41c8c4344727514e5f17d7b68048c4b6b1"
+    },
+    {
+      "path": "models/components/mec/eletronica/driver_tmc2209.json",
+      "sha256": "eb7fdc719acc3b6469c0b1fb3a38ba2fcfbad9d2c03e701efd65a6a4b4301cec"
+    },
+    {
+      "path": "models/components/mec/eletronica/esp32_devkit_v1.json",
+      "sha256": "29fb90720a49803b15074d170b018ca3d1efe1ccf33060cc580debcea1686043"
+    },
+    {
+      "path": "models/components/mec/eletronica/fonte_chaveada_12v_5a.json",
+      "sha256": "52a39c371543609fb0026483c4fce2e7b854c86bf524fd956d86f56189a205af"
+    },
+    {
+      "path": "models/components/mec/eletronica/fonte_chaveada_24v_15a.json",
+      "sha256": "9a1a19eade5744ed5a120cb7164884e7cd6c1830587f6601dfc8bf65a07b8e5c"
+    },
+    {
+      "path": "models/components/mec/eletronica/fonte_chaveada_48v_10a.json",
+      "sha256": "a0c816fe82fe3aaf180c90b3b65107cff5e0b38c3a4d51760fb9c62ce3ad5d7e"
+    },
+    {
+      "path": "models/components/mec/eletronica/inversor_vfd_1500w.json",
+      "sha256": "3212241c0a8f92071db5575ac0cb7834a930535daa907ae3a3fd574acea38e6b"
+    },
+    {
+      "path": "models/components/mec/eletronica/modulo_rele_5v_1canal.json",
+      "sha256": "f74e900fdb1d47c8bf7e57e1e6459fcd662ec62f98c68000d93513e8a9de4c23"
+    },
+    {
+      "path": "models/components/mec/eletronica/sensor_fim_de_curso_microswitch.json",
+      "sha256": "aaaec2d54edee52d72cefe6cc9a435e14a050c44c876a772440141bceb6959d4"
+    },
+    {
+      "path": "models/components/mec/eletronica/sensor_fim_de_curso_optico.json",
+      "sha256": "191bf8db04b92b72acb24826229f6fe782b4cbf5c71b3a5449633badf567344a"
+    },
+    {
+      "path": "models/components/mec/eletronica/sensor_indutivo_lj12a3.json",
+      "sha256": "975730c8cb35af7c4a9ced0ecb4ade9cc5b04e43551e3c25b46cde7abed58ea0"
+    },
+    {
+      "path": "models/components/mec/eletronica/ventoinha_40mm_24v.json",
+      "sha256": "0bd13964b63dba72682a613fb9c2797489f425a616a7efae4d3a01e590ff86ed"
+    },
+    {
+      "path": "models/components/mec/eletronica/ventoinha_80mm_24v.json",
+      "sha256": "19cb15269b68c6fb0ac45ea42adcc0d60fabbecbcf1651a4888d6d7fd501c9fb"
+    },
+    {
+      "path": "models/components/mec/fixadores/arruela_m3_lisa.json",
+      "sha256": "889d8cc18c5e0722db59f445af5b7b376392535399aa720ac4a2936231d51ef3"
+    },
+    {
+      "path": "models/components/mec/fixadores/arruela_m4_lisa.json",
+      "sha256": "39de3b5b3c9bf8eb395a4ef44c0bbb3f7bad350060ec3071e516503d778b59bd"
+    },
+    {
+      "path": "models/components/mec/fixadores/arruela_m5_lisa.json",
+      "sha256": "6f3580c5480a7bc7ebdf19bebe0fdc44fdfc19b1b0a27eee96a44e3dc7b07598"
+    },
+    {
+      "path": "models/components/mec/fixadores/arruela_m5_pressao.json",
+      "sha256": "2914dc3bddde0265a27c54033569e7305f9a7e13bfbbb318ac922418ff77c19d"
+    },
+    {
+      "path": "models/components/mec/fixadores/arruela_m8_lisa.json",
+      "sha256": "f256986adb2e822c3e660fbbdad375402f68976b2f31df249105433fe9ae4d0c"
+    },
+    {
+      "path": "models/components/mec/fixadores/cantoneira_esquadro_2020.json",
+      "sha256": "b00a0772cd97aeabe9537bab44beeb57cb3be4403570ff0bdebfe57b2b8b0b17"
+    },
+    {
+      "path": "models/components/mec/fixadores/espacador_hex_m3x10_ff.json",
+      "sha256": "a55ca44d97560cae36c78ba5ff4f3c47ee4440e28822c0d8615ec30c3c72b9d6"
+    },
+    {
+      "path": "models/components/mec/fixadores/espacador_m3x10.json",
+      "sha256": "a01cb87e3d73e0797b512d303ea84a50e67377c46e6ba0d62d2eb86b46960c52"
+    },
+    {
+      "path": "models/components/mec/fixadores/parafuso_m3x10_allen.json",
+      "sha256": "b190cd1547392ce27fba837d91377a55556d83b7639d3745ca354222e92e6df0"
+    },
+    {
+      "path": "models/components/mec/fixadores/parafuso_m3x16_allen.json",
+      "sha256": "2ed3300cd6a82385c9b1b09d3af2a859809b3ea48a7c52f3cca1ba1799079056"
+    },
+    {
+      "path": "models/components/mec/fixadores/parafuso_m3x20_allen.json",
+      "sha256": "5e67dac4d258116a0718326da29537fbd329c95121d87ae5d9e58f957f2614f7"
+    },
+    {
+      "path": "models/components/mec/fixadores/parafuso_m3x6_allen.json",
+      "sha256": "14e74e4984be8978592e90c7d388fb0481bed74c545766b3321b5b349a9ef432"
+    },
+    {
+      "path": "models/components/mec/fixadores/parafuso_m4x10_allen.json",
+      "sha256": "0fecdcbf1be9d5def725033d194c01e3ace9f71fc56fbf3dd3fc063ccffc5296"
+    },
+    {
+      "path": "models/components/mec/fixadores/parafuso_m4x16_allen.json",
+      "sha256": "052ee624ee38133793740e2c1684b7aeeca95e03c24d8360cfadc58fe64eb8ff"
+    },
+    {
+      "path": "models/components/mec/fixadores/parafuso_m5x10_abaulado.json",
+      "sha256": "09fafbad78be664375a2a620552403c2b105fe9fd5d3e18b03feb7102c51db3f"
+    },
+    {
+      "path": "models/components/mec/fixadores/parafuso_m5x12_escareado.json",
+      "sha256": "38f5f7a12e95edde245040a042993e90f341bac085479c61162da2107ded8628"
+    },
+    {
+      "path": "models/components/mec/fixadores/parafuso_m5x16_allen.json",
+      "sha256": "26dfa5dd4960584c88950c94de641726d5a22b6ffc32c6e4565f4b8f40dc39e1"
+    },
+    {
+      "path": "models/components/mec/fixadores/parafuso_m5x20_allen.json",
+      "sha256": "1811ade1f8f9da65960630e9b9d2d9494d1942ed7bdfe943eb1976ad9f8f21bf"
+    },
+    {
+      "path": "models/components/mec/fixadores/parafuso_m5x25_allen.json",
+      "sha256": "5a2cec9e02ee66d33e6de85a564e14a9f2396d1b28d8264b3dfb530f3ab38ecb"
+    },
+    {
+      "path": "models/components/mec/fixadores/parafuso_m5x40_allen.json",
+      "sha256": "a14992689ff6c665ca1e3bd5d71e43734d9ea1248e5772cef72a62d13262cec5"
+    },
+    {
+      "path": "models/components/mec/fixadores/parafuso_m5x8_abaulado.json",
+      "sha256": "f9b58b3e03406ea574f566df1603e02f615b72ec45db926c2fc3c91b1596bd16"
+    },
+    {
+      "path": "models/components/mec/fixadores/parafuso_m6x20_allen.json",
+      "sha256": "a2d70d2489a602c6285e68ca64c021a31e582653905a551758f0369c94cf3b82"
+    },
+    {
+      "path": "models/components/mec/fixadores/parafuso_m8x25_sextavado.json",
+      "sha256": "6e14857e7451f43227acc808bc4ee4f49e3ea9ba657fb6a196dfb80371be4e3e"
+    },
+    {
+      "path": "models/components/mec/fixadores/parafuso_m8x30_allen.json",
+      "sha256": "29c721275a19514033cdfe012dbbc7fd2e5a7227d8a48134713decddac906b9f"
+    },
+    {
+      "path": "models/components/mec/fixadores/porca_m3_travante.json",
+      "sha256": "510adc83a88178f4228202bda4647b04ebfbbe29e3f48f58fa22320ac87e0842"
+    },
+    {
+      "path": "models/components/mec/fixadores/porca_m4_travante.json",
+      "sha256": "082e868739d353ecab5d353cd6ec30df28268eccf18676be8546d706f2f7b8ee"
+    },
+    {
+      "path": "models/components/mec/fixadores/porca_m5_sextavada.json",
+      "sha256": "bb64768f6d9faad7aa9fa71ab074596f95769dc5c7c822b13ebc2f5ef998d86d"
+    },
+    {
+      "path": "models/components/mec/fixadores/porca_m5_travante.json",
+      "sha256": "f65527ba76ea3d1ba0bf79c7e5bfe41de7fff1c992e205f2b2fb7d28d2c2ee82"
+    },
+    {
+      "path": "models/components/mec/fixadores/porca_m8_sextavada.json",
+      "sha256": "968a1d068a4307ddf9db7a2a9e46bd87158cd7ee137218cd724eeffc4441bcdb"
+    },
+    {
+      "path": "models/components/mec/fixadores/porca_m8_travante.json",
+      "sha256": "e5a6952a65326613e3f892c78ca13b5580581364a0db85cb1d579a89b629dd92"
+    },
+    {
+      "path": "models/components/mec/fixadores/porca_t_nut_m3.json",
+      "sha256": "0a76e523d8b8e3d980a3466b38a8f9c5e788a75ee20d5ba57a81e3842774b2f6"
+    },
+    {
+      "path": "models/components/mec/fixadores/porca_t_nut_m5.json",
+      "sha256": "62e3a84160d02a5eb339e9895c47f490c7b5e4e8335219e7153e20e5f462e539"
+    },
+    {
+      "path": "models/components/mec/fixadores/porca_t_nut_m5_mola.json",
+      "sha256": "d4a77bc00e1e131c6b2823f5f309b53a44c608c5ebec08580b5b8ea0c52f2085"
+    },
+    {
+      "path": "models/components/mec/fixadores/rebite_pop_4x10.json",
+      "sha256": "8f0fe04e0f8d6f9a0cecccf35252ea0e2b237b4d8b59ee56ac76d322200ea142"
+    },
+    {
+      "path": "models/components/mec/guias_fusos/carro_hgh15ca.json",
+      "sha256": "6d50f37aa2bb20d14f2c3e3b69bf836208e0cae588f65af6499db7f4332891c9"
+    },
+    {
+      "path": "models/components/mec/guias_fusos/carro_mgn12h.json",
+      "sha256": "1b68961c9418259eaca1dd6cd2885ac20181bab87022e3743c5d38566209f1b2"
+    },
+    {
+      "path": "models/components/mec/guias_fusos/castanha_sfu1204.json",
+      "sha256": "12bca4ecbbde29e22ddbffae773173f21a93dd7ede46a57185d9acaf857083ad"
+    },
+    {
+      "path": "models/components/mec/guias_fusos/castanha_sfu1605.json",
+      "sha256": "99319d4f47450a95e2ac41b0aa77b20be458fb71c0dd47f80230b8167169bfcc"
+    },
+    {
+      "path": "models/components/mec/guias_fusos/eixo_linear_12mm_400mm.json",
+      "sha256": "578a306f38209e7c0fe1bd50188929a66b10ac3fd6fdf5f4b3bc49ecd3ee162e"
+    },
+    {
+      "path": "models/components/mec/guias_fusos/eixo_linear_8mm_300mm.json",
+      "sha256": "b8ca48ef1d2b40f14484b731bd6c63373553ee8f78066c749ff80072b908fe24"
+    },
+    {
+      "path": "models/components/mec/guias_fusos/eixo_linear_8mm_400mm.json",
+      "sha256": "2067302a49bc373420d8b7c6de3993616f6d10ee031deb25e015c8c66c792f6d"
+    },
+    {
+      "path": "models/components/mec/guias_fusos/fuso_esferas_sfu1204_300mm.json",
+      "sha256": "a4bbe58f4d5e3632d70f641ffb8dcc6369d17919c7ad6cfd153da4601c27b683"
+    },
+    {
+      "path": "models/components/mec/guias_fusos/fuso_esferas_sfu1605_450mm.json",
+      "sha256": "b601c1e0594d856a539714e4b958db540d7809ae06e7d527737cdd96f08771a1"
+    },
+    {
+      "path": "models/components/mec/guias_fusos/fuso_trapezoidal_t8_300mm.json",
+      "sha256": "c70ed5f3b89a8df579ebb8bcefa8fb36136cb3834c3190bbb06f09e56b379d06"
+    },
+    {
+      "path": "models/components/mec/guias_fusos/fuso_trapezoidal_t8_500mm.json",
+      "sha256": "0875d102e154e9c0357c7b15621f40ce31e5d4487a7273d9326da5986574ba31"
+    },
+    {
+      "path": "models/components/mec/guias_fusos/guia_linear_hgr15_500mm.json",
+      "sha256": "87b53a4714e48667d9ce7ecd464aef0685d683b91f6f9f38b37623d43038994c"
+    },
+    {
+      "path": "models/components/mec/guias_fusos/guia_linear_mgn12h_300mm.json",
+      "sha256": "d5d1032c088634cbb9baff9e34d2aa85e8f240450466ef782e2f79886a715d40"
+    },
+    {
+      "path": "models/components/mec/guias_fusos/guia_linear_mgn12h_400mm.json",
+      "sha256": "4bfa5aca0e379550d8c94810a3fa98e61916249280770924010bd020822660fd"
+    },
+    {
+      "path": "models/components/mec/mesas_bases/bloco_sacrificial_mdf_300x180.json",
+      "sha256": "0dbab050bb8509deaf4df2cfb9e07edc7e248336d8c246a7ba49898ebfc4363b"
+    },
+    {
+      "path": "models/components/mec/mesas_bases/mesa_ranhurada_300x180.json",
+      "sha256": "0f01b730a7442672566494496a14ea704139821c0c2ad960504b809e12b30ca8"
+    },
+    {
+      "path": "models/components/mec/mesas_bases/placa_cama_aluminio_220x220.json",
+      "sha256": "49a517ebfac417641500e6afd6b5cd8b2c5494012e3e23477b0ce9ca87613a1b"
+    },
+    {
+      "path": "models/components/mec/motores/modulo_laser_10w.json",
+      "sha256": "c47388a36e6189a64b22f672ecebedbf994b4db18c6dffab687a8737788aea79"
+    },
+    {
+      "path": "models/components/mec/motores/motor_dc_775_24v.json",
+      "sha256": "2fd3c09775ab4b35610ad8d4dd30e7f1de0ad9986d3775d7e965103a50639782"
+    },
+    {
+      "path": "models/components/mec/motores/motor_dc_redutor_jgb37.json",
+      "sha256": "d8646b964b64c86781b54443c66ec1cd73166d40c24e36648f25e6a40a7b13c8"
+    },
+    {
+      "path": "models/components/mec/motores/motor_passo_nema17_42mm.json",
+      "sha256": "2651bbe67ecd1c46b6fe2b3d13cb0ed335579affa0949e5ef20fe67b89b2ad27"
+    },
+    {
+      "path": "models/components/mec/motores/motor_passo_nema17_48mm.json",
+      "sha256": "e5080f2c500389a4d5f9620e997fd8dbbf89cf93488d814b1454cdb959f34a81"
+    },
+    {
+      "path": "models/components/mec/motores/motor_passo_nema17_pancake.json",
+      "sha256": "43fbb05186d6ff02ad0036932abbd6f5e477c7e7198eb2dd499882ee0c9176ce"
+    },
+    {
+      "path": "models/components/mec/motores/motor_passo_nema23_56mm.json",
+      "sha256": "5eafa173f1045939083f15acafd760b543b67e311fa7be277987f73854e90616"
+    },
+    {
+      "path": "models/components/mec/motores/motor_passo_nema23_57mm.json",
+      "sha256": "3d76234961c316a8c26e4d26c7599c40e9694652e19046a854ddc038d0cf6d1a"
+    },
+    {
+      "path": "models/components/mec/motores/motor_passo_nema34_86mm.json",
+      "sha256": "ebab9515f47535c5af338f028a6211d0cac080f01efcf16048e96e2e6b61b493"
+    },
+    {
+      "path": "models/components/mec/motores/motor_spindle_500w_52mm.json",
+      "sha256": "95d6c123460b0ca42a32e238e6bc54887aef6b2d07edcb9bb0ae1909c07fb5db"
+    },
+    {
+      "path": "models/components/mec/motores/spindle_ac_1500w_65mm.json",
+      "sha256": "a7db80fcfbefd968fe4d9d6a4f099a25a273e760c51520467086c300626c60cf"
+    },
+    {
+      "path": "models/components/mec/perfis/perfil_2020_vslot_1000mm.json",
+      "sha256": "fd37974d32e22f8ddb028bdbc178a2e9005e8dbb86df7ac1f89c55bccef54db9"
+    },
+    {
+      "path": "models/components/mec/perfis/perfil_2020_vslot_300mm.json",
+      "sha256": "0e579bccc6c9c3676469589036b228f6740909855a14598907ce8d6da3b1e156"
+    },
+    {
+      "path": "models/components/mec/perfis/perfil_2020_vslot_500mm.json",
+      "sha256": "5720b5f623bcb84196a3007258a8c8844f4954aea6cb69a853e013ba2487eae6"
+    },
+    {
+      "path": "models/components/mec/perfis/perfil_2040_vslot_400mm.json",
+      "sha256": "09adf75cb95d6b5d3755f8ec71f24efe8d830774cf8b78a039c64b8cb25423d9"
+    },
+    {
+      "path": "models/components/mec/perfis/perfil_2040_vslot_600mm.json",
+      "sha256": "dd6ccb308206afe57d84221c95f0baee4c8c726c5de261f910c56ad48d3ca230"
+    },
+    {
+      "path": "models/components/mec/perfis/perfil_2060_vslot_500mm.json",
+      "sha256": "d6999eb98bc22b436e186f6beb9a294e21abcc6b78ef00441fbfed5b3e6349d1"
+    },
+    {
+      "path": "models/components/mec/perfis/perfil_2080_vslot_500mm.json",
+      "sha256": "d923c7274b7f1d4d64c81a3671e1f483558cc51e1fb78d32c4ce5e6eca6da174"
+    },
+    {
+      "path": "models/components/mec/perfis/perfil_4040_vslot_500mm.json",
+      "sha256": "81babaa71df613bef084d38240e7e1ceb859360284ddafe50679efffdd0e99c9"
+    },
+    {
+      "path": "models/components/mec/perfis/perfil_cbeam_4080_500mm.json",
+      "sha256": "0253442c85d785c254776eae9d306e120b00c6abc96f4ed1523fd3019dff1ed1"
+    },
+    {
+      "path": "models/components/mec/placas_suportes/bloco_carro_eixo_z.json",
+      "sha256": "2f43d8eae153ad3581ee80344fe5cb309ff41e66673d33008a18f091d6f87316"
+    },
+    {
+      "path": "models/components/mec/placas_suportes/placa_gantry_vslot_20mm.json",
+      "sha256": "112da3284119c6ce52427764fde62559eecac622c5a285e113ca14893d5c7e8f"
+    },
+    {
+      "path": "models/components/mec/placas_suportes/suporte_motor_nema17.json",
+      "sha256": "b48c4d24f5e516c9692a8241b7d5a8ff549fc0243a2244921f126fda3bbb9c46"
+    },
+    {
+      "path": "models/components/mec/placas_suportes/suporte_motor_nema23.json",
+      "sha256": "41ca9afa365977cb12bce89b8ab0afd4c7fb881ccb4a7745f4ea02ea38cde74d"
+    },
+    {
+      "path": "models/components/mec/placas_suportes/suporte_spindle_52mm.json",
+      "sha256": "7ccce09e132f771f7930470a7aa3ef0f40f8fb5b9fac2032e5130baa80e97ac6"
+    },
+    {
+      "path": "models/components/mec/rodas_carros/espacador_aluminio_6mm.json",
+      "sha256": "90f33e07a24f0b35733a53a8bc386224de6dbcf0aaf2c728204198b106fd8af2"
+    },
+    {
+      "path": "models/components/mec/rodas_carros/espacador_excentrico_6mm.json",
+      "sha256": "d2b68888104d394d3b4f199fb6685ac6f6af782830b6ca0f636fbafd4f713d4b"
+    },
+    {
+      "path": "models/components/mec/rodas_carros/roda_vslot_delrin.json",
+      "sha256": "63bb6fae9ccfc719e6b36799f5dbea01454301d8f748f3c78d33ccc6e832d8cd"
+    },
+    {
+      "path": "models/components/mec/rodas_carros/roda_vslot_mini.json",
+      "sha256": "7cb1df65de784f8c98b4f3c8f3851cff8a6745d8331980f83c6ec2b62710d3c2"
+    },
+    {
+      "path": "models/components/mec/rolamentos_mancais/bloco_suporte_bf12.json",
+      "sha256": "5279db56e7863ee1378c525c1bacbdf6eaab3672e3094964e0ffa47c28f20b0a"
+    },
+    {
+      "path": "models/components/mec/rolamentos_mancais/bloco_suporte_fk12.json",
+      "sha256": "e28eeb7f01bc7156e5fbf3a15957ff2a45d88ac2a39748897b4360d3c00d04ea"
+    },
+    {
+      "path": "models/components/mec/rolamentos_mancais/mancal_kfl08.json",
+      "sha256": "3aa3f1c3a2990ef93c00a5f46334f10a302f7b054a49830ffe2f7c9d90020ad9"
+    },
+    {
+      "path": "models/components/mec/rolamentos_mancais/mancal_kp08.json",
+      "sha256": "1d6c4660b4c1b8277bcc1d801774e30da59cc3f7c117b4291a42963c94ae341f"
+    },
+    {
+      "path": "models/components/mec/rolamentos_mancais/patim_scs12uu.json",
+      "sha256": "7289d3ed23a9c81df71749376b4dae675e2df8cf9bf25bcdb9eb895d4750ddd5"
+    },
+    {
+      "path": "models/components/mec/rolamentos_mancais/patim_scs8uu.json",
+      "sha256": "6cfdc2bdb70957af40df6fbfb1bf42dc017a0feb3709baa0486b5a3fd7438e87"
+    },
+    {
+      "path": "models/components/mec/rolamentos_mancais/rolamento_6000zz.json",
+      "sha256": "5aa34971cc4551ec04398c13c687cfc893977e973d6e3b5ed41cebfb3a51f801"
+    },
+    {
+      "path": "models/components/mec/rolamentos_mancais/rolamento_608zz.json",
+      "sha256": "10bb4a10011d1adfc42538bb2edc5ce9dff965d40c530b8b1dd43bccddfbb54c"
+    },
+    {
+      "path": "models/components/mec/rolamentos_mancais/rolamento_6205.json",
+      "sha256": "c2981a1f70580b7347fbb2528b27be8c4eece82457753f38e0862e1587bb49d2"
+    },
+    {
+      "path": "models/components/mec/rolamentos_mancais/rolamento_623zz.json",
+      "sha256": "845eb43d1b25612de57f6ec9b0e01aa9dc9e6a8de2d08ad236d3ebb3ac3b32df"
+    },
+    {
+      "path": "models/components/mec/rolamentos_mancais/rolamento_625zz.json",
+      "sha256": "8c7a439f805c27b12b43cb8392812cba85f2626ad734d999b4ae24c4dcdbc5f5"
+    },
+    {
+      "path": "models/components/mec/rolamentos_mancais/rolamento_f623zz.json",
+      "sha256": "beb4739e49bb8230a0f91e60bdf3d7f4650b9c10182217b5b9f6b4ac914af4c3"
+    },
+    {
+      "path": "models/components/mec/rolamentos_mancais/rolamento_linear_lm12uu.json",
+      "sha256": "af034b9e3af7359ff8b9fc2488d7318cf580a94533a681e8372669caa8b68699"
+    },
+    {
+      "path": "models/components/mec/rolamentos_mancais/rolamento_linear_lm8luu.json",
+      "sha256": "342f40fce98823dda92b8d349b3f306e9a18bcc604ccdc64c1f5e8e245056dce"
+    },
+    {
+      "path": "models/components/mec/rolamentos_mancais/rolamento_linear_lm8uu.json",
+      "sha256": "19121bac145b27551d9d10793f3a43afc74a7ed1cd866d47a04af2330459e82e"
+    },
+    {
+      "path": "models/components/mec/rolamentos_mancais/suporte_eixo_sk12.json",
+      "sha256": "3219d7a0127ba3a6c5ea8cdab59213525489b0bcf09b5f605aa98a70e5da7f7b"
+    },
+    {
+      "path": "models/components/mec/rolamentos_mancais/suporte_eixo_sk8.json",
+      "sha256": "e355f230e2cfbc66cf93949ea8ce4208e597e3f60d09c525ff6e903abf134dcd"
+    },
+    {
+      "path": "models/components/mec/transmissao/acoplador_flexivel_5x8mm.json",
+      "sha256": "52fd10e8d82b6cf7f4f8c5b853875876f173f9cd8b3b1e781768dddd0749af74"
+    },
+    {
+      "path": "models/components/mec/transmissao/acoplador_flexivel_635x10mm.json",
+      "sha256": "191c9fdc5411319eac0674ceef6e6c3df590639a5901b8e0519b9694c6b8dce1"
+    },
+    {
+      "path": "models/components/mec/transmissao/acoplador_flexivel_8x8mm.json",
+      "sha256": "88be6bfef6128dc8fe6ff07a8d4471f78a903487cbbea2279c82e5ba16cc3076"
+    },
+    {
+      "path": "models/components/mec/transmissao/acoplador_rigido_5x8mm.json",
+      "sha256": "5c28a4a2725c76988c955fbdfd3a32304dc547241af5529ec31a2d8f013781b4"
+    },
+    {
+      "path": "models/components/mec/transmissao/castanha_fuso_t8.json",
+      "sha256": "83be8774f9d6863892b1d4d7d5d73b4648e04e3057af76da44a7c3fa22878a0b"
+    },
+    {
+      "path": "models/components/mec/transmissao/castanha_fuso_t8_antifolga.json",
+      "sha256": "38be859a4e9f33465736655195c8e2c4c7fface4c4b78a6bb214c51f421a2180"
+    },
+    {
+      "path": "models/components/mec/transmissao/correia_gt2_aberta_1000mm.json",
+      "sha256": "d68726de3b926474d24c5cc45b1aa84359056155dcea058623771a3f5037072d"
+    },
+    {
+      "path": "models/components/mec/transmissao/correia_gt2_fechada.json",
+      "sha256": "f02aa6d4a3a782b7104e25805a1a412ca4937f443f3988e6745bb94918660ff0"
+    },
+    {
+      "path": "models/components/mec/transmissao/polia_gt2_16d_eixo5.json",
+      "sha256": "5b23d9c7693f11ea9c2a053bfe91768f0ab0623ad6439b0fac00d38dc5c433b3"
+    },
+    {
+      "path": "models/components/mec/transmissao/polia_gt2_20d_eixo5.json",
+      "sha256": "4fa0e586b2c64b6416a1ef843f864742354406f55991f0e1c52a332fa5dfe4a0"
+    },
+    {
+      "path": "models/components/mec/transmissao/polia_gt2_20d_eixo8.json",
+      "sha256": "41a8eac53d5791ccb90fa26a6af6af18c7a7a8f99fb86adfa832da6238fe0968"
+    },
+    {
+      "path": "models/components/mec/transmissao/polia_gt2_60d_eixo8.json",
+      "sha256": "5317d1e8b0c80c0477cde2464a99e87fdb9c305a3a9a0ad8fed20fc04863ddfc"
+    },
+    {
+      "path": "models/components/mec/transmissao/polia_tensora_gt2_20d.json",
+      "sha256": "be9a39a9bceb18ce8eaf17178f278fe556a4fe017d2bfb6e2ab26fa949ae7c51"
+    },
+    {
+      "path": "models/components/mec/transmissao/polia_tensora_lisa_3mm.json",
+      "sha256": "28d9920f02288205f55e681d4c501c75df02690bf00ea8056a02093be9462c5c"
+    },
+    {
+      "path": "multiassembly.exe",
+      "sha256": "67a77b8619822510715d6ab6ba354d91d8b8cfbddf4713e08684697588c115ff"
+    },
+    {
+      "path": "multicad.exe",
+      "sha256": "7f9084db061e7c937f34707b6a4a1b63fbdd36c2fa9230b5388e929b009219b0"
+    },
+    {
+      "path": "multicam.exe",
+      "sha256": "5b0eb648ae55bdae9d426fec4763d3cf321132bdb3ab51a4ee1d6de52b5596a2"
+    },
+    {
+      "path": "multicnc.exe",
+      "sha256": "b04d663c8e5becde64cc43ba210cdf386121d44b7e5afc61783a0eae6f5891e6"
+    },
+    {
+      "path": "multiphysics.exe",
+      "sha256": "71f09a5a723c35c6a6bcfffebad1e1450a604ce86734705f3594723fad7e1f4a"
+    },
+    {
+      "path": "multiproject.exe",
+      "sha256": "222a2966fcb2c72d4ae010a968aa80ed2757ebae4f0b860eb2243da63c8df964"
+    },
+    {
+      "path": "multislicer.exe",
+      "sha256": "b7dd9fe8eaa650ec6fd0d4cef8301fa19ef8378924cda394bbf13df876cfc0ec"
+    },
+    {
+      "path": "multisuite_tray.exe",
+      "sha256": "788589e6d8da21d2511e94401c61e3989cb98b0658c42a805684b4832c21bd96"
+    },
+    {
+      "path": "qa-tests.json",
+      "sha256": "d62d251331a38071b0dd9378755955cb181e8cc571c0827538dcb928f2478192"
+    },
+    {
+      "path": "routerpcb.exe",
+      "sha256": "f97116f6b0a0e26f2f2e5e6b9a7ae34dd5b3e9b2d5cf5198eec436d4c77dc8df"
+    },
+    {
+      "path": "tests/laserart/test_calibration_matrix.exe",
+      "sha256": "6b6b59221134ca91cc9455334cc12761880ada6132107eafa1183f0fdd3eac56"
+    },
+    {
+      "path": "tests/laserpcb/test_alignment.exe",
+      "sha256": "c505e18514729371f60dea71999cc9c067d21396307d051b1a15aaae7346d02b"
+    },
+    {
+      "path": "tests/laserpcb/test_board.exe",
+      "sha256": "418538cfde68f17c63d18ec05d89738093d23983e45bfc788db2afb8dbd2241d"
+    },
+    {
+      "path": "tests/laserpcb/test_drill.exe",
+      "sha256": "77f0f97d60be88075f5bd037a2794ca1106b8a57c89c60a71c22fc11bcfaa670"
+    },
+    {
+      "path": "tests/laserpcb/test_job.exe",
+      "sha256": "5d97034ef607e19636c0212488ccfd523109149f5d54d508c0f318527b905009"
+    },
+    {
+      "path": "tests/laserpcb/test_layout.exe",
+      "sha256": "ac25ca6c4f484f448bca8d664b01a2eb4bf016ef7961cd2131fdc0c2e0c37664"
+    },
+    {
+      "path": "tests/laserpcb/test_pipeline.exe",
+      "sha256": "0edc5b83869216aeebf086fc4092e4439fb98d97dd05ec8ab8eacae66f11feab"
+    },
+    {
+      "path": "tests/laserpcb/test_raster.exe",
+      "sha256": "b9d6af3304f86a778f586fcabde2333e90f8264a88ca63335704adb80f083f79"
+    },
+    {
+      "path": "tests/makerouter/test_makerouter.exe",
+      "sha256": "057676adb31a69048a92d6b0398df6adde2e63f7a19d2fb0fe069b277fd53df4"
+    },
+    {
+      "path": "tests/multiassembly/test_engineering.exe",
+      "sha256": "1d7d904c3ef6c29a4cd849165ea3a6a48a6b15c06e8d75e95ac35403cb4c223f"
+    },
+    {
+      "path": "tests/multiassembly/test_mates.exe",
+      "sha256": "5ff74303a812075634029af585684b3a84d316228798198b37b4b370f6465be9"
+    },
+    {
+      "path": "tests/multiassembly/test_multiassembly.exe",
+      "sha256": "4a65d4b1a3b9cef8b56cd5825379f4a67320e5786a746b070f2446a5c5dea718"
+    },
+    {
+      "path": "tests/multiassembly/test_suite_complete.exe",
+      "sha256": "5941213295d013f394cb4fd752dcdab1ddce1353c86370119dcb6689bc8fd846"
+    },
+    {
+      "path": "tests/multicad/test_blend_sequence.exe",
+      "sha256": "77cc7133650454b1371f3b9fea77e07a71abd10e4d9fbd247c5d6a9af27b369f"
+    },
+    {
+      "path": "tests/multicad/test_log.exe",
+      "sha256": "c2669c645f8f04f768449ba1f5f28e257dc3bc60ecfdd907f50bd74dd734d511"
+    },
+    {
+      "path": "tests/multicad/test_multicad.exe",
+      "sha256": "ab07a69f05adc0a072fe0f229e7b1fc7d32844ae2b1cbe6cc8d28563301703ff"
+    },
+    {
+      "path": "tests/multicad/test_parametric.exe",
+      "sha256": "08339af52ed6ae79bab177215d168cfa65093d89b056aa470113896fa700decb"
+    },
+    {
+      "path": "tests/multicad/test_sketch_pattern.exe",
+      "sha256": "9bf1ce0ded8cce29832cb5479509e7fae469159e89a87dcda7420c75bc7dd520"
+    },
+    {
+      "path": "tests/multicad/test_sketch_text.exe",
+      "sha256": "4908a2d3d0fbe3105a6f2106b3d7d71a5de35e47019e3c7db0d123df0fceaeae"
+    },
+    {
+      "path": "tests/multicad/test_sketch_trim.exe",
+      "sha256": "1b86448fdbe68e04e5d3b684468ef5f2aa19be766f00f8394dad1c4c44d96826"
+    },
+    {
+      "path": "tests/multicad/test_smart_dimension.exe",
+      "sha256": "24f1b2cb78a3224c7aa52db16b6351c6d1444c79bb16d3d45d56a97169cb7dcb"
+    },
+    {
+      "path": "tests/multicam/test_advanced_mechanical.exe",
+      "sha256": "723ef8732ba7e3cd45a711b32a39b8f991ca4af17d5eb30bfc6b9030de6b23ff"
+    },
+    {
+      "path": "tests/multicam/test_collision.exe",
+      "sha256": "8220789a33ae21a3037d516bc808befdf3da3ceb2a7b583b3c3b97957ca23c1b"
+    },
+    {
+      "path": "tests/multicam/test_demo_pipeline.exe",
+      "sha256": "d517ac8dd079f8d952224073040223aaa5608e691f30660196685866bf17ad40"
+    },
+    {
+      "path": "tests/multicam/test_electronics_simulation.exe",
+      "sha256": "10318a8d231b3fd7655b2e136fe4bd416aa6cd987d3c5fb1aa6bc98cced3fac1"
+    },
+    {
+      "path": "tests/multicam/test_hsm.exe",
+      "sha256": "4dfb905010a72773c015f90074db37006a52671c0338064abde1349a470e49c4"
+    },
+    {
+      "path": "tests/multicam/test_integrated_simulator.exe",
+      "sha256": "5e70e9e360ca408f0a6d22d4c61d7bc7b4a77fd88c3d8caa765de7fca7c9d05d"
+    },
+    {
+      "path": "tests/multicam/test_mechanical_cam.exe",
+      "sha256": "87c5c931cb54bf109114da10ab0c509b6f3bdde4932ae90fea0374228d3ae7bb"
+    },
+    {
+      "path": "tests/multicam/test_mechanical_setup.exe",
+      "sha256": "f00b85a6b698d870e0212ca5c1999d66299abe30061150c4e16a6a314d890299"
+    },
+    {
+      "path": "tests/multicam/test_pcb_heightmap.exe",
+      "sha256": "3fc6b7acb3a126eb522da9c0cd3cfc69dcdcbeb121e25dba9c3ecfcee2985338"
+    },
+    {
+      "path": "tests/multicam/test_pcb_outside_heightmap.exe",
+      "sha256": "4797e2f6a64c75eb80ad0ffd6644ad0bd72847ea2993919ec26f124bd3055204"
+    },
+    {
+      "path": "tests/multicam/test_pcb_segmented_heightmap.exe",
+      "sha256": "f487aa99a538918c42720605fc0c8fa3c6e61852823cbbbb848a920509e30e2d"
+    },
+    {
+      "path": "tests/multicam/test_profile.exe",
+      "sha256": "12c6aeb5240cd3fe4011eab7c3c679cf78d8063f95f8100131e6fed09eed2d48"
+    },
+    {
+      "path": "tests/multicam/test_real_physics.exe",
+      "sha256": "d423979467a6eb7b51e37b81b4f2b7e744f2033b37271fc17a2814f7d0bc51dc"
+    },
+    {
+      "path": "tests/multicam/test_simulation.exe",
+      "sha256": "e4c359bdcecd770caaaa6e4d500f49a25c74556633ff45f5526b1df76f1842db"
+    },
+    {
+      "path": "tests/multicam/test_simulation_session.exe",
+      "sha256": "094768d70a6972e7b0b00daae01f3e980cd3860fea1b9714a43a240f8a2a3ccf"
+    },
+    {
+      "path": "tests/multicnc/debug_parser.exe",
+      "sha256": "fb68de60454aad94fbcc9a5149540b127f19eafeea37a0ba6b069019b13417c7"
+    },
+    {
+      "path": "tests/multicnc/test_connection_startup.exe",
+      "sha256": "47b013875e320854e64f911ec5cabf1cd705696e5215dc8d429faef0a5d15571"
+    },
+    {
+      "path": "tests/multicnc/test_controller.exe",
+      "sha256": "cf13fa4a7d09fe0fb94846f60fd6f1d02320eb110610d12b13a9b443958cd2b1"
+    },
+    {
+      "path": "tests/multicnc/test_equipment.exe",
+      "sha256": "c21f3125e13dd7699683e49d2d09469b52ea2a588ef28abe55ee9f7ab1915579"
+    },
+    {
+      "path": "tests/multicnc/test_gcode_compat.exe",
+      "sha256": "21a482496b15c68e30aacb17833415d8eaebf27aaa8a2852b6188da0816883f1"
+    },
+    {
+      "path": "tests/multicnc/test_gcode_trace.exe",
+      "sha256": "35a470c1abfee5feadd4582928a8d6faa770963b661be1d0402ea2ed65a21c81"
+    },
+    {
+      "path": "tests/multicnc/test_grbl_legacy.exe",
+      "sha256": "caabff231b73fec830685018857b88568ae42974518048eca34c9c8088f722f5"
+    },
+    {
+      "path": "tests/multicnc/test_grbl_regressions.exe",
+      "sha256": "afd93b6ab4480da97738253171d294131c5f5a066a4e7cfee747a04e57c3f91a"
+    },
+    {
+      "path": "tests/multicnc/test_joystick.exe",
+      "sha256": "503ea61115fb893b0fa33b667a28bb6677222c5b27f1df90c4c85d1ba9631419"
+    },
+    {
+      "path": "tests/multicnc/test_laser_profiles.exe",
+      "sha256": "a5db93c0c3c67633dbd4de59984cf8746c60c300d0b56a422cd87e4e7406d086"
+    },
+    {
+      "path": "tests/multicnc/test_locale_invariant.exe",
+      "sha256": "6684a169fe3365d0ce374462d563d48b12d096e16d34394175324f3fbcb43b42"
+    },
+    {
+      "path": "tests/multicnc/test_multislicer_print.exe",
+      "sha256": "945150c1d4ad24f1c009ab540ba2a489b5a63dad17435b8157f5d51d4667f032"
+    },
+    {
+      "path": "tests/multicnc/test_outline.exe",
+      "sha256": "2a43727f7774fada55f6f0375131ee0154d3d169ea2af0f112ad58daa128c853"
+    },
+    {
+      "path": "tests/multicnc/test_printer_temperatures.exe",
+      "sha256": "ae638459e21836fa6dd02ca0f66ec2e5aa39bb1e17010002347741e411ea2ccc"
+    },
+    {
+      "path": "tests/multicnc/test_router_profiles.exe",
+      "sha256": "366c06248c992e4f80c448cef4ad2129ecb0efa57db383ccf78dedbe920cf5e8"
+    },
+    {
+      "path": "tests/multicnc/test_router_spindle.exe",
+      "sha256": "078327ecc2591c6c6f050d3c7348e77b742b680e7035b97bf1dc433cd7c457b4"
+    },
+    {
+      "path": "tests/multicnc/test_serial_transport.exe",
+      "sha256": "f5b5ac4d20899b4c33347584ee511dcdc511460ca8c337a947e94fc586a6cab6"
+    },
+    {
+      "path": "tests/multicnc/test_session.exe",
+      "sha256": "c0bd5e09c894be707916a2a23cabfda9445e63a1f4f956dcc9c331c4fb51116f"
+    },
+    {
+      "path": "tests/multicnc/test_shared_geometry.exe",
+      "sha256": "7193ee99573b4d91274dc1c2d2c252d3370e8dd8d237752fbd517ab31fdc46a6"
+    },
+    {
+      "path": "tests/multicnc/test_shared_heightmap.exe",
+      "sha256": "d5f574705a163f105a9b06bf82e7fde8240f4164febb90f63e2a78ddb4848909"
+    },
+    {
+      "path": "tests/multicnc/test_shared_zcompensation.exe",
+      "sha256": "123de6cda34903bfa55aeca68f4abad21f2ccb6d0fb2494a1661cb59ed9636aa"
+    },
+    {
+      "path": "tests/multicnc/test_simu_temperature_control.exe",
+      "sha256": "3950136e5c97949e9df077179a3685927c92224b8b7cd693d07c5de1ece4e25e"
+    },
+    {
+      "path": "tests/multicnc/test_simulator.exe",
+      "sha256": "61f180f4f59dea978ce5a488e4c6c656da5e1f9d3799b621b6a48baba2f39524"
+    },
+    {
+      "path": "tests/multicnc/test_streaming.exe",
+      "sha256": "fd6b97b67338db7937f77d53e25dcea4bbcb0232eac55dd2c7c5d1325a7aba9d"
+    },
+    {
+      "path": "tests/multicnc/test_zero_assist.exe",
+      "sha256": "80382e90a0147b67ad15bc6ee3899f5fa6af95d5010e605269eb066ed969b51f"
+    },
+    {
+      "path": "tests/multiphysics/test_actuator_scheduler.exe",
+      "sha256": "be45d08c7b5fbd9b4099afbdd32e2bed35f743512f81280155c5cf6036eb0d6e"
+    },
+    {
+      "path": "tests/multiphysics/test_assembly_contact.exe",
+      "sha256": "f3f1e171c525d7bfa74693801e52253e1b839ac85f1d90108b63293b2a3d9bd6"
+    },
+    {
+      "path": "tests/multiphysics/test_buoyancy.exe",
+      "sha256": "8018039b90967fac11090873ffc252eae3487ea9a99bec1fa816fa23c6037f96"
+    },
+    {
+      "path": "tests/multiphysics/test_ccx.exe",
+      "sha256": "472e322e1517dc2087994dddc88e6b94d5db2a45adc6e57eeca019cd55f07843"
+    },
+    {
+      "path": "tests/multiphysics/test_circuit_netlist.exe",
+      "sha256": "a987d08b3c9d2e1fa51caef462da3c76d53aaa3958e5492d2ad19b3f880a419f"
+    },
+    {
+      "path": "tests/multiphysics/test_cnc_cycle.exe",
+      "sha256": "ec75dfc838f67fc632ec245f52a7e8c24c0d638d4e40e5634b75fa7b4585d7dc"
+    },
+    {
+      "path": "tests/multiphysics/test_common_electronics.exe",
+      "sha256": "c356b132246a09b99aef1b5ff78d7c824dec43df0adde5219f9b1e6bd0cb3a34"
+    },
+    {
+      "path": "tests/multiphysics/test_degradation_faults.exe",
+      "sha256": "e10e5f777fd8f283f313e2eda51410693d48eb49633774bc34458817a752e11e"
+    },
+    {
+      "path": "tests/multiphysics/test_digital_power.exe",
+      "sha256": "aa4b94427b36988f8a7b39b5213864c245502098b2fe4a9c37d6247c2faeef32"
+    },
+    {
+      "path": "tests/multiphysics/test_electromagnetics.exe",
+      "sha256": "5f436a8aa5c5a6d3a31f19c25f323d9237af555ff9b39acdb9047dce2c266e5f"
+    },
+    {
+      "path": "tests/multiphysics/test_energy_chemistry.exe",
+      "sha256": "d61b1212ec3027d3d1970b4f24bfc74ff673c36ddba7ec5d0cb0a87d18c1ffac"
+    },
+    {
+      "path": "tests/multiphysics/test_environment.exe",
+      "sha256": "00724f9e9c22688dde0138505b69a154503d7a8e7d9254548ed2c3cfbba7bcfd"
+    },
+    {
+      "path": "tests/multiphysics/test_extended_models.exe",
+      "sha256": "c2e7b71a1252d47bc4541c0c2a43d034e5cbedfd144acbd53cfbb38c611d8569"
+    },
+    {
+      "path": "tests/multiphysics/test_fem_benchmarks.exe",
+      "sha256": "43244e82c64dbb58df864e9f93979be7cc92a9aeea5be2635e07b3802472cbdc"
+    },
+    {
+      "path": "tests/multiphysics/test_geometry_mesh.exe",
+      "sha256": "36cd9c2bb4057e631dffa99ea2a0ec5a812d13cff148502bed3bfecc6306adf6"
+    },
+    {
+      "path": "tests/multiphysics/test_graph_runtime.exe",
+      "sha256": "9ce8333531042d1e68d0e082b534e9770ee646b4ee79f8a8fe27a3dacb81f22f"
+    },
+    {
+      "path": "tests/multiphysics/test_hydro.exe",
+      "sha256": "f7d22e42aee59ab0857b7e75af854de26ebdf35a183e321881ca0d5c8fbc0395"
+    },
+    {
+      "path": "tests/multiphysics/test_integration_suite.exe",
+      "sha256": "174bd96055ebf20fceda3f39655b7cf54d42a2499134a9dc551fa9b10ee9a582"
+    },
+    {
+      "path": "tests/multiphysics/test_machine_faults.exe",
+      "sha256": "67385834b4303aa11ea7dfabb3faa8152dc74244f94c601f44b352b81e6b29d7"
+    },
+    {
+      "path": "tests/multiphysics/test_machine_xyz.exe",
+      "sha256": "2da188fc204e63e3ca032b2a9e3a7a6d1d812a54fa88e27d8f665ebb73b223cc"
+    },
+    {
+      "path": "tests/multiphysics/test_materials.exe",
+      "sha256": "d9c0141ee0dba206b0efa2057e20e921bbb23da9997570d6ff72ddfb20627144"
+    },
+    {
+      "path": "tests/multiphysics/test_mcu.exe",
+      "sha256": "e0e10611d9a8799188cd4783dc486f91c8fe0fa34730b8fd466fe5f29448eb15"
+    },
+    {
+      "path": "tests/multiphysics/test_mcu_graph.exe",
+      "sha256": "490072e5b4c805ef712424f8764526179f742f84f201cf690139bcd0d31d3c7c"
+    },
+    {
+      "path": "tests/multiphysics/test_mcu_stepper.exe",
+      "sha256": "c660e8218f5419b278da646e732ee38086a13a2fb7472168c1c39b52c1991920"
+    },
+    {
+      "path": "tests/multiphysics/test_mechanics.exe",
+      "sha256": "e1131514d52103c8bf7358d35a646a32e82607b797c3ca7af6f9e2cda1154b84"
+    },
+    {
+      "path": "tests/multiphysics/test_mna.exe",
+      "sha256": "cb461309dfcca1aa0e594c26376aeb2e8ee9374b232ba81a568fd581c3882a80"
+    },
+    {
+      "path": "tests/multiphysics/test_newton_ode.exe",
+      "sha256": "a47212dd8e3e92ee7ca7bf67ac0972f5bd93354a7a17335f7297f0ede4eab46e"
+    },
+    {
+      "path": "tests/multiphysics/test_physical_devices.exe",
+      "sha256": "23b2f217f77922ebf42bd88eada45977c3040cb2ea24a9bb2dcf7c2cc40004fb"
+    },
+    {
+      "path": "tests/multiphysics/test_project_analysis.exe",
+      "sha256": "bea82cc06da01bf93ea43d7fece2e1e5b95057bfe0de759b904df3778b3ec203"
+    },
+    {
+      "path": "tests/multiphysics/test_rigidbody.exe",
+      "sha256": "f2263de1aaeb14c75cd44299518ca882718024571bb81af9ba8cd5d8b2f892d1"
+    },
+    {
+      "path": "tests/multiphysics/test_runtime.exe",
+      "sha256": "6edc66a2d21694cef40c222c34246c4b96cf7fc347e56e8919f32f1c8d115ae3"
+    },
+    {
+      "path": "tests/multiphysics/test_scheduler.exe",
+      "sha256": "685dec2e7a3e8bcdfdc23782492ab34fa261cfd4276718e5a338b8d04f4b0b07"
+    },
+    {
+      "path": "tests/multiphysics/test_system_models.exe",
+      "sha256": "8352f9207dfc8a74075f2e7442fcac4cb31fd5f791a74f2cdede29448329ee70"
+    },
+    {
+      "path": "tests/multiphysics/test_transient_nonlinear.exe",
+      "sha256": "23f42ca3f31e8aafdb2cd8ec78a2f8158f044c7e6564b06cc4cc08281c0500be"
+    },
+    {
+      "path": "tests/multiphysics/test_unified_merge.exe",
+      "sha256": "be973a1a76662b20cbe51e338c23071dc7e2b3a13226c8f2fdd1c62cea115b37"
+    },
+    {
+      "path": "tests/multiproject/test_multiproject_core.exe",
+      "sha256": "c168d3cd1d70657b22d0d8b907d949ff624e351fef5b587b1624c1235325ea13"
+    },
+    {
+      "path": "tests/multiproject/test_multiproject_graph.exe",
+      "sha256": "37aa1ae5d840d02c5c02319db5beaf3a453ca205241eb28615e450c6b4b4ba7b"
+    },
+    {
+      "path": "tests/multiproject/test_multiproject_resources.exe",
+      "sha256": "a4f95b780ac0165b884c46c2c70149a044a369de95028c5469c8a8a17dd58d24"
+    },
+    {
+      "path": "tests/multiproject/test_multiproject_schedule.exe",
+      "sha256": "5e47874d5db361545e9b67db68bbadaed9d32e11395a784936010247b7594c90"
+    },
+    {
+      "path": "tests/multiproject/test_multiproject_states.exe",
+      "sha256": "d0c82da8e4bc0df7fa81224da750f05cc58fbf438d1941b1f407abf08e2b703d"
+    },
+    {
+      "path": "tests/multislicer/test_commercial_materials.exe",
+      "sha256": "7947459765bf3a0b0958f280354268fcd9c8b3913000355e09efcf3e8566c89f"
+    },
+    {
+      "path": "tests/multislicer/test_fdm_catalog.exe",
+      "sha256": "0f34e47ace419855b94a5249e5594b1ea5b07dc73300f5806936fe1d94a54e4e"
+    },
+    {
+      "path": "tests/multislicer/test_machines.exe",
+      "sha256": "c79e11942028bd1b0a2d7df316e3c0aedc6045576d77db3ff86fb28e350cbb16"
+    },
+    {
+      "path": "tests/multislicer/test_meshcheck.exe",
+      "sha256": "a61c925b7e2a8953869a5bd4e89094542e4200b7845f085aaf2f0077dc083f97"
+    },
+    {
+      "path": "tests/multislicer/test_modern_slicer.exe",
+      "sha256": "36146572dcca560812eb09cab2ca5cb4b9d9bb288c2ab6bf17a57e9a3bbb4e08"
+    },
+    {
+      "path": "tests/multislicer/test_print_safety.exe",
+      "sha256": "68dae01f639f50e7ddae3777a43d87da0ba2381692550445a1d5e246145adb80"
+    },
+    {
+      "path": "tests/multislicer/test_scene.exe",
+      "sha256": "6ba66b5fd225f17db5a0cf03a295de95e46d1cc33450fcc771cb5c6681344dd7"
+    },
+    {
+      "path": "tests/multislicer/test_support.exe",
+      "sha256": "ebd68842b564575e2aee006c086d56f9a1a15a28393a5e27e9ba11d706cc7ed1"
+    },
+    {
+      "path": "tests/multisuite/test_context.exe",
+      "sha256": "2116854cf7d88521ef6bdebf45f0fd4fbdf4292769e42d4f7d4fd6eb6bae990d"
+    },
+    {
+      "path": "tests/multisuite/test_launcher_delivery.exe",
+      "sha256": "a46d8d31e2723edda5b72f0b00aed54b7c78b50530291f6e4109257b3abd1fe0"
+    },
+    {
+      "path": "tests/multisuite/test_launcher_paths.exe",
+      "sha256": "c9a3c7e82eb9d53e19c7983b4f0e786d8a1108902c57e44ebe4d53fa0308ca0f"
+    },
+    {
+      "path": "tests/multisuite/test_registry.exe",
+      "sha256": "7003a2f4be6730fb3b6d9d411da5b9de6f1bb4afdb3459dc34baccd3ac03bb72"
+    },
+    {
+      "path": "tests/multisuite/test_runner.exe",
+      "sha256": "8153405a44631a77b720d5cd40491b350046203d3c13f23c469abcedbbe48fd9"
+    },
+    {
+      "path": "tests/multisuite/test_workspace.exe",
+      "sha256": "f72be696dcd90f1cbd593a12cb7767fbd51efe3888cfbbb42d00fb3e081dee30"
+    },
+    {
+      "path": "tests/multisuite/test_workspace_validation.exe",
+      "sha256": "f8be8a403e95b5b52f27a156cc5a08f7fe4c64dff6eee46ae95b67ba4bc75ccc"
+    },
+    {
+      "path": "tests/routerpcb/test_routerpcb.exe",
+      "sha256": "450ba6d72ebd43bf94bbe72982ecd12125ca59263208147c4e1b8faf996c2645"
+    }
+  ]
+}

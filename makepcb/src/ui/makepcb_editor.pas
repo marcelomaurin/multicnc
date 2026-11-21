@@ -29,6 +29,9 @@ type
   TMPTool = (etSelect, etPlace, etTrack, etWire, etText, etArea);
 
   TMPStatusEvent = procedure(Sender: TObject; const Text: string) of object;
+  { clique direito curto sobre um item em Selecionar (menu de contexto) }
+  TMPItemContextEvent = procedure(Sender: TObject; Kind: TMPSelKind; Index: Integer;
+    const ScreenPos: TPoint) of object;
 
   TMPEditor = class(TCustomControl)
   private
@@ -54,6 +57,9 @@ type
     FUndo, FRedo: TStringList;
     FOnChange, FOnSelect: TNotifyEvent;
     FOnStatus: TMPStatusEvent;
+    FOnItemContext: TMPItemContextEvent;
+    FRightDown: Boolean;
+    FRightPt: TPoint;
     FModified: Boolean;
     FFree45: Boolean;
     FSel: TMPSelection;
@@ -107,6 +113,10 @@ type
     procedure Select(Kind: TMPSelKind; Index: Integer);
     procedure DeleteSelection;
     procedure RotateSelection;
+    { ha componente travado na selecao? (avisa na barra de status) }
+    function SelectionLocked: Boolean;
+    { gira Steps x 90 graus: positivo = anti-horario, negativo = horario }
+    procedure RotateSelectionBy(Steps: Integer);
     { vira os componentes selecionados (em cima/embaixo) }
     procedure FlipSelection;
     procedure CancelOperation;
@@ -134,6 +144,7 @@ type
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
     property OnSelect: TNotifyEvent read FOnSelect write FOnSelect;
     property OnStatus: TMPStatusEvent read FOnStatus write FOnStatus;
+    property OnItemContext: TMPItemContextEvent read FOnItemContext write FOnItemContext;
   end;
 
 const
@@ -602,7 +613,7 @@ end;
 
 procedure TMPEditor.NudgeSelection(DX, DY: Double);
 begin
-  if (FDoc = nil) or (FSel.Count = 0) then Exit;
+  if (FDoc = nil) or (FSel.Count = 0) or SelectionLocked then Exit;
   Snapshot;
   MPMoveSelection(FDoc, FSel, DX, DY);
   DoChanged;
@@ -627,6 +638,44 @@ begin
         end;
 end;
 
+function TMPEditor.SelectionLocked: Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  if FDoc = nil then Exit;
+  for I := 0 to FSel.Count - 1 do
+    if (FSel[I].Kind = ikComponent) and FDoc.Component(FSel[I].Index).Locked then
+    begin
+      Status(FDoc.Component(FSel[I].Index).Ref + ' esta travado. Destrave para mover ou girar.');
+      Exit(True);
+    end;
+end;
+
+procedure TMPEditor.RotateSelectionBy(Steps: Integer);
+var
+  I: Integer;
+begin
+  Steps := ((Steps mod 4) + 4) mod 4;
+  if Steps = 0 then Exit;
+  if (FTool = etPlace) and (FGhost <> nil) then
+  begin
+    FGhost.Rotation := (FGhost.Rotation + 90 * Steps) mod 360;
+    Invalidate;
+    Exit;
+  end;
+  if (FDoc = nil) or (FSel.Count = 0) or SelectionLocked then Exit;
+  Snapshot;
+  if not FRotValid then
+  begin
+    FRotCenter := MPRotationCenter(FDoc, FSel, FDoc.Grid);
+    FRotValid := True;
+  end;
+  for I := 1 to Steps do
+    MPRotateSelectionAbout(FDoc, FSel, FRotCenter.X, FRotCenter.Y);
+  DoChanged;
+end;
+
 procedure TMPEditor.RotateSelection;
 begin
   if (FTool = etPlace) and (FGhost <> nil) then
@@ -635,7 +684,7 @@ begin
     Invalidate;
     Exit;
   end;
-  if (FDoc = nil) or (FSel.Count = 0) then Exit;
+  if (FDoc = nil) or (FSel.Count = 0) or SelectionLocked then Exit;
   Snapshot;
   if not FRotValid then
   begin
@@ -659,7 +708,7 @@ begin
     Invalidate;
     Exit;
   end;
-  if (FDoc = nil) or (FSel.CountOf(ikComponent) = 0) then Exit;
+  if (FDoc = nil) or (FSel.CountOf(ikComponent) = 0) or SelectionLocked then Exit;
   Snapshot;
   MPFlipSelection(FDoc, FSel);
   DoChanged;
@@ -761,6 +810,7 @@ begin
   P := MPToBoard(FView, X, Y);
   if (Button = mbMiddle) or ((Button = mbRight) and (FTool = etSelect)) then
   begin
+    FRightDown := Button = mbRight; FRightPt := Point(X, Y);
     FPanning := True; FPanStart := Point(X, Y); FPanOrigin := FView;
     Exit;
   end;
@@ -803,6 +853,7 @@ begin
             Exit;
           end;
           if not FSel.Contains(IK, Idx) then Select(K, Idx);
+          if SelectionLocked then Exit;
           FDragging := True; FDragMoved := False;
           FDragStart := Snap(P);
           FApplied := MPPoint(0, 0);
@@ -952,9 +1003,29 @@ procedure TMPEditor.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Inte
 var
   A, B: TMPPoint;
   R: TMPRect;
+  K: TMPSelKind;
+  Idx: Integer;
+  IK: TMPItemKind;
 begin
   inherited MouseUp(Button, Shift, X, Y);
-  if FPanning then begin FPanning := False; Exit; end;
+  if FPanning then
+  begin
+    FPanning := False;
+    { botao direito sem arrastar: menu do item sob o cursor }
+    if FRightDown and (Button = mbRight) and (FDoc <> nil) and Assigned(FOnItemContext) and
+      (Abs(X - FRightPt.X) <= 4) and (Abs(Y - FRightPt.Y) <= 4) then
+    begin
+      FRightDown := False;
+      FView := FPanOrigin;
+      HitTest(MPToBoard(FView, X, Y), K, Idx);
+      if (K <> selNone) and SelToItem(K, IK) and not FSel.Contains(IK, Idx) then Select(K, Idx);
+      Invalidate;
+      FOnItemContext(Self, K, Idx, ClientToScreen(Point(X, Y)));
+      Exit;
+    end;
+    FRightDown := False;
+    Exit;
+  end;
   if FBanding then
   begin
     FBanding := False;
@@ -1034,7 +1105,10 @@ begin
         end;
         Key := 0;
       end;
-    VK_R: begin RotateSelection; Key := 0; end;
+    VK_R: begin
+            if ssShift in Shift then RotateSelectionBy(-1) else RotateSelection;
+            Key := 0;
+          end;
     VK_F: if Shift = [] then begin FlipSelection; Key := 0; end;
     VK_BACK:
       if Length(FPoints) > 0 then

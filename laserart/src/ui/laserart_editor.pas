@@ -26,7 +26,7 @@ uses
   laserart_model, laserart_geom, laserart_imaging, laserart_output;
 
 type
-  TLATool = (ltSelect, ltRect, ltEllipse, ltPolygon, ltLine, ltText);
+  TLATool = (ltSelect, ltRect, ltEllipse, ltPolygon, ltLine, ltText, ltGear, ltStar);
   TRectArray = array of TRect;
   TLACursorEvent = procedure(Sender: TObject; X, Y: Double) of object;
 
@@ -410,9 +410,9 @@ var
 begin
   Iv := FDoc.Layers[S.Layer].Interval;
   if Iv <= 0 then Iv := 0.1;
-  Key := Format('%s|%.3f|%.3f|%.3f|%d|%d|%d|%d|%d|%d',
+  Key := Format('%s|%.3f|%.3f|%.3f|%d|%d|%d|%d|%d|%d|%.3f|%.1f',
     [S.ImageFile, S.W, S.H, Iv, Ord(S.Dither), S.Brightness, S.Contrast,
-     Ord(S.Invert), Ord(S.MirrorX), Ord(S.MirrorY)]);
+     Ord(S.Invert), Ord(S.MirrorX), Ord(S.MirrorY), S.EffectSize, S.EffectAngle]);
   if (S.Preview = nil) or (S.PreviewKey <> Key) then
   begin
     S.InvalidatePreview;
@@ -1146,7 +1146,7 @@ begin
           FDrag := dmMarquee;
         end;
       end;
-    ltRect, ltEllipse, ltPolygon:
+    ltRect, ltEllipse, ltPolygon, ltGear, ltStar:
       begin
         FDrag := dmCreate;
         FCreated := nil;
@@ -1276,6 +1276,8 @@ begin
           case FTool of
             ltRect:    FCreated := TLAShape.Create(skRect);
             ltEllipse: FCreated := TLAShape.Create(skEllipse);
+            ltGear:    FCreated := TLAShape.Create(skGear);
+            ltStar:    FCreated := TLAShape.Create(skStar);
           else
             begin
               FCreated := TLAShape.Create(skPolygon);

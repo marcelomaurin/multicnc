@@ -892,7 +892,7 @@ end;
 procedure TCadSketchSession.FinishDimension(const P: TCadVec2);
 var
   I: Integer;
-  Txt: string;
+  Txt, Err: string;
   RefOnly, Ok: Boolean;
 begin
   UpdateDimensionDirection(P);
@@ -925,8 +925,8 @@ begin
   else
   begin
     FSketch.SetConstraintDriving(I, True);
-    if Trim(Txt) <> '' then
-      FSketch.SetConstraintExpr(I, Trim(Txt));
+    if (Trim(Txt) <> '') and not FSketch.SetConstraintText(I, Trim(Txt), Err) then
+      LastMessage := Err;
   end;
   Solve;
   if LastSolve.Status in [ssConflict, ssOverDefined] then
@@ -1099,7 +1099,7 @@ end;
 function TCadSketchSession.MakeDimension(const A: TCadPickItem; const B: TCadPickItem;
   HasB: Boolean): Integer;
 var
-  Txt: string;
+  Txt, Err: string;
   I: Integer;
   V: Double;
 begin
@@ -1113,7 +1113,8 @@ begin
     Txt := FormatFloat('0.###', V);
     if FOnAskValue(Self, FSketch.Constraint(I).DimName, Txt) and (Trim(Txt) <> '') then
     begin
-      FSketch.SetConstraintExpr(I, Trim(Txt));
+      if not FSketch.SetConstraintText(I, Trim(Txt), Err) then
+        LastMessage := Err;
       Solve;
       if LastSolve.Status = ssConflict then
         LastMessage := LastSolve.Message;
@@ -1363,7 +1364,9 @@ end;
 
 function CadDimText(const C: TSketchConstraint): string;
 var
-  V: string;
+  V, N: string;
+  K: Integer;
+  Auto: Boolean;
 begin
   V := FormatFloat('0.##', Abs(C.Value));
   case C.Kind of
@@ -1373,6 +1376,15 @@ begin
   else
     Result := V + ' mm';
   end;
+  { cota com nome proprio (variavel): "aresta = 25 mm" }
+  N := C.DimName;
+  Auto := (Length(N) >= 2) and (UpCase(N[1]) = 'D');
+  if Auto then
+    for K := 2 to Length(N) do
+      if not (N[K] in ['0'..'9']) then
+        Auto := False;
+  if (N <> '') and not Auto then
+    Result := N + ' = ' + Result;
   if not C.Driving then
     Result := '(' + Result + ')';
 end;
@@ -1644,12 +1656,50 @@ procedure TCadSketchSession.AddLinkedDim(AKind: TConstraintKind; AEnt, APt, BEnt
 var
   CId, I: Integer;
   V: Double;
+  Err: string;
 begin
   CId := FSketch.AddDimension(AKind, AEnt, APt, BEnt, BPt, AValue);
   I := FSketch.ConstraintIndex(CId);
-  if (AText <> '') and not TryStrToFloat(StringReplace(AText, ',', '.', []), V,
+  if Pos('=', AText) > 0 then
+  begin
+    { "aresta=80": cota com nome proprio }
+    if not FSketch.SetConstraintText(I, AText, Err) then
+      LastMessage := Err;
+  end
+  else if (AText <> '') and not TryStrToFloat(StringReplace(AText, ',', '.', []), V,
     DefaultFormatSettings) and not TryStrToFloat(AText, V) then
     FSketch.SetConstraintExpr(I, AText);
+end;
+
+{ Parte do valor de "nome=expressao" (ou o texto todo). }
+function ExprOf(const S: string): string;
+var
+  N: string;
+begin
+  CadSplitNamedValue(S, N, Result);
+end;
+
+{ Separador de "largura x altura": ';' ou um 'x' fora de palavra
+  (entre numero/parentese/espaco e o proximo valor), senao espaco. }
+function TypedSeparator(const T: string): Integer;
+var
+  I: Integer;
+  Before, After: Char;
+begin
+  Result := Pos(';', T);
+  if Result > 0 then
+    Exit;
+  for I := 2 to Length(T) - 1 do
+    if T[I] in ['x', 'X'] then
+    begin
+      Before := T[I - 1];
+      After := T[I + 1];
+      if (Before in ['0'..'9', ')', ' ', '.', ','] ) and
+        ((After in ['0'..'9', '(', ' ', '.', ',']) or (Before = ' ')) and
+        not ((Before = ' ') and (After in ['A'..'Z', 'a'..'z', '_'])) then
+        Exit(I);
+    end;
+  Result := Pos(' ', T);
 end;
 
 function TCadSketchSession.ApplyTyped(const AText: string): Boolean;
@@ -1667,8 +1717,9 @@ begin
   LastMessage := '';
   if not CanType then
     Exit;
-  T := StringReplace(LowerCase(Trim(AText)), '×', 'x', [rfReplaceAll]);
-  T := StringReplace(T, 'mm', '', [rfReplaceAll]);
+  { mantem maiusculas e o "mm" dentro de nomes (aresta=35-10mm, Cubo.comprimento);
+    o avaliador ja entende "mm" depois de numero }
+  T := StringReplace(Trim(AText), '×', 'x', [rfReplaceAll]);
   S0 := FClicks[0];
   NB := FSketch.EntityCount;
   case FTool of
@@ -1683,7 +1734,7 @@ begin
         end
         else
           A := T;
-        if not FDoc.Eval(A, L, Err) or (L <= 0) then
+        if not FDoc.Eval(ExprOf(A), L, Err) or (L <= 0) then
         begin
           LastMessage := 'Comprimento inválido: ' + A;
           Exit;
@@ -1731,17 +1782,15 @@ begin
       end;
     tkRectangle:
       begin
-        K := Pos('x', T);
-        if K = 0 then K := Pos(';', T);
-        if K = 0 then K := Pos(' ', T);
+        K := TypedSeparator(T);
         if K = 0 then
         begin
-          LastMessage := 'Digite largura x altura (ex.: 80 x 50)';
+          LastMessage := 'Digite largura x altura (ex.: 80 x 50, ou larg=80; alt=50)';
           Exit;
         end;
         A := Trim(Copy(T, 1, K - 1));
         B := Trim(Copy(T, K + 1, MaxInt));
-        if not FDoc.Eval(A, W, Err) or not FDoc.Eval(B, H, Err) or (W <= 0) or (H <= 0) then
+        if not FDoc.Eval(ExprOf(A), W, Err) or not FDoc.Eval(ExprOf(B), H, Err) or (W <= 0) or (H <= 0) then
         begin
           LastMessage := 'Medidas inválidas: ' + T;
           Exit;
@@ -1767,7 +1816,7 @@ begin
       end;
     tkCircle:
       begin
-        if not FDoc.Eval(T, D, Err) or (D <= 0) then
+        if not FDoc.Eval(ExprOf(T), D, Err) or (D <= 0) then
         begin
           LastMessage := 'Diâmetro inválido: ' + T;
           Exit;

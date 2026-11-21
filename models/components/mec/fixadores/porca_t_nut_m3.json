@@ -1,0 +1,37 @@
+{
+  "name": "Porca T-Nut M3 Martelo",
+  "model": "Drop-in T-Nut M3 Slot 6",
+  "category": "fixadores",
+  "kind": "ackFastenerNut",
+  "material": "Aço carbono zincado",
+  "color": 13420482,
+  "size": {
+    "x": 10.0,
+    "y": 11.0,
+    "z": 5.2
+  },
+  "ports": [
+    {
+      "name": "ROSCA",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "RASGO",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Porca martelo M3 para rasgo 6 (fixação de placas eletrônicas e suportes leves).",
+  "mass_g": 2.0,
+  "specs": {
+    "rosca": "M3",
+    "rasgo_mm": 6,
+    "serie": 20
+  },
+  "geometry": [
+    {"type": "prism", "axis": "x", "at": [0.0, 0.0, 0.0], "h": 10.0, "poly": [[0.0, 0.0], [11.0, 0.0], [11.0, 1.6], [8.4, 3.6], [8.4, 5.2], [2.6, 5.2], [2.6, 3.6], [0.0, 1.6]], "color": "#C2C7CC"},
+    {"type": "disk", "axis": "z", "at": [5.0, 5.5, 5.2], "r": 1.5, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [5.0, 5.5, 0.0], "r": 1.5, "color": "#15161A"}
+  ]
+}

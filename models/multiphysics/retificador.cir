@@ -1,0 +1,7 @@
+* Retificador meia onda com diodo e filtro
+V1 in 0 SIN(0 10 60)
+D1 in out
+C1 out 0 470u
+R1 out 0 1k
+.tran 50u 100m
+.probe in out

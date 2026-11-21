@@ -61,6 +61,7 @@ type
     procedure LoadParams(O: TJSONObject); override;
     function Validate: string; override;
     function Dependencies: TCadIdArray; override;
+    function SetNumParam(const AKey: string; AValue: Double): Boolean; override;
   end;
 
   TCadAxis = class(TCadFeature)
@@ -321,6 +322,19 @@ end;
 function TCadAxis.Dependencies: TCadIdArray;
 begin
   Result := RefsDeps(Refs);
+end;
+
+function TCadPlane.SetNumParam(const AKey: string; AValue: Double): Boolean;
+begin
+  Result := True;
+  if AKey = 'distance' then
+    Distance := AValue
+  else if AKey = 'angle' then
+    Angle := AValue
+  else if AKey = 'count' then
+    Count := Round(AValue)
+  else
+    Result := inherited SetNumParam(AKey, AValue);
 end;
 
 initialization

@@ -206,3 +206,26 @@ Os projetos `tests/test_app.lpi`, `tests/test_equipment_app.lpi` e
 `tests/test_accessories_ui.lpi`, junto dos testes de sessão/protocolo, verificam
 fluxos sem movimentar uma CNC física. A compilação do painel usa
 `lazbuild src/app/multicnc.lpi`, com Lazarus/LCL e dependências CHATGPT configuradas.
+
+## Calibração manual da mesa
+
+Na aba **Calibração**, ajuste a distância da base (Z, padrão **2 mm**), as
+margens X/Y (padrão **5 mm**) e a altura Z de movimentação (padrão e mínimo
+**10 mm**, maior que a distância da base). Defina previamente o zero Z na
+base e o zero X/Y no canto da área útil e confira os cursos X/Y/Z do perfil.
+
+Clique em **Iniciar calibração**. A ferramenta sobe até a altura de movimentação,
+vai ao canto e desce até a distância da base. A sequência é frente esquerda,
+frente direita, fundo direita e fundo esquerda. Ajuste a mesa em cada ponto e use
+**Próximo canto**, **Canto anterior** ou **Finalizar**. Cada deslocamento aguarda a
+posição informada pela controladora; não há avanço automático entre cantos.
+
+Os movimentos usam milímetros, posição absoluta e avanço de 300 mm/min, com
+spindle/laser desligado. Os comandos manuais e o joystick ficam bloqueados
+durante a calibração. Finalizar durante o movimento interrompe a máquina;
+finalizar em um canto mantém a posição atual. Esta função auxilia o ajuste
+manual da mesa e não grava uma malha de compensação automática.
+
+Após o homing, a elevação inicial move somente Z. Assim, posições de repouso
+negativas de X/Y do Marlin (como X −3 e Y −10) não impedem a calibração;
+os movimentos posteriores de X/Y continuam sujeitos ao curso útil configurado.

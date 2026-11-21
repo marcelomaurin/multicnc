@@ -204,6 +204,12 @@ begin
     Check(S.Errors = 0, 'erro de transmissao nao conta como erro de programa');
     S.Feed('echo:busy: processing'#10'ok'#10'ok'#10);
     Check(S.State = stDone, 'Marlin concluido');
+    S.Load(Prog); S.Start; S.Feed('ok'#10);
+    S.Feed('Resend: 999'#10);
+    Check(S.State = stError, 'Resend futuro rejeitado');
+    S.Load(Prog); S.Start; S.Feed('ok'#10);
+    S.Feed('Resend: -1'#10);
+    Check(S.State = stError, 'Resend negativo rejeitado');
   finally
     S.Free;
     Prog.Free;

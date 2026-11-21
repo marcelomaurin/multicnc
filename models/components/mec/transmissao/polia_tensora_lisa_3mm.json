@@ -1,0 +1,37 @@
+{
+  "name": "Polia Tensora Lisa 3mm",
+  "model": "Idler lisa F623 B3",
+  "category": "transmissao",
+  "kind": "ackPulley",
+  "material": "Alumínio / 2x F623ZZ",
+  "color": 13815241,
+  "size": {
+    "x": 17.224,
+    "y": 17.224,
+    "z": 8.5
+  },
+  "ports": [
+    {
+      "name": "FURO_3MM",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    },
+    {
+      "name": "SUPERFICIE",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Polia tensora lisa (lado dorsal da correia) com rolamentos, furo 3 mm.",
+  "mass_g": 5,
+  "specs": {
+    "furo_mm": 3
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [8.612, 8.612, 0.0], "r": 8.612, "h": 1.0, "color": "#C9CDD2", "ri": 1.5, "seg": 32},
+    {"type": "cyl", "axis": "z", "at": [8.612, 8.612, 1.0], "r": 6.112, "h": 6.5, "color": "#C9CDD2", "seg": 32},
+    {"type": "cyl", "axis": "z", "at": [8.612, 8.612, 7.5], "r": 8.612, "h": 1.0, "color": "#C9CDD2", "ri": 1.5, "seg": 32},
+    {"type": "disk", "axis": "z", "at": [8.612, 8.612, 8.5], "r": 1.5, "color": "#15161A"},
+    {"type": "disk", "axis": "z", "at": [8.612, 8.612, 0.0], "r": 1.5, "color": "#15161A"}
+  ]
+}

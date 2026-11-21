@@ -1,0 +1,78 @@
+Hint: (11030) Start of reading config file C:\lazarus\fpc\3.2.2\bin\i386-win32\fpc.cfg
+Hint: (11031) End of reading config file C:\lazarus\fpc\3.2.2\bin\i386-win32\fpc.cfg
+Hint: (11030) Start of reading config file C:\Users\mmaurin\Documents\Codex\2026-10-14\si\work\gui\deps.cfg
+Hint: (11031) End of reading config file C:\Users\mmaurin\Documents\Codex\2026-10-14\si\work\gui\deps.cfg
+Free Pascal Compiler version 3.2.2 [2025/11/08] for x86_64
+Copyright (c) 1993-2021 by Florian Klaempfl and others
+(1002) Target OS: Win64 for x64
+(3104) Compiling simucnc.lpr
+(3104) Compiling simuform.pas
+(3104) Compiling D:\projetos\maurinsoft\multicnc\src\shared\multisuite_numfmt.pas
+(3104) Compiling D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AISockets\aitcpserver.pas
+D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AISockets\aitcpserver.pas(41,31) Hint: (5057) Local variable "W" does not seem to be initialized
+D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AISockets\aitcpserver.pas(61,13) Hint: (5057) Local variable "A" does not seem to be initialized
+(3104) Compiling D:\projetos\maurinsoft\CHATGPT\pacote\AI Simulation\Marlin\aimarlinserialdevice.pas
+(3104) Compiling D:\projetos\maurinsoft\CHATGPT\pacote\AI\aibase.pas
+(3104) Compiling D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AISerial\aiserial.pas
+D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AISerial\aiserial.pas(169,18) Hint: (5057) Local variable "Buffer" does not seem to be initialized
+D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AISerial\aiserial.pas(191,20) Hint: (5057) Local variable "Buffer" does not seem to be initialized
+D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AISerial\aiserial.pas(238,43) Warning: (5066) Symbol "SendATCommand" is deprecated: "Use WriteText/Poll"
+(3104) Compiling D:\projetos\maurinsoft\CHATGPT\pacote\AI Simulation\Marlin\aimarlinsimulator.pas
+(3104) Compiling D:\projetos\maurinsoft\CHATGPT\pacote\AI Simulation\Marlin\aigcodeparser.pas
+D:\projetos\maurinsoft\CHATGPT\pacote\AI Simulation\Marlin\aigcodeparser.pas(50,19) Hint: (5058) Variable "Command" does not seem to be initialized
+D:\projetos\maurinsoft\CHATGPT\pacote\AI Simulation\Marlin\aimarlinserialdevice.pas(13,28) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\CHATGPT\pacote\AI Simulation\Marlin\aimarlinserialdevice.pas(14,28) Hint: (5024) Parameter "Sender" not used
+(3104) Compiling D:\projetos\maurinsoft\CHATGPT\pacote\AI Input\AIVirtualSerial\aivirtualserialpair.pas
+(3104) Compiling D:\projetos\maurinsoft\CHATGPT\pacote\AI\aiprocessrunner.pas
+(3104) Compiling multicnc_print3d_view.pas
+D:\projetos\maurinsoft\multicnc\src\simucnc\multicnc_print3d_view.pas(125,25) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\simucnc\multicnc_print3d_view.pas(128,74) Hint: (5024) Parameter "Rapid" not used
+D:\projetos\maurinsoft\multicnc\src\simucnc\multicnc_print3d_view.pas(472,16) Hint: (5091) Local variable "Cap" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\simucnc\multicnc_print3d_view.pas(504,16) Hint: (5091) Local variable "Cap" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\simucnc\multicnc_print3d_view.pas(870,18) Hint: (5091) Local variable "Pts" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\simucnc\multicnc_print3d_view.pas(957,18) Hint: (5091) Local variable "Order" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\src\simucnc\multicnc_print3d_view.pas(120,27) Hint: (5024) Parameter "Shift" not used
+D:\projetos\maurinsoft\multicnc\src\simucnc\multicnc_print3d_view.pas(120,68) Hint: (5024) Parameter "MousePos" not used
+(3104) Compiling simu_table_config_form.pas
+D:\projetos\maurinsoft\multicnc\src\simucnc\simu_table_config_form.pas(25,29) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\simucnc\simu_table_config_form.pas(26,27) Hint: (5024) Parameter "Sender" not used
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_icons.pas
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_icons.pas(114,14) Hint: (5091) Local variable "A" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_icons.pas(159,16) Hint: (5091) Local variable "Pts" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_icons.pas(185,16) Hint: (5091) Local variable "Pts" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_icons.pas(201,16) Hint: (5091) Local variable "Pts" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_icons.pas(233,16) Hint: (5091) Local variable "Pts" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_icons.pas(260,19) Warning: (5093) function result variable of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_icons.pas(377,22) Hint: (5091) Local variable "Pts" of a managed type does not seem to be initialized
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_icons.pas(868,22) Hint: (5091) Local variable "CovFill" of a managed type does not seem to be initialized
+(3104) Compiling D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_controls.pas
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_controls.pas(354,5) Warning: (6018) unreachable code
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_controls.pas(502,7) Warning: (6018) unreachable code
+D:\projetos\maurinsoft\multicnc\multisuite\src\core\multisuite_controls.pas(550,5) Warning: (6018) unreachable code
+D:\projetos\maurinsoft\multicnc\src\simucnc\simuform.pas(50,28) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\simucnc\simuform.pas(53,31) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\simucnc\simuform.pas(34,28) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\simucnc\simuform.pas(35,27) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\simucnc\simuform.pas(38,29) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\simucnc\simuform.pas(74,23) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\simucnc\simuform.pas(72,66) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\simucnc\simuform.pas(72,28) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\simucnc\simuform.pas(26,33) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\simucnc\simuform.pas(27,30) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\simucnc\simuform.pas(28,32) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\simucnc\simuform.pas(29,35) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\simucnc\simuform.pas(73,26) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\simucnc\simuform.pas(72,105) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\simucnc\simuform.pas(43,27) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\simucnc\simuform.pas(44,30) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\simucnc\simuform.pas(64,24) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\simucnc\simuform.pas(65,23) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\simucnc\simuform.pas(67,27) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\simucnc\simuform.pas(68,28) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\simucnc\simuform.pas(69,31) Hint: (5024) Parameter "Sender" not used
+D:\projetos\maurinsoft\multicnc\src\simucnc\simuform.pas(73,59) Hint: (5024) Parameter "Sender" not used
+(9022) Compiling resource D:\projetos\maurinsoft\multicnc\src\simucnc\lib\x86_64-win64\simucnc.obj
+(9015) Linking D:\projetos\maurinsoft\multicnc\src\simucnc\SimuCNC.exe
+(1008) 5679 lines compiled, 6.1 sec, 1794224 bytes code, 126644 bytes data
+(1021) 5 warning(s) issued
+(1022) 50 hint(s) issued

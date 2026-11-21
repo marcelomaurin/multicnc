@@ -1,0 +1,35 @@
+{
+  "name": "Porca M5 Travante",
+  "model": "DIN 985 M5",
+  "category": "fixadores",
+  "kind": "ackFastenerNut",
+  "material": "Aço zincado / inserto de nylon",
+  "color": 13420482,
+  "size": {
+    "x": 9.238,
+    "y": 8.0,
+    "z": 5.0
+  },
+  "ports": [
+    {
+      "name": "FURO_ROSCA",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Porca autotravante com inserto de nylon M5 (chave 8.0, altura 5.0).",
+  "standard": "DIN 985 / ISO 10511",
+  "mass_g": 1.6,
+  "specs": {
+    "rosca": "M5",
+    "chave_mm": 8.0,
+    "altura_mm": 5.0
+  },
+  "geometry": [
+    {"type": "prism", "axis": "z", "at": [4.619, 4.0, 0.0], "h": 3.1, "poly": [[4.619, 0.0], [2.309, 4.0], [-2.309, 4.0], [-4.619, 0.0], [-2.309, -4.0], [2.309, -4.0]], "color": "#C2C7CC"},
+    {"type": "cyl", "axis": "z", "at": [4.619, 4.0, 3.1], "r": 3.76, "h": 1.9, "color": "#C2C7CC", "r2": 3.36, "seg": 24},
+    {"type": "cyl", "axis": "z", "at": [4.619, 4.0, 4.99], "r": 2.88, "h": 0.01, "color": "#EDEBE2", "ri": 2.5, "seg": 24},
+    {"type": "disk", "axis": "z", "at": [4.619, 4.0, 0.0], "r": 2.5, "color": "#15161A", "seg": 16},
+    {"type": "disk", "axis": "z", "at": [4.619, 4.0, 5.0], "r": 2.4, "color": "#15161A", "seg": 16}
+  ]
+}

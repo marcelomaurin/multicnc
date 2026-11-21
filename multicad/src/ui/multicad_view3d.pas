@@ -31,6 +31,7 @@ uses
 
 const
   CAD_TAG_FEATURE = 2001;   { Id de planos, eixos, esbocos e origem: face = indice da operacao }
+  CAD_TAG_SKENT = 2002;     { entidade de esboco: face = indice da operacao * 1024 + entidade }
 
 type
   TCadPickEvent = procedure(Sender: TObject; const ARef: string; Shift: TShiftState) of object;
@@ -56,6 +57,7 @@ type
   private
     FEdges: array of TCadViewEdge;
     FPickEdges: Boolean;
+    FPickSketchEntities: Boolean;
     FDoc: TCadDocument;
     FRB: TCadRebuilder;
     FCam: TCadCamera;
@@ -109,6 +111,7 @@ type
     FOnHoverChange: TNotifyEvent;
     function GetStyle: TCadDisplayStyle;
     procedure SetOperationSketchId(AValue: Integer);
+    procedure SetPickSketchEntities(AValue: Boolean);
     procedure SetStyle(AValue: TCadDisplayStyle);
     procedure RenderScene(AFactor: Integer = 1);
     procedure Compose;
@@ -167,6 +170,10 @@ type
     property ReverseWheel: Boolean read FReverseWheel write FReverseWheel;
     { Escolher arestas com o mouse (perto da borda da face sob o cursor). }
     property PickEdges: Boolean read FPickEdges write FPickEdges;
+    { Linhas e pontos dos esbocos clicaveis um a um ("sketch:<id>/<ent>" e
+      "sketch:<id>/<ent>.1"): eixo da revolucao, centro da engrenagem. O
+      esboco do perfil em edicao mostra tambem as linhas de centro. }
+    property PickSketchEntities: Boolean read FPickSketchEntities write SetPickSketchEntities;
     { Pontos de uma aresta ("edge:A|B"); False se nao existe no modelo. }
     function EdgePoints(const ARef: string; out Pts: TCadVec3Array): Boolean;
     { Aparencia do material: cor ($RRGGBB) e textura (multicad_textures). }
@@ -391,6 +398,13 @@ begin
   end;
 end;
 
+procedure TCadView3D.SetPickSketchEntities(AValue: Boolean);
+begin
+  if FPickSketchEntities = AValue then Exit;
+  FPickSketchEntities := AValue;
+  Redraw;
+end;
+
 procedure TCadView3D.SetOperationSketchId(AValue: Integer);
 begin
   if FOperationSketchId=AValue then Exit;
@@ -508,6 +522,20 @@ begin
   CadPickDecode(ACode, PTag, Face);
   if (PTag < 0) or (Face < 0) then
     Exit;
+  if PTag = CAD_TAG_SKENT then
+  begin
+    if (FDoc = nil) or (Face div 1024 >= FDoc.Count) then
+      Exit;
+    F := FDoc.Feature(Face div 1024);
+    if not (F is TCadSketch) or (Face mod 1024 >= TCadSketch(F).EntityCount) then
+      Exit;
+    with TCadSketch(F).Entity(Face mod 1024) do
+      if Kind = seLine then
+        Result := 'sketch:' + IntToStr(F.Id) + '/' + IntToStr(Id)
+      else
+        Result := 'sketch:' + IntToStr(F.Id) + '/' + IntToStr(Id) + '.1';
+    Exit;
+  end;
   if PTag = CAD_TAG_FEATURE then
   begin
     if (FDoc = nil) or (Face >= FDoc.Count) then
@@ -545,7 +573,7 @@ begin
     for DX := -4 to 4 do
     begin
       CadPickDecode(FRaster.IdAt(X + DX, Y + DY), PTag, Face);
-      if PTag = CAD_TAG_FEATURE then
+      if (PTag = CAD_TAG_FEATURE) or (PTag = CAD_TAG_SKENT) then
       begin
         D := DX * DX + DY * DY;
         if D < Best then
@@ -791,14 +819,28 @@ begin
     begin
       E := S.Entity(K);
       { Geometria de apoio pertence apenas ao editor do esboco ativo.
-        Nao desenhar nem registrar para selecao na vista ou na previa. }
-      if E.Construction or E.Centerline then
-        Continue;
+        Nao desenhar nem registrar para selecao na vista ou na previa.
+        Excecao: escolhendo entidades (eixo da revolucao), as linhas de
+        centro e de construcao do perfil aparecem tracejadas. }
       Dash := 0;
+      if E.Construction or E.Centerline then
+      begin
+        if not (FPickSketchEntities and Profile and (E.Kind = seLine)) then
+          Continue;
+        Dash := 4;
+      end;
+      if FPickSketchEntities and (K < 1024) and (I < 1024) then
+        Code := CadPickCode(CAD_TAG_SKENT, I * 1024 + K)
+      else
+        Code := FeatureCode(I);
       case E.Kind of
         seLine:
-          FRaster.DrawLine3D(FrameToWorld(Fr, E.P1), FrameToWorld(Fr, E.P2), Col, LineWidth,
-            DepthTest, Dash, Code);
+          if FHoverCode = Code then
+            FRaster.DrawLine3D(FrameToWorld(Fr, E.P1), FrameToWorld(Fr, E.P2), CAD_HOVER_COLOR,
+              LineWidth + 1, DepthTest, Dash, Code)
+          else
+            FRaster.DrawLine3D(FrameToWorld(Fr, E.P1), FrameToWorld(Fr, E.P2), Col, LineWidth,
+              DepthTest, Dash, Code);
         sePoint:
           FRaster.DrawPoint3D(FrameToWorld(Fr, E.P1), Col, 3, DepthTest, Code);
         seCircle, seArc:

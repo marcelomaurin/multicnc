@@ -26,7 +26,7 @@ def sha256(path):
 def verify_architecture(app, target_os, arch):
     names = ("multisuite", "multicad", "multiassembly", "multiphysics",
              "multicam", "multislicer", "laserpcb", "laserart", "multicnc", "multisuite_test_center",
-             "makepcb", "makerouter", "routerpcb")
+             "makepcb", "makerouter", "routerpcb", "multiproject")
     if target_os == "windows":
         names = tuple(name for name in names if name not in ("multisuite", "multisuite_test_center")) + ("multisuite_tray", "SimuCNC")
     required = {app / (name + (".exe" if target_os == "windows" else "")) for name in names}
@@ -82,7 +82,7 @@ def main():
     parser.add_argument("--require-clean", action="store_true")
     parser.add_argument("--version-include", type=Path)
     args = parser.parse_args()
-    if not re.fullmatch(r"\d+\.\d+(?:\.\d+)?(?:[-+~][A-Za-z0-9.+~-]+)?", args.version):
+    if not re.fullmatch(r"\d+\.\d+(?:\.\d+){0,2}(?:[-+~][A-Za-z0-9.+~-]+)?", args.version):
         raise SystemExit("Use uma versao como 0.1.1 ou 0.1.1-dev.")
     repo = Path(__file__).resolve().parents[1]
     os.chdir(repo)
@@ -92,7 +92,7 @@ def main():
     app = args.app_dir.resolve()
     verify_architecture(app, args.os, args.arch)
     if args.version_include:
-        parts = re.match(r"(\d+\.\d+(?:\.\d+)?)", args.version).group(1).split(".")
+        parts = re.match(r"(\d+\.\d+(?:\.\d+){0,2})", args.version).group(1).split(".")
         numeric = ".".join(parts + ["0"] * (4 - len(parts)))
         args.version_include.write_text('#define MyAppVersion "' + args.version + '"\n' +
                                        '#define MyBinaryVersion "' + numeric + '"\n', encoding="utf-8")

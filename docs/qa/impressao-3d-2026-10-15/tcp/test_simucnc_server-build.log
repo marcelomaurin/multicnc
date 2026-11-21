@@ -1,0 +1,7 @@
+Free Pascal Compiler version 3.2.2 [2025/11/08] for x86_64
+Copyright (c) 1993-2021 by Florian Klaempfl and others
+Target OS: Win64 for x64
+Compiling D:\projetos\maurinsoft\multicnc\tests\test_simucnc_server.lpr
+Compiling resource C:\Users\mmaurin\Documents\Codex\2026-10-14\si\work\qa_completion\print-tcp\test_simucnc_server\test_simucnc_server.obj
+Linking C:\Users\mmaurin\Documents\Codex\2026-10-14\si\work\qa_completion\print-tcp\test_simucnc_server.exe
+12 lines compiled, 1.1 sec, 1782288 bytes code, 126596 bytes data

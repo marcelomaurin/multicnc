@@ -1,0 +1,30 @@
+{
+  "name": "Espaçador Alumínio 6mm",
+  "model": "Spacer 10x5.1x6mm",
+  "category": "rodas_carros",
+  "kind": "ackPinSpacer",
+  "material": "Alumínio",
+  "color": 13815241,
+  "size": {
+    "x": 10.0,
+    "y": 10.0,
+    "z": 6.0
+  },
+  "ports": [
+    {
+      "name": "FURO_5MM",
+      "kind": "apkMechanical",
+      "voltage": 0.0
+    }
+  ],
+  "description": "Espaçador Ø10 x 6 mm, furo 5,1 mm, para rodas e polias.",
+  "mass_g": 1,
+  "specs": {
+    "d_ext_mm": 10,
+    "d_int_mm": 5.1,
+    "altura_mm": 6
+  },
+  "geometry": [
+    {"type": "cyl", "axis": "z", "at": [5.0, 5.0, 0.0], "r": 5.0, "h": 6.0, "color": "#C9CDD2", "ri": 2.55, "seg": 24}
+  ]
+}

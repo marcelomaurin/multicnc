@@ -50,8 +50,15 @@ jobs:
             pacote/AI Simulation
             pacote/AI
       - name: Instalar Lazarus
-        run: sudo apt-get update && sudo apt-get install -y lazarus xvfb xauth
+        run: sudo apt-get update && sudo apt-get install -y lazarus xvfb xauth libgtk2.0-dev pkg-config
       - name: Compilar todos os projetos .lpi
         shell: bash
         run: |
           python3 tools/verify_suite.py gui --run
+      - name: Impressao completa via TCP no SimuCNC
+        run: xvfb-run -a python3 tools/verify_print_tcp.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: print-tcp-evidence
+          path: /tmp/multicnc-build/print-tcp/

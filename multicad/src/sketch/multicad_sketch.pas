@@ -51,6 +51,12 @@ type
     HasTextOff: Boolean; { False = posicao automatica }
   end;
 
+{ "nome = expressao" (nome antes do primeiro "="). }
+function CadSplitNamedValue(const AText: string; out AName, AExpr: string): Boolean;
+{ Nome de variavel: letra/_ seguida de letras, numeros e _ (sem espaco nem ponto). }
+function CadValidVarName(const AName: string; out AError: string): Boolean;
+
+type
   TCadSketch = class(TCadFeature)
   private
     FEntities: array of TSketchEntity;
@@ -104,6 +110,17 @@ type
     procedure SetEntity(I: Integer; const E: TSketchEntity);
     procedure SetConstraintValue(I: Integer; AValue: Double);
     procedure SetConstraintExpr(I: Integer; const AExpr: string);
+    { Texto digitado numa cota: "25", "35-10mm", "D1@Esboço1*2" ou com nome
+      proprio "aresta=25" / "aresta = 35-10mm". O nome passa a ser o da cota
+      (no lugar de D1) e serve de variavel: "Esboço1.aresta" (ou
+      "<operacao>.aresta" pela operacao que usa o esboco, ou so "aresta"
+      quando o nome e unico na peca). False e AError se o nome nao serve. }
+    function SetConstraintText(I: Integer; const AText: string; out AError: string): Boolean;
+    { Texto para editar a cota: "aresta=35-10mm" (com nome proprio) ou a
+      expressao/valor. }
+    function ConstraintEditText(I: Integer): string;
+    { Nome proprio (diferente do automatico "D<n>"). }
+    function HasCustomDimName(I: Integer): Boolean;
     procedure SetConstraintDriving(I: Integer; ADriving: Boolean);
     { Posicao do texto da cota (arrastar), relativa ao ponto base. }
     procedure SetConstraintTextOffset(I: Integer; const AOff: TCadVec2);
@@ -614,6 +631,116 @@ end;
 procedure TCadSketch.SetConstraintExpr(I: Integer; const AExpr: string);
 begin
   FConstraints[I].Expr := AExpr;
+end;
+
+{ Separa "nome = expressao". False se nao tem nome antes do "=". }
+function CadSplitNamedValue(const AText: string; out AName, AExpr: string): Boolean;
+var
+  K: Integer;
+begin
+  K := Pos('=', AText);
+  Result := K > 1;
+  if not Result then
+  begin
+    AName := '';
+    AExpr := Trim(AText);
+    Exit;
+  end;
+  AName := Trim(Copy(AText, 1, K - 1));
+  AExpr := Trim(Copy(AText, K + 1, MaxInt));
+end;
+
+function CadValidVarName(const AName: string; out AError: string): Boolean;
+const
+  RESERVED: array[0..14] of string = ('pi', 'sqrt', 'sin', 'cos', 'tan', 'abs', 'mm', 'cm',
+    'm', 'in', 'pol', 'deg', 'rad', 'x', 'e');
+var
+  I: Integer;
+  C: Char;
+  L: string;
+begin
+  AError := '';
+  Result := False;
+  if AName = '' then
+  begin
+    AError := 'Falta o nome antes do "="';
+    Exit;
+  end;
+  C := AName[1];
+  if not (C in ['A'..'Z', 'a'..'z', '_', #128..#255]) then
+  begin
+    AError := 'O nome "' + AName + '" deve começar com letra';
+    Exit;
+  end;
+  for I := 1 to Length(AName) do
+    if not (AName[I] in ['A'..'Z', 'a'..'z', '0'..'9', '_', #128..#255]) then
+    begin
+      AError := 'O nome "' + AName + '" só pode ter letras, números e "_" (sem espaços nem ".")';
+      Exit;
+    end;
+  L := LowerCase(AName);
+  for I := 0 to High(RESERVED) do
+    if L = RESERVED[I] then
+    begin
+      AError := '"' + AName + '" é reservado (função ou unidade); escolha outro nome';
+      Exit;
+    end;
+  Result := True;
+end;
+
+function TCadSketch.SetConstraintText(I: Integer; const AText: string; out AError: string): Boolean;
+var
+  N, E: string;
+  J: Integer;
+begin
+  AError := '';
+  if not CadSplitNamedValue(AText, N, E) then
+  begin
+    FConstraints[I].Expr := Trim(AText);
+    Exit(True);
+  end;
+  Result := CadValidVarName(N, AError);
+  if not Result then
+    Exit;
+  if E = '' then
+  begin
+    AError := 'Falta o valor depois de "' + N + '="';
+    Exit(False);
+  end;
+  J := DimensionIndex(N);
+  if (J >= 0) and (J <> I) then
+  begin
+    AError := 'Já existe a cota "' + N + '" neste esboço';
+    Exit(False);
+  end;
+  FConstraints[I].DimName := N;
+  FConstraints[I].Expr := E;
+end;
+
+function TCadSketch.HasCustomDimName(I: Integer): Boolean;
+var
+  N: string;
+  K: Integer;
+begin
+  N := FConstraints[I].DimName;
+  Result := N <> '';
+  if (Length(N) >= 2) and (UpCase(N[1]) = 'D') then
+  begin
+    for K := 2 to Length(N) do
+      if not (N[K] in ['0'..'9']) then
+        Exit(True);
+    Result := False;
+  end;
+end;
+
+function TCadSketch.ConstraintEditText(I: Integer): string;
+begin
+  if FConstraints[I].Expr <> '' then
+    Result := FConstraints[I].Expr
+  else
+    Result := FormatFloat('0.###', FConstraints[I].Value);
+  if HasCustomDimName(I) then
+    Result := FConstraints[I].DimName + '=' + Result;
 end;
 
 procedure TCadSketch.SetConstraintTextOffset(I: Integer; const AOff: TCadVec2);
