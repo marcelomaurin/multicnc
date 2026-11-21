@@ -30,7 +30,7 @@ uses
   multicad_sketchedit, multicad_propman, multicad_undo, multicad_hole, multicad_pattern, multicad_blend, multicad_occt, multicad_import, multicad_materialdlg, multicad_textures, multicad_export, multicad_measure,
   multisuite_types, multisuite_registry, multisuite_launcher, multisuite_context,
   multicad_sketchpattern, multicad_sketchpatterndlg, multicad_sketchtext,
-  multicad_sketchtextdlg, multicad_threadop, multicad_gear, multicad_generatedmesh, multicad_aiconfig, multicad_text3ddlg, multicad_dxfimport;
+  multicad_sketchtextdlg, multicad_threadop, multicad_gear, multicad_generatedmesh, multicad_aiconfig, multicad_text3ddlg, multicad_dxfimport, multicad_rigeditor;
 
 type
   TCadTab = (ctFeatures, ctSketch, ctEvaluate, ctView, ctExport, ctAbout);
@@ -186,6 +186,7 @@ type
     procedure ExportExact(AsIGES: Boolean);
     procedure ImportCADClick(Sender: TObject);
     procedure GenerateText3DClick(Sender: TObject);
+    procedure RigEditorClick(Sender: TObject);
     procedure ConfigureAIClick(Sender: TObject);
     procedure EnsureAIConfig;
     function KernelText: string;
@@ -740,6 +741,7 @@ begin
   Command('Exportar STEP...',@ExportSTEPClick);Command('Exportar IGES...',@ExportIGESClick);
   Command('Importar CAD...',@ImportCADClick);
   Command('Configuração da IA...',@ConfigureAIClick);
+  Command('Esqueleto e movimentos...',@RigEditorClick);
   Command('Núcleo OpenCascade / Pascal',@KernelClick);
   Root:=Category('Sobre');
   Command('Sobre o MultiCAD',@AboutClick);Command('Abrir log',@LogClick);
@@ -2897,6 +2899,17 @@ procedure TMainForm.ConfigureAIClick(Sender: TObject);
 begin
   EnsureAIConfig;
   EditCadAIConfig(Self, FAIConfig);
+end;
+
+procedure TMainForm.RigEditorClick(Sender: TObject);
+begin
+  if PM.Visible or Assigned(FEditor) then Exit;
+  EnsureAIConfig;
+  if EditCadRig(Self,Doc,RB,FAIConfig) then
+  begin
+    Modified;
+    SetStatus(0,'Esqueleto e movimentos atualizados. Salve o projeto .mcad.');
+  end;
 end;
 
 procedure TMainForm.GenerateText3DClick(Sender: TObject);

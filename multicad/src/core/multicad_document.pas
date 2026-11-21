@@ -20,7 +20,7 @@ interface
 uses
   Classes, SysUtils, fpjson, jsonparser, multicad_types, multicad_feature,
   multicad_refgeom, multicad_sketch, multicad_extrude, multicad_revolve,
-  multicad_materials, multicad_solver;
+  multicad_materials, multicad_solver, multicad_rig;
 
 const
   MCAD_FORMAT = 'multicad';
@@ -36,6 +36,7 @@ type
   private
     FFeatures: TFPList;
     FNextId: Integer;
+    FRig: TCadRig;
     function GetFeature(I: Integer): TCadFeature;
     procedure FreeFeatures;
     function ResolveVar(const AName: string; out AValue: Double): Boolean;
@@ -49,6 +50,7 @@ type
       indice < RollbackIndex entram na reconstrucao. }
     RollbackIndex: Integer;
     Modified: Boolean;
+    property Rig: TCadRig read FRig;
     constructor Create;
     destructor Destroy; override;
     { Documento novo com os planos padrao e a origem. }
@@ -111,6 +113,7 @@ constructor TCadDocument.Create;
 begin
   inherited Create;
   FFeatures := TFPList.Create;
+  FRig := TCadRig.Create;
   NewPart;
 end;
 
@@ -118,6 +121,7 @@ destructor TCadDocument.Destroy;
 begin
   FreeFeatures;
   FFeatures.Free;
+  FRig.Free;
   inherited;
 end;
 
@@ -136,6 +140,7 @@ var
   F: TCadFeature;
 begin
   FreeFeatures;
+  FRig.Clear;
   FNextId := 1;
   Name := 'Peça1';
   FileName := '';
@@ -583,6 +588,7 @@ begin
       Root.Add('material_color', '#' + IntToHex(MaterialColor, 6));
     Root.Add('next_id', FNextId);
     Root.Add('rollback', RollbackIndex);
+    if (FRig.Count>0) or (FRig.Script<>'') or (FRig.MotionJSON<>'') then Root.Add('rig',FRig.ToJSON);
     Arr := TJSONArray.Create;
     for I := 0 to FFeatures.Count - 1 do
     begin
@@ -617,11 +623,13 @@ var
   NewName, NewMat: string;
   NewColor: Integer;
   NewNext, NewRoll: Integer;
+  NewRig: TCadRig;
 begin
   Result := False;
   AError := '';
   Data := nil;
   List := TFPList.Create;
+  NewRig := TCadRig.Create;
   try
     try
       Data := GetJSON(AText);
@@ -689,11 +697,13 @@ begin
       end;
       if (NewRoll < -1) or (NewRoll > List.Count) then
         NewRoll := -1;
+      NewRig.LoadJSON(Root.Find('rig'));
       { tudo certo: troca o conteudo }
       FreeFeatures;
       for I := 0 to List.Count - 1 do
         FFeatures.Add(List[I]);
       List.Clear;
+      FRig.Assign(NewRig);
       Name := NewName;
       Material := NewMat;
       MaterialColor := NewColor;
@@ -711,6 +721,7 @@ begin
     for I := 0 to List.Count - 1 do
       TObject(List[I]).Free;
     List.Free;
+    NewRig.Free;
     Data.Free;
   end;
 end;

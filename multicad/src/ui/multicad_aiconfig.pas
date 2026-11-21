@@ -9,6 +9,7 @@ uses Classes;
 type
   TCadAIConfig = record
     Model, Key: string;
+    RigEndpoint, RigModel, RigKey: string;
   end;
 
 function LoadCadAIConfig: TCadAIConfig;
@@ -86,15 +87,23 @@ var
 begin
   Result := Default(TCadAIConfig);
   Result.Model := Trim(GetEnvironmentVariableUTF8('MESHY_3D_MODEL'));
+  Result.RigEndpoint:=GetEnvironmentVariableUTF8('MULTICAD_RIG_ENDPOINT');
+  if Result.RigEndpoint='' then Result.RigEndpoint:='http://127.0.0.1:8095/v1/chat/completions';
+  Result.RigModel:=GetEnvironmentVariableUTF8('MULTICAD_RIG_MODEL');
+  Result.RigKey:=GetEnvironmentVariableUTF8('MULTICAD_RIG_KEY');
   if Result.Model = '' then Result.Model := MeshyDefaultModel;
   FileName := ConfigPath;
   if not FileExistsUTF8(FileName) then Exit;
   Ini := TMemIniFile.Create(FileName);
   try
     Result.Model := Ini.ReadString('STL.Meshy', 'modelo', Result.Model);
+    Result.RigEndpoint:=Ini.ReadString('Esqueleto.IA','endpoint',Result.RigEndpoint);
+    Result.RigModel:=Ini.ReadString('Esqueleto.IA','modelo',Result.RigModel);
     {$IFDEF WINDOWS}
     try
       Result.Key := ConvertKey(Ini.ReadString('STL.Meshy', 'chave_dpapi', ''), False);
+      if Ini.ReadString('Esqueleto.IA','chave_dpapi','')<>'' then
+        Result.RigKey:=ConvertKey(Ini.ReadString('Esqueleto.IA','chave_dpapi',''),False);
     except
       // Uma chave de outro perfil pode ser substituída pelo editor.
       Result.Key := '';
@@ -122,8 +131,11 @@ begin
   try
     Ini.WriteString('Geral', 'stl', 'Meshy');
     Ini.WriteString('STL.Meshy', 'modelo', Config.Model);
+    Ini.WriteString('Esqueleto.IA','endpoint',Config.RigEndpoint);
+    Ini.WriteString('Esqueleto.IA','modelo',Config.RigModel);
     {$IFDEF WINDOWS}
     Ini.WriteString('STL.Meshy', 'chave_dpapi', ConvertKey(Config.Key, True));
+    Ini.WriteString('Esqueleto.IA','chave_dpapi',ConvertKey(Config.RigKey,True));
     {$ENDIF}
     Ini.GetStrings(Lines);
     Lines.SaveToFile(Temp);
@@ -146,6 +158,7 @@ var
   Dialog: TForm;
   Model: TComboBox;
   Key: TEdit;
+  RigEndpoint, RigModel, RigKey: TEdit;
   Button: TButton;
   ID: string;
   Edited: TCadAIConfig;
@@ -164,7 +177,7 @@ var
   begin
     Result := TButton.Create(Dialog);
     Result.Parent := Dialog;
-    Result.SetBounds(X, 214, 100, 28);
+    Result.SetBounds(X, 440, 100, 28);
     Result.Caption := Text;
     Result.ModalResult := Value;
   end;
@@ -177,7 +190,7 @@ begin
     Dialog.BorderStyle := bsDialog;
     Dialog.Position := poOwnerFormCenter;
     Dialog.ClientWidth := 456;
-    Dialog.ClientHeight := 258;
+    Dialog.ClientHeight := 484;
     PutLabel('Provedor para malhas 3D   Meshy', 14);
     PutLabel('Modelo 3D', 48);
     Model := TComboBox.Create(Dialog);
@@ -199,7 +212,18 @@ begin
     {$ELSE}
     PutLabel('A chave digitada vale para esta sessão.', 158);
     {$ENDIF}
-    Status := PutLabel('', 181);
+    PutLabel('IA do esqueleto · API compatível com OpenAI / Ollama',188);
+    PutLabel('Endpoint de chat',214);
+    RigEndpoint:=TEdit.Create(Dialog); RigEndpoint.Parent:=Dialog;
+    RigEndpoint.SetBounds(16,234,424,26); RigEndpoint.Text:=Config.RigEndpoint;
+    PutLabel('Modelo de linguagem',266);
+    RigModel:=TEdit.Create(Dialog); RigModel.Parent:=Dialog;
+    RigModel.SetBounds(16,286,424,26); RigModel.Text:=Config.RigModel;
+    RigModel.TextHint:='Nome exato do modelo no servidor';
+    PutLabel('Chave da IA do esqueleto (opcional para servidor local)',318);
+    RigKey:=TEdit.Create(Dialog); RigKey.Parent:=Dialog;
+    RigKey.SetBounds(16,338,424,26); RigKey.PasswordChar:='*'; RigKey.Text:=Config.RigKey;
+    Status := PutLabel('', 386);
     Status.Width := 424;
     Status.AutoSize := False;
     Status.Height := 30;
@@ -212,8 +236,11 @@ begin
     begin
       Edited.Model := Trim(Model.Text);
       Edited.Key := Trim(Key.Text);
+      Edited.RigEndpoint:=Trim(RigEndpoint.Text); Edited.RigModel:=Trim(RigModel.Text);
+      Edited.RigKey:=Trim(RigKey.Text);
       if (Edited.Model = '') or (Pos(#10, Edited.Key) > 0) or
-         (Pos(#13, Edited.Key) > 0) or (Pos(#0, Edited.Key) > 0) then
+         (Pos(#13, Edited.Key) > 0) or (Pos(#0, Edited.Key) > 0) or
+         (Pos(#13,Edited.RigKey)>0) or (Pos(#10,Edited.RigKey)>0) or (Pos(#0,Edited.RigKey)>0) then
       begin
         Status.Caption := 'Informe um modelo e uma chave válida.';
         Continue;

@@ -27,7 +27,8 @@ uses
   Classes, SysUtils, Math, Controls, Graphics, ExtCtrls, LCLType, LCLIntf, GraphType,
   IntfGraphics, LMessages, contnrs, multicad_types, multicad_mesh, multicad_document,
   multicad_feature, multicad_refgeom, multicad_sketch, multicad_rebuild,
-  multicad_camera, multicad_softrender, multicad_blendgeom, multicad_blend;
+  multicad_camera, multicad_softrender, multicad_blendgeom, multicad_blend,
+  multicad_rig, multicad_skin;
 
 const
   CAD_TAG_FEATURE = 2001;   { Id de planos, eixos, esbocos e origem: face = indice da operacao }
@@ -72,6 +73,8 @@ type
     FRenderFactor: Integer;      { 1 = resolucao cheia; 2 = metade (interacao) }
     FImg: TLazIntfImage;
     FCaches: TFPObjectList;
+    FPoseRig: TCadRig;
+    FSkins, FPosedMeshes: TFPObjectList;
     FPreview: TCadMesh;
     FPreviewCache: TCadMeshCache;
     FPreviewCut: Boolean;
@@ -152,6 +155,8 @@ type
     procedure SetModel(ADoc: TCadDocument; ARB: TCadRebuilder);
     { Chamar depois de reconstruir: refaz os caches de desenho. }
     procedure ModelChanged;
+    procedure SetRigPreview(ARig: TCadRig);
+    procedure RefreshRigPose;
     procedure Redraw;
     procedure FitAll;
     procedure SetView(V: TCadStdView);
@@ -261,6 +266,8 @@ begin
   FPartColor := CAD_PART_COLOR;
   FPartTexture := 0;
   FCaches := TFPObjectList.Create(True);
+  FSkins := TFPObjectList.Create(True);
+  FPosedMeshes := TFPObjectList.Create(True);
   FHistory := TFPObjectList.Create(True);
   FSelected := TStringList.Create;
   FShown := TStringList.Create;
@@ -278,6 +285,8 @@ destructor TCadView3D.Destroy;
 begin
   FPreviewCache.Free;
   FCaches.Free;
+  FPosedMeshes.Free;
+  FSkins.Free;
   FHistory.Free;
   FSelected.Free;
   FShown.Free;
@@ -306,12 +315,20 @@ var
   S: TCadVec3;
 begin
   FCaches.Clear;
+  FPosedMeshes.Clear;
+  FSkins.Clear;
   FModelBox := BoxEmpty;
   FEdges := nil;
   if Assigned(FRB) then
     for I := 0 to FRB.BodyCount - 1 do
     begin
-      FCaches.Add(TCadMeshCache.Create(FRB.Body(I).Mesh));
+      if (FPoseRig<>nil) and (FPoseRig.Count>0) then
+      begin
+        FSkins.Add(TCadSkin.Create(FRB.Body(I).Mesh,FPoseRig));
+        FPosedMeshes.Add(TCadSkin(FSkins.Last).Pose(FPoseRig));
+        FCaches.Add(TCadMeshCache.Create(TCadMesh(FPosedMeshes.Last)));
+      end
+      else FCaches.Add(TCadMeshCache.Create(FRB.Body(I).Mesh));
       Infos := CadAllEdges(FRB.Body(I).Mesh);
       for K := 0 to High(Infos) do
       begin
@@ -339,6 +356,26 @@ begin
   begin
     S := BoxSize(FModelBox);
     FPlaneHalf := Max(40, 0.6 * Max(S.X, Max(S.Y, S.Z)));
+  end;
+  Redraw;
+end;
+
+procedure TCadView3D.SetRigPreview(ARig: TCadRig);
+begin
+  FPoseRig:=ARig;
+  ModelChanged;
+end;
+
+procedure TCadView3D.RefreshRigPose;
+var I: Integer;
+begin
+  if FPoseRig=nil then Exit;
+  FCaches.Clear;
+  FPosedMeshes.Clear;
+  for I:=0 to FSkins.Count-1 do
+  begin
+    FPosedMeshes.Add(TCadSkin(FSkins[I]).Pose(FPoseRig));
+    FCaches.Add(TCadMeshCache.Create(TCadMesh(FPosedMeshes.Last)));
   end;
   Redraw;
 end;
@@ -925,6 +962,8 @@ var
   M: TCadMesh;
   N: Integer;
   SavedScale: Double;
+  RigMatrices: TCadRigMatrices;
+  Segment: TCadRigSegment;
 begin
   AFactor := Max(1, AFactor);
   FRenderFactor := AFactor;
@@ -957,11 +996,22 @@ begin
     FRaster.DrawMesh(TCadMeshCache(FCaches[I]), Opt);
   end;
   FRaster.SetSection(False, FSection.Origin, FSection.Normal);
-  DrawEdges;
+  if FPoseRig=nil then DrawEdges;
   DrawPlanes;
   DrawSketches;
   DrawThreads;
   DrawOrigin;
+  if FPoseRig<>nil then
+  begin
+    RigMatrices:=FPoseRig.Matrices;
+    for I:=0 to FPoseRig.Count-1 do
+    begin
+      Segment:=FPoseRig[I];
+      FRaster.DrawLine3D(MatPoint(RigMatrices[I],Segment.Pivot),
+        MatPoint(RigMatrices[I],Segment.Tip),CadRGB(0,170,220),3,False);
+      FRaster.DrawPoint3D(MatPoint(RigMatrices[I],Segment.Pivot),CadRGB(250,170,10),7,False);
+    end;
+  end;
   if Assigned(FPreviewCache) then
   begin
     if FPreviewCut then

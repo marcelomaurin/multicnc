@@ -1,5 +1,9 @@
 # MultiCAD
 
+## Esqueleto, movimentos e criação assistida por IA
+
+Use **Ferramentas → Esqueleto e movimentos** para editar segmentos com pivô, eixo e limites, reproduzir scripts Pascal e movimentos do Assistente e gerar uma proposta de esqueleto com IA. Veja o [guia](docs/ESQUELETO_E_MOVIMENTOS.md) e abra o exemplo [robo-articulado.mcad](examples/robo-articulado.mcad).
+
 > **Estado (31/10/2026, versão 0.0.9.0):** já dá para abrir o `bin/multicad.exe`,
 > criar esboços com cotas e relações (no plano ou numa face), fazer ressalto e corte
 > extrudados ou revolucionados, planos de referência, editar pela árvore e pelo
