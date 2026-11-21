@@ -124,6 +124,7 @@ begin
   FParent.SetBounds(262,28,232,26); FParent.Style:=csDropDownList;
   LabelAt(Page,'Eixo único',512,8); FAxis:=TComboBox.Create(Self); FAxis.Parent:=Page;
   FAxis.SetBounds(512,28,106,26); FAxis.Style:=csDropDownList; FAxis.Items.Text:='X'+LineEnding+'Y'+LineEnding+'Z';
+  FAxis.Name:='RigAxis';
   LabelAt(Page,'Pivô X / Y / Z (mm)',12,64); LabelAt(Page,'Extremidade X / Y / Z (mm)',368,64);
   for I:=0 to 2 do
   begin FPivot[I]:=Number(Page,12+I*112,84,-1e8,1e8); FTip[I]:=Number(Page,368+I*112,84,-1e8,1e8); end;
@@ -246,13 +247,15 @@ begin
     S.MinAngle:=FMin.Value; S.MaxAngle:=FMax.Value; S.Angle:=FAngle.Value;
     S.FacePrefixes:=Trim(FPrefixes.Text); R[FIndex]:=S;
     R.Validate; FDoc.Rig.Assign(R);
+    { A changed pivot, parent or axis invalidates the cached skin bindings. }
+    FView.ModelChanged;
   finally R.Free; end;
 end;
 
 procedure TCadRigEditor.ApplyClick(Sender: TObject);
 begin
   try
-    StopMotion(nil); ApplyFields; FView.ModelChanged; UpdateJSON; RefreshList(FIndex);
+    StopMotion(nil); ApplyFields; UpdateJSON; RefreshList(FIndex);
     FStatus.Caption:='Segmento aplicado. A junta mantém apenas o eixo escolhido.';
   except on E: Exception do FStatus.Caption:=E.Message; end;
 end;

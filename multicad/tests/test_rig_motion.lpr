@@ -173,6 +173,7 @@ begin
       try
         Check((D.FindPath('up_axis').AsString='y') and (D.FindPath('units').AsString='mm'),'IA recebe coordenadas e unidades explícitas');
         Check(D.FindPath('bodies[0].sampled_vertices').Count<=256,'geometria enviada é amostrada');
+        Check(D.FindPath('bodies[0].face_names').Count=6,'IA recebe nomes de faces existentes para vincular partes');
       finally D.Free; end;
       if ParamCount>0 then
       begin

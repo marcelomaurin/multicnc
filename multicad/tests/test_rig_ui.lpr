@@ -39,6 +39,7 @@ begin
         Require(Doc.Rig[0].Angle=0,'preview changed the open document before Save');
         if Cancel then
         begin F.ModalResult:=mrCancel; Timer.Enabled:=False; Exit; end;
+        TComboBox(F.FindComponent('RigAxis')).ItemIndex:=0;
         TPageControl(F.FindComponent('RigPages')).ActivePageIndex:=1;
         TMemo(F.FindComponent('RigScript')).Text:='begin MoverSegmento(''braco'',30,600); end.';
         TButton(F.FindComponent('RigPlay')).Click;
@@ -87,6 +88,7 @@ begin
       Format('Save did not apply edited rig: accepted=%s, count=%d, angle=%.3f',
         [BoolToStr(Pass,True),Doc.Rig.Count,Doc.Rig[0].Angle]));
     Require(Pos('MoverSegmento',Doc.Rig.Script)>0,'Pascal script not saved');
+    Require(Ord(Doc.Rig[0].Axis)=0,'axis change before playback was not applied');
     WriteLn('PASS: rig editor preview, Pascal playback, new segment, Cancel and Save.');
   finally
     Driver.Timer.Free; Driver.Free; RB.Free; Doc.Free;

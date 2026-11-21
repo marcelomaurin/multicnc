@@ -43,7 +43,7 @@ begin
 end;
 
 function CadRigGeometryContext(const Meshes: array of TCadMesh): string;
-var Root,O: TJSONObject; Bodies,Points: TJSONArray; I,J,Step: Integer; B: TCadBox3;
+var Root,O: TJSONObject; Bodies,Points,Faces: TJSONArray; I,J,Step: Integer; B: TCadBox3;
 begin
   Root:=TJSONObject.Create;
   try
@@ -57,6 +57,8 @@ begin
       O:=TJSONObject.Create; Bodies.Add(O);
       O.Add('min',CadRigVectorJSON(B.Min)); O.Add('max',CadRigVectorJSON(B.Max));
       O.Add('triangle_count',Meshes[I].TriCount);
+      Faces:=TJSONArray.Create; O.Add('face_names',Faces);
+      for J:=0 to Min(Meshes[I].FaceCount,32)-1 do Faces.Add(Meshes[I].Faces[J].Name);
       Points:=TJSONArray.Create; O.Add('sampled_vertices',Points);
       Step:=Max(1,(Meshes[I].VertCount+255) div 256); J:=0;
       while J<Meshes[I].VertCount do
@@ -178,7 +180,9 @@ const Instructions =
   'Maximum 128 segments, no cycles, unique IDs/names, parents must exist, nonzero bone lengths, '+
   'limits within [-360,360] including 0. For humanoids prefer Assistente bone names '+
   'upperarm01.R, lowerarm01.R, wrist.R, upperarm01.L, lowerarm01.L, wrist.L, head. '+
-  'Do not invent mesh face names. Do not return scripts. The user will review the proposal.';
+  'For a rigid CAD part you may set face_prefixes to supplied exact face_names separated by semicolons; '+
+  'omit it for automatic vertex binding. Do not invent mesh face names. '+
+  'Do not return scripts. The user will review the proposal.';
 var Body: TJSONObject; Messages: TJSONArray; Text: string; URI: TURI;
     {$IFNDEF WINDOWS}Client: TFPHTTPClient; Input: TStringStream; Reply: TLimitedReply;{$ENDIF}
 begin
