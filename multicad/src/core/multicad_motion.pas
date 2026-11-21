@@ -25,12 +25,38 @@ type
     function ToJSON: TJSONObject;
     procedure Evaluate(TimeMS: Int64; Rig, BasePose: TCadRig);
     procedure AddKey(const SegmentID: string; Axis: TCadJointAxis; TimeMS: Integer; Angle: Double);
+    procedure AddStep(const SegmentID: string; Axis: TCadJointAxis; TimeMS: Integer; BeforeAngle, Angle: Double);
   end;
 
 implementation
 
 constructor TCadMotion.Create;
 begin inherited Create; Smooth:=True; end;
+
+procedure TCadMotion.AddStep(const SegmentID: string; Axis: TCadJointAxis;
+  TimeMS: Integer; BeforeAngle, Angle: Double);
+var I,J: Integer;
+begin
+  if TimeMS>0 then
+  begin
+    I:=0;
+    while (I<Length(Tracks)) and (Tracks[I].SegmentID<>SegmentID) do Inc(I);
+    if I<Length(Tracks) then
+    begin
+      J:=High(Tracks[I].Keys);
+      if (J>=0) and (Tracks[I].Keys[J].TimeMS=TimeMS) then
+      begin
+        if (J>0) and (Tracks[I].Keys[J-1].TimeMS=TimeMS-1) then
+          SetLength(Tracks[I].Keys,J)
+        else Tracks[I].Keys[J].TimeMS:=TimeMS-1;
+      end;
+    end;
+    { Time is integer milliseconds: this holds the prior pose until the
+      millisecond before the assignment, without interpolating a long wait. }
+    AddKey(SegmentID,Axis,TimeMS-1,BeforeAngle);
+  end;
+  AddKey(SegmentID,Axis,TimeMS,Angle);
+end;
 
 procedure TCadMotion.AddKey(const SegmentID: string; Axis: TCadJointAxis; TimeMS: Integer; Angle: Double);
 var I,J: Integer;

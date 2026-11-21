@@ -116,6 +116,12 @@ begin
       M.Evaluate(50,R,B); Check(Abs(R[1].Angle-15)<1e-6,'Pascal produz movimento interpolado');
     finally M.Free; end;
     R.ResetPose;
+    Check(CompileCadMotion('begin Esperar(1000); DefinirAngulo(''arm'',30); end.',R,M,Err),'atribuição de ângulo após espera compila');
+    try
+      M.Evaluate(500,R,B); Check(R[1].Angle=0,'DefinirAngulo não transforma espera anterior em movimento');
+      M.Evaluate(1000,R,B); Check(R[1].Angle=30,'DefinirAngulo aplica no instante solicitado');
+    finally M.Free; end;
+    R.ResetPose;
     Check(not CompileCadMotion('begin while True do ; end.',R,M,Err),'laço infinito interrompido');
     Check(Pos('limite',Err)>0,'limite de execução tem diagnóstico');
     Check(not CompileCadMotion('begin DefinirAngulo(''arm'',400); end.',R,M,Err),'scripts respeitam limites da junta');

@@ -57,10 +57,11 @@ begin
 end;
 
 procedure TCadMotionAPI.DefinirAngulo(Segmento: string; Graus: Double);
-var I: Integer;
+var I: Integer; Previous: Double;
 begin
+  Previous:=Angulo(Segmento);
   Rig.SetAngle(Segmento,Graus); I:=Rig.IndexOf(Segmento);
-  Motion.AddKey(Rig[I].ID,Rig[I].Axis,TimeMS,Graus);
+  Motion.AddStep(Rig[I].ID,Rig[I].Axis,TimeMS,Previous,Graus);
 end;
 
 procedure TCadMotionAPI.MoverSegmento(Segmento: string; Graus: Double; DuracaoMS: Integer);
