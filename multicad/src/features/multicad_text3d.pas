@@ -4,26 +4,46 @@ unit multicad_text3d;
 
 interface
 
-uses Classes, SysUtils, multicad_generatedmesh;
+uses Classes, SysUtils, fpjson, multicad_generatedmesh;
+
+type
+  TCadAIProvider = (capMeshy, capTripo);
 
 const
-  MeshyDefaultModel = 'meshy-7.1';
+  CadAIProviderNames: array[TCadAIProvider] of string = ('Meshy', 'Tripo');
+  CadAIKeyVariables: array[TCadAIProvider] of string = ('MESHY_API_KEY', 'TRIPO3D_API_KEY');
+  CadAIDefaultModels: array[TCadAIProvider] of string = ('meshy-7.1', 'v3.1-20260211');
+
+function CadAIModelCount(Provider: TCadAIProvider): Integer;
+function CadAIModelAt(Provider: TCadAIProvider; Index: Integer): string;
+function CadAIModelCompatible(Provider: TCadAIProvider; const Model: string): Boolean;
+function CadAINormalizeModel(Provider: TCadAIProvider; const Model: string): string;
 
 type
   { Adaptado de StarIndustry/tools/visualizador/ugeracao3d.pas.
     Para o CAD, a etapa preview já entrega a geometria e dispensa a texturização. }
   TCadText3DJob = class(TThread)
   private
-    FPrompt, FKey, FModel, FError: string;
+    FPrompt, FKey, FModel, FError, FImageFile: string;
+    FProvider: TCadAIProvider;
     FSizeMM: Double;
     FStage: LongInt;
     FWake: PRTLEvent;
     FFeature: TCadGeneratedMesh;
-    function Request(const URL, Payload: string; Download: Boolean): RawByteString;
+    function GenerateMeshy: string;
+    function GenerateTripo: string;
+    function TripoData(const Path: string; const Payload: RawByteString = '';
+      const ContentType: string = 'application/json'): TJSONObject;
+    function TripoSubmit(const Path: string; Body: TJSONObject): string;
+    function TripoUploadImage: string;
+    function TripoWait(const ID: string; NeedDownload: Boolean): string;
   protected
+    function Request(const URL: string; const Payload: RawByteString;
+      Download: Boolean; const ContentType: string = 'application/json'): RawByteString; virtual;
     procedure Execute; override;
   public
-    constructor Create(const APrompt, AKey, AModel: string; ASizeMM: Double);
+    constructor Create(const APrompt, AKey, AModel: string; ASizeMM: Double;
+      AProvider: TCadAIProvider = capMeshy; const AImageFile: string = '');
     destructor Destroy; override;
     procedure Cancel;
     function Stage: Integer;
@@ -36,11 +56,74 @@ implementation
 
 uses
   {$IFDEF WINDOWS}Windows, WinHttp,{$ELSE}ctypes, libcurl,{$ENDIF}
-  URIParser, fpjson, jsonparser, multicad_mesh;
+  URIParser, jsonparser, multicad_mesh, multicad_log;
 
 const
   MeshyURL = 'https://api.meshy.ai/openapi/v2/text-to-3d';
+  TripoURL = 'https://openapi.tripo3d.ai/v3';
   JSONLimit = 1024 * 1024;
+  TripoImageLimit = 20000000;
+  MeshyModels: array[0..5] of string = ('meshy-7.1', 'meshy-6',
+    'meshy-6-lite', 'meshy-t2.5', 'meshy-t2', 'meshy-7');
+  TripoModels: array[0..4] of string = ('v3.1-20260211', 'v3.0-20250812',
+    'v2.5-20250123', 'P2-20260801', 'P1-20260311');
+
+function CadAIModelCount(Provider: TCadAIProvider): Integer;
+begin
+  case Provider of
+    capMeshy: Result := Length(MeshyModels);
+    capTripo: Result := Length(TripoModels);
+  else
+    Result := 0;
+  end;
+end;
+
+function CadAIModelAt(Provider: TCadAIProvider; Index: Integer): string;
+begin
+  case Provider of
+    capMeshy:
+      if (Index >= 0) and (Index < Length(MeshyModels)) then Exit(MeshyModels[Index]);
+    capTripo:
+      if (Index >= 0) and (Index < Length(TripoModels)) then Exit(TripoModels[Index]);
+  end;
+  Result := '';
+end;
+
+function CadAIModelCompatible(Provider: TCadAIProvider; const Model: string): Boolean;
+var I: Integer; Trimmed: string;
+begin
+  Trimmed := Trim(Model);
+  if Trimmed = '' then Exit(False);
+  for I := 0 to CadAIModelCount(Provider) - 1 do
+    if SameText(Trimmed, CadAIModelAt(Provider, I)) then Exit(True);
+  Result := False;
+end;
+
+function CadAINormalizeModel(Provider: TCadAIProvider; const Model: string): string;
+var I: Integer; Trimmed: string;
+begin
+  Trimmed := Trim(Model);
+  for I := 0 to CadAIModelCount(Provider) - 1 do
+    if SameText(Trimmed, CadAIModelAt(Provider, I)) then
+      Exit(CadAIModelAt(Provider, I));
+  Result := CadAIDefaultModels[Provider];
+end;
+
+function MaskKeyInfo(const Key: string): string;
+begin
+  if Key = '' then Exit('len=0');
+  if Length(Key) >= 8 then
+    Result := Format('len=%d prefix=%s...', [Length(Key), Copy(Key, 1, 4)])
+  else
+    Result := Format('len=%d', [Length(Key)]);
+end;
+
+function SanitizeBodyForLog(const Body, Key: string): string;
+begin
+  Result := Copy(Body, 1, 500);
+  if Key <> '' then
+    Result := StringReplace(Result, Key, '[chave omitida]', [rfReplaceAll]);
+end;
 
 function ResponseObject(const Data: RawByteString): TJSONObject;
 var Value: TJSONData;
@@ -48,7 +131,7 @@ begin
   Value := GetJSON(Data, True);
   if Value is TJSONObject then Exit(TJSONObject(Value));
   Value.Free;
-  raise Exception.Create('A Meshy retornou uma resposta inesperada.');
+  raise Exception.Create('O serviço retornou uma resposta inesperada.');
 end;
 
 function ValidTaskID(const ID: string): Boolean;
@@ -61,25 +144,66 @@ begin
   Result := True;
 end;
 
-procedure CheckHTTP(Code: Integer);
+procedure CheckHTTP(Code: Integer; const Provider, URL, Body, Key: string);
+var
+  SafeBody, APIMsg, Detail: string;
+  Parsed: TJSONData;
+  Obj, ErrObj: TJSONObject;
+  APICode: Integer;
 begin
+  if (Code >= 200) and (Code <= 299) then Exit;
+  SafeBody := SanitizeBodyForLog(Body, Key);
+  CadLog('AI.HTTP.ERROR', Format('provider=%s status=%d url=%s body=%s',
+    [Provider, Code, URL, SafeBody]));
+  APICode := 0;
+  APIMsg := '';
+  if Body <> '' then
+  begin
+    try
+      Parsed := GetJSON(Body, True);
+      try
+        if Parsed is TJSONObject then
+        begin
+          Obj := TJSONObject(Parsed);
+          ErrObj := Obj.Get('error', TJSONObject(nil));
+          if ErrObj <> nil then Obj := ErrObj;
+          APICode := Obj.Get('code', 0);
+          APIMsg := Obj.Get('message', '');
+        end;
+      finally
+        Parsed.Free;
+      end;
+    except
+      // Resposta não-JSON (proxy/CDN)
+    end;
+  end;
+  if Key <> '' then
+    APIMsg := StringReplace(APIMsg, Key, '[chave omitida]', [rfReplaceAll]);
+  APIMsg := Trim(StringReplace(StringReplace(APIMsg, #13, ' ', [rfReplaceAll]), #10, ' ', [rfReplaceAll]));
+  Detail := Format('HTTP %d', [Code]);
+  if APICode <> 0 then Detail := Detail + Format(' / API %d', [APICode]);
+  if APIMsg <> '' then Detail := Detail + ' - ' + Copy(APIMsg, 1, 200);
+  if (APICode = 2010) and SameText(Provider, 'Tripo') then
+    raise Exception.CreateFmt('%s informa que não há créditos suficientes (%s).', [Provider, Detail]);
   case Code of
-    200..299: Exit;
-    401,403: raise Exception.Create('A Meshy recusou o acesso. Confira a chave e as permissões.');
-    402: raise Exception.Create('A Meshy informa que não há créditos suficientes.');
-    429: raise Exception.Create('A Meshy atingiu o limite de requisições.');
+    401,403: raise Exception.CreateFmt('%s recusou o acesso (%s). Confira a chave e as permissões.', [Provider, Detail]);
+    402: raise Exception.CreateFmt('%s informa que não há créditos suficientes (%s).', [Provider, Detail]);
+    429: raise Exception.CreateFmt('%s atingiu o limite de requisições (%s).', [Provider, Detail]);
   else
-    raise Exception.CreateFmt('A requisição 3D falhou (HTTP %d).', [Code]);
+    raise Exception.CreateFmt('A requisição 3D falhou (%s).', [Detail]);
   end;
 end;
 
-constructor TCadText3DJob.Create(const APrompt, AKey, AModel: string; ASizeMM: Double);
+constructor TCadText3DJob.Create(const APrompt, AKey, AModel: string;
+  ASizeMM: Double; AProvider: TCadAIProvider; const AImageFile: string);
 begin
   inherited Create(True);
   FPrompt := APrompt;
   FKey := AKey;
   FModel := AModel;
   FSizeMM := ASizeMM;
+  FProvider := AProvider;
+  FImageFile := AImageFile;
   FWake := RTLEventCreate;
 end;
 
@@ -108,17 +232,13 @@ begin
   FFeature := nil;
 end;
 
-procedure TCadText3DJob.Execute;
+function TCadText3DJob.GenerateMeshy: string;
 var
   Body, Reply, Files: TJSONObject;
   ID, Status, DownloadURL: string;
-  Mesh: TCadMesh;
   Deadline: QWord;
 begin
-  try
-    try
-      if Terminated then Exit;
-      InterlockedExchange(FStage, 1);
+  Result := '';
       Body := TJSONObject.Create;
       try
         Body.Add('mode', 'preview');
@@ -169,20 +289,205 @@ begin
       if DownloadURL = '' then
         raise Exception.Create('O tempo de espera pela geração foi excedido.');
 
+  Result := DownloadURL;
+end;
+
+function TCadText3DJob.TripoData(const Path: string; const Payload: RawByteString;
+  const ContentType: string): TJSONObject;
+var Reply, Data: TJSONObject; Code: Integer;
+begin
+  Reply := ResponseObject(Request(TripoURL + Path, Payload, False, ContentType));
+  try
+    Code := Reply.Get('code', -1);
+    if Code <> 0 then
+      raise Exception.CreateFmt('A Tripo recusou a etapa %s (código %d).', [Path, Code]);
+    Data := Reply.Get('data', TJSONObject(nil));
+    if Data = nil then raise Exception.Create('A Tripo não retornou os dados da tarefa.');
+    Result := TJSONObject(Data.Clone);
+  finally
+    Reply.Free;
+  end;
+end;
+
+function TCadText3DJob.TripoSubmit(const Path: string; Body: TJSONObject): string;
+var Data: TJSONObject;
+begin
+  Data := TripoData(Path, Body.AsJSON);
+  try
+    Result := Data.Get('task_id', '');
+    if not ValidTaskID(Result) then
+      raise Exception.Create('A Tripo não forneceu um identificador de tarefa válido.');
+  finally
+    Data.Free;
+  end;
+end;
+
+function TCadText3DJob.TripoUploadImage: string;
+const
+  PNGSignature = #$89'PNG'#$0D#$0A#$1A#$0A;
+  JPEGSignature = #$FF#$D8#$FF;
+  CRLF = #13#10;
+var
+  Image: THandleStream;
+  ImageHandle: THandle;
+  ImageData, Payload: RawByteString;
+  Boundary, Mime, FileName: string;
+  ID: TGUID;
+  Data: TJSONObject;
+begin
+  ImageHandle := FileOpen(FImageFile, fmOpenRead or fmShareDenyWrite);
+  if ImageHandle = THandle(-1) then
+    raise Exception.Create('Não foi possível abrir a imagem de referência.');
+  try
+    Image := THandleStream.Create(ImageHandle);
+    try
+      if (Image.Size < 8) or (Image.Size > TripoImageLimit) then
+        raise Exception.Create('Use uma imagem PNG ou JPEG de até 20 MB.');
+      SetLength(ImageData, Image.Size);
+      Image.ReadBuffer(ImageData[1], Length(ImageData));
+    finally
+      Image.Free;
+    end;
+  finally
+    FileClose(ImageHandle);
+  end;
+  if Copy(ImageData, 1, 8) = PNGSignature then
+  begin
+    Mime := 'image/png';
+    FileName := 'reference.png';
+  end
+  else if Copy(ImageData, 1, 3) = JPEGSignature then
+  begin
+    Mime := 'image/jpeg';
+    FileName := 'reference.jpg';
+  end
+  else
+    raise Exception.Create('O arquivo não contém uma imagem PNG ou JPEG.');
+  if CreateGUID(ID) <> 0 then raise Exception.Create('Falha ao preparar o envio da imagem.');
+  Boundary := 'MultiCAD-' + Copy(GUIDToString(ID), 2, 36);
+  Payload := '--' + Boundary + CRLF +
+    'Content-Disposition: form-data; name="file"; filename="' + FileName + '"' + CRLF +
+    'Content-Type: ' + Mime + CRLF + CRLF + ImageData + CRLF + '--' + Boundary + '--' + CRLF;
+  if Terminated then Exit('');
+  Data := TripoData('/files', Payload, 'multipart/form-data; boundary=' + Boundary);
+  try
+    Result := Data.Get('file_token', '');
+    if (Copy(Result, 1, 5) <> 'file_') or not ValidTaskID(Result) then
+      raise Exception.Create('A Tripo não retornou uma referência de imagem válida.');
+  finally
+    Data.Free;
+  end;
+end;
+
+function TCadText3DJob.TripoWait(const ID: string; NeedDownload: Boolean): string;
+var Data, Output: TJSONObject; Status: string; Deadline: QWord;
+begin
+  Result := '';
+  Deadline := GetTickCount64 + 15*60*1000;
+  repeat
+    if Terminated then Exit;
+    Data := TripoData('/tasks/' + ID);
+    try
+      Status := LowerCase(Data.Get('status', ''));
+      if Status = 'success' then
+      begin
+        if not NeedDownload then Exit;
+        Output := Data.Get('output', TJSONObject(nil));
+        if Output <> nil then Result := Output.Get('model_url', '');
+        if Result = '' then raise Exception.Create('A Tripo não retornou o STL convertido.');
+        Exit;
+      end;
+      if (Status = 'failed') or (Status = 'cancelled') or
+         (Status = 'banned') or (Status = 'expired') then
+        raise Exception.CreateFmt('Tarefa Tripo %s encerrada sem malha (código %d).',
+          [ID, Data.Get('error_code', 0)]);
+    finally
+      Data.Free;
+    end;
+    RTLEventWaitFor(FWake, 3000);
+  until GetTickCount64 >= Deadline;
+  if not Terminated then
+    raise Exception.CreateFmt('Tempo de espera excedido para a tarefa Tripo %s.', [ID]);
+end;
+
+function TCadText3DJob.GenerateTripo: string;
+var Body: TJSONObject; ID, Path, Input: string;
+begin
+  Result := '';
+  Body := TJSONObject.Create;
+  try
+    if FImageFile <> '' then
+    begin
+      InterlockedExchange(FStage, 4);
+      Input := TripoUploadImage;
+      if Terminated then Exit;
+      Path := '/generation/image-to-model';
+      Body.Add('input', Input);
+    end
+    else
+    begin
+      Path := '/generation/text-to-model';
+      Body.Add('prompt', FPrompt);
+    end;
+    InterlockedExchange(FStage, 1);
+    Body.Add('model', FModel);
+    Body.Add('texture', False);
+    Body.Add('pbr', False);
+    Body.Add('face_limit', 10000);
+    if SameText(FModel, 'P2-20260801') then Body.Add('quad', False);
+    ID := TripoSubmit(Path, Body);
+    InterlockedExchange(FStage, 2);
+    TripoWait(ID, False);
+    if Terminated then Exit;
+
+    InterlockedExchange(FStage, 5);
+    Body.Clear;
+    Body.Add('input', ID);
+    Body.Add('format', 'STL');
+    ID := TripoSubmit('/models/convert', Body);
+    Result := TripoWait(ID, True);
+  finally
+    Body.Free;
+  end;
+end;
+
+procedure TCadText3DJob.Execute;
+var DownloadURL: string; Mesh: TCadMesh;
+begin
+  try
+    try
+      if Terminated then Exit;
+      CadLog('AI.JOB.START', Format('provider=%s model=%s size_mm=%.2f image=%s key=%s',
+        [CadAIProviderNames[FProvider], FModel, FSizeMM, BoolToStr(FImageFile <> '', True),
+         MaskKeyInfo(FKey)]));
+      if not CadAIModelCompatible(FProvider, FModel) then
+        raise Exception.CreateFmt('O modelo "%s" não é compatível com o provedor %s.',
+          [FModel, CadAIProviderNames[FProvider]]);
+      InterlockedExchange(FStage, 1);
+      if FProvider = capTripo then DownloadURL := GenerateTripo
+      else DownloadURL := GenerateMeshy;
+      if Terminated then Exit;
       InterlockedExchange(FStage, 3);
       FFeature := TCadGeneratedMesh.Create;
+      FFeature.Provider := CadAIProviderNames[FProvider];
+      FFeature.FromImage := FImageFile <> '';
       FFeature.Prompt := FPrompt;
       FFeature.Model := FModel;
       FFeature.SizeMM := FSizeMM;
       FFeature.SetSTL(Request(DownloadURL, '', True));
       Mesh := FFeature.BuildMesh;
       Mesh.Free;
+      CadLog('AI.JOB.OK', Format('provider=%s model=%s', [CadAIProviderNames[FProvider], FModel]));
     except
       on E: Exception do
       begin
         FreeAndNil(FFeature);
-        FError := StringReplace(E.Message, FKey, '[chave omitida]', [rfReplaceAll]);
-        FError := StringReplace(FError, FPrompt, '[descrição omitida]', [rfReplaceAll]);
+        FError := E.Message;
+        if FKey <> '' then
+          FError := StringReplace(FError, FKey, '[chave omitida]', [rfReplaceAll]);
+        if FPrompt <> '' then
+          FError := StringReplace(FError, FPrompt, '[descrição omitida]', [rfReplaceAll]);
+        CadLog('AI.JOB.ERROR', FError);
       end;
     end;
   finally
@@ -221,12 +526,13 @@ begin
 end;
 {$ENDIF}
 
-function TCadText3DJob.Request(const URL, Payload: string; Download: Boolean): RawByteString;
+function TCadText3DJob.Request(const URL: string; const Payload: RawByteString;
+  Download: Boolean; const ContentType: string): RawByteString;
 var
   URI: TURI;
   Limit: Integer;
   {$IFDEF WINDOWS}
-  Session, Connection, Handle: HINTERNET;
+  Session, Connection, RequestHandle: HINTERNET;
   Method, Path, Header: UnicodeString;
   Status, HeaderSize, Policy, BytesRead: DWORD;
   Chunk: array[0..32767] of Byte;
@@ -239,13 +545,20 @@ var
   Status: clong;
   {$ENDIF}
 begin
+  if Terminated then Exit('');
   URI := ParseURI(URL, False);
   if not SameText(URI.Protocol, 'https') or (URI.Host = '') or
      (URI.Username <> '') or (URI.Password <> '') or
      ((URI.Port <> 0) and (URI.Port <> 443)) then
-    raise Exception.Create('A Meshy forneceu um endereço HTTPS inválido.');
+    raise Exception.Create('O serviço forneceu um endereço HTTPS inválido.');
+  if not Download and not
+     (((FProvider = capMeshy) and SameText(URI.Host, 'api.meshy.ai')) or
+      ((FProvider = capTripo) and SameText(URI.Host, 'openapi.tripo3d.ai'))) then
+    raise Exception.Create('O endereço não pertence ao provedor configurado.');
   Limit := JSONLimit;
   if Download then Limit := CadGeneratedMaxBytes;
+  CadLog('AI.HTTP.REQ', Format('provider=%s url=%s download=%s payload_len=%d',
+    [CadAIProviderNames[FProvider], URL, BoolToStr(Download, True), Length(Payload)]));
 
   {$IFDEF WINDOWS}
   Path := UTF8Decode(URI.Path + URI.Document);
@@ -257,7 +570,7 @@ begin
   if Payload <> '' then
   begin
     Method := 'POST';
-    Header := Header + 'Content-Type: application/json' + #13#10;
+    Header := Header + 'Content-Type: ' + UTF8Decode(ContentType) + #13#10;
   end;
   Session := WinHttpOpen('MultiCAD', WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, nil, nil, 0);
   if Session = nil then RaiseLastOSError;
@@ -266,24 +579,23 @@ begin
     Connection := WinHttpConnect(Session, PWideChar(UTF8Decode(URI.Host)), 443, 0);
     if Connection = nil then RaiseLastOSError;
     try
-      Handle := WinHttpOpenRequest(Connection, PWideChar(Method), PWideChar(Path),
+      RequestHandle := WinHttpOpenRequest(Connection, PWideChar(Method), PWideChar(Path),
         nil, nil, nil, WINHTTP_FLAG_SECURE or WINHTTP_FLAG_ESCAPE_DISABLE_QUERY);
-      if Handle = nil then RaiseLastOSError;
+      if RequestHandle = nil then RaiseLastOSError;
       try
         Policy := WINHTTP_OPTION_REDIRECT_POLICY_NEVER;
-        if not WinHttpSetOption(Handle, WINHTTP_OPTION_REDIRECT_POLICY, @Policy, SizeOf(Policy)) or
-           not WinHttpSendRequest(Handle, PWideChar(Header), Length(Header),
+        if not WinHttpSetOption(RequestHandle, WINHTTP_OPTION_REDIRECT_POLICY, @Policy, SizeOf(Policy)) or
+           not WinHttpSendRequest(RequestHandle, PWideChar(Header), Length(Header),
              Pointer(Payload), Length(Payload), Length(Payload), 0) or
-           not WinHttpReceiveResponse(Handle, nil) then
+           not WinHttpReceiveResponse(RequestHandle, nil) then
           RaiseLastOSError;
         HeaderSize := SizeOf(Status);
-        if not WinHttpQueryHeaders(Handle, WINHTTP_QUERY_STATUS_CODE or WINHTTP_QUERY_FLAG_NUMBER,
+        if not WinHttpQueryHeaders(RequestHandle, WINHTTP_QUERY_STATUS_CODE or WINHTTP_QUERY_FLAG_NUMBER,
           nil, @Status, @HeaderSize, nil) then RaiseLastOSError;
-        CheckHTTP(Status);
         Result := '';
         repeat
           if Terminated then Exit;
-          if not WinHttpReadData(Handle, @Chunk, SizeOf(Chunk), @BytesRead) then RaiseLastOSError;
+          if not WinHttpReadData(RequestHandle, @Chunk, SizeOf(Chunk), @BytesRead) then RaiseLastOSError;
           Total := Length(Result);
           if Total + BytesRead > Limit then
             raise Exception.Create('A resposta excede o tamanho suportado.');
@@ -293,8 +605,11 @@ begin
             Move(Chunk, Result[Total+1], BytesRead);
           end;
         until BytesRead = 0;
+        CadLog('AI.HTTP.RESP', Format('provider=%s status=%d url=%s bytes=%d',
+          [CadAIProviderNames[FProvider], Status, URL, Length(Result)]));
+        CheckHTTP(Status, CadAIProviderNames[FProvider], URL, Result, FKey);
       finally
-        WinHttpCloseHandle(Handle);
+        WinHttpCloseHandle(RequestHandle);
       end;
     finally
       WinHttpCloseHandle(Connection);
@@ -318,7 +633,7 @@ begin
     end;
     if Payload <> '' then
     begin
-      Updated := curl_slist_append(Headers, 'Content-Type: application/json');
+      Updated := curl_slist_append(Headers, PChar('Content-Type: ' + ContentType));
       if Updated = nil then raise Exception.Create('Falha ao preparar a requisição HTTPS.');
       Headers := Updated;
     end;
@@ -332,18 +647,21 @@ begin
        (curl_easy_setopt(Client, CURLOPT_HTTPHEADER, [Pointer(Headers)]) <> CURLE_OK) then
       raise Exception.Create('Falha ao preparar a requisição HTTPS.');
     if (Payload <> '') and
-       (curl_easy_setopt(Client, CURLOPT_POSTFIELDS, [PChar(Payload)]) <> CURLE_OK) then
+       ((curl_easy_setopt(Client, CURLOPT_POSTFIELDS, [PChar(Payload)]) <> CURLE_OK) or
+        (curl_easy_setopt(Client, CURLOPT_POSTFIELDSIZE, [clong(Length(Payload))]) <> CURLE_OK)) then
       raise Exception.Create('Falha ao preparar a requisição de geração.');
     if curl_easy_perform(Client) <> CURLE_OK then
     begin
       if Transfer.TooLarge then raise Exception.Create('A resposta excede o tamanho suportado.');
-      raise Exception.Create('Não foi possível concluir a conexão HTTPS com a Meshy.');
+      raise Exception.Create('Não foi possível concluir a conexão HTTPS com o provedor.');
     end;
     Status := 0;
     if curl_easy_getinfo(Client, CURLINFO_RESPONSE_CODE, [Pointer(@Status)]) <> CURLE_OK then
       raise Exception.Create('Não foi possível ler o status da requisição HTTPS.');
-    CheckHTTP(Status);
     SetString(Result, PChar(Transfer.Stream.Memory), Transfer.Stream.Size);
+    CadLog('AI.HTTP.RESP', Format('provider=%s status=%d url=%s bytes=%d',
+      [CadAIProviderNames[FProvider], Status, URL, Length(Result)]));
+    CheckHTTP(Status, CadAIProviderNames[FProvider], URL, Result, FKey);
   finally
     if Client <> nil then curl_easy_cleanup(Client);
     curl_slist_free_all(Headers);

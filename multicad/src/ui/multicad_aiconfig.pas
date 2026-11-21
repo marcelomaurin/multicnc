@@ -4,11 +4,12 @@ unit multicad_aiconfig;
 
 interface
 
-uses Classes;
+uses Classes, multicad_text3d;
 
 type
   TCadAIConfig = record
-    Model, Key: string;
+    Provider: TCadAIProvider;
+    Models, Keys: array[TCadAIProvider] of string;
   end;
 
 function LoadCadAIConfig: TCadAIConfig;
@@ -19,11 +20,10 @@ implementation
 uses
   {$IFDEF WINDOWS}Windows, Base64,{$ELSE}BaseUnix,{$ENDIF}
   SysUtils, IniFiles, LazFileUtils, LazUTF8, Forms, Controls, StdCtrls,
-  multicad_text3d;
+  multicad_log;
 
 const
-  MeshyModels: array[0..5] of string = ('meshy-7.1', 'meshy-6',
-    'meshy-6-lite', 'meshy-t2.5', 'meshy-t2', 'meshy-7');
+  ModelVariables: array[TCadAIProvider] of string = ('MESHY_3D_MODEL', 'TRIPO3D_MODEL');
 
 {$IFDEF WINDOWS}
 type
@@ -82,24 +82,43 @@ end;
 function LoadCadAIConfig: TCadAIConfig;
 var
   Ini: TMemIniFile;
-  FileName: string;
+  FileName, Section: string;
+  Provider: TCadAIProvider;
 begin
   Result := Default(TCadAIConfig);
-  Result.Model := Trim(GetEnvironmentVariableUTF8('MESHY_3D_MODEL'));
-  if Result.Model = '' then Result.Model := MeshyDefaultModel;
+  for Provider := Low(TCadAIProvider) to High(TCadAIProvider) do
+  begin
+    Result.Models[Provider] := CadAINormalizeModel(Provider,
+      GetEnvironmentVariableUTF8(ModelVariables[Provider]));
+  end;
   FileName := ConfigPath;
   if not FileExistsUTF8(FileName) then Exit;
   Ini := TMemIniFile.Create(FileName);
   try
-    Result.Model := Ini.ReadString('STL.Meshy', 'modelo', Result.Model);
-    {$IFDEF WINDOWS}
-    try
-      Result.Key := ConvertKey(Ini.ReadString('STL.Meshy', 'chave_dpapi', ''), False);
-    except
-      // Uma chave de outro perfil pode ser substituída pelo editor.
-      Result.Key := '';
+    if SameText(Ini.ReadString('Geral', 'stl', 'Meshy'), 'Tripo') then
+      Result.Provider := capTripo;
+    for Provider := Low(TCadAIProvider) to High(TCadAIProvider) do
+    begin
+      Section := 'STL.' + CadAIProviderNames[Provider];
+      Result.Models[Provider] := CadAINormalizeModel(Provider,
+        Ini.ReadString(Section, 'modelo', Result.Models[Provider]));
+      {$IFDEF WINDOWS}
+      try
+        Result.Keys[Provider] := ConvertKey(Ini.ReadString(Section, 'chave_dpapi', ''), False);
+        while (Pos('AQAA', Result.Keys[Provider]) = 1) and (Length(Result.Keys[Provider]) > 64) do
+          Result.Keys[Provider] := ConvertKey(Result.Keys[Provider], False);
+      except
+        on E: Exception do
+        begin
+          Result.Keys[Provider] := '';
+          CadLog('AI.CONFIG.KEY_ERR', CadAIProviderNames[Provider] + ': ' + E.Message);
+        end;
+      end;
+      {$ENDIF}
     end;
-    {$ENDIF}
+    CadLog('AI.CONFIG.LOAD', Format('provider=%s meshy_model=%s meshy_key_len=%d tripo_model=%s tripo_key_len=%d',
+      [CadAIProviderNames[Result.Provider], Result.Models[capMeshy], Length(Result.Keys[capMeshy]),
+       Result.Models[capTripo], Length(Result.Keys[capTripo])]));
   finally
     Ini.Free;
   end;
@@ -109,7 +128,8 @@ procedure SaveCadAIConfig(const Config: TCadAIConfig);
 var
   Ini: TMemIniFile;
   Lines: TStringList;
-  FileName, Temp: string;
+  FileName, Temp, Section: string;
+  Provider: TCadAIProvider;
   ID: TGUID;
 begin
   FileName := ConfigPath;
@@ -120,11 +140,15 @@ begin
   Ini := TMemIniFile.Create('');
   Lines := TStringList.Create;
   try
-    Ini.WriteString('Geral', 'stl', 'Meshy');
-    Ini.WriteString('STL.Meshy', 'modelo', Config.Model);
-    {$IFDEF WINDOWS}
-    Ini.WriteString('STL.Meshy', 'chave_dpapi', ConvertKey(Config.Key, True));
-    {$ENDIF}
+    Ini.WriteString('Geral', 'stl', CadAIProviderNames[Config.Provider]);
+    for Provider := Low(TCadAIProvider) to High(TCadAIProvider) do
+    begin
+      Section := 'STL.' + CadAIProviderNames[Provider];
+      Ini.WriteString(Section, 'modelo', Config.Models[Provider]);
+      {$IFDEF WINDOWS}
+      Ini.WriteString(Section, 'chave_dpapi', ConvertKey(Config.Keys[Provider], True));
+      {$ENDIF}
+    end;
     Ini.GetStrings(Lines);
     Lines.SaveToFile(Temp);
     {$IFDEF WINDOWS}
@@ -134,6 +158,9 @@ begin
     if FpChmod(Temp, &600) <> 0 then RaiseLastOSError;
     if not RenameFileUTF8(Temp, FileName) then RaiseLastOSError;
     {$ENDIF}
+    CadLog('AI.CONFIG.SAVE', Format('provider=%s meshy_model=%s meshy_key_len=%d tripo_model=%s tripo_key_len=%d',
+      [CadAIProviderNames[Config.Provider], Config.Models[capMeshy], Length(Config.Keys[capMeshy]),
+       Config.Models[capTripo], Length(Config.Keys[capTripo])]));
   finally
     Lines.Free;
     Ini.Free;
@@ -141,20 +168,30 @@ begin
   end;
 end;
 
-function EditCadAIConfig(Owner: TComponent; var Config: TCadAIConfig): Boolean;
+type
+  TCadAIConfigDialog = class(TForm)
+  private
+    FProviders, FModel: TComboBox;
+    FKey: TEdit;
+    FModelLabel, FKeyLabel, FStatus: TLabel;
+    FDraft: TCadAIConfig;
+    procedure RememberProviderFields;
+    procedure ShowProviderFields;
+    procedure ProviderChanged(Sender: TObject);
+  public
+    constructor Create(AOwner: TComponent; const Config: TCadAIConfig); reintroduce;
+    function Edit(var Config: TCadAIConfig): Boolean;
+  end;
+
+constructor TCadAIConfigDialog.Create(AOwner: TComponent; const Config: TCadAIConfig);
 var
-  Dialog: TForm;
-  Model: TComboBox;
-  Key: TEdit;
+  Provider: TCadAIProvider;
   Button: TButton;
-  ID: string;
-  Edited: TCadAIConfig;
-  Status: TLabel;
 
   function PutLabel(const Text: string; Y: Integer): TLabel;
   begin
-    Result := TLabel.Create(Dialog);
-    Result.Parent := Dialog;
+    Result := TLabel.Create(Self);
+    Result.Parent := Self;
     Result.Left := 16;
     Result.Top := Y;
     Result.Caption := Text;
@@ -162,70 +199,161 @@ var
 
   function PutButton(const Text: string; X, Value: Integer): TButton;
   begin
-    Result := TButton.Create(Dialog);
-    Result.Parent := Dialog;
-    Result.SetBounds(X, 214, 100, 28);
+    Result := TButton.Create(Self);
+    Result.Parent := Self;
+    Result.SetBounds(X, 225, 100, 28);
     Result.Caption := Text;
     Result.ModalResult := Value;
   end;
 
 begin
-  Result := False;
-  Dialog := TForm.CreateNew(Owner);
-  try
-    Dialog.Caption := 'MultiCAD · Configuração da IA';
-    Dialog.BorderStyle := bsDialog;
-    Dialog.Position := poOwnerFormCenter;
-    Dialog.ClientWidth := 456;
-    Dialog.ClientHeight := 258;
-    PutLabel('Provedor para malhas 3D   Meshy', 14);
-    PutLabel('Modelo 3D', 48);
-    Model := TComboBox.Create(Dialog);
-    Model.Parent := Dialog;
-    Model.SetBounds(16, 68, 424, 26);
-    Model.Style := csDropDown;
-    for ID in MeshyModels do Model.Items.Add(ID);
-    Model.Text := Config.Model;
+  inherited CreateNew(AOwner);
+  FDraft := Config;
+  Caption := 'MultiCAD · Configuração da IA';
+  BorderStyle := bsDialog;
+  Position := poOwnerFormCenter;
+  ClientWidth := 456;
+  ClientHeight := 269;
 
-    PutLabel('Chave API Meshy', 104);
-    Key := TEdit.Create(Dialog);
-    Key.Parent := Dialog;
-    Key.SetBounds(16, 124, 424, 26);
-    Key.PasswordChar := '*';
-    Key.Text := Config.Key;
-    Key.TextHint := 'MESHY_API_KEY';
-    {$IFDEF WINDOWS}
-    PutLabel('A chave fica protegida no perfil do Windows.', 158);
-    {$ELSE}
-    PutLabel('A chave digitada vale para esta sessão.', 158);
-    {$ENDIF}
-    Status := PutLabel('', 181);
-    Status.Width := 424;
-    Status.AutoSize := False;
-    Status.Height := 30;
-    Status.WordWrap := True;
-    Button := PutButton('Cancelar', 234, mrCancel);
-    Button.Cancel := True;
-    Button := PutButton('Salvar', 340, mrOk);
-    Button.Default := True;
-    while Dialog.ShowModal = mrOk do
+  PutLabel('Provedor padrão', 14);
+  FProviders := TComboBox.Create(Self);
+  FProviders.Name := 'AIProvider';
+  FProviders.Parent := Self;
+  FProviders.SetBounds(16, 34, 424, 26);
+  FProviders.Style := csDropDownList;
+  for Provider := Low(TCadAIProvider) to High(TCadAIProvider) do
+    FProviders.Items.Add(CadAIProviderNames[Provider]);
+  FProviders.ItemIndex := Ord(FDraft.Provider);
+
+  FModelLabel := PutLabel('', 72);
+  FModel := TComboBox.Create(Self);
+  FModel.Name := 'AIModel';
+  FModel.Parent := Self;
+  FModel.SetBounds(16, 92, 424, 26);
+  FModel.Style := csDropDownList;
+
+  FKeyLabel := PutLabel('', 126);
+  FKey := TEdit.Create(Self);
+  FKey.Name := 'AIKey';
+  FKey.Parent := Self;
+  FKey.SetBounds(16, 146, 424, 26);
+  FKey.PasswordChar := '*';
+
+  {$IFDEF WINDOWS}
+  PutLabel('A chave fica protegida no perfil do Windows.', 181);
+  {$ELSE}
+  PutLabel('A chave digitada vale para esta sessão.', 181);
+  {$ENDIF}
+  FStatus := PutLabel('', 201);
+  FStatus.AutoSize := False;
+  FStatus.Width := 424;
+  FStatus.Height := 24;
+  FStatus.WordWrap := True;
+  Button := PutButton('Cancelar', 234, mrCancel);
+  Button.Cancel := True;
+  Button := PutButton('Salvar', 340, mrOk);
+  Button.Default := True;
+
+  ShowProviderFields;
+  FProviders.OnChange := @ProviderChanged;
+  ActiveControl := FProviders;
+end;
+
+procedure TCadAIConfigDialog.RememberProviderFields;
+begin
+  FDraft.Models[FDraft.Provider] := CadAINormalizeModel(FDraft.Provider, FModel.Text);
+  FDraft.Keys[FDraft.Provider] := Trim(FKey.Text);
+end;
+
+procedure TCadAIConfigDialog.ShowProviderFields;
+var
+  I: Integer;
+  ProviderName, SelectedModel: string;
+begin
+  ProviderName := CadAIProviderNames[FDraft.Provider];
+  SelectedModel := CadAINormalizeModel(FDraft.Provider, FDraft.Models[FDraft.Provider]);
+  FDraft.Models[FDraft.Provider] := SelectedModel;
+  FModelLabel.Caption := 'Modelo ' + ProviderName;
+  FModel.Items.BeginUpdate;
+  try
+    FModel.Items.Clear;
+    for I := 0 to CadAIModelCount(FDraft.Provider) - 1 do
+      FModel.Items.Add(CadAIModelAt(FDraft.Provider, I));
+    FModel.ItemIndex := FModel.Items.IndexOf(SelectedModel);
+    if (FModel.ItemIndex < 0) and (FModel.Items.Count > 0) then
+      FModel.ItemIndex := 0;
+  finally
+    FModel.Items.EndUpdate;
+  end;
+
+  FKeyLabel.Caption := 'Chave API ' + ProviderName;
+  FKey.Text := FDraft.Keys[FDraft.Provider];
+  FKey.TextHint := CadAIKeyVariables[FDraft.Provider];
+end;
+
+procedure TCadAIConfigDialog.ProviderChanged(Sender: TObject);
+begin
+  if FProviders.ItemIndex < 0 then Exit;
+  RememberProviderFields;
+  FDraft.Provider := TCadAIProvider(FProviders.ItemIndex);
+  ShowProviderFields;
+  FStatus.Caption := '';
+end;
+
+function TCadAIConfigDialog.Edit(var Config: TCadAIConfig): Boolean;
+var
+  Provider: TCadAIProvider;
+  Model, Key: string;
+begin
+  Result := False;
+  while ShowModal = mrOk do
+  begin
+    RememberProviderFields;
+    FStatus.Caption := '';
+    for Provider := Low(TCadAIProvider) to High(TCadAIProvider) do
     begin
-      Edited.Model := Trim(Model.Text);
-      Edited.Key := Trim(Key.Text);
-      if (Edited.Model = '') or (Pos(#10, Edited.Key) > 0) or
-         (Pos(#13, Edited.Key) > 0) or (Pos(#0, Edited.Key) > 0) then
+      Model := FDraft.Models[Provider];
+      Key := FDraft.Keys[Provider];
+      if not CadAIModelCompatible(Provider, Model) then
       begin
-        Status.Caption := 'Informe um modelo e uma chave válida.';
-        Continue;
+        FStatus.Caption := 'O modelo "' + Model + '" não é compatível com ' +
+          CadAIProviderNames[Provider] + '.';
+        Break;
       end;
-      try
-        SaveCadAIConfig(Edited);
-        Config := Edited;
-        Exit(True);
-      except
-        on E: Exception do Status.Caption := E.Message;
+      if (Pos(#10, Key) > 0) or (Pos(#13, Key) > 0) or (Pos(#0, Key) > 0) then
+      begin
+        FStatus.Caption := 'Confira a chave de ' + CadAIProviderNames[Provider] + '.';
+        Break;
+      end;
+      if (Pos('AQAA', Key) = 1) and (Length(Key) > 64) then
+      begin
+        FStatus.Caption := 'Cole a chave API original de ' + CadAIProviderNames[Provider] +
+          ', não o bloco criptografado (AQAA...).';
+        Break;
+      end;
+      if (Provider = capTripo) and (Pos('tcli_', Key) = 1) then
+      begin
+        FStatus.Caption := 'Na Tripo, use a chave secreta (tsk_...), não o client_id (tcli_...).';
+        Break;
       end;
     end;
+    if FStatus.Caption <> '' then Continue;
+    try
+      SaveCadAIConfig(FDraft);
+      Config := FDraft;
+      Exit(True);
+    except
+      on E: Exception do FStatus.Caption := E.Message;
+    end;
+  end;
+end;
+
+function EditCadAIConfig(Owner: TComponent; var Config: TCadAIConfig): Boolean;
+var Dialog: TCadAIConfigDialog;
+begin
+  Dialog := TCadAIConfigDialog.Create(Owner, Config);
+  try
+    Result := Dialog.Edit(Config);
   finally
     Dialog.Free;
   end;

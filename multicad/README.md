@@ -24,21 +24,25 @@ O **MultiCAD** é o CAD **paramétrico de peças mecânicas** da suíte. O fluxo
 O resultado é a geometria da peça, que as outras ferramentas usam para fabricar, montar e
 simular. O MultiCAD **nunca** gera G-code nem fala com a máquina.
 
-## Gerar modelo 3D por texto
+## Modelar peça por IA
 
-1. Abra **Ferramentas → Configuração da IA**, escolha o modelo Meshy e
-   informe a chave API. O programa também aceita `MESHY_API_KEY`.
-2. Abra **Inserir → Gerar 3D por texto**, descreva a peça, informe a maior
-   dimensão em milímetros e clique em **Gerar**. O modelo aparece na vista
-   3D e na árvore de operações da peça atual.
-3. Salve o `.mcad` para guardar a malha e sua descrição. A mesma geometria
-   pode ser exportada pelo comando STL para impressão 3D.
+1. Em **Ferramentas → Configuração da IA**, configure o modelo e a chave do
+   provedor. O MultiCAD também aceita `MESHY_API_KEY` e `TRIPO3D_API_KEY`.
+2. Abra **Inserir → Modelar peça por IA**, selecione Meshy ou Tripo e
+   informe a maior dimensão em milímetros. Use **Gerar por texto** com
+   qualquer provedor ou **Gerar por imagem** na Tripo com um PNG ou JPEG
+   de até 20 MB.
+3. Confira a peça na prévia 3D e clique em **Inserir peça**. Salve o
+   `.mcad` para guardar a malha, o provedor e a descrição, quando houver.
+   A mesma geometria pode ser exportada como STL.
 
-O Windows guarda a chave com DPAPI no perfil do usuário. No Linux a chave
-digitada fica na sessão do MultiCAD, e as requisições HTTPS usam libcurl.
-O serviço pode consumir créditos. A escala é uniforme e ajusta a maior
-dimensão da malha. Para cotas individuais, esboços e sólidos STEP, use as
-operações paramétricas do MultiCAD.
+O MultiCAD envia a entrada selecionada ao provedor. A geração pode consumir
+créditos, assim como a conversão para STL na Tripo. No Windows, o aplicativo
+protege as chaves com DPAPI. No Linux, chaves digitadas valem para a sessão
+e as requisições HTTPS usam libcurl.
+
+O resultado é uma malha triangulada em escala uniforme pela maior dimensão.
+Para cotas individuais, esboços e sólidos STEP, use as operações paramétricas.
 
 ## Manual do usuário
 

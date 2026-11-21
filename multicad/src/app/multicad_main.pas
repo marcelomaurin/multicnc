@@ -729,7 +729,7 @@ begin
   Command('Ressalto revolucionado',@RevolveClick);Command('Corte revolucionado',@RevolveCutClick);
   Command('-',nil);Command('Furo',@HoleClick);Command('Rosca',@ThreadClick);
   Command('Engrenagem',@GearClick);
-  Command('Gerar 3D por texto...',@GenerateText3DClick);
+  Command('Modelar peça por IA...',@GenerateText3DClick);
   Root:=Category('Ferramentas');
   Command('Reconstruir',@RebuildClick);Command('Propriedades de massa',@MassClick);
   Command('Medir',@MeasureClick);Command('Exportar STL...',@ExportSTLClick);
@@ -2873,7 +2873,7 @@ var F: TCadGeneratedMesh;
 begin
   if PM.Visible or Assigned(FEditor) then Exit;
   EnsureAIConfig;
-  F := GenerateCadMeshFromText(Self, FAIConfig);
+  F := GenerateCadMesh(Self, FAIConfig);
   if F = nil then Exit;
   try
     Doc.AddFeature(F);

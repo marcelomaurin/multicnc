@@ -15,10 +15,12 @@ type
   private
     FSTL: RawByteString;
   public
-    Prompt, Model: string;
+    Prompt, Model, Provider: string;
+    FromImage: Boolean;
     SizeMM: Double;
     constructor Create; override;
     procedure SetSTL(const Data: RawByteString);
+    function CopyForPreview: TCadGeneratedMesh;
     procedure LoadParams(O: TJSONObject); override;
     procedure SaveParams(O: TJSONObject); override;
     function BuildMesh: TCadMesh;
@@ -48,11 +50,20 @@ begin
   FSTL := Data;
 end;
 
+function TCadGeneratedMesh.CopyForPreview: TCadGeneratedMesh;
+begin
+  Result := TCadGeneratedMesh.Create;
+  Result.FSTL := FSTL;
+  Result.SizeMM := SizeMM;
+end;
+
 procedure TCadGeneratedMesh.LoadParams(O: TJSONObject);
 var Encoded: string;
 begin
   Prompt := JStr(O, 'prompt', '');
   Model := JStr(O, 'model', '');
+  Provider := JStr(O, 'provider', 'Meshy');
+  FromImage := JBool(O, 'from_image', False);
   SizeMM := JNum(O, 'size_mm', 100);
   Encoded := JStr(O, 'stl', '');
   if Length(Encoded) > ((CadGeneratedMaxBytes + 2) div 3) * 4 then
@@ -64,6 +75,8 @@ procedure TCadGeneratedMesh.SaveParams(O: TJSONObject);
 begin
   O.Add('prompt', Prompt);
   O.Add('model', Model);
+  if Provider <> '' then O.Add('provider', Provider);
+  if FromImage then O.Add('from_image', True);
   O.Add('size_mm', SizeMM);
   O.Add('stl', EncodeStringBase64(FSTL));
 end;

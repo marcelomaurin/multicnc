@@ -14,7 +14,8 @@ uses
   multicad_camera, multicad_depthdrag, multicad_softrender, multicad_sketchtools, multicad_export,
   multicad_measure, multicad_textures, multicad_undo, multicad_threads, multicad_hole,
   multicad_pattern, multicad_blend, multicad_blendgeom, multicad_occt, multicad_import, multislicer_types, multislicer_mesh, multislicer_stl,
-  multicad_threadgeom, multicad_threadop, multicad_gears, multicad_gear, multicad_generatedmesh;
+  multicad_threadgeom, multicad_threadop, multicad_gears, multicad_gear, multicad_generatedmesh,
+  multicad_text3d;
 
 var
   Passed, Failed: Integer;
@@ -3308,6 +3309,55 @@ begin
   end;
 end;
 
+procedure TestAICompatibility;
+var
+  Job: TCadText3DJob;
+  I: Integer;
+begin
+  for I := 0 to CadAIModelCount(capMeshy) - 1 do
+  begin
+    Check(CadAIModelCompatible(capMeshy, CadAIModelAt(capMeshy, I)),
+      'IA: modelo Meshy compatível com Meshy');
+    Check(not CadAIModelCompatible(capTripo, CadAIModelAt(capMeshy, I)),
+      'IA: modelo Meshy incompatível com Tripo');
+  end;
+  for I := 0 to CadAIModelCount(capTripo) - 1 do
+  begin
+    Check(CadAIModelCompatible(capTripo, CadAIModelAt(capTripo, I)),
+      'IA: modelo Tripo compatível com Tripo');
+    Check(not CadAIModelCompatible(capMeshy, CadAIModelAt(capTripo, I)),
+      'IA: modelo Tripo incompatível com Meshy');
+  end;
+  Check(not CadAIModelCompatible(capMeshy, ''), 'IA: modelo vazio rejeitado para Meshy');
+  Check(not CadAIModelCompatible(capTripo, 'desconhecido'), 'IA: modelo desconhecido rejeitado para Tripo');
+  Check(CadAINormalizeModel(capMeshy, 'v3.1-20260211') = CadAIDefaultModels[capMeshy],
+    'IA: normalização corrige modelo incompatível da Meshy');
+  Check(CadAINormalizeModel(capTripo, 'meshy-7.1') = CadAIDefaultModels[capTripo],
+    'IA: normalização corrige modelo incompatível da Tripo');
+  Check(CadAINormalizeModel(capTripo, 'p2-20260801') = 'P2-20260801',
+    'IA: normalização preserva modelo compatível');
+
+  Job := TCadText3DJob.Create('suporte', 'chave-teste', 'v3.1-20260211', 50, capMeshy);
+  try
+    Job.Start;
+    Job.WaitFor;
+    Check((Job.ErrorMessage <> '') and (Job.TakeFeature = nil),
+      'IA: job Meshy recusa modelo da Tripo sem chamar API');
+  finally
+    Job.Free;
+  end;
+
+  Job := TCadText3DJob.Create('suporte', 'chave-teste', 'meshy-7.1', 50, capTripo);
+  try
+    Job.Start;
+    Job.WaitFor;
+    Check((Job.ErrorMessage <> '') and (Job.TakeFeature = nil),
+      'IA: job Tripo recusa modelo da Meshy sem chamar API');
+  finally
+    Job.Free;
+  end;
+end;
+
 begin
   Passed := 0;
   Failed := 0;
@@ -3339,6 +3389,7 @@ begin
   TestOcct;
   TestExport;
   TestGeneratedMesh;
+  TestAICompatibility;
   Writeln(Format('MultiCAD: %d checks, %d falhas', [Passed + Failed, Failed]));
   if Failed > 0 then
     Halt(1);
