@@ -99,6 +99,18 @@ begin
  finally Other.Free;Doc.Free;Motion.Free;B.Free;M.Free;R.Free;A.Free;end;
 end;
 
+procedure TestNonuniformScale;
+var D:TJSONData;L:TStringList;Path,Notes:string;A:TCadAvatarMesh;R:TCadRig;Failed:Boolean;
+begin
+ D:=GetJSON(ReadText(Fixture('avatar-small.gltf')));L:=TStringList.Create;A:=nil;R:=nil;
+ Path:=GetTempDir+'multicad-nonuniform-'+IntToStr(GetTickCount64)+'.gltf';
+ try
+  TJSONArray(D.FindPath('nodes[0].scale')).Floats[1]:=3;L.Text:=UTF8Encode(D.AsJSON);L.SaveToFile(Path);
+  Failed:=False;try CadImportAvatar(Path,A,R,Notes);except on E:Exception do Failed:=Pos('escala',LowerCase(E.Message))>0;end;
+  Check(Failed and (A=nil) and (R=nil),'escala não uniforme não distorce silenciosamente o esqueleto');
+ finally R.Free;A.Free;DeleteFile(Path);L.Free;D.Free;end;
+end;
+
 procedure TestAIEdit;
 var A:TCadAvatarMesh;R,T:TCadRig;Reply,Cell,Message:TJSONObject;Choices:TJSONArray;Failed:Boolean;
 begin
@@ -129,7 +141,7 @@ end;
 var I:Integer;
 begin
  try
-  TestNative;TestTiming;TestHeightReference;TestAIEdit;TestImport(Fixture('avatar-small.gltf'),True);TestImport(Fixture('avatar-small.glb'),True);
+  TestNative;TestTiming;TestHeightReference;TestAIEdit;TestNonuniformScale;TestImport(Fixture('avatar-small.gltf'),True);TestImport(Fixture('avatar-small.glb'),True);
   for I:=1 to ParamCount do TestImport(ParamStr(I),False);
   WriteLn('PASS: ',Checks,' avatar, skin, motion, persistence and relative-height checks.');
  except on E:Exception do begin WriteLn(E.Message);Halt(1);end;end;

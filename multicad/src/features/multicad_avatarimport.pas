@@ -57,8 +57,10 @@ begin
  Result:=CadQuat(A.Floats[0],A.Floats[1],A.Floats[2],A.Floats[3]);
 end;
 function BasisOf(const M:TCadMat4):TCadMat4;
-var C,R:Integer;V:TCadVec3;
+var C,R:Integer;V:TCadVec3;LX,LY,LZ:Double;
 begin
+ LX:=VLen(MatDir(M,V3(1,0,0)));LY:=VLen(MatDir(M,V3(0,1,0)));LZ:=VLen(MatDir(M,V3(0,0,1)));
+ if Max(LX,Max(LY,LZ))-Min(LX,Min(LY,LZ))>Max(LX,Max(LY,LZ))*1e-5 then raise Exception.Create('Aplique a escala não uniforme no editor de origem antes de importar o esqueleto.');
  Result:=MatIdentity;
  for C:=0 to 2 do begin V:=V3(M[0,C],M[1,C],M[2,C]);if VLen(V)<1e-10 then raise Exception.Create('Escala nula no avatar.');V:=VNorm(V);Result[0,C]:=V.X;Result[1,C]:=V.Y;Result[2,C]:=V.Z;end;
 end;

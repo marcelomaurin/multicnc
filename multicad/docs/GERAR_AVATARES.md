@@ -108,7 +108,8 @@ deformação calculados independentemente do código Pascal.
 `test_avatar_ui.lpi` verifica criação, altura solicitada, seleção/reprodução,
 enquadramento inicial, isolamento da prévia, salvamento e redimensionamento.
 
-O importador aceita triângulos e animações LINEAR. Converta accessors sparse,
+O importador aceita triângulos, escala uniforme e animações LINEAR. Aplique
+escalas não uniformes no editor de origem antes de importar o esqueleto. Converta accessors sparse,
 compressões/extensões obrigatórias e animações STEP/CUBICSPLINE antes de importar.
 Canais animados de escala e morph não são reproduzidos; quando presentes,
 o importador informa essa limitação. A edição aplica limites por eixo;
