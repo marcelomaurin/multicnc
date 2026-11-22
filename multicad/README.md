@@ -447,3 +447,7 @@ Regressao: `test_multicad` verifica projecao, eixo, volume e malha fechada; `tes
 - test_sketch_trim cobre intersecoes, restricoes, persistencia e extrusao;
   test_sketch_trim_ui cobre previa, cliques reais, repeticao, desfazer/refazer,
   Esc e reabertura. Ambos entram na CI Windows/Linux.
+
+## Avatares, alturas e movimentos
+
+O menu **Avatar** cria humanoides articulados, importa projetos do Assistente/GLB/glTF e ajusta a altura do conjunto. Inclui pesos originais, biblioteca de animações, controle Pascal simultâneo e ajustes do esqueleto com IA. Veja [Gerar avatares](docs/GERAR_AVATARES.md).

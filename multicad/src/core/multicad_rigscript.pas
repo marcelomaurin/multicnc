@@ -15,14 +15,19 @@ implementation
 uses uPSCompiler, uPSRuntime, uPSUtils;
 
 const
-  Declarations: array[0..5] of string = (
+  Declarations: array[0..10] of string = (
     'procedure DefinirAngulo(Segmento: string; Graus: Double);',
     'procedure MoverSegmento(Segmento: string; Graus: Double; DuracaoMS: Integer);',
     'procedure Esperar(DuracaoMS: Integer);',
     'function Angulo(Segmento: string): Double;',
     'function TotalSegmentos: Integer;',
-    'function Segmento(Indice: Integer): string;');
-  Names: array[0..5] of string = ('DefinirAngulo','MoverSegmento','Esperar','Angulo','TotalSegmentos','Segmento');
+    'function Segmento(Indice: Integer): string;',
+    'procedure IniciarSimultaneo;',
+    'procedure FinalizarSimultaneo;',
+    'procedure MoverArticulacao(Osso: string; Eixo: string; Graus: Double; DuracaoMS: Integer);',
+    'procedure DefinirArticulacao(Osso: string; Eixo: string; Graus: Double);',
+    'procedure MoverDeslocamento(Osso: string; Eixo: string; Milimetros: Double; DuracaoMS: Integer);');
+  Names: array[0..10] of string = ('DefinirAngulo','MoverSegmento','Esperar','Angulo','TotalSegmentos','Segmento','IniciarSimultaneo','FinalizarSimultaneo','MoverArticulacao','DefinirArticulacao','MoverDeslocamento');
 
 type
   {$M+}
@@ -30,10 +35,18 @@ type
   public
     Rig: TCadRig;
     Motion: TCadMotion;
-    TimeMS: Integer;
+    TimeMS, GroupEnd: Integer;
+    Parallel: Boolean;
+    GroupMoved: TStringList;
+    function Resolve(const Bone, Axis: string; Kind: TCadJointKind): string;
   published
     procedure DefinirAngulo(Segmento: string; Graus: Double);
     procedure MoverSegmento(Segmento: string; Graus: Double; DuracaoMS: Integer);
+    procedure IniciarSimultaneo;
+    procedure FinalizarSimultaneo;
+    procedure MoverArticulacao(Osso: string; Eixo: string; Graus: Double; DuracaoMS: Integer);
+    procedure DefinirArticulacao(Osso: string; Eixo: string; Graus: Double);
+    procedure MoverDeslocamento(Osso: string; Eixo: string; Milimetros: Double; DuracaoMS: Integer);
     procedure Esperar(DuracaoMS: Integer);
     function Angulo(Segmento: string): Double;
     function TotalSegmentos: Integer;
@@ -61,31 +74,60 @@ var I: Integer; Previous: Double;
 begin
   Previous:=Angulo(Segmento);
   Rig.SetAngle(Segmento,Graus); I:=Rig.IndexOf(Segmento);
-  Motion.AddStep(Rig[I].ID,Rig[I].Axis,TimeMS,Previous,Graus);
+  Motion.AddStep(Rig[I].ID,Rig[I].Axis,TimeMS,Previous,Graus,Rig[I].Kind);
 end;
 
 procedure TCadMotionAPI.MoverSegmento(Segmento: string; Graus: Double; DuracaoMS: Integer);
-var I: Integer; A: Double;
+var I,EndMS: Integer; A: Double;
 begin
   if (DuracaoMS<1) or (DuracaoMS>CadMotionMaxDuration-TimeMS) then
     raise Exception.Create('Duração fora do limite de 10 minutos.');
   I:=Rig.IndexOf(Segmento);
   if I<0 then raise Exception.Create('Segmento inexistente: '+Segmento);
-  A:=Rig[I].Angle; Rig.SetAngle(Segmento,Graus);
-  Motion.AddKey(Rig[I].ID,Rig[I].Axis,TimeMS,A);
-  Inc(TimeMS,DuracaoMS);
-  Motion.AddKey(Rig[I].ID,Rig[I].Axis,TimeMS,Graus);
+  if Parallel then begin
+    if GroupMoved.IndexOf(Rig[I].ID)>=0 then raise Exception.Create('Mova cada canal uma vez por grupo simultâneo.');
+    GroupMoved.Add(Rig[I].ID);
+  end;
+  A:=Rig[I].Angle;Rig.SetAngle(Segmento,Graus);EndMS:=TimeMS+DuracaoMS;
+  Motion.AddKey(Rig[I].ID,Rig[I].Axis,TimeMS,A,Rig[I].Kind);
+  Motion.AddKey(Rig[I].ID,Rig[I].Axis,EndMS,Graus,Rig[I].Kind);
+  if Parallel then begin if EndMS>GroupEnd then GroupEnd:=EndMS;end else TimeMS:=EndMS;
 end;
 
 procedure TCadMotionAPI.Esperar(DuracaoMS: Integer);
 var I: Integer;
 begin
+  if Parallel then raise Exception.Create('Finalize o grupo simultâneo antes de Esperar.');
   if (DuracaoMS<0) or (DuracaoMS>CadMotionMaxDuration-TimeMS) then
     raise Exception.Create('Duração fora do limite de 10 minutos.');
-  for I:=0 to Rig.Count-1 do Motion.AddKey(Rig[I].ID,Rig[I].Axis,TimeMS,Rig[I].Angle);
+  for I:=0 to Rig.Count-1 do Motion.AddKey(Rig[I].ID,Rig[I].Axis,TimeMS,Rig[I].Angle,Rig[I].Kind);
   Inc(TimeMS,DuracaoMS);
-  for I:=0 to Rig.Count-1 do Motion.AddKey(Rig[I].ID,Rig[I].Axis,TimeMS,Rig[I].Angle);
+  for I:=0 to Rig.Count-1 do Motion.AddKey(Rig[I].ID,Rig[I].Axis,TimeMS,Rig[I].Angle,Rig[I].Kind);
 end;
+
+procedure TCadMotionAPI.IniciarSimultaneo;
+begin
+  if Parallel then raise Exception.Create('Grupos simultâneos não podem ser aninhados.');
+  Parallel:=True;GroupEnd:=TimeMS;GroupMoved.Clear;
+end;
+procedure TCadMotionAPI.FinalizarSimultaneo;
+begin
+  if not Parallel then raise Exception.Create('Nenhum grupo simultâneo aberto.');
+  Parallel:=False;TimeMS:=GroupEnd;
+end;
+function TCadMotionAPI.Resolve(const Bone, Axis: string; Kind: TCadJointKind): string;
+var I: Integer;
+begin
+  I:=Rig.ChannelIndex(Bone,CadJointAxis(LowerCase(Axis)),Kind);
+  if I<0 then raise Exception.Create('Osso/eixo/canal inexistente: '+Bone+'/'+Axis);
+  Result:=Rig[I].ID;
+end;
+procedure TCadMotionAPI.MoverArticulacao(Osso: string; Eixo: string; Graus: Double; DuracaoMS: Integer);
+begin MoverSegmento(Resolve(Osso,Eixo,jkRotation),Graus,DuracaoMS);end;
+procedure TCadMotionAPI.DefinirArticulacao(Osso: string; Eixo: string; Graus: Double);
+begin DefinirAngulo(Resolve(Osso,Eixo,jkRotation),Graus);end;
+procedure TCadMotionAPI.MoverDeslocamento(Osso: string; Eixo: string; Milimetros: Double; DuracaoMS: Integer);
+begin MoverSegmento(Resolve(Osso,Eixo,jkTranslation),Milimetros,DuracaoMS);end;
 
 function TCadMotionAPI.Angulo(Segmento: string): Double;
 var I: Integer;
@@ -122,7 +164,7 @@ begin
         Exit;
       end;
       API:=TCadMotionAPI.Create; API.Rig:=Rig.Clone; API.Motion:=TCadMotion.Create;
-      API.Motion.Name:='Script Pascal';
+      API.Motion.Name:='Script Pascal';API.GroupMoved:=TStringList.Create;
       E:=TPSExec.Create; E.OnRunLine:=@CountLine;
       for I:=0 to High(Names) do E.RegisterDelphiMethod(API,API.MethodAddress(Names[I]),Names[I],cdRegister);
       if not E.LoadData(Code) then raise Exception.Create('Não foi possível carregar o script Pascal.');
@@ -130,12 +172,13 @@ begin
       if not E.RunScript then
         raise Exception.Create('Erro no script: '+TIFErrorToString(E.ExceptionCode,E.ExceptionString));
       if Budget<=0 then raise Exception.Create('Script interrompido: limite de instruções/tempo excedido.');
+      if API.Parallel then raise Exception.Create('Falta FinalizarSimultaneo no script.');
       API.Motion.Validate(Rig);
       Motion:=API.Motion; API.Motion:=nil; Result:=True;
     except on X: Exception do Error:=X.Message; end;
   finally
     E.Free; C.Free;
-    if API<>nil then begin API.Motion.Free; API.Rig.Free; API.Free; end;
+    if API<>nil then begin API.Motion.Free; API.Rig.Free; API.GroupMoved.Free; API.Free; end;
   end;
 end;
 

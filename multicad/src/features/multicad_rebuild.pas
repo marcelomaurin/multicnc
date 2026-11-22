@@ -28,7 +28,7 @@ uses
   multicad_profile, multicad_extrude, multicad_revolve, multicad_mesh,
   multicad_sweep, multicad_csg, multicad_bridge, multicad_triangulate,
   multicad_hole, multicad_pattern, multicad_blend, multicad_blendgeom, multicad_occt, multicad_import,
-  multicad_threads, multicad_threadgeom, multicad_threadop, multicad_gears, multicad_gear, multicad_generatedmesh;
+  multicad_threads, multicad_threadgeom, multicad_threadop, multicad_gears, multicad_gear, multicad_generatedmesh, multicad_avatarmesh;
 
 type
   TCadBody = class

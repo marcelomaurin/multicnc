@@ -7,18 +7,18 @@ interface
 uses Classes, SysUtils, fpjson, multicad_mesh, multicad_rig;
 
 function CadRigGeometryContext(const Meshes: array of TCadMesh): string;
-function ParseCadRigAIResponse(const Response: string): TCadRig;
+function ParseCadRigAIResponse(const Response: string; BaseRig: TCadRig = nil): TCadRig;
 
 type
   TCadRigAIJob = class(TThread)
   private
     FContext, FPrompt, FEndpoint, FKey, FModel, FError: string;
-    FRig: TCadRig;
+    FRig, FBaseRig: TCadRig;
     procedure ReadProgress(Sender: TObject; const ContentLength, CurrentPos: Int64);
   protected
     procedure Execute; override;
   public
-    constructor Create(const Context, Prompt, Endpoint, Key, Model: string);
+    constructor Create(const Context, Prompt, Endpoint, Key, Model: string; BaseRig:TCadRig = nil);
     destructor Destroy; override;
     function TakeRig: TCadRig; { after Finished + WaitFor }
     function IsCancelled: Boolean;
@@ -69,8 +69,8 @@ begin
   finally Root.Free; end;
 end;
 
-function ParseCadRigAIResponse(const Response: string): TCadRig;
-var D,Content: TJSONData; S: string; P: SizeInt;
+function ParseCadRigAIResponse(const Response: string; BaseRig: TCadRig): TCadRig;
+var D,Content: TJSONData; S: string; P: SizeInt;O,C:TJSONObject;Changes:TJSONArray;I,J,K:Integer;Seg:TCadRigSegment;Bone,Channel:string;
 begin
   D:=GetJSON(Response,True);
   try
@@ -90,22 +90,43 @@ begin
     try
       Result:=TCadRig.Create;
       try
-        Result.LoadJSON(Content);
-        if Result.Count=0 then raise Exception.Create('A IA retornou um esqueleto vazio.');
-        Result.Script:=''; Result.MotionJSON:='';
+        if not (Content is TJSONObject) then raise Exception.Create('Resposta de esqueleto inválida.');O:=TJSONObject(Content);
+        if O.Get('format','')='multicad-rig-edit' then begin
+          if (BaseRig=nil) or (BaseRig.Count=0) or (O.Get('version',0)<>1) then raise Exception.Create('Ajuste de IA precisa de um esqueleto existente.');
+          Result.Assign(BaseRig);Changes:=O.Arrays['changes'];if (Changes.Count=0) or (Changes.Count>512) then raise Exception.Create('Use de 1 a 512 ajustes.');
+          for I:=0 to Changes.Count-1 do begin
+            if not (Changes.Items[I] is TJSONObject) then raise Exception.Create('Ajuste de IA inválido.');C:=TJSONObject(Changes.Items[I]);
+            Bone:=C.Get('bone','');Channel:=C.Get('channel','rotation');
+            if Channel='rotation' then J:=Result.ChannelIndex(Bone,CadJointAxis(C.Get('axis','')),jkRotation)
+            else if Channel='translation' then J:=Result.ChannelIndex(Bone,CadJointAxis(C.Get('axis','')),jkTranslation)
+            else raise Exception.Create('Canal de ajuste inválido.');
+            if J<0 then raise Exception.Create('A IA referenciou um osso/eixo inexistente: '+Bone);
+            Seg:=Result[J];Seg.Angle:=C.Get('angle',Seg.Angle);Seg.MinAngle:=C.Get('min_angle',Seg.MinAngle);Seg.MaxAngle:=C.Get('max_angle',Seg.MaxAngle);Result[J]:=Seg;
+            if (C.Find('pivot')<>nil) or (C.Find('tip')<>nil) then
+              for K:=0 to Result.Count-1 do if (K=J) or ((Result[J].SourceBone<>'') and SameText(Result[K].SourceBone,Result[J].SourceBone)) then begin
+                Seg:=Result[K];if C.Find('pivot')<>nil then Seg.Pivot:=CadRigVector(C,'pivot');if C.Find('tip')<>nil then Seg.Tip:=CadRigVector(C,'tip');Result[K]:=Seg;
+              end;
+          end;
+          Result.Validate;
+        end else begin
+          Result.LoadJSON(Content);
+          if Result.Count=0 then raise Exception.Create('A IA retornou um esqueleto vazio.');
+          Result.Script:=''; Result.MotionJSON:='';Result.AnimationsJSON:='';
+        end;
       except Result.Free; raise; end;
     finally Content.Free; end;
   finally D.Free; end;
 end;
 
-constructor TCadRigAIJob.Create(const Context, Prompt, Endpoint, Key, Model: string);
+constructor TCadRigAIJob.Create(const Context, Prompt, Endpoint, Key, Model: string;BaseRig:TCadRig);
 begin
   inherited Create(True);
   FContext:=Context; FPrompt:=Prompt; FEndpoint:=Endpoint; FKey:=Key; FModel:=Model;
+  if BaseRig<>nil then FBaseRig:=BaseRig.Clone;
 end;
 
 destructor TCadRigAIJob.Destroy;
-begin Terminate; inherited Destroy; FRig.Free; end;
+begin Terminate; inherited Destroy; FRig.Free; FBaseRig.Free; end;
 
 function TCadRigAIJob.TakeRig: TCadRig;
 begin Result:=FRig; FRig:=nil; end;
@@ -177,13 +198,13 @@ const Instructions =
   ' All bind-pose pivot/tip coordinates are absolute model coordinates in millimeters, Y up, Z front. '+
   'Use the actual sampled geometry, bounds and description, not arbitrary scale. Each joint rotates '+
   'only on its stated axis; chain additional segments at the same joint for more axes. '+
-  'Maximum 128 segments, no cycles, unique IDs/names, parents must exist, nonzero bone lengths, '+
+  'Maximum 2048 segments, no cycles, unique IDs/names, parents must exist, nonzero bone lengths, '+
   'limits within [-360,360] including 0. For humanoids prefer Assistente bone names '+
   'upperarm01.R, lowerarm01.R, wrist.R, upperarm01.L, lowerarm01.L, wrist.L, head. '+
   'For a rigid CAD part you may set face_prefixes to supplied exact face_names separated by semicolons; '+
   'omit it for automatic vertex binding. Do not invent mesh face names. '+
   'Do not return scripts. The user will review the proposal.';
-var Body: TJSONObject; Messages: TJSONArray; Text: string; URI: TURI;
+var Body,Existing,E:TJSONObject;Messages,Joints:TJSONArray;Text,SystemText,Bone:string;URI:TURI;I,J:Integer;Seg:TCadRigSegment;
     {$IFNDEF WINDOWS}Client: TFPHTTPClient; Input: TStringStream; Reply: TLimitedReply;{$ENDIF}
 begin
   Body:=nil;
@@ -205,7 +226,26 @@ begin
       {$ENDIF}
       Body:=TJSONObject.Create; Body.Add('model',FModel); Body.Add('stream',False);
       Messages:=TJSONArray.Create; Body.Add('messages',Messages);
-      Messages.Add(TJSONObject.Create(['role','system','content',Instructions]));
+      SystemText:=Instructions;
+      if (FBaseRig<>nil) and (FBaseRig.Count>0) then begin
+        Existing:=TJSONObject.Create;
+        try
+          Joints:=TJSONArray.Create;Existing.Add('existing_joints',Joints);
+          for I:=0 to FBaseRig.Count-1 do begin
+            Seg:=FBaseRig[I];if (Seg.SourceBone<>'') and not SameText(Seg.ID,Seg.SourceBone) then Continue;
+            Bone:=Seg.ID;E:=TJSONObject.Create;Joints.Add(E);E.Add('bone',Bone);E.Add('pivot',CadRigVectorJSON(Seg.Pivot));E.Add('tip',CadRigVectorJSON(Seg.Tip));
+            Text:='';for J:=0 to 2 do if FBaseRig.ChannelIndex(Bone,TCadJointAxis(J),jkRotation)>=0 then Text:=Text+CadJointAxisName(TCadJointAxis(J));E.Add('rotation_axes',Text);
+            Text:='';for J:=0 to 2 do if FBaseRig.ChannelIndex(Bone,TCadJointAxis(J),jkTranslation)>=0 then Text:=Text+CadJointAxisName(TCadJointAxis(J));E.Add('translation_axes',Text);
+          end;
+          FContext:=FContext+LineEnding+Existing.AsJSON;
+        finally Existing.Free;end;
+        SystemText:='Adjust the existing skeleton, preserving all IDs, hierarchy, original skin weights and scale. '+
+          'Return only {"format":"multicad-rig-edit","version":1,"changes":[{"bone":"existing bone","axis":"x or y or z","channel":"rotation or translation","angle":30}]}.'+
+          ' Rotation angle is degrees; translation angle is millimeters. Optional min_angle, max_angle, pivot and tip. '+
+          'All pivot/tip positions are absolute millimeters, Y up. Keep proportions and relative heights. '+
+          'Use only available axes. Do not add, delete or rename bones. Do not return scripts or a replacement rig.';
+      end;
+      Messages.Add(TJSONObject.Create(['role','system','content',SystemText]));
       Messages.Add(TJSONObject.Create(['role','user','content',FPrompt+LineEnding+FContext]));
       {$IFDEF WINDOWS}
       Text:=RigPost(FEndpoint,FKey,Body.AsJSON,Self);
@@ -217,7 +257,7 @@ begin
       SetString(Text,PChar(Reply.Memory),Reply.Size);
       {$ENDIF}
       if Terminated then Exit;
-      FRig:=ParseCadRigAIResponse(Text);
+      FRig:=ParseCadRigAIResponse(Text,FBaseRig);
     except
       on E: Exception do
       begin

@@ -37,6 +37,14 @@ type
     Face: Integer;
   end;
 
+  TCadVertexWeights = record
+    Joints: array[0..3] of Integer;
+    Weights: array[0..3] of Double;
+    HasBindPoints: Boolean;
+    BindPoints: array[0..3] of TCadVec3;
+  end;
+  TCadVertexWeightArray = array of TCadVertexWeights;
+
   TCadMassProps = record
     Volume: Double;     { mm3 }
     Area: Double;       { mm2 }
@@ -59,6 +67,9 @@ type
     function GetTri(I: Integer): TCadTri;
     function GetFace(I: Integer): TCadFaceInfo;
   public
+    SkinJoints: TCadStrArray;
+    SkinVertices: TCadVertexWeightArray;
+    procedure SetVertexSkin(Index: Integer; const Binding: TCadVertexWeights);
     constructor Create(ATolerance: Double = CAD_TOL);
     destructor Destroy; override;
     procedure Clear;
@@ -175,12 +186,34 @@ begin
   FVertCount := 0;
   FTriCount := 0;
   FGrid.Clear;
+  SkinJoints:=nil;SkinVertices:=nil;
+end;
+
+procedure TCadMesh.SetVertexSkin(Index: Integer; const Binding: TCadVertexWeights);
+var I: Integer; Sum: Double;
+begin
+  if (Index<0) or (Index>=FVertCount) then raise Exception.Create('Vértice inexistente.');
+  Sum:=0;
+  for I:=0 to 3 do begin
+    if IsNan(Binding.Weights[I]) or IsInfinite(Binding.Weights[I]) or (Binding.Weights[I]<0) or
+       ((Binding.Weights[I]>0) and ((Binding.Joints[I]<0) or (Binding.Joints[I]>=Length(SkinJoints)))) then raise Exception.Create('Peso de vértice inválido.');
+    Sum:=Sum+Binding.Weights[I];
+  end;
+  if Sum<=CAD_EPS then raise Exception.Create('Vértice sem influência do esqueleto.');
+  if Length(SkinVertices)<Length(FVerts) then SetLength(SkinVertices,Length(FVerts));
+  SkinVertices[Index]:=Binding;
+  for I:=0 to 3 do SkinVertices[Index].Weights[I]:=Binding.Weights[I]/Sum;
 end;
 
 function TCadMesh.Clone: TCadMesh;
+var I: Integer;
 begin
-  Result := TCadMesh.Create(FTol);
-  Result.Append(Self);
+  Result:=TCadMesh.Create(FTol);
+  if Length(SkinJoints)=0 then begin Result.Append(Self);Exit;end;
+  Result.FVerts:=Copy(FVerts,0,FVertCount);Result.FVertCount:=FVertCount;
+  Result.FTris:=Copy(FTris,0,FTriCount);Result.FTriCount:=FTriCount;Result.FFaces:=Copy(FFaces);
+  SetLength(Result.FNext,FVertCount);for I:=0 to FVertCount-1 do Result.GridInsert(I);
+  Result.SkinJoints:=Copy(SkinJoints);Result.SkinVertices:=Copy(SkinVertices,0,FVertCount);
 end;
 
 function TCadMesh.CellKey(IX, IY, IZ: Int64): Int64;
@@ -209,6 +242,7 @@ var
   IX, IY, IZ: Int64;
   DX, DY, DZ, I: Integer;
 begin
+  if IsNan(P.X) or IsInfinite(P.X) or IsNan(P.Y) or IsInfinite(P.Y) or IsNan(P.Z) or IsInfinite(P.Z) or (Abs(P.X)>1e9) or (Abs(P.Y)>1e9) or (Abs(P.Z)>1e9) then raise Exception.Create('Coordenada de vértice inválida.');
   IX := Floor(P.X / FTol);
   IY := Floor(P.Y / FTol);
   IZ := Floor(P.Z / FTol);
@@ -235,6 +269,8 @@ end;
 
 function TCadMesh.AddVertexRaw(const P: TCadVec3): Integer;
 begin
+  if IsNan(P.X) or IsInfinite(P.X) or IsNan(P.Y) or IsInfinite(P.Y) or IsNan(P.Z) or IsInfinite(P.Z) or (Abs(P.X)>1e9) or (Abs(P.Y)>1e9) or (Abs(P.Z)>1e9) then raise Exception.Create('Coordenada de vértice inválida.');
+
   if FVertCount >= Length(FVerts) then
   begin
     SetLength(FVerts, Max(64, Length(FVerts) * 2));
@@ -295,22 +331,24 @@ begin
 end;
 
 procedure TCadMesh.Append(Other: TCadMesh);
-var
-  Map, FMap: array of Integer;
-  I: Integer;
-  T: TCadTri;
+var Map,FMap,JMap: array of Integer; I,J,N: Integer; T: TCadTri; W: TCadVertexWeights;
 begin
-  SetLength(Map, Other.VertCount);
-  for I := 0 to Other.VertCount - 1 do
-    Map[I] := AddVertex(Other.Verts[I]);
-  SetLength(FMap, Other.FaceCount);
-  for I := 0 to Other.FaceCount - 1 do
-    FMap[I] := AddFace(Other.Faces[I]);
-  for I := 0 to Other.TriCount - 1 do
-  begin
-    T := Other.Tris[I];
-    AddTri(Map[T.A], Map[T.B], Map[T.C], FMap[T.Face]);
+  SetLength(JMap,Length(Other.SkinJoints));
+  for I:=0 to High(JMap) do begin
+    N:=-1;for J:=0 to High(SkinJoints) do if SkinJoints[J]=Other.SkinJoints[I] then begin N:=J;Break;end;
+    if N<0 then begin N:=Length(SkinJoints);SetLength(SkinJoints,N+1);SkinJoints[N]:=Other.SkinJoints[I];end;
+    JMap[I]:=N;
   end;
+  SetLength(Map,Other.VertCount);
+  for I:=0 to Other.VertCount-1 do begin
+    if Length(Other.SkinJoints)>0 then Map[I]:=AddVertexRaw(Other.Verts[I]) else Map[I]:=AddVertex(Other.Verts[I]);
+    if I<Length(Other.SkinVertices) then begin
+      W:=Other.SkinVertices[I];for J:=0 to 3 do if W.Weights[J]>0 then W.Joints[J]:=JMap[W.Joints[J]];
+      SetVertexSkin(Map[I],W);
+    end;
+  end;
+  SetLength(FMap,Other.FaceCount);for I:=0 to Other.FaceCount-1 do FMap[I]:=AddFace(Other.Faces[I]);
+  for I:=0 to Other.TriCount-1 do begin T:=Other.Tris[I];AddTri(Map[T.A],Map[T.B],Map[T.C],FMap[T.Face]);end;
 end;
 
 procedure TCadMesh.Transform(const M: TCadMat4);
