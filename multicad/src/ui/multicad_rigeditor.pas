@@ -26,7 +26,8 @@ type
     FPages: TPageControl;
     FScript, FPrompt, FJSON: TMemo;
     FName, FPrefixes: TEdit;
-    FParent, FAxis: TComboBox;
+    FParent, FAxis, FKind, FClip: TComboBox;
+    FLoop, FReturn: TCheckBox;
     FPivot, FTip: array[0..2] of TFloatSpinEdit;
     FMin, FMax, FAngle: TFloatSpinEdit;
     FStatus: TLabel;
@@ -48,6 +49,9 @@ type
     procedure ImportRig(Sender: TObject);
     procedure ExportRig(Sender: TObject);
     procedure ImportMotion(Sender: TObject);
+    procedure RefreshClips;
+    procedure ValidateBindings(Rig:TCadRig);
+    procedure SelectClip(Sender: TObject);
     procedure PlayMotion(Sender: TObject);
     procedure ImportScript(Sender: TObject);
     procedure TestScript(Sender: TObject);
@@ -103,7 +107,7 @@ begin
   FDoc:=TCadDocument.Create;
   if not FDoc.LoadFromJSON(Doc.ToJSON,Err) then raise Exception.Create(Err);
   OnCloseQuery:=@CanClose;
-  TopBar:=TPanel.Create(Self); TopBar.Parent:=Self; TopBar.Align:=alTop; TopBar.Height:=38;
+  TopBar:=TPanel.Create(Self); TopBar.Parent:=Self; TopBar.Align:=alTop; TopBar.Height:=38;TopBar.Name:='RigTools';
   Button(TopBar,'Novo segmento',@NewSegment).Name:='RigNew';
   Button(TopBar,'Remover segmento',@RemoveSegment,150);
   Button(TopBar,'Importar esqueleto',@ImportRig,140);
@@ -119,6 +123,8 @@ begin
   FPages:=TPageControl.Create(Self); FPages.Parent:=Self; FPages.Align:=alBottom; FPages.Height:=285;
   FPages.Name:='RigPages';
   Page:=Tab('Segmento');
+  FKind:=TComboBox.Create(Self);FKind.Parent:=Page;FKind.Name:='RigJointKind';FKind.SetBounds(636,28,180,26);
+  FKind.Style:=csDropDownList;FKind.Items.Text:='Rotação (graus)'+LineEnding+'Deslocamento (mm)';
   LabelAt(Page,'Nome',12,8); FName:=TEdit.Create(Self); FName.Parent:=Page; FName.SetBounds(12,28,232,26);
   LabelAt(Page,'Pai',262,8); FParent:=TComboBox.Create(Self); FParent.Parent:=Page;
   FParent.SetBounds(262,28,232,26); FParent.Style:=csDropDownList;
@@ -128,15 +134,23 @@ begin
   LabelAt(Page,'Pivô X / Y / Z (mm)',12,64); LabelAt(Page,'Extremidade X / Y / Z (mm)',368,64);
   for I:=0 to 2 do
   begin FPivot[I]:=Number(Page,12+I*112,84,-1e8,1e8); FTip[I]:=Number(Page,368+I*112,84,-1e8,1e8); end;
-  LabelAt(Page,'Ângulo mínimo',12,120); FMin:=Number(Page,12,140,-360,360);
-  LabelAt(Page,'Ângulo máximo',138,120); FMax:=Number(Page,138,140,-360,360);
-  LabelAt(Page,'Ângulo da pose',264,120); FAngle:=Number(Page,264,140,-360,360); FAngle.OnChange:=@AngleChanged;
+  LabelAt(Page,'Limite mínimo',12,120); FMin:=Number(Page,12,140,-1e9,1e9);
+  LabelAt(Page,'Limite máximo',138,120); FMax:=Number(Page,138,140,-1e9,1e9);
+  LabelAt(Page,'Valor da pose',264,120); FAngle:=Number(Page,264,140,-1e9,1e9); FAngle.OnChange:=@AngleChanged;
   FAngle.Name:='RigAngle';
   LabelAt(Page,'Faces/prefixos CAD vinculados (opcional, separados por ;)',392,120);
   FPrefixes:=TEdit.Create(Self); FPrefixes.Parent:=Page; FPrefixes.SetBounds(392,140,470,26);
   LabelAt(Page,'Sem faces vinculadas: os vértices são associados pela proximidade aos ossos.',12,180);
   Bar:=TPanel.Create(Self); Bar.Parent:=Page; Bar.Align:=alBottom; Bar.Height:=36;
   Button(Bar,'Aplicar segmento',@ApplyClick,140); Button(Bar,'Pose de repouso',@ResetPose,140);
+  Bar:=TPanel.Create(Self);Bar.Parent:=Self;Bar.Align:=alTop;Bar.Height:=38;Bar.Name:='RigPlayback';
+  LabelAt(Bar,'Animação',12,10);
+  FClip:=TComboBox.Create(Self);FClip.Parent:=Bar;FClip.Name:='RigAnimation';FClip.SetBounds(100,5,430,28);
+  FClip.Style:=csDropDownList;FClip.OnChange:=@SelectClip;Bar.Tag:=544;
+  Button(Bar,'Reproduzir',@PlayMotion,130).Name:='RigPlayAnimation';
+  Button(Bar,'Parar',@StopMotion,100);
+  FLoop:=TCheckBox.Create(Self);FLoop.Parent:=Bar;FLoop.SetBounds(795,8,100,24);FLoop.Caption:='Repetir';FLoop.Name:='RigLoop';
+  FReturn:=TCheckBox.Create(Self);FReturn.Parent:=Bar;FReturn.SetBounds(900,8,210,24);FReturn.Caption:='Retornar à pose inicial';FReturn.Name:='RigReturn';
   Page:=Tab('Script Pascal');
   Bar:=TPanel.Create(Self); Bar.Parent:=Page; Bar.Align:=alBottom; Bar.Height:=36;
   Button(Bar,'Importar .pas',@ImportScript); Button(Bar,'Testar',@TestScript);
@@ -152,14 +166,14 @@ begin
   Bar:=TPanel.Create(Self); Bar.Parent:=Page; Bar.Align:=alBottom; Bar.Height:=36;
   Button(Bar,'Aplicar JSON',@ApplyJSON,140); FJSON:=Memo(Page);
   FPages.ActivePageIndex:=0;
-  Side:=TPanel.Create(Self); Side.Parent:=Self; Side.Align:=alLeft; Side.Width:=220;
+  Side:=TPanel.Create(Self); Side.Parent:=Self; Side.Align:=alLeft; Side.Width:=260;
   FList:=TListBox.Create(Self); FList.Parent:=Side; FList.Align:=alClient; FList.OnClick:=@SelectSegment;
-  FList.Name:='RigSegments';
+  FList.Name:='RigSegments';FList.ScrollWidth:=650;
   FView:=TCadView3D.Create(Self); FView.Parent:=Self; FView.Align:=alClient;
   FView.Name:='RigView';
   FView.SetModel(FDoc,RB); FView.SetRigPreview(FDoc.Rig); FView.FitAll;
   FTimer:=TTimer.Create(Self); FTimer.Interval:=33; FTimer.OnTimer:=@Tick;
-  RefreshList(0); UpdateJSON;
+  RefreshList(0); RefreshClips; UpdateJSON;
 end;
 
 destructor TCadRigEditor.Destroy;
@@ -192,11 +206,19 @@ begin
   finally S.Free; L.Free; end;
 end;
 
+procedure TCadRigEditor.ValidateBindings(Rig:TCadRig);
+var I,J:Integer;
+begin
+ Rig.Validate;
+ for I:=0 to FRB.BodyCount-1 do for J:=0 to High(FRB.Body(I).Mesh.SkinJoints) do
+   if Rig.IndexOf(FRB.Body(I).Mesh.SkinJoints[J])<0 then raise Exception.Create('O esqueleto precisa preservar o osso vinculado: '+FRB.Body(I).Mesh.SkinJoints[J]);
+end;
+
 procedure TCadRigEditor.UpdateJSON;
 var O: TJSONObject;
 begin
-  O:=FDoc.Rig.ToJSON;
-  try FJSON.Text:=O.FormatJSON([],2); finally O.Free; end;
+  O:=FDoc.Rig.ToJSON(False);
+  try O.Delete('animations');O.Delete('motion');FJSON.Text:=UTF8Encode(O.FormatJSON([],2)); finally O.Free; end;
 end;
 
 procedure TCadRigEditor.RefreshList(Index: Integer);
@@ -226,7 +248,7 @@ begin
         FParent.Items.Add(FDoc.Rig[I].ID);
         if FDoc.Rig[I].ID=S.ParentID then FParent.ItemIndex:=FParent.Items.Count-1;
       end;
-    FAxis.ItemIndex:=Ord(S.Axis);
+    FAxis.ItemIndex:=Ord(S.Axis);FKind.ItemIndex:=Ord(S.Kind);
     FPivot[0].Value:=S.Pivot.X; FPivot[1].Value:=S.Pivot.Y; FPivot[2].Value:=S.Pivot.Z;
     FTip[0].Value:=S.Tip.X; FTip[1].Value:=S.Tip.Y; FTip[2].Value:=S.Tip.Z;
     FMin.Value:=S.MinAngle; FMax.Value:=S.MaxAngle; FAngle.Value:=S.Angle;
@@ -241,7 +263,7 @@ begin
   try
     S:=R[FIndex]; S.Name:=Trim(FName.Text); S.ParentID:='';
     if FParent.ItemIndex>0 then S.ParentID:=FParent.Items[FParent.ItemIndex];
-    S.Axis:=TCadJointAxis(Max(0,FAxis.ItemIndex));
+    S.Axis:=TCadJointAxis(Max(0,FAxis.ItemIndex));S.Kind:=TCadJointKind(Max(0,FKind.ItemIndex));
     S.Pivot:=V3(FPivot[0].Value,FPivot[1].Value,FPivot[2].Value);
     S.Tip:=V3(FTip[0].Value,FTip[1].Value,FTip[2].Value);
     S.MinAngle:=FMin.Value; S.MaxAngle:=FMax.Value; S.Angle:=FAngle.Value;
@@ -289,9 +311,12 @@ begin
 end;
 
 procedure TCadRigEditor.RemoveSegment(Sender: TObject);
+var R:TCadRig;
 begin
   try
-    StopMotion(nil); FDoc.Rig.Delete(FIndex); FView.ModelChanged; RefreshList(0); UpdateJSON;
+    StopMotion(nil);R:=FDoc.Rig.Clone;
+    try R.Delete(FIndex);ValidateBindings(R);FDoc.Rig.Assign(R);finally R.Free;end;
+    FView.ModelChanged; RefreshList(0); UpdateJSON;
   except on E: Exception do FStatus.Caption:=E.Message; end;
 end;
 
@@ -299,13 +324,13 @@ procedure TCadRigEditor.ResetPose(Sender: TObject);
 begin StopMotion(nil); FDoc.Rig.ResetPose; SelectSegment(nil); FView.RefreshRigPose; UpdateJSON; end;
 
 procedure TCadRigEditor.ImportRig(Sender: TObject);
-var Path: string; D: TJSONData;
+var Path: string; D: TJSONData;R:TCadRig;
 begin
   Path:=ChooseFile(False,'Esqueleto JSON|*.json'); if Path='' then Exit;
   try
-    StopMotion(nil); D:=GetJSON(ReadText(Path,1024*1024),True);
-    try FDoc.Rig.LoadJSON(D); finally D.Free; end;
-    FScript.Text:=FDoc.Rig.Script; FView.ModelChanged; RefreshList(0); UpdateJSON;
+    StopMotion(nil); D:=GetJSON(ReadText(Path,4*1024*1024),True);R:=TCadRig.Create;
+    try R.LoadJSON(D);ValidateBindings(R);FDoc.Rig.Assign(R);finally R.Free;D.Free;end;
+    FScript.Text:=FDoc.Rig.Script; FView.ModelChanged; RefreshList(0); RefreshClips; UpdateJSON;
   except on E: Exception do FStatus.Caption:=E.Message; end;
 end;
 
@@ -320,17 +345,50 @@ begin
   except on E: Exception do FStatus.Caption:=E.Message; end;
 end;
 
+procedure TCadRigEditor.RefreshClips;
+var D,Current:TJSONData;I,Selected:Integer;ClipName:string;
+begin
+  FClip.Clear;Selected:=0;ClipName:='';
+  if FDoc.Rig.MotionJSON<>'' then begin Current:=GetJSON(FDoc.Rig.MotionJSON);try ClipName:=TJSONObject(Current).Get('name','');finally Current.Free;end;end;
+  if FDoc.Rig.AnimationsJSON<>'' then begin
+    D:=GetJSON(FDoc.Rig.AnimationsJSON);
+    try for I:=0 to D.Count-1 do begin
+      FClip.Items.Add(TJSONObject(D.Items[I]).Get('name','Animação '+IntToStr(I+1)));
+      if FClip.Items[I]=ClipName then Selected:=I;
+    end;finally D.Free;end;
+  end;
+  if (FClip.Items.Count=0) and (FDoc.Rig.MotionJSON<>'') then FClip.Items.Add(ClipName);
+  if FClip.Items.Count>0 then begin FClip.ItemIndex:=Selected;SelectClip(nil);end;
+end;
+
+procedure TCadRigEditor.SelectClip(Sender: TObject);
+var LibraryData,D:TJSONData;M:TCadMotion;
+begin
+  if (FClip.ItemIndex<0) or (FDoc.Rig.AnimationsJSON='') then Exit;
+  StopMotion(nil);LibraryData:=GetJSON(FDoc.Rig.AnimationsJSON);D:=nil;M:=TCadMotion.Create;
+  try
+    D:=CadAnimationData(LibraryData.Items[FClip.ItemIndex]);M.LoadJSON(D,FDoc.Rig);FDoc.Rig.MotionJSON:=UTF8Encode(D.AsJSON);FLoop.Checked:=M.Loop;FReturn.Checked:=M.ReturnToBase;
+    FStatus.Caption:='Animação selecionada: '+M.Name;
+  finally M.Free;D.Free;LibraryData.Free;end;
+end;
+
 procedure TCadRigEditor.ImportMotion(Sender: TObject);
-var Path: string; D: TJSONData; M: TCadMotion; O: TJSONObject;
+var Path: string; D,L: TJSONData; M: TCadMotion; O: TJSONObject;
 begin
   Path:=ChooseFile(False,'Movimento do Assistente|*.json'); if Path='' then Exit;
   M:=TCadMotion.Create;
   try
     try
-      StopMotion(nil); D:=GetJSON(ReadText(Path,1024*1024),True);
+      StopMotion(nil); D:=GetJSON(ReadText(Path,16*1024*1024),True);
       try M.LoadJSON(D,FDoc.Rig); finally D.Free; end;
       O:=M.ToJSON;
-      try FDoc.Rig.MotionJSON:=O.AsJSON; finally O.Free; end;
+      try FDoc.Rig.MotionJSON:=UTF8Encode(O.AsJSON); finally O.Free; end;
+      if FDoc.Rig.AnimationsJSON='' then L:=TJSONArray.Create else L:=GetJSON(FDoc.Rig.AnimationsJSON);
+      try
+        if L.Count>=128 then raise Exception.Create('Limite de 128 animações.');
+        TJSONArray(L).Add(CadPackAnimation(M));FDoc.Rig.AnimationsJSON:=UTF8Encode(L.AsJSON);
+      finally L.Free;end;
+      RefreshClips;FClip.ItemIndex:=FClip.Items.Count-1;SelectClip(nil);
       FStatus.Caption:='Movimento importado: '+M.Name; UpdateJSON;
     except on E: Exception do FStatus.Caption:=E.Message; end;
   finally M.Free; end;
@@ -345,6 +403,7 @@ begin
     if FDoc.Rig.MotionJSON='' then raise Exception.Create('Importe um movimento do Assistente primeiro.');
     D:=GetJSON(FDoc.Rig.MotionJSON,True);
     try M.LoadJSON(D,FDoc.Rig); finally D.Free; end;
+    M.Loop:=FLoop.Checked;M.ReturnToBase:=FReturn.Checked;
     StartMotion(M); M:=nil;
   except on E: Exception do FStatus.Caption:=E.Message; end;
   M.Free;
@@ -398,7 +457,7 @@ begin
 end;
 
 procedure TCadRigEditor.Tick(Sender: TObject);
-var R: TCadRig; Elapsed: Int64;
+var R: TCadRig; Elapsed: Int64;BodyIndex,JointIndex:Integer;
 begin
   if (FJob<>nil) and FJob.Finished then
   begin
@@ -412,21 +471,27 @@ begin
           StopMotion(nil);
           R:=FJob.TakeRig;
           try
+            for BodyIndex:=0 to FRB.BodyCount-1 do
+              for JointIndex:=0 to High(FRB.Body(BodyIndex).Mesh.SkinJoints) do
+                if R.IndexOf(FRB.Body(BodyIndex).Mesh.SkinJoints[JointIndex])<0 then raise Exception.Create('A proposta não preservou o osso vinculado: '+FRB.Body(BodyIndex).Mesh.SkinJoints[JointIndex]);
             FDoc.Rig.Assign(R); FScript.Text:=R.Script;
-            FView.ModelChanged; RefreshList(0); UpdateJSON;
+            FView.ModelChanged; RefreshList(0); RefreshClips; UpdateJSON;
             FStatus.Caption:='Proposta da IA recebida. Confira os segmentos e a prévia antes de salvar.';
           finally R.Free; end;
         end;
       end;
-    finally FreeAndNil(FJob); end;
+    finally FreeAndNil(FJob);FPages.Enabled:=True;FList.Enabled:=True;TControl(FindComponent('RigTools')).Enabled:=True;TControl(FindComponent('RigPlayback')).Enabled:=True;end;
     if FClosing then ModalResult:=mrCancel;
   end;
   if FMotion<>nil then
   try
     Elapsed:=GetTickCount64-FStart;
     FMotion.Evaluate(Elapsed,FDoc.Rig,FBase); FView.RefreshRigPose;
-    if not FMotion.Loop and (Elapsed>FMotion.DurationMS+300) then
-    begin StopMotion(nil); FStatus.Caption:='Movimento concluído.'; end;
+    if not FMotion.Loop and (Elapsed>Int64(FMotion.DurationMS)+FMotion.ReturnMS+50) then begin
+      if FMotion.ReturnToBase then StopMotion(nil)
+      else begin FreeAndNil(FMotion);FreeAndNil(FBase);SelectSegment(nil);UpdateJSON;end;
+      FStatus.Caption:='Movimento concluído. A pose final permanece quando o retorno está desativado.';
+    end;
   except on E: Exception do begin StopMotion(nil); FStatus.Caption:=E.Message; end; end;
 end;
 
@@ -444,18 +509,23 @@ begin
     SetLength(Meshes,FRB.BodyCount);
     for I:=0 to High(Meshes) do Meshes[I]:=FRB.Body(I).Mesh;
     FJob:=TCadRigAIJob.Create(CadRigGeometryContext(Meshes),FPrompt.Text,
-      FConfig.RigEndpoint,FConfig.RigKey,FConfig.RigModel);
+      FConfig.RigEndpoint,FConfig.RigKey,FConfig.RigModel,FDoc.Rig);
+    FPages.Enabled:=False;FList.Enabled:=False;TControl(FindComponent('RigTools')).Enabled:=False;TControl(FindComponent('RigPlayback')).Enabled:=False;
     FJob.Start; FStatus.Caption:='Gerando proposta de esqueleto com IA…';
   except on E: Exception do FStatus.Caption:=E.Message; end;
 end;
 
 procedure TCadRigEditor.ApplyJSON(Sender: TObject);
-var D: TJSONData;
+var D: TJSONData;R:TCadRig;
 begin
   try
-    StopMotion(nil); D:=GetJSON(FJSON.Text,True);
-    try FDoc.Rig.LoadJSON(D); finally D.Free; end;
-    FScript.Text:=FDoc.Rig.Script; FView.ModelChanged; RefreshList(0); UpdateJSON;
+    StopMotion(nil); D:=GetJSON(FJSON.Text,True);R:=TCadRig.Create;
+    try
+      if (D is TJSONObject) and (D.FindPath('animations')=nil) and (FDoc.Rig.AnimationsJSON<>'') then TJSONObject(D).Add('animations',GetJSON(FDoc.Rig.AnimationsJSON));
+      if (D is TJSONObject) and (D.FindPath('motion')=nil) and (FDoc.Rig.MotionJSON<>'') then TJSONObject(D).Add('motion',GetJSON(FDoc.Rig.MotionJSON));
+      R.LoadJSON(D);ValidateBindings(R);FDoc.Rig.Assign(R);
+    finally R.Free;D.Free;end;
+    FScript.Text:=FDoc.Rig.Script; FView.ModelChanged; RefreshList(0); RefreshClips; UpdateJSON;
   except on E: Exception do FStatus.Caption:=E.Message; end;
 end;
 
@@ -463,7 +533,7 @@ procedure TCadRigEditor.SaveClick(Sender: TObject);
 begin
   if FJob<>nil then begin FStatus.Caption:='Aguarde a proposta ou cancele a geração.'; Exit; end;
   try
-    StopMotion(nil); ApplyFields; FDoc.Rig.Script:=FScript.Text; FDoc.Rig.Validate; ModalResult:=mrOk;
+    StopMotion(nil); ApplyFields; FDoc.Rig.Script:=FScript.Text; ValidateBindings(FDoc.Rig); ModalResult:=mrOk;
   except on E: Exception do FStatus.Caption:=E.Message; end;
 end;
 

@@ -30,7 +30,7 @@ uses
   multicad_sketchedit, multicad_propman, multicad_undo, multicad_hole, multicad_pattern, multicad_blend, multicad_occt, multicad_import, multicad_materialdlg, multicad_textures, multicad_export, multicad_measure,
   multisuite_types, multisuite_registry, multisuite_launcher, multisuite_context,
   multicad_sketchpattern, multicad_sketchpatterndlg, multicad_sketchtext,
-  multicad_sketchtextdlg, multicad_threadop, multicad_gear, multicad_generatedmesh, multicad_aiconfig, multicad_text3ddlg, multicad_dxfimport, multicad_rigeditor;
+  multicad_sketchtextdlg, multicad_threadop, multicad_gear, multicad_generatedmesh, multicad_aiconfig, multicad_text3ddlg, multicad_dxfimport, multicad_rigeditor, multicad_avatar, multicad_avatarmesh, multicad_avatarimport, multicad_avatardlg, multicad_rig;
 
 type
   TCadTab = (ctFeatures, ctSketch, ctEvaluate, ctView, ctExport, ctAbout);
@@ -187,6 +187,10 @@ type
     procedure ImportCADClick(Sender: TObject);
     procedure GenerateText3DClick(Sender: TObject);
     procedure RigEditorClick(Sender: TObject);
+    procedure CreateAvatarClick(Sender: TObject);
+    procedure ImportAvatarClick(Sender: TObject);
+    procedure SizeAvatarClick(Sender:TObject);
+    procedure InstallAvatar(var Avatar: TCadAvatarMesh; Rig: TCadRig);
     procedure ConfigureAIClick(Sender: TObject);
     procedure EnsureAIConfig;
     function KernelText: string;
@@ -685,6 +689,8 @@ begin
         RibbonButton('IGES (outros CADs)...', sikExport, @ExportIGESClick);
         RibbonButton('Importar CAD...', sikImport, @ImportCADClick);
         RibbonButton('Gerar 3D por texto...', sikImport, @GenerateText3DClick);
+        RibbonButton('Criar avatar...', sikImport, @CreateAvatarClick);
+        RibbonButton('Importar avatar...', sikImport, @ImportAvatarClick);
         RibbonSep;
         RibbonButton('Abrir no MultiSlicer', sikSlicer, @OpenSlicerClick).SetLook(sbsSolid,
           clSuitePrimary, sikSlicer);
@@ -743,6 +749,11 @@ begin
   Command('Configuração da IA...',@ConfigureAIClick);
   Command('Esqueleto e movimentos...',@RigEditorClick);
   Command('Núcleo OpenCascade / Pascal',@KernelClick);
+  Root:=Category('Avatar');
+  Command('Criar humanoide articulado...',@CreateAvatarClick);
+  Command('Importar avatar do Assistente / glTF...',@ImportAvatarClick);
+  Command('Esqueleto e movimentos...',@RigEditorClick);
+  Command('Ajustar altura do avatar...',@SizeAvatarClick);
   Root:=Category('Sobre');
   Command('Sobre o MultiCAD',@AboutClick);Command('Abrir log',@LogClick);
 end;
@@ -2910,6 +2921,55 @@ begin
     Modified;
     SetStatus(0,'Esqueleto e movimentos atualizados. Salve o projeto .mcad.');
   end;
+end;
+
+procedure TMainForm.InstallAvatar(var Avatar: TCadAvatarMesh; Rig: TCadRig);
+begin
+  if not ConfirmDiscard then Exit;
+  FLastSketchId:=0;FPendingSketch:=False;Tree.Selected:=nil;Doc.NewPart;
+  Doc.Name:='Avatar';Doc.AddFeature(Avatar);Avatar:=nil;Doc.Rig.Assign(Rig);
+  RB.Invalidate;View.Selected.Clear;RebuildModel;View.SetView(svIso);View.FitAll;
+  UpdateCaption;ResetUndo;Modified;
+  RigEditorClick(nil);
+end;
+
+procedure TMainForm.CreateAvatarClick(Sender: TObject);
+var Avatar:TCadAvatarMesh;Rig:TCadRig;
+begin
+  if PM.Visible or Assigned(FEditor) then Exit;
+  Avatar:=nil;Rig:=nil;
+  try
+    if CreateCadAvatar(Self,Avatar,Rig) then InstallAvatar(Avatar,Rig);
+  finally Avatar.Free;Rig.Free;end;
+end;
+
+procedure TMainForm.ImportAvatarClick(Sender: TObject);
+var D:TOpenDialog;Avatar:TCadAvatarMesh;Rig:TCadRig;Path,Notes:string;OldCursor:TCursor;
+begin
+  if PM.Visible or Assigned(FEditor) then Exit;
+  D:=TOpenDialog.Create(Self);
+  try
+    D.Filter:='Avatar Assistente / glTF|avatar.json;*.gltf;*.glb|Projeto do Assistente|avatar.json|glTF 2.0|*.gltf;*.glb';
+    D.Options:=D.Options+[ofFileMustExist];if not D.Execute then Exit;Path:=D.FileName;
+  finally D.Free;end;
+  Avatar:=nil;Rig:=nil;OldCursor:=Screen.Cursor;Screen.Cursor:=crHourGlass;
+  try
+    try CadImportAvatar(Path,Avatar,Rig,Notes);
+    finally Screen.Cursor:=OldCursor;end;
+    if SizeCadAvatar(Self,Avatar,Rig) then InstallAvatar(Avatar,Rig);
+    if Notes<>'' then SetStatus(0,Notes);
+  finally Avatar.Free;Rig.Free;end;
+end;
+
+procedure TMainForm.SizeAvatarClick(Sender:TObject);
+var I:Integer;
+begin
+ if PM.Visible or Assigned(FEditor) then Exit;
+ for I:=0 to Doc.Count-1 do if Doc[I] is TCadAvatarMesh then begin
+  if SizeCadAvatar(Self,TCadAvatarMesh(Doc[I]),Doc.Rig) then begin RB.Invalidate;RebuildModel;View.FitAll;Modified;end;
+  Exit;
+ end;
+ SetStatus(0,'Crie ou importe um avatar antes de ajustar a altura.');
 end;
 
 procedure TMainForm.GenerateText3DClick(Sender: TObject);

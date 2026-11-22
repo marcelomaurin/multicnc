@@ -19,17 +19,22 @@ jobs:
         run: |
           lazbuild --ws=nogui multicad/tests/test_rig_motion.lpi
           multicad/tests/test_rig_motion
+          lazbuild --ws=nogui multicad/tests/test_avatar.lpi
+          multicad/tests/test_avatar
       - name: Compile MultiCAD and exercise the editor
         run: |
           lazbuild --ws=gtk2 multicad/src/app/multicad.lpi
           lazbuild --ws=gtk2 multicad/tests/test_rig_ui.lpi
           MULTICAD_KERNEL=pascal xvfb-run -a multicad/tests/test_rig_ui
+          lazbuild --ws=gtk2 multicad/tests/test_avatar_ui.lpi
+          MULTICAD_KERNEL=pascal xvfb-run -a multicad/tests/test_avatar_ui
       - uses: actions/upload-artifact@v4
         with:
           name: multicad-linux-rig
           path: |
             multicad/src/app/multicad
             multicad/examples/robo-articulado.*
+            multicad/examples/humanoide-articulado.*
   windows:
     runs-on: windows-latest
     timeout-minutes: 30
@@ -49,6 +54,10 @@ jobs:
           if errorlevel 1 exit /b 1
           multicad\tests\test_rig_motion.exe
           if errorlevel 1 exit /b 1
+          lazbuild multicad\tests\test_avatar.lpi
+          if errorlevel 1 exit /b 1
+          multicad\tests\test_avatar.exe
+          if errorlevel 1 exit /b 1
           lazbuild multicad\src\app\multicad.lpi
           if errorlevel 1 exit /b 1
           lazbuild multicad\tests\test_rig_ui.lpi
@@ -56,9 +65,14 @@ jobs:
           set MULTICAD_KERNEL=pascal
           multicad\tests\test_rig_ui.exe
           if errorlevel 1 exit /b 1
+          lazbuild multicad\tests\test_avatar_ui.lpi
+          if errorlevel 1 exit /b 1
+          multicad\tests\test_avatar_ui.exe
+          if errorlevel 1 exit /b 1
       - uses: actions/upload-artifact@v4
         with:
           name: multicad-windows-rig
           path: |
             multicad/src/app/multicad.exe
             multicad/examples/robo-articulado.*
+            multicad/examples/humanoide-articulado.*

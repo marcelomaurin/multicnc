@@ -19,6 +19,7 @@ type
     FConfig: TCadAIConfig;
     FModel: TLabel;
     FSize: TFloatSpinEdit;
+    FSizeReference:TComboBox;
     FStatus: TLabel;
     FGenerate, FCancel: TButton;
     FTimer: TTimer;
@@ -73,7 +74,9 @@ begin
   FPrompt.ScrollBars := ssAutoVertical;
 
   FModel := LabelAt('Modelo Meshy   ' + FConfig.Model, 132);
-  LabelAt('Maior dimensão da peça (mm)', 164);
+  LabelAt('Medida desejada (mm)', 164);
+  FSizeReference:=TComboBox.Create(Self);FSizeReference.Parent:=Self;FSizeReference.SetBounds(210,186,260,26);
+  FSizeReference.Style:=csDropDownList;FSizeReference.Items.Text:='Maior dimensão'+LineEnding+'Altura'+LineEnding+'Largura'+LineEnding+'Profundidade';FSizeReference.ItemIndex:=0;
   FSize := TFloatSpinEdit.Create(Self);
   FSize.Parent := Self;
   FSize.SetBounds(16, 186, 175, 26);
@@ -110,7 +113,7 @@ end;
 procedure TCadText3DDialog.SetRunning(Running: Boolean);
 begin
   FPrompt.Enabled := not Running;
-  FSize.Enabled := not Running;
+  FSize.Enabled := not Running;FSizeReference.Enabled:=not Running;
   FGenerate.Enabled := not Running;
   FTimer.Enabled := Running;
 end;
@@ -176,6 +179,7 @@ begin
     begin
       FStatus.Caption := FJob.ErrorMessage;
       FResult := FJob.TakeFeature;
+      if FResult<>nil then case FSizeReference.ItemIndex of 1:FResult.SizeReference:='height';2:FResult.SizeReference:='width';3:FResult.SizeReference:='depth';else FResult.SizeReference:='max';end;
     end;
     FreeAndNil(FJob);
     SetRunning(False);

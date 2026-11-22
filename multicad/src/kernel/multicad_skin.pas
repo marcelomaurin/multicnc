@@ -17,6 +17,7 @@ type
     FSource: TCadMesh;
     FBindRig: TCadRig;
     FBindings: array of TCadVertexBinding;
+    FWeighted: TCadVertexWeightArray;
   public
     constructor Create(Source: TCadMesh; Rig: TCadRig);
     destructor Destroy; override;
@@ -35,12 +36,22 @@ end;
 
 constructor TCadSkin.Create(Source: TCadMesh; Rig: TCadRig);
 var I,J,K,B0,B1: Integer; D,D0,D1: Double; Parts: TStringList;
-    Pins: array of Integer; Tr: TCadTri; Face: string;
+    Pins,JointMap: array of Integer; Tr: TCadTri; Face: string; W: TCadVertexWeights;
 begin
   inherited Create;
   Rig.Validate;
   FSource:=Source.Clone;
   FBindRig:=Rig.Clone;
+  SetLength(JointMap,Length(Source.SkinJoints));
+  for I:=0 to High(JointMap) do begin
+    JointMap[I]:=Rig.IndexOf(Source.SkinJoints[I]);
+    if JointMap[I]<0 then raise Exception.Create('O esqueleto não contém o osso vinculado: '+Source.SkinJoints[I]);
+  end;
+  FWeighted:=Copy(Source.SkinVertices,0,Source.VertCount);
+  for I:=0 to High(FWeighted) do begin
+    W:=FWeighted[I];for J:=0 to 3 do if W.Weights[J]>0 then W.Joints[J]:=JointMap[W.Joints[J]];
+    FWeighted[I]:=W;
+  end;
   SetLength(FBindings,Source.VertCount);
   SetLength(Pins,Source.VertCount);
   for I:=0 to High(Pins) do Pins[I]:=-1;
@@ -50,6 +61,7 @@ begin
     for J:=0 to Rig.Count-1 do
     begin
       Parts.DelimitedText:=Rig[J].FacePrefixes;
+      if Parts.Count=0 then Continue;
       for I:=0 to Source.TriCount-1 do
       begin
         Tr:=Source.Tris[I]; Face:=Source.Faces[Tr.Face].Name;
@@ -65,6 +77,9 @@ begin
     end;
     for I:=0 to Source.VertCount-1 do
     begin
+      if (Pins[I]<0) and (I<Length(FWeighted)) and
+        (FWeighted[I].Weights[0]+FWeighted[I].Weights[1]+FWeighted[I].Weights[2]+FWeighted[I].Weights[3]>CAD_EPS) then Continue;
+      if (Pins[I]>=0) and (I<Length(FWeighted)) then FWeighted[I]:=Default(TCadVertexWeights);
       B0:=-1; B1:=-1; D0:=1e100; D1:=1e100;
       for J:=0 to Rig.Count-1 do
       begin
@@ -92,12 +107,15 @@ destructor TCadSkin.Destroy;
 begin FSource.Free; FBindRig.Free; inherited Destroy; end;
 
 function TCadSkin.Pose(Rig: TCadRig): TCadMesh;
-var I: Integer; M: TCadRigMatrices; B: TCadVertexBinding; P: TCadVec3;
+var I,J: Integer; M: TCadRigMatrices; B: TCadVertexBinding; P,BP: TCadVec3;
 begin
   if Rig.Count<>FBindRig.Count then raise Exception.Create('Reconstrua os vínculos após alterar o esqueleto.');
   for I:=0 to Rig.Count-1 do
     if (Rig[I].ID<>FBindRig[I].ID) or (Rig[I].ParentID<>FBindRig[I].ParentID) or
-       (Rig[I].Axis<>FBindRig[I].Axis) or not VSame(Rig[I].Pivot,FBindRig[I].Pivot) or
+       (Rig[I].Axis<>FBindRig[I].Axis) or (Rig[I].Kind<>FBindRig[I].Kind) or
+       (Rig[I].SourceBone<>FBindRig[I].SourceBone) or
+       not VSame(MatDir(Rig[I].Basis,V3(1,0,0)),MatDir(FBindRig[I].Basis,V3(1,0,0))) or
+       not VSame(MatDir(Rig[I].Basis,V3(0,1,0)),MatDir(FBindRig[I].Basis,V3(0,1,0))) or not VSame(Rig[I].Pivot,FBindRig[I].Pivot) or
        not VSame(Rig[I].Tip,FBindRig[I].Tip) or (Rig[I].FacePrefixes<>FBindRig[I].FacePrefixes) then
       raise Exception.Create('Reconstrua os vínculos após alterar o esqueleto.');
   M:=Rig.Matrices;
@@ -105,6 +123,14 @@ begin
   try
     for I:=0 to FSource.VertCount-1 do
     begin
+      if (I<Length(FWeighted)) and (FWeighted[I].Weights[0]+FWeighted[I].Weights[1]+FWeighted[I].Weights[2]+FWeighted[I].Weights[3]>CAD_EPS) then begin
+        P:=V3(0,0,0);
+        for J:=0 to 3 do if FWeighted[I].Weights[J]>0 then begin
+          BP:=FSource.Verts[I];if FWeighted[I].HasBindPoints then BP:=FWeighted[I].BindPoints[J];
+          P:=VAdd(P,VScale(MatPoint(M[FWeighted[I].Joints[J]],BP),FWeighted[I].Weights[J]));
+        end;
+        Result.SetVert(I,P);Continue;
+      end;
       B:=FBindings[I]; P:=FSource.Verts[I];
       if B.Bone0>=Length(M) then raise Exception.Create('Reconstrua os vínculos após alterar o esqueleto.');
       if B.Bone0>=0 then

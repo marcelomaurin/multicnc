@@ -343,7 +343,7 @@ begin
           Closed := Infos[K].Chain.Closed;
         end;
       end;
-      B := FRB.Body(I).Mesh.Bounds;
+      if (FPoseRig<>nil) and (FPoseRig.Count>0) then B:=TCadMesh(FPosedMeshes.Last).Bounds else B := FRB.Body(I).Mesh.Bounds;
       if not B.Empty then
       begin
         BoxAdd(FModelBox, B.Min);
@@ -367,15 +367,17 @@ begin
 end;
 
 procedure TCadView3D.RefreshRigPose;
-var I: Integer;
+var I: Integer;B:TCadBox3;
 begin
   if FPoseRig=nil then Exit;
   FCaches.Clear;
   FPosedMeshes.Clear;
+  FModelBox:=BoxEmpty;
   for I:=0 to FSkins.Count-1 do
   begin
     FPosedMeshes.Add(TCadSkin(FSkins[I]).Pose(FPoseRig));
     FCaches.Add(TCadMeshCache.Create(TCadMesh(FPosedMeshes.Last)));
+    B:=TCadMesh(FPosedMeshes.Last).Bounds;if not B.Empty then begin BoxAdd(FModelBox,B.Min);BoxAdd(FModelBox,B.Max);end;
   end;
   Redraw;
 end;
@@ -408,6 +410,7 @@ begin
     por tique, desenhado inteiro no back buffer e apresentado de uma vez }
   if not HandleAllocated or not IsVisible or (ClientWidth < 2) or (ClientHeight < 2) then
     Exit;
+  if FNeedFit and (ClientWidth>=50) and (ClientHeight>=50) then FitAll;
   if FInteractive and not FDragging and (GetTickCount64 > FInteractiveUntil) then
   begin
     FInteractive := False;
@@ -1007,6 +1010,7 @@ begin
     for I:=0 to FPoseRig.Count-1 do
     begin
       Segment:=FPoseRig[I];
+      if (Segment.SourceBone<>'') and not SameText(Segment.ID,Segment.SourceBone) then Continue;
       FRaster.DrawLine3D(MatPoint(RigMatrices[I],Segment.Pivot),
         MatPoint(RigMatrices[I],Segment.Tip),CadRGB(0,170,220),3,False);
       FRaster.DrawPoint3D(MatPoint(RigMatrices[I],Segment.Pivot),CadRGB(250,170,10),7,False);

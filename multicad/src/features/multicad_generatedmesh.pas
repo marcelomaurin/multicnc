@@ -21,11 +21,12 @@ type
   public
     Prompt, Model: string;
     SizeMM: Double;
+    SizeReference: string; { max (legacy), height, width, depth }
     constructor Create; override;
     procedure SetSTL(const Data: RawByteString);
     procedure LoadParams(O: TJSONObject); override;
     procedure SaveParams(O: TJSONObject); override;
-    function BuildMesh: TCadMesh;
+    function BuildMesh: TCadMesh; virtual;
   end;
 
   TCadImportedSTL = class(TCadGeneratedMesh)
@@ -48,7 +49,7 @@ constructor TCadGeneratedMesh.Create;
 begin
   inherited Create;
   SetKind(cfGeneratedMesh);
-  SizeMM := 100;
+  SizeMM := 100;SizeReference:='max';
 end;
 
 function TCadGeneratedMesh.TriangleLimit: Integer;
@@ -87,7 +88,7 @@ procedure TCadGeneratedMesh.LoadParams(O: TJSONObject);
 begin
   Prompt := JStr(O, 'prompt', '');
   Model := JStr(O, 'model', '');
-  SizeMM := JNum(O, 'size_mm', 100);
+  SizeMM := JNum(O, 'size_mm', 100);SizeReference:=JStr(O,'size_reference','max');
   LoadSTLParam(O);
 end;
 
@@ -95,7 +96,7 @@ procedure TCadGeneratedMesh.SaveParams(O: TJSONObject);
 begin
   O.Add('prompt', Prompt);
   O.Add('model', Model);
-  O.Add('size_mm', SizeMM);
+  O.Add('size_mm', SizeMM);O.Add('size_reference',SizeReference);
   O.Add('stl', EncodeStringBase64(FSTL));
 end;
 
@@ -160,7 +161,11 @@ begin
       Inc(Offset, 50);
     end;
     Span := V3(Box.Max.X-Box.Min.X, Box.Max.Y-Box.Min.Y, Box.Max.Z-Box.Min.Z);
-    Scale := Max(Span.X, Max(Span.Y,Span.Z));
+    if SizeReference='max' then Scale:=Max(Span.X,Max(Span.Y,Span.Z))
+    else if SizeReference='height' then Scale:=Span.Y
+    else if SizeReference='width' then Scale:=Span.X
+    else if SizeReference='depth' then Scale:=Span.Z
+    else raise Exception.Create('Referência de dimensão inválida.');
     if Scale <= CAD_EPS then
       raise Exception.Create('A malha gerada não possui dimensão útil.');
     Scale := SizeMM / Scale;

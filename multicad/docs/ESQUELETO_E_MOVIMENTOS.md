@@ -69,7 +69,7 @@ não alteram a pose do documento.
 
 ## Movimentos do Assistente
 
-**Importar movimento** lê JSON `assistente-motion` versão 1: `tracks`, `bone`,
+**Importar movimento** lê JSON `assistente-motion` versões 1 e 2: `tracks`, `bone`,
 `axis` e `keyframes` com `time_ms` e `angle`. Os nomes dos ossos precisam
 corresponder ao ID ou nome de um segmento. O eixo de cada trilha precisa
 coincidir com o eixo da junta. Ossos desconhecidos ou eixos incompatíveis
@@ -78,8 +78,8 @@ geram um diagnóstico; não são descartados silenciosamente.
 Há suporte a interpolação linear/smoothstep, repetição e retorno à pose base.
 **Reproduzir importado** usa o movimento gravado no projeto. **Importar/
 exportar esqueleto** troca o JSON `multicad-rig` versão 1, também editável
-pela aba **JSON do esqueleto**. Não importa automaticamente o rig de arquivos
-GLB/FBX nem os projetos completos de avatar do Assistente.
+pela aba **JSON do esqueleto**. O menu **Avatar** importa o rig e os movimentos de GLB/glTF e de `avatar.json`
+do Assistente. FBX não é suportado. Veja [Gerar avatares](GERAR_AVATARES.md).
 
 ## Criação com IA
 
