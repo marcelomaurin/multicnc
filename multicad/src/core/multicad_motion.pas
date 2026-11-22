@@ -187,18 +187,18 @@ begin
 end;
 
 procedure TCadMotion.Evaluate(TimeMS: Int64; Rig, BasePose: TCadRig);
-var I,J,N,A: Integer;K: TCadMotionKeys;V: TCadVec3;Angle,T,Entry,Back: Double;
+var I,J,N,A: Integer;K: TCadMotionKeys;V,BaseAngles: TCadVec3;Angle,T,Entry,Back: Double;AbsoluteTime:Int64;
     Q0,Q1: TCadQuat;
 begin
   if (BasePose=nil) or (BasePose.Count<>Rig.Count) then raise Exception.Create('Pose base incompatível.');
   for I:=0 to Rig.Count-1 do Rig.SetAngle(Rig[I].ID,BasePose[I].Angle);
-  Back:=0;Entry:=1;
+  Back:=0;Entry:=1;AbsoluteTime:=TimeMS;
   if Loop and (DurationMS>0) then TimeMS:=TimeMS mod DurationMS
   else if ReturnToBase and (TimeMS>=DurationMS) then begin
     if (ReturnMS=0) or (TimeMS>=Int64(DurationMS)+ReturnMS) then Exit;
     Back:=(TimeMS-DurationMS)/ReturnMS;Back:=Back*Back*(3-2*Back);
   end;
-  if (EntryMS>0) and (TimeMS<EntryMS) then begin Entry:=Max(0.0,TimeMS/EntryMS);Entry:=Entry*Entry*(3-2*Entry);end;
+  if (EntryMS>0) and (AbsoluteTime<EntryMS) then begin Entry:=Max(0.0,AbsoluteTime/EntryMS);Entry:=Entry*Entry*(3-2*Entry);end;
   TimeMS:=EnsureRange(TimeMS,Int64(0),Int64(DurationMS));
   for I:=0 to High(Tracks) do begin
     K:=Tracks[I].Keys;if TimeMS<K[0].TimeMS then Continue;
@@ -211,13 +211,18 @@ begin
         else begin Q0:=CadQEuler(K[J-1].Value);Q1:=CadQEuler(K[J].Value);V:=CadQAngles(CadQSlerp(Q0,Q1,T));end;
       end;Break;
     end;
+    if Tracks[I].XYZ and (Tracks[I].Kind=jkRotation) then begin
+      BaseAngles:=V3(BasePose[Rig.ChannelIndex(Tracks[I].SegmentID,jaX)].Angle,
+        BasePose[Rig.ChannelIndex(Tracks[I].SegmentID,jaY)].Angle,BasePose[Rig.ChannelIndex(Tracks[I].SegmentID,jaZ)].Angle);
+      V:=CadQAngles(CadQSlerp(CadQEuler(BaseAngles),CadQEuler(V),Entry*(1-Back)));
+    end;
     for A:=0 to 2 do begin
       if not Tracks[I].XYZ and (A<>Ord(Tracks[I].Axis)) then Continue;
       N:=Rig.ChannelIndex(Tracks[I].SegmentID,TCadJointAxis(A),Tracks[I].Kind);
       if N<0 then raise Exception.Create('Canal de movimento ausente: '+Tracks[I].SegmentID);
       if Tracks[I].XYZ then case A of 0:Angle:=V.X;1:Angle:=V.Y;2:Angle:=V.Z;end;
       if Tracks[I].Kind=jkTranslation then Angle:=Angle*PositionScale;
-      Angle:=BasePose[N].Angle+(Angle-BasePose[N].Angle)*Entry*(1-Back);
+      if not (Tracks[I].XYZ and (Tracks[I].Kind=jkRotation)) then Angle:=BasePose[N].Angle+(Angle-BasePose[N].Angle)*Entry*(1-Back);
       Rig.SetAngle(Rig[N].ID,Angle);
     end;
   end;

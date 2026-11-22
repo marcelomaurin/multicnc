@@ -50,6 +50,7 @@ begin
   Check(not CompileCadMotion('begin IniciarSimultaneo; MoverSegmento(''arm'',20,100); MoverSegmento(''arm'',40,100); FinalizarSimultaneo; end.',R,M,Err),'canais sobrepostos rejeitados');
   M:=TCadMotion.Create;M.ReturnToBase:=True;M.ReturnMS:=320;M.AddKey('arm',jaZ,0,0);M.AddKey('arm',jaZ,1000,60);
   M.Evaluate(1000,R,B);Check(Abs(R[0].Angle-60)<1e-8,'retorno não salta no último quadro');M.Evaluate(1160,R,B);Check(Abs(R[0].Angle-30)<1e-8,'retorno suave');M.Evaluate(1320,R,B);Check(R[0].Angle=0,'retorno concluído');
+  M.Loop:=True;M.Smooth:=False;M.EntryMS:=320;M.Evaluate(1100,R,B);Check(Abs(R[0].Angle-6)<1e-8,'entrada suave acontece uma vez, sem reiniciar em cada ciclo');
  finally M.Free;B.Free;R.Free;end;
 end;
 
